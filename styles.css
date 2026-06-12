@@ -1,0 +1,215 @@
+:root {
+    --bg-color: #0f172a;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --card-bg: rgba(30, 41, 59, 0.6);
+    --card-border: rgba(255, 255, 255, 0.1);
+    --accent: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.5);
+    --card-hover: rgba(51, 65, 85, 0.8);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Background Animated Blobs */
+.background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.5;
+    animation: float 20s infinite alternate ease-in-out;
+}
+
+.blob-1 {
+    width: 400px;
+    height: 400px;
+    background: #3b82f6;
+    top: -10%;
+    left: -10%;
+    animation-delay: 0s;
+}
+
+.blob-2 {
+    width: 500px;
+    height: 500px;
+    background: #8b5cf6;
+    bottom: -20%;
+    right: -10%;
+    animation-delay: -5s;
+}
+
+@keyframes float {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(100px, 50px) scale(1.2); }
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 4rem;
+    animation: fadeDown 1s ease-out forwards;
+}
+
+header h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #60a5fa, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+header p {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+}
+
+.app-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 20px;
+    padding: 2rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* For staggered animation applied via JS */
+.app-card.animate-in {
+    animation: fadeUp 0.6s ease-out forwards;
+}
+
+.app-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.app-card:hover {
+    transform: translateY(-8px);
+    background: var(--card-hover);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px var(--accent-glow);
+}
+
+.app-card:hover::before {
+    opacity: 1;
+}
+
+.icon-wrapper {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    color: var(--accent);
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s ease;
+}
+
+.app-card:hover .icon-wrapper {
+    background: var(--accent);
+    color: #fff;
+    transform: scale(1.1) rotate(5deg);
+}
+
+.app-card h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    z-index: 1;
+}
+
+.app-card p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    z-index: 1;
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+}
+
+.launch-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent);
+    z-index: 1;
+    transition: gap 0.3s ease;
+}
+
+.app-card:hover .launch-btn {
+    gap: 0.8rem;
+    color: #60a5fa;
+}
+
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    header h1 { font-size: 2.2rem; }
+    .grid { grid-template-columns: 1fr; }
+}
