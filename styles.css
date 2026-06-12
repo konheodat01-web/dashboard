@@ -76,6 +76,7 @@ header {
     text-align: center;
     margin-bottom: 4rem;
     animation: fadeDown 1s ease-out forwards;
+    position: relative;
 }
 
 header h1 {
@@ -90,6 +91,34 @@ header h1 {
 header p {
     font-size: 1.2rem;
     color: var(--text-secondary);
+}
+
+.logo {
+    max-height: 64px;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+    object-fit: contain;
+}
+
+.admin-link {
+    position: absolute;
+    top: 0; right: 0;
+    width: 40px; height: 40px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 1rem;
+    transition: all .25s ease;
+}
+
+.admin-link:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    transform: rotate(90deg);
 }
 
 .grid {
