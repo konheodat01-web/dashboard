@@ -8,222 +8,169 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --bg:          #0a0f1e;
-            --surface:     #111827;
-            --surface-2:   #1e2a3a;
-            --border:      rgba(255,255,255,0.08);
-            --accent:      #3b82f6;
-            --accent-dim:  rgba(59,130,246,0.15);
-            --success:     #10b981;
-            --danger:      #ef4444;
-            --text:        #f1f5f9;
-            --muted:       #64748b;
-            --radius:      14px;
+            --bg:        #0a0f1e;
+            --surface:   #111827;
+            --surface-2: #1e2a3a;
+            --border:    rgba(255,255,255,0.08);
+            --accent:    #3b82f6;
+            --accent-dim:rgba(59,130,246,0.15);
+            --success:   #10b981;
+            --danger:    #ef4444;
+            --text:      #f1f5f9;
+            --muted:     #64748b;
+            --radius:    14px;
         }
         * { margin:0; padding:0; box-sizing:border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
+        body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
 
         /* ── Topbar ── */
         .topbar {
-            position: sticky; top: 0; z-index: 100;
-            background: rgba(10,15,30,0.85);
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--border);
-            padding: 0 2rem;
-            display: flex; align-items: center; justify-content: space-between;
-            height: 64px;
+            position:sticky; top:0; z-index:200;
+            background:rgba(10,15,30,0.9); backdrop-filter:blur(16px);
+            border-bottom:1px solid var(--border);
+            padding:0 2rem; display:flex; align-items:center;
+            justify-content:space-between; height:64px;
         }
-        .topbar-brand {
-            display: flex; align-items: center; gap: .75rem;
-            font-weight: 800; font-size: 1.2rem;
-        }
-        .topbar-brand i { color: var(--accent); }
-        .topbar-actions { display: flex; gap: .75rem; }
+        .topbar-brand { display:flex; align-items:center; gap:.75rem; font-weight:800; font-size:1.2rem; }
+        .topbar-brand i { color:var(--accent); }
+        .topbar-actions { display:flex; gap:.75rem; }
 
-        /* ── Buttons ── */
-        .btn {
-            display: inline-flex; align-items: center; gap: .5rem;
-            padding: .6rem 1.25rem;
-            border: none; border-radius: 8px;
-            font-family: inherit; font-size: .9rem; font-weight: 600;
-            cursor: pointer; transition: all .2s ease;
-        }
-        .btn-primary { background: var(--accent); color: #fff; }
-        .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
-        .btn-ghost {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--muted);
-        }
-        .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+        .btn { display:inline-flex; align-items:center; gap:.5rem; padding:.6rem 1.25rem; border:none; border-radius:8px; font-family:inherit; font-size:.9rem; font-weight:600; cursor:pointer; transition:all .2s ease; }
+        .btn-primary { background:var(--accent); color:#fff; }
+        .btn-primary:hover { background:#2563eb; transform:translateY(-1px); }
+        .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--muted); }
+        .btn-ghost:hover { border-color:var(--accent); color:var(--accent); }
 
         /* ── Layout ── */
-        .layout {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem 4rem;
-            display: flex; flex-direction: column; gap: 2rem;
-        }
+        .layout { max-width:900px; margin:0 auto; padding:2rem 1.5rem 4rem; display:flex; flex-direction:column; gap:2rem; }
 
-        /* ── Section Card ── */
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            overflow: hidden;
-        }
-        .card-header {
-            padding: 1.25rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; gap: .75rem;
-        }
-        .card-header i { color: var(--accent); width: 20px; text-align: center; }
-        .card-header h2 { font-size: 1rem; font-weight: 700; }
-        .card-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+        .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+        .card-header { padding:1.25rem 1.5rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:.75rem; }
+        .card-header i { color:var(--accent); width:20px; text-align:center; }
+        .card-header h2 { font-size:1rem; font-weight:700; }
+        .card-body { padding:1.5rem; display:flex; flex-direction:column; gap:1.25rem; }
 
-        /* ── Form Fields ── */
-        .field { display: flex; flex-direction: column; gap: .5rem; }
-        .field label { font-size: .8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+        .field { display:flex; flex-direction:column; gap:.5rem; }
+        .field label { font-size:.8rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
         .field input[type="text"] {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: .7rem 1rem;
-            color: var(--text);
-            font-family: inherit;
-            font-size: .95rem;
-            transition: border-color .2s;
-            width: 100%;
+            background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+            padding:.7rem 1rem; color:var(--text); font-family:inherit; font-size:.95rem;
+            transition:border-color .2s; width:100%;
         }
-        .field input[type="text"]:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-dim);
-        }
-        .field input[type="text"]::placeholder { color: var(--muted); }
+        .field input[type="text"]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
+        .field input[type="text"]::placeholder { color:var(--muted); }
 
         /* ── Tool Row ── */
-        .tool-list { display: flex; flex-direction: column; gap: .75rem; }
+        .tool-list { display:flex; flex-direction:column; gap:.75rem; }
         .tool-row {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 1rem 1.25rem;
-            display: grid;
-            grid-template-columns: auto 1fr 1fr 120px;
-            gap: 1rem;
-            align-items: center;
-            transition: border-color .2s, background .2s;
+            background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+            padding:1rem 1.25rem;
+            display:grid; grid-template-columns:28px 1fr auto auto;
+            gap:1rem; align-items:center; transition:border-color .2s;
         }
-        .tool-row:hover { border-color: rgba(59,130,246,0.3); }
-        .tool-row.hidden-tool { opacity: .45; }
+        .tool-row:hover { border-color:rgba(59,130,246,0.3); }
+        .tool-row.hidden-tool { opacity:.45; }
 
-        .tool-index {
-            font-size: .8rem; font-weight: 700;
-            color: var(--muted);
-            width: 24px; text-align: center;
-        }
+        .tool-index { font-size:.8rem; font-weight:700; color:var(--muted); text-align:center; }
         .tool-row input[type="text"] {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: .5rem .75rem;
-            color: var(--text);
-            font-family: 'Inter', monospace;
-            font-size: .85rem;
-            width: 100%;
-            transition: border-color .2s;
+            background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:6px;
+            padding:.5rem .75rem; color:var(--text); font-family:'Inter',sans-serif; font-size:.9rem;
+            width:100%; transition:border-color .2s;
         }
-        .tool-row input[type="text"]:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-        .tool-row input[type="text"]::placeholder { color: var(--muted); font-style: italic; }
+        .tool-row input[type="text"]:focus { outline:none; border-color:var(--accent); }
 
-        /* Icon preview */
-        .icon-field { position: relative; }
-        .icon-field input { padding-left: 2.4rem !important; }
-        .icon-preview {
-            position: absolute; left: .75rem; top: 50%; transform: translateY(-50%);
-            color: var(--accent); font-size: .9rem;
+        /* ── Icon Picker Button ── */
+        .icon-pick-btn {
+            display:flex; align-items:center; justify-content:center; gap:.5rem;
+            padding:.5rem .9rem;
+            background:var(--accent-dim); border:1px solid rgba(59,130,246,0.35);
+            border-radius:8px; color:var(--accent); font-size:.85rem; font-weight:600;
+            cursor:pointer; transition:all .2s; white-space:nowrap;
+            font-family:'Inter',sans-serif;
         }
+        .icon-pick-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+        .icon-pick-btn .preview-icon { font-size:1.1rem; }
 
         /* ── Toggle Switch ── */
-        .toggle-wrap { display: flex; align-items: center; justify-content: flex-end; gap: .6rem; }
-        .toggle-label { font-size: .8rem; color: var(--muted); }
-        .toggle {
-            position: relative; width: 44px; height: 24px;
-            display: inline-block; flex-shrink: 0;
-        }
-        .toggle input { opacity: 0; width: 0; height: 0; }
-        .slider {
-            position: absolute; cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: #334155; border-radius: 24px;
-            transition: .3s;
-        }
-        .slider:before {
-            content: ""; position: absolute;
-            height: 18px; width: 18px;
-            left: 3px; bottom: 3px;
-            background: #fff; border-radius: 50%;
-            transition: .3s;
-        }
-        .toggle input:checked + .slider { background: var(--accent); }
-        .toggle input:checked + .slider:before { transform: translateX(20px); }
+        .toggle-wrap { display:flex; align-items:center; gap:.6rem; }
+        .toggle-label { font-size:.8rem; color:var(--muted); }
+        .toggle { position:relative; width:44px; height:24px; display:inline-block; flex-shrink:0; }
+        .toggle input { opacity:0; width:0; height:0; }
+        .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#334155; border-radius:24px; transition:.3s; }
+        .slider:before { content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; }
+        .toggle input:checked + .slider { background:var(--accent); }
+        .toggle input:checked + .slider:before { transform:translateX(20px); }
 
-        /* ── Toast Notification ── */
+        /* ── Icon Picker Popup ── */
+        .picker-overlay {
+            position:fixed; inset:0; z-index:1000;
+            background:rgba(0,0,0,0.7); backdrop-filter:blur(4px);
+            display:none; align-items:center; justify-content:center;
+        }
+        .picker-overlay.active { display:flex; }
+        .picker-modal {
+            background:#111827; border:1px solid rgba(255,255,255,0.12);
+            border-radius:18px; padding:1.5rem;
+            width:min(520px, 95vw); max-height:80vh;
+            display:flex; flex-direction:column; gap:1rem;
+            box-shadow:0 30px 80px rgba(0,0,0,0.6);
+            animation:popIn .25s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes popIn { from { transform:scale(0.85); opacity:0; } to { transform:scale(1); opacity:1; } }
+        .picker-header { display:flex; align-items:center; justify-content:space-between; }
+        .picker-header h3 { font-size:1rem; font-weight:700; }
+        .picker-close { background:none; border:none; color:var(--muted); font-size:1.3rem; cursor:pointer; padding:.25rem; border-radius:6px; transition:color .2s; }
+        .picker-close:hover { color:var(--text); }
+        .icon-grid {
+            display:grid; grid-template-columns:repeat(auto-fill,minmax(60px,1fr));
+            gap:.5rem; overflow-y:auto; max-height:55vh;
+            padding-right:.25rem;
+        }
+        .icon-grid::-webkit-scrollbar { width:4px; }
+        .icon-grid::-webkit-scrollbar-thumb { background:#334155; border-radius:4px; }
+        .icon-item {
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            gap:.3rem; padding:.6rem .3rem; border-radius:10px; cursor:pointer;
+            border:2px solid transparent; transition:all .15s ease;
+            background:rgba(255,255,255,0.03);
+        }
+        .icon-item:hover { background:var(--accent-dim); border-color:rgba(59,130,246,0.4); }
+        .icon-item.selected { background:var(--accent); border-color:var(--accent); color:#fff; }
+        .icon-item i { font-size:1.4rem; }
+        .icon-item span { font-size:.55rem; color:var(--muted); text-align:center; word-break:break-all; line-height:1.2; }
+        .icon-item.selected span { color:rgba(255,255,255,0.8); }
+
+        /* ── Toast ── */
         #toast {
-            position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
-            padding: 1rem 1.5rem;
-            border-radius: 10px;
-            font-weight: 600; font-size: .95rem;
-            display: flex; align-items: center; gap: .75rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-            transform: translateY(100px); opacity: 0;
-            transition: all .4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position:fixed; bottom:2rem; right:2rem; z-index:9999;
+            padding:1rem 1.5rem; border-radius:10px; font-weight:600; font-size:.95rem;
+            display:flex; align-items:center; gap:.75rem;
+            box-shadow:0 10px 30px rgba(0,0,0,0.4);
+            transform:translateY(100px); opacity:0;
+            transition:all .4s cubic-bezier(0.34,1.56,0.64,1);
         }
-        #toast.show { transform: translateY(0); opacity: 1; }
-        #toast.success { background: #065f46; border: 1px solid var(--success); color: #d1fae5; }
-        #toast.error   { background: #7f1d1d; border: 1px solid var(--danger);  color: #fee2e2; }
+        #toast.show { transform:translateY(0); opacity:1; }
+        #toast.success { background:#065f46; border:1px solid var(--success); color:#d1fae5; }
+        #toast.error   { background:#7f1d1d; border:1px solid var(--danger);  color:#fee2e2; }
 
-        @media (max-width: 640px) {
-            .tool-row { grid-template-columns: auto 1fr; }
-            .tool-row input:last-of-type, .toggle-wrap { grid-column: 2; }
-        }
+        @media (max-width:640px) { .tool-row { grid-template-columns:28px 1fr; } }
     </style>
 </head>
 <body>
 
 <div class="topbar">
-    <div class="topbar-brand">
-        <i class="fa-solid fa-shield-halved"></i>
-        Admin Panel
-    </div>
+    <div class="topbar-brand"><i class="fa-solid fa-shield-halved"></i> Admin Panel</div>
     <div class="topbar-actions">
-        <a href="/" class="btn btn-ghost" target="_blank">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i> Xem Dashboard
-        </a>
-        <button class="btn btn-primary" id="save-btn" onclick="saveConfig()">
-            <i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình
-        </button>
+        <a href="/" class="btn btn-ghost" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i> Xem Dashboard</a>
+        <button class="btn btn-primary" id="save-btn" onclick="saveConfig()"><i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình</button>
     </div>
 </div>
 
 <div class="layout">
-
-    <!-- ── Site Settings ── -->
+    <!-- Site Settings -->
     <div class="card">
-        <div class="card-header">
-            <i class="fa-solid fa-globe"></i>
-            <h2>Cài đặt Website</h2>
-        </div>
-        <div class="card-body" style="flex-direction: row; gap: 1.5rem; flex-wrap: wrap;">
+        <div class="card-header"><i class="fa-solid fa-globe"></i><h2>Cài đặt Website</h2></div>
+        <div class="card-body" style="flex-direction:row; gap:1.5rem; flex-wrap:wrap;">
             <div class="field" style="flex:1; min-width:200px;">
                 <label>Tên Website</label>
                 <input type="text" id="siteName" placeholder="Command Center">
@@ -235,38 +182,104 @@
         </div>
     </div>
 
-    <!-- ── Tool List ── -->
+    <!-- Tool List -->
     <div class="card">
         <div class="card-header">
             <i class="fa-solid fa-cubes"></i>
             <h2>Quản lý Tool <span id="visible-count" style="color:var(--accent); margin-left:.5rem;"></span></h2>
         </div>
         <div class="card-body">
-            <div class="tool-list" id="tool-list">
-                <!-- Rendered by JS -->
-            </div>
+            <div class="tool-list" id="tool-list"></div>
         </div>
     </div>
+</div>
 
+<!-- Icon Picker Overlay -->
+<div class="picker-overlay" id="picker-overlay" onclick="closePicker(event)">
+    <div class="picker-modal">
+        <div class="picker-header">
+            <h3><i class="fa-solid fa-icons" style="color:var(--accent);margin-right:.5rem;"></i>Chọn Biểu Tượng</h3>
+            <button class="picker-close" onclick="closePicker()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="icon-grid" id="icon-grid"></div>
+    </div>
 </div>
 
 <div id="toast"></div>
 
 <script>
-let config = null;
+// ── Icon Library ──────────────────────────────────────────────────────────────
+const ICON_LIBRARY = [
+    "fa-robot","fa-spider","fa-database","fa-magnifying-glass","fa-chart-line",
+    "fa-shield-halved","fa-wallet","fa-gear","fa-cogs","fa-link","fa-globe",
+    "fa-code","fa-download","fa-image","fa-images","fa-server","fa-chart-bar",
+    "fa-chart-pie","fa-file","fa-folder","fa-cloud","fa-lock","fa-key",
+    "fa-bug","fa-terminal","fa-network-wired","fa-bell","fa-bookmark","fa-camera",
+    "fa-calculator","fa-calendar","fa-clipboard","fa-coins","fa-credit-card",
+    "fa-eye","fa-filter","fa-fingerprint","fa-fire","fa-flag","fa-flask",
+    "fa-hashtag","fa-house","fa-layer-group","fa-list-check","fa-microchip",
+    "fa-newspaper","fa-paper-plane","fa-satellite","fa-user-ninja","fa-users-gear",
+    "fa-magnifying-glass-chart","fa-diagram-project","fa-file-code","fa-brain",
+    "fa-wand-magic-sparkles","fa-bolt","fa-shop","fa-truck","fa-box","fa-cube"
+];
 
-// ── Load config from server ──────────────────────────────────────────────────
+let config = null;
+let activePickerIndex = null; // which tool row is being edited (null = site icon)
+
+// ── Populate icon grid ────────────────────────────────────────────────────────
+function buildIconGrid() {
+    const grid = document.getElementById("icon-grid");
+    grid.innerHTML = "";
+    ICON_LIBRARY.forEach(icon => {
+        const el = document.createElement("div");
+        el.className = "icon-item";
+        el.dataset.icon = icon;
+        el.innerHTML = `<i class="fa-solid ${icon}"></i><span>${icon.replace("fa-","")}</span>`;
+        el.onclick = () => selectIcon(icon);
+        grid.appendChild(el);
+    });
+}
+
+function openPicker(toolIndex) {
+    activePickerIndex = toolIndex;
+    // Mark currently selected icon
+    const currentIcon = toolIndex === null
+        ? null  // future: site favicon icon
+        : (config.tools[toolIndex]?.icon || "");
+    document.querySelectorAll(".icon-item").forEach(el => {
+        el.classList.toggle("selected", el.dataset.icon === currentIcon);
+    });
+    document.getElementById("picker-overlay").classList.add("active");
+}
+
+function closePicker(event) {
+    if (event && event.target !== document.getElementById("picker-overlay")) return;
+    document.getElementById("picker-overlay").classList.remove("active");
+    activePickerIndex = null;
+}
+
+function selectIcon(icon) {
+    if (activePickerIndex !== null) {
+        config.tools[activePickerIndex].icon = icon;
+        // Update the button UI
+        const btn = document.getElementById(`icon-btn-${activePickerIndex}`);
+        btn.innerHTML = `<i class="fa-solid ${icon} preview-icon"></i> ${icon.replace("fa-","")} <i class="fa-solid fa-chevron-down" style="margin-left:auto;font-size:.7rem;opacity:.6;"></i>`;
+    }
+    document.getElementById("picker-overlay").classList.remove("active");
+    activePickerIndex = null;
+}
+
+// ── Load & Render ─────────────────────────────────────────────────────────────
 async function loadConfig() {
     try {
         const res = await fetch("/api/config");
         config = await res.json();
         renderForm();
     } catch (e) {
-        showToast("❌ Không thể kết nối đến server.js!", "error");
+        showToast("❌ Không thể kết nối đến server!", "error");
     }
 }
 
-// ── Render form from config ───────────────────────────────────────────────────
 function renderForm() {
     document.getElementById("siteName").value = config.siteName || "";
     document.getElementById("logoUrl").value  = config.logoUrl  || "";
@@ -278,122 +291,77 @@ function renderForm() {
         const row = document.createElement("div");
         row.className = "tool-row" + (tool.visible ? "" : " hidden-tool");
         row.id = `row-${i}`;
-
         row.innerHTML = `
-            <span class="tool-index">${i + 1}</span>
-
-            <input type="text" id="name-${i}" value="${tool.name}"
-                   placeholder="Tên tool" oninput="syncRow(${i})">
-
-            <div class="icon-field" style="position:relative;">
-                <i class="fa-solid icon-preview" id="icon-prev-${i} ${tool.icon}"></i>
-                <input type="text" id="icon-${i}" value="${tool.icon}"
-                       placeholder="fa-robot" oninput="updateIconPreview(${i})">
-            </div>
-
+            <span class="tool-index">${i+1}</span>
+            <input type="text" id="name-${i}" value="${tool.name}" placeholder="Tên tool"
+                   oninput="config.tools[${i}].name=this.value">
+            <button class="icon-pick-btn" id="icon-btn-${i}" onclick="openPicker(${i})">
+                <i class="fa-solid ${tool.icon} preview-icon"></i>
+                ${tool.icon.replace("fa-","")}
+                <i class="fa-solid fa-chevron-down" style="margin-left:auto;font-size:.7rem;opacity:.6;"></i>
+            </button>
             <div class="toggle-wrap">
-                <span class="toggle-label" id="toggle-lbl-${i}">${tool.visible ? "Hiện" : "Ẩn"}</span>
+                <span class="toggle-label" id="toggle-lbl-${i}">${tool.visible?"Hiện":"Ẩn"}</span>
                 <label class="toggle">
-                    <input type="checkbox" id="visible-${i}"
-                           ${tool.visible ? "checked" : ""}
+                    <input type="checkbox" id="visible-${i}" ${tool.visible?"checked":""}
                            onchange="toggleVisibility(${i})">
                     <span class="slider"></span>
                 </label>
-            </div>
-        `;
+            </div>`;
         list.appendChild(row);
-
-        // Render icon preview correctly
-        const prevEl = row.querySelector(".icon-preview");
-        prevEl.className = `fa-solid icon-preview ${tool.icon}`;
     });
-
     updateVisibleCount();
-}
-
-function updateIconPreview(i) {
-    const val  = document.getElementById(`icon-${i}`).value.trim();
-    const prev = document.querySelector(`#row-${i} .icon-preview`);
-    prev.className = `fa-solid icon-preview ${val}`;
 }
 
 function toggleVisibility(i) {
     const chk = document.getElementById(`visible-${i}`);
-    const lbl = document.getElementById(`toggle-lbl-${i}`);
-    const row = document.getElementById(`row-${i}`);
-    lbl.textContent = chk.checked ? "Hiện" : "Ẩn";
-    row.className   = "tool-row" + (chk.checked ? "" : " hidden-tool");
+    config.tools[i].visible = chk.checked;
+    document.getElementById(`toggle-lbl-${i}`).textContent = chk.checked ? "Hiện" : "Ẩn";
+    document.getElementById(`row-${i}`).className = "tool-row" + (chk.checked ? "" : " hidden-tool");
     updateVisibleCount();
 }
 
 function updateVisibleCount() {
     const total   = config.tools.length;
-    const visible = [...document.querySelectorAll('[id^="visible-"]')]
-                    .filter(c => c.checked).length;
+    const visible = config.tools.filter(t => t.visible).length;
     document.getElementById("visible-count").textContent = `(${visible}/${total} hiển thị)`;
 }
 
-// ── Collect form data ─────────────────────────────────────────────────────────
-function collectForm() {
-    return {
-        siteName: document.getElementById("siteName").value.trim(),
-        logoUrl:  document.getElementById("logoUrl").value.trim(),
-        tools: config.tools.map((tool, i) => ({
-            id:      tool.id,
-            name:    document.getElementById(`name-${i}`).value.trim() || tool.name,
-            icon:    document.getElementById(`icon-${i}`).value.trim() || tool.icon,
-            visible: document.getElementById(`visible-${i}`).checked,
-        }))
-    };
-}
-
-// ── Save config to server ─────────────────────────────────────────────────────
+// ── Save ──────────────────────────────────────────────────────────────────────
 async function saveConfig() {
     const btn = document.getElementById("save-btn");
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
-    btn.disabled  = true;
-
+    btn.disabled = true;
     try {
-        const payload = collectForm();
-        const res = await fetch("/api/config", {
-            method:  "POST",
-            headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify(payload, null, 2),
-        });
+        const payload = {
+            siteName: document.getElementById("siteName").value.trim(),
+            logoUrl:  document.getElementById("logoUrl").value.trim(),
+            tools: config.tools.map((tool, i) => ({
+                id:      tool.id,
+                name:    document.getElementById(`name-${i}`).value.trim() || tool.name,
+                icon:    tool.icon,
+                visible: document.getElementById(`visible-${i}`).checked
+            }))
+        };
+        const res  = await fetch("/api/config", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload,null,2) });
         const data = await res.json();
-
-        if (data.ok) {
-            config = payload;
-            showToast("✅ Cấu hình đã được lưu thành công!", "success");
-        } else {
-            showToast("❌ Lỗi: " + data.error, "error");
-        }
-    } catch (e) {
-        showToast("❌ Không thể kết nối đến server!", "error");
-    } finally {
-        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình';
-        btn.disabled  = false;
-    }
+        if (data.ok) { config = payload; showToast("✅ Cấu hình đã được lưu!", "success"); }
+        else showToast("❌ Lỗi: " + data.error, "error");
+    } catch(e) { showToast("❌ Không thể kết nối đến server!", "error"); }
+    finally { btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình'; btn.disabled = false; }
 }
 
-// ── Toast notification ────────────────────────────────────────────────────────
-function showToast(msg, type = "success") {
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type="success") {
     const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.className   = `show ${type}`;
+    t.textContent = msg; t.className = `show ${type}`;
     setTimeout(() => { t.className = ""; }, 3500);
 }
 
-// ── Keyboard shortcut: Ctrl+S ─────────────────────────────────────────────────
-document.addEventListener("keydown", e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        saveConfig();
-    }
-});
-
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener("keydown", e => { if ((e.ctrlKey||e.metaKey) && e.key==="s") { e.preventDefault(); saveConfig(); } });
+buildIconGrid();
 loadConfig();
 </script>
-
 </body>
 </html>

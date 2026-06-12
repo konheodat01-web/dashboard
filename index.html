@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Command Center | nthieucloud.shop</title>
     <meta name="description" content="Central Hub for all personal data scraping and automation tools.">
+    <link id="favicon" rel="icon" type="image/png" href="">
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -18,49 +19,124 @@
     <div class="container">
         <header>
             <div id="logo-wrap"></div>
-            <h1 id="site-title"><i class="fa-solid fa-layer-group"></i> <span id="site-name">Loading...</span></h1>
+            <h1 id="site-title">
+                <i class="fa-solid fa-layer-group"></i>
+                <span id="site-name">Loading...</span>
+            </h1>
             <p>Multitasking Workspace · Isolated Firebase Environments</p>
             <a href="/admin" class="admin-link" title="Admin Panel">
                 <i class="fa-solid fa-gear"></i>
             </a>
         </header>
-
-        <main id="app-grid" class="grid">
-            <!-- Dynamically rendered from config.json -->
-        </main>
+        <main id="app-grid" class="grid"></main>
     </div>
 
     <script>
     const DOMAIN = "nthieucloud.shop";
 
+    // ── Font Awesome unicode map for Canvas favicon ───────────────────────────
+    const FA_UNICODE = {
+        "fa-robot":"\uf544","fa-spider":"\uf717","fa-database":"\uf1c0",
+        "fa-magnifying-glass":"\uf002","fa-chart-line":"\uf201",
+        "fa-shield-halved":"\ue24b","fa-wallet":"\uf555","fa-gear":"\uf013",
+        "fa-cogs":"\uf085","fa-link":"\uf0c1","fa-globe":"\uf0ac",
+        "fa-code":"\uf121","fa-download":"\uf019","fa-image":"\uf03e",
+        "fa-images":"\uf302","fa-server":"\uf233","fa-chart-bar":"\uf080",
+        "fa-chart-pie":"\uf200","fa-file":"\uf15b","fa-folder":"\uf07b",
+        "fa-cloud":"\uf0c2","fa-lock":"\uf023","fa-key":"\uf084",
+        "fa-bug":"\uf188","fa-terminal":"\uf120","fa-network-wired":"\uf6ff",
+        "fa-bell":"\uf0f3","fa-bookmark":"\uf02e","fa-camera":"\uf030",
+        "fa-calculator":"\uf1ec","fa-calendar":"\uf133","fa-clipboard":"\uf328",
+        "fa-coins":"\uf51e","fa-credit-card":"\uf09d","fa-eye":"\uf06e",
+        "fa-filter":"\uf0b0","fa-fingerprint":"\uf577","fa-fire":"\uf06d",
+        "fa-flag":"\uf024","fa-flask":"\uf0c3","fa-hashtag":"\uf292",
+        "fa-house":"\uf015","fa-layer-group":"\uf5fd","fa-list-check":"\ue1b5",
+        "fa-microchip":"\uf2db","fa-newspaper":"\uf1ea","fa-paper-plane":"\uf1d8",
+        "fa-satellite":"\uf7bf","fa-user-ninja":"\uf504","fa-users-gear":"\ue490",
+        "fa-magnifying-glass-chart":"\ue522","fa-diagram-project":"\ue261",
+        "fa-file-code":"\uf1c9","fa-brain":"\uf5dc","fa-bolt":"\uf0e7",
+        "fa-wand-magic-sparkles":"\ue2ca","fa-shop":"\uf54f","fa-box":"\uf466",
+        "fa-cube":"\uf1b2","fa-truck":"\uf0d1"
+    };
+
+    // ── Generate Canvas Favicon from FA icon ──────────────────────────────────
+    function setFaviconFromIcon(iconClass) {
+        const unicode = FA_UNICODE[iconClass];
+        if (!unicode) return;
+
+        const canvas = document.createElement("canvas");
+        canvas.width  = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+
+        // Rounded blue background
+        ctx.fillStyle = "#3b82f6";
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(0, 0, 64, 64, 14);
+        } else {
+            ctx.rect(0, 0, 64, 64);
+        }
+        ctx.fill();
+
+        // Draw FA icon using the loaded web font
+        ctx.fillStyle = "#ffffff";
+        ctx.font = '900 36px "Font Awesome 6 Free"';
+        ctx.textAlign    = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(unicode, 32, 34);
+
+        const link = document.getElementById("favicon");
+        link.href = canvas.toDataURL("image/png");
+    }
+
+    // Wait for fonts to load before rendering favicon
+    function initFavicon(iconClass) {
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => setFaviconFromIcon(iconClass));
+        } else {
+            setTimeout(() => setFaviconFromIcon(iconClass), 1500);
+        }
+    }
+
+    // ── Load & Render Dashboard ───────────────────────────────────────────────
     async function loadDashboard() {
-        const res    = await fetch("/api/config");
-        const config = await res.json();
+        let config;
+        try {
+            const res = await fetch("/api/config");
+            config = await res.json();
+        } catch(e) {
+            console.error("Cannot load config:", e);
+            return;
+        }
 
-        // Update site title & logo
-        document.getElementById("site-name").textContent = config.siteName || "Command Center";
-        document.title = (config.siteName || "Command Center") + " | " + DOMAIN;
+        // Site title & meta
+        const siteName = config.siteName || "Command Center";
+        document.getElementById("site-name").textContent = siteName;
+        document.title = siteName + " | " + DOMAIN;
 
+        // Logo
         if (config.logoUrl) {
             document.getElementById("logo-wrap").innerHTML =
                 `<img src="${config.logoUrl}" alt="Logo" class="logo">`;
         }
 
+        // Favicon from first visible tool icon (or fallback)
+        const firstVisible = config.tools?.find(t => t.visible);
+        if (firstVisible?.icon) initFavicon(firstVisible.icon);
+
         // Render tool cards
         const grid = document.getElementById("app-grid");
         grid.innerHTML = "";
-
-        config.tools
+        (config.tools || [])
             .filter(t => t.visible)
-            .forEach((tool, index) => {
-                const url  = `https://${tool.id}.${DOMAIN}`;
+            .forEach((tool, idx) => {
                 const card = document.createElement("a");
-                card.href        = url;
-                card.target      = "_blank"; // Cô lập session Firebase hoàn toàn
-                card.rel         = "noopener noreferrer";
-                card.className   = "app-card";
-                card.style.animationDelay = `${index * 0.08}s`;
-
+                card.href      = `https://${tool.id}.${DOMAIN}`;
+                card.target    = "_blank";   // Cô lập session Firebase hoàn toàn
+                card.rel       = "noopener noreferrer";
+                card.className = "app-card";
+                card.style.animationDelay = `${idx * 0.08}s`;
                 card.innerHTML = `
                     <div class="icon-wrapper">
                         <i class="fa-solid ${tool.icon}"></i>
@@ -68,18 +144,13 @@
                     <h2>${tool.name}</h2>
                     <div class="launch-btn">
                         Mở ứng dụng <i class="fa-solid fa-arrow-right"></i>
-                    </div>
-                `;
-
+                    </div>`;
                 grid.appendChild(card);
                 setTimeout(() => card.classList.add("animate-in"), 50);
             });
     }
 
-    loadDashboard().catch(err => {
-        console.error("Failed to load config:", err);
-        document.getElementById("site-name").textContent = "Command Center";
-    });
+    loadDashboard();
     </script>
 </body>
 </html>
