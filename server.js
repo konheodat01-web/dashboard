@@ -18,7 +18,7 @@ const http = require("http");
 const fs   = require("fs");
 const path = require("path");
 
-const PORT        = process.env.PORT || 3000;
+const PORT        = process.env.PORT || 3050;
 const CONFIG_FILE = path.join(__dirname, "config.json");
 const STATIC_DIR  = __dirname;
 
