@@ -9108,6 +9108,11 @@ function switchWorkspace(workspaceId, element) {
   if (targetPanel) {
     targetPanel.classList.remove('is-hidden');
     
+    // Vá lỗi V81: Quét và giải phóng toàn bộ class ẩn của hệ thống màng bọc con
+    targetPanel.querySelectorAll('.iframe-panel-wrap, iframe').forEach(el => {
+      el.classList.remove('is-hidden');
+    });
+    
     // Nếu chuyển về tab Job, nạp lại sub-page đang active gần nhất
     if (workspaceId === 'job') {
       const activePage = localStorage.getItem('wt_activePage') || 'dashboard';
@@ -9142,6 +9147,20 @@ function switchWorkspace(workspaceId, element) {
   if (submenu) {
     submenu.style.display = (workspaceId === 'job') ? 'flex' : 'none';
   }
+
+  // MẠCH ĐO ĐẠC KÍCH THƯỚC TƯƠI VÀO CONSOLE (V80 & V81)
+  setTimeout(() => {
+    const ifrTools = document.getElementById('iframe-tools');
+    if (ifrTools) {
+      console.log("📐 [V80 Measurement] Chiều cao iframe thực tế (Tools):", ifrTools.getBoundingClientRect().height + "px");
+      console.log("📐 [V80 Measurement] Chiều rộng iframe thực tế (Tools):", ifrTools.getBoundingClientRect().width + "px");
+    }
+    const ifrFinance = document.getElementById('iframe-finance');
+    if (ifrFinance) {
+      console.log("📐 [V80 Measurement] Chiều cao iframe thực tế (Finance):", ifrFinance.getBoundingClientRect().height + "px");
+      console.log("📐 [V80 Measurement] Chiều rộng iframe thực tế (Finance):", ifrFinance.getBoundingClientRect().width + "px");
+    }
+  }, 300);
 }
 
 // ===== MICRO-FRONTEND LOADER V66 =====
