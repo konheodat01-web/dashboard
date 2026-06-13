@@ -9,6 +9,15 @@
     }
 }
 
+# Khối cấu hình bảo mật cho phép trang mẹ nhúng các subdomain con
+(subdomain_headers) {
+    header {
+        Content-Security-Policy "frame-ancestors 'self' https://nthieucloud.shop"
+        X-Content-Type-Options "nosniff"
+        X-XSS-Protection "1; mode=block"
+    }
+}
+
 # 1. Trang trung chuyển chính (Dashboard) + Admin Panel
 nthieucloud.shop, www.nthieucloud.shop {
 
@@ -42,51 +51,61 @@ nthieucloud.shop, www.nthieucloud.shop {
 
 # 2. 10 Tool con công khai - Cô lập bộ nhớ Firebase hoàn toàn
 ai-assistant.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /ai-assistant{uri}
     import github_proxy
 }
 
 bulk-image-tool.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /bulk-image-tool{uri}
     import github_proxy
 }
 
 finance-tracker.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /finance-tracker{uri}
     import github_proxy
 }
 
 gsc-bulk-connect.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /gsc-bulk-connect{uri}
     import github_proxy
 }
 
 gsc-bulk-tool.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /gsc-bulk-tool{uri}
     import github_proxy
 }
 
 haihieu.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /haihieu{uri}
     import github_proxy
 }
 
 seo-content-auditor.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /seo-content-auditor{uri}
     import github_proxy
 }
 
 task-manager.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /task-manager{uri}
     import github_proxy
 }
 
 Team02.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /Team02{uri}
     import github_proxy
 }
 
 vps-control-center.nthieucloud.shop {
+    import subdomain_headers
     rewrite * /vps-control-center{uri}
     import github_proxy
 }
