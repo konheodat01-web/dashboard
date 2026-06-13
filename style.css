@@ -496,19 +496,19 @@ header.main-header, .main-header {
   width: 100%;
 }
 
-.iframe-panel-wrap {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.iframe-panel-wrap iframe {
-  flex: 1;
+.workspace-panel.iframe-panel-wrap {
   width: 100% !important;
-  height: 100% !important;
-  border: none;
-  display: block;
+  height: calc(100vh - 56px) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.workspace-panel.iframe-panel-wrap iframe {
+  flex: 1 !important;
+  width: 100% !important;
+  height: calc(100vh - 56px) !important;
+  border: none !important;
+  display: block !important;
 }
 
 /* LOGIN DIALOG CLEAN CSS CLASSES (Eliminates inline styling) */
