@@ -514,6 +514,14 @@ header.main-header, .main-header {
   border: none !important;
   display: block !important;
 }
+.workspace-panel.iframe-panel-wrap.is-hidden {
+  display: none !important;
+  position: static !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
 
 /* LOGIN DIALOG CLEAN CSS CLASSES (Eliminates inline styling) */
 .login-brand {
