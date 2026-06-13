@@ -500,7 +500,7 @@ header.main-header, .main-header {
   width: 100% !important;
   height: calc(100vh - 56px) !important;
   overflow: hidden !important;
-  display: flex !important;
+  display: flex;
   flex-direction: column !important;
 }
 .workspace-panel.iframe-panel-wrap iframe {
