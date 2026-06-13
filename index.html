@@ -1,156 +1,1998 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Command Center | nthieucloud.shop</title>
-    <meta name="description" content="Central Hub for all personal data scraping and automation tools.">
-    <link id="favicon" rel="icon" type="image/png" href="">
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản lý công việc</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c0392b'/%3E%3Crect x='7' y='9' width='18' height='2.5' rx='1.2' fill='white'/%3E%3Crect x='7' y='14.7' width='18' height='2.5' rx='1.2' fill='white'/%3E%3Crect x='7' y='20.5' width='12' height='2.5' rx='1.2' fill='white'/%3E%3Ccircle cx='25' cy='22' r='5' fill='%2327ae60'/%3E%3Cpath d='M22.5 22l2 2 3-3' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css?v=premium_ui_perfect_v8">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
-    <div class="background">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen-deep">
+  <div class="login-card-glass">
+
+    <!-- Logo / Brand -->
+    <div class="login-brand">
+      <div class="login-logo-icon">⚙</div>
+      <h1 class="login-title">Admin Portal</h1>
+      <p class="login-subtitle">Nhập mật khẩu để tiếp tục</p>
     </div>
 
-    <div class="container">
-        <header>
-            <div id="logo-wrap"></div>
-            <h1 id="site-title">
-                <i class="fa-solid fa-layer-group"></i>
-                <span id="site-name">Loading...</span>
-            </h1>
-            <p>Multitasking Workspace · Isolated Firebase Environments</p>
-            <a href="/admin" class="admin-link" title="Admin Panel">
-                <i class="fa-solid fa-gear"></i>
-            </a>
-        </header>
-        <main id="app-grid" class="grid"></main>
+    <!-- Password Form -->
+    <div id="loginStep2" class="login-form-wrap">
+      <div class="login-input-container">
+        <input id="loginPwInput" type="password" placeholder="Mật khẩu Admin..."
+          autocomplete="current-password"
+          class="login-pw-input"
+          oninput="document.getElementById('loginPwErr').style.display='none'">
+        <button onclick="togglePwVis()" class="login-pw-toggle">👁</button>
+      </div>
+      <div id="loginPwErr" class="login-pw-err">Mật khẩu không đúng. Thử lại.</div>
+      <button class="login-submit-btn">Đăng nhập →</button>
+      <div id="loginStatusText" style="font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center"></div>
     </div>
 
-    <script>
-    const DOMAIN = "nthieucloud.shop";
+    <p class="login-footer-text">Phiên làm việc được ghi nhớ trong tab này</p>
+  </div>
+</div>
 
-    // ── Font Awesome unicode map for Canvas favicon ───────────────────────────
-    const FA_UNICODE = {
-        "fa-robot":"\uf544","fa-spider":"\uf717","fa-database":"\uf1c0",
-        "fa-magnifying-glass":"\uf002","fa-chart-line":"\uf201",
-        "fa-shield-halved":"\ue24b","fa-wallet":"\uf555","fa-gear":"\uf013",
-        "fa-cogs":"\uf085","fa-link":"\uf0c1","fa-globe":"\uf0ac",
-        "fa-code":"\uf121","fa-download":"\uf019","fa-image":"\uf03e",
-        "fa-images":"\uf302","fa-server":"\uf233","fa-chart-bar":"\uf080",
-        "fa-chart-pie":"\uf200","fa-file":"\uf15b","fa-folder":"\uf07b",
-        "fa-cloud":"\uf0c2","fa-lock":"\uf023","fa-key":"\uf084",
-        "fa-bug":"\uf188","fa-terminal":"\uf120","fa-network-wired":"\uf6ff",
-        "fa-bell":"\uf0f3","fa-bookmark":"\uf02e","fa-camera":"\uf030",
-        "fa-calculator":"\uf1ec","fa-calendar":"\uf133","fa-clipboard":"\uf328",
-        "fa-coins":"\uf51e","fa-credit-card":"\uf09d","fa-eye":"\uf06e",
-        "fa-filter":"\uf0b0","fa-fingerprint":"\uf577","fa-fire":"\uf06d",
-        "fa-flag":"\uf024","fa-flask":"\uf0c3","fa-hashtag":"\uf292",
-        "fa-house":"\uf015","fa-layer-group":"\uf5fd","fa-list-check":"\ue1b5",
-        "fa-microchip":"\uf2db","fa-newspaper":"\uf1ea","fa-paper-plane":"\uf1d8",
-        "fa-satellite":"\uf7bf","fa-user-ninja":"\uf504","fa-users-gear":"\ue490",
-        "fa-magnifying-glass-chart":"\ue522","fa-diagram-project":"\ue261",
-        "fa-file-code":"\uf1c9","fa-brain":"\uf5dc","fa-bolt":"\uf0e7",
-        "fa-wand-magic-sparkles":"\ue2ca","fa-shop":"\uf54f","fa-box":"\uf466",
-        "fa-cube":"\uf1b2","fa-truck":"\uf0d1"
+<!-- GLOBAL KB TOOLTIP -->
+<div id="kbTooltip" style="display:none;position:fixed;background:#2c3e50;color:#fff;border-radius:8px;padding:10px 14px;font-size:12px;max-width:260px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:99999;pointer-events:none;line-height:1.5;word-break:break-word"></div>
+
+<header class="main-header">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="background:#2c3e50;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px">A</div>
+      <span style="font-weight:600;font-size:13px;color:var(--text)">Admin Portal</span>
+    </div>
+    <h1>&#128188; Quản lý công việc</h1>
+  </div>
+  <div class="meta" id="currentDate"></div>
+  <!-- UNIFIED SEARCH BOX -->
+  <div style="position:relative;display:flex;align-items:center" id="uniSearchWrap">
+    <div class="search-box-container" style="display:flex;align-items:center;gap:0;border-radius:10px;overflow:hidden;min-width:300px">
+      <!-- Mode toggle button -->
+      <button id="uniModeBtn" onclick="uniToggleMode()" title="Chuyển chế độ tìm kiếm"
+        style="background:none;border:none;padding:0 10px;height:38px;cursor:pointer;font-size:15px;flex-shrink:0">🔗</button>
+      <!-- Input -->
+      <input id="uniInput" type="text" placeholder="Tìm link / website..." autocomplete="off"
+        style="background:none;border:none;outline:none;font-size:13px;padding:8px 8px;flex:1;font-weight:500;min-width:180px"
+        oninput="uniSearch()" onfocus="uniSearch()" onblur="setTimeout(uniClose,200)"
+        onkeydown="uniKeydown(event)">
+      <!-- Add button -->
+      <button id="uniAddBtn" onclick="uniAdd()" title="Thêm mới"
+        style="background:none;border:none;padding:0 12px;cursor:pointer;font-size:22px;font-weight:300;height:38px;display:flex;align-items:center">+</button>
+    </div>
+    <!-- Dropdown: link/website results (reuse existing qlDropdown) -->
+    <div id="qlDropdown" onmousedown="_qlKeepOpen=true" style="display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);width:360px;background:#fff;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:500;overflow:hidden;max-height:360px;overflow-y:auto"></div>
+    <!-- Dropdown: prompt results (reuse existing pqDropdown) -->
+    <div id="pqDropdown" onmousedown="event.preventDefault()" style="display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);width:420px;background:#fff;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:500;overflow:hidden;max-height:480px;flex-direction:column">
+      <div style="display:flex;border-bottom:1px solid var(--gray-border);flex-shrink:0">
+        <button id="pqTabViet" onclick="pqSetTab('viet')"
+          style="flex:1;padding:9px;font-size:12px;font-weight:600;border:none;cursor:pointer;border-bottom:2px solid var(--red);color:var(--red);background:#fff">✍️ Viết</button>
+        <button id="pqTabAnh" onclick="pqSetTab('anh')"
+          style="flex:1;padding:9px;font-size:12px;font-weight:500;border:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--text-muted);background:#fff">🖼️ Ảnh</button>
+        <button id="pqTabNote" onclick="pqSetTab('note')"
+          style="flex:1;padding:9px;font-size:12px;font-weight:500;border:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--text-muted);background:#fff">📝 Note</button>
+      </div>
+      <div id="pqResults" style="overflow-y:auto;flex:1;max-height:380px"></div>
+      <div style="padding:8px 12px;border-top:1px solid var(--gray-border);background:#f8f9fa;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <span style="font-size:11px;color:var(--text-muted)">Click để copy • ✎ để sửa</span>
+        <button onclick="uniClose();showPage('prompts')" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--blue)">Xem tất cả →</button>
+      </div>
+    </div>
+  </div>
+  <!-- QUICK ADD MODAL (link) -->
+  <div id="qlAddModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:600;width:380px;padding:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-weight:600;font-size:14px">🔗 Thêm link nhanh</div>
+      <button onclick="qlCloseAdd()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted)">&times;</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="form-group"><label>Loại</label>
+        <select id="ql_type" style="width:100%" onchange="qlTypeChange()">
+          <option value="work">🔗 Link công việc</option>
+          <option value="web">🌐 Website</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Tên *</label><input type="text" id="ql_name" style="width:100%" placeholder="Tên hiển thị"></div>
+      <div class="form-group"><label>URL *</label><input type="text" id="ql_url" style="width:100%" placeholder="https://..."></div>
+      <div id="ql_extra_work" style="display:flex;flex-direction:column;gap:8px">
+        <div class="form-group">
+          <label>Nhóm</label>
+          <div style="display:flex;gap:4px">
+            <select id="ql_group" style="flex:1"></select>
+            <input type="text" id="ql_group_new" placeholder="Nhóm mới..." style="flex:1;display:none">
+            <button type="button" id="ql_group_add_btn" onclick="qlToggleNewGroup()" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px" title="Thêm nhóm mới">+</button>
+          </div>
+        </div>
+        <div class="form-group"><label>Tác dụng</label><textarea id="ql_desc" rows="2" style="width:100%"></textarea></div>
+        <div class="form-group"><label>Ghi chú</label><input type="text" id="ql_note_work" style="width:100%"></div>
+        <div class="form-group"><label>Hiển thị cho</label>
+          <select id="ql_owner_work" style="width:100%">
+<option value="admin">Chung (tất cả)</option>
+            <option value="Hải">Hải</option>
+            <option value="Hiếu">Hiếu</option>
+            
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tài khoản</label>
+          <div style="display:flex;gap:4px">
+            <input type="text" id="ql_account_work" style="flex:1">
+          </div>
+        </div>
+        <div class="form-group"><label>Mật khẩu</label>
+          <div style="display:flex;gap:4px">
+            <input type="password" id="ql_password_work" style="flex:1">
+            <button type="button" onclick="const i=document.getElementById('ql_password_work');i.type=i.type==='password'?'text':'password'" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer">👁</button>
+          </div>
+        </div>
+      </div>
+      <div id="ql_extra_web" style="display:none;flex-direction:column;gap:8px">
+        <div class="form-group"><label>Đuôi quản trị</label><input type="text" id="ql_admin" style="width:100%" placeholder="wp-admin" oninput="this.value=this.value.replace(/^\/+/,'')" onblur="this.value=this.value.replace(/\/+$/,'')"></div>
+        <div class="form-group"><label>Tài khoản</label><input type="text" id="ql_account" style="width:100%"></div>
+        <div class="form-group"><label>Mật khẩu</label>
+          <div style="display:flex;gap:4px">
+            <input type="password" id="ql_password" style="flex:1">
+            <button type="button" onclick="const i=document.getElementById('ql_password');i.type=i.type==='password'?'text':'password'" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer">👁</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="form-group"><label>Team</label>
+            <select id="ql_team" style="width:100%">
+              <option value="Team 01">Team 01</option>
+              <option value="Team 02">Team 02</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Người quản lý</label>
+            <select id="ql_owner" style="width:100%">
+              <option value="Công ty">Công ty</option>
+              <option value="Hải">Hải</option>
+              <option value="Hiếu">Hiếu</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Trạng thái</label>
+          <select id="ql_status" style="width:100%">
+            <option value="Tốt">✅ Tốt</option>
+            <option value="Chờ cấp lại mật khẩu">🔒 Chờ cấp lại mật khẩu</option>
+            <option value="Lỗi web">⚠️ Lỗi web</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Nhóm con <span style="font-size:11px;color:var(--text-muted)">(Team 01)</span></label>
+          <div style="display:flex;gap:4px">
+            <select id="ql_group_ws" style="flex:1"></select>
+          </div>
+        </div>
+        <div class="form-group"><label>Ghi chú</label><textarea id="ql_note" rows="2" style="width:100%"></textarea></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="qlSave()" class="btn btn-primary" style="flex:1">✓ Lưu</button>
+        <button onclick="qlCloseAdd()" class="btn btn-outline">Huỷ</button>
+      </div>
+    </div>
+  </div>
+  <div id="qlOverlay" style="display:none;position:fixed;inset:0;z-index:599" onclick="qlCloseAdd()"></div>
+  <div id="pqOverlay" style="display:none;position:fixed;inset:0;z-index:498" onclick="uniClose()"></div>
+
+  <div style="display:flex;align-items:center;gap:8px">
+    <div id="syncIndicator" style="font-size:11px;opacity:0;transition:opacity .3s;color:#fff;white-space:nowrap;background:rgba(0,0,0,.2);padding:3px 8px;border-radius:4px">☁ Đã đồng bộ</div>
+    <button id="navBackupBtn" onclick="openBackupModal()" style="display:none;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:500" title="Backup & khôi phục dữ liệu">🗃️ Backup</button>
+    <button id="navSyncBtn" onclick="forceSyncToCloud()" style="display:none;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:500" title="Đẩy toàn bộ dữ liệu lên đám mây">☁ Sync</button>
+  </div>
+</header>
+
+<div class="app-shell-wrapper">
+<nav class="sidebar">
+  <div class="sidebar-brand">🏛️ WORKSPACE</div>
+  
+  <div class="sidebar-menu">
+    <!-- Tab Mẹ 1: Công việc -->
+    <button type="button" class="sidebar-nav-item active" id="btn-tab-job" onclick="switchWorkspace('job', this)">
+      <i class="fa fa-briefcase"></i> <span>Quản lý Công việc</span>
+    </button>
+    
+    <!-- Guideline Cây Sub-menu con -->
+    <div id="workspace-submenu" class="sidebar-sub-container" style="display: block;">
+      <button type="button" class="sidebar-sub-item active" onclick="showPage('dashboard')"><i class="fa fa-pie-chart"></i> Báo cáo</button>
+      <button type="button" class="sidebar-sub-item" onclick="showPage('recurring')"><i class="fa fa-clock-o"></i> Task định kỳ <span id="navBadgeRecurring" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;line-height:1.4"></span></button>
+      <button type="button" class="sidebar-sub-item" onclick="showPage('tasks')"><i class="fa fa-list-ul"></i> Công việc khác <span id="navBadgeTasks" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;line-height:1.4"></span></button>
+      <button type="button" class="sidebar-sub-item" onclick="showPage('prompts')"><i class="fa fa-code"></i> Prompt</button>
+      <button type="button" class="sidebar-sub-item" onclick="showPage('links')"><i class="fa fa-link"></i> Link quan trọng</button>
+      <button type="button" class="sidebar-sub-item" onclick="showPage('wstrack')"><i class="fa fa-desktop"></i> Theo dõi web</button>
+    </div>
+
+    <!-- Tab Mẹ 2: Tài chính -->
+    <button type="button" class="sidebar-nav-item" id="btn-tab-finance" onclick="switchWorkspace('finance', this)">
+      <i class="fa fa-credit-card"></i> <span>Quản lý Tài chính</span>
+    </button>
+    
+    <!-- Tab Mẹ 3: Kho Tool Nhỏ -->
+    <button type="button" class="sidebar-nav-item" id="btn-tab-tools" onclick="switchWorkspace('tools', this)">
+      <i class="fa fa-cubes"></i> <span>Kho Tool Nhỏ</span>
+    </button>
+  </div>
+  
+  <!-- Bottom actions: footer aligned -->
+  <div class="sidebar-footer" id="navBottomMenu">
+    <button type="button" onclick="openChangePassword()"><i class="fa fa-key"></i> Đổi mật khẩu</button>
+    <button type="button" onclick="openSettings()"><i class="fa fa-cog"></i> Cài đặt</button>
+    <button type="button" onclick="logout()" class="text-danger"><i class="fa fa-sign-out"></i> Đăng xuất</button>
+  </div>
+</nav>
+
+<main class="main-workspace-container">
+  <!-- Main Work Workspace Container -->
+  <div id="panel-workspace-job" class="workspace-panel" style="width:100%; height:100%; display:block;">
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div id="page-dashboard-content" style="padding:24px; display:flex; flex-direction:column; gap:20px;">
+    <!-- Clean workspace job list will be rendered here -->
+  </div>
+</div>
+
+<!-- CÔNG VIỆC KHÁC -->
+<div id="page-recurring" class="page">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">🔁 Task định kỳ</div>
+      <div class="toolbar">
+        <button class="btn btn-primary btn-sm" onclick="openNewRecurringModal()">+ Thêm task định kỳ</button>
+      </div>
+    </div>
+    <div id="recurringList" style="padding:14px;display:flex;flex-direction:column;gap:10px"></div>
+    <div id="recurringEmpty" class="empty" style="display:none"><div class="icon">🔁</div>Chưa có task định kỳ nào.</div>
+  </div>
+</div>
+
+<div id="page-tasks" class="page">
+
+  <!-- TAB BAR -->
+  <div style="display:flex;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-border);border-bottom:none;width:fit-content;margin-bottom:0;overflow:hidden">
+    <button class="gv-tab active" id="tab-mytasks" onclick="switchTasksTab('mytasks')">📋 Task của tôi</button>
+    <button class="gv-tab" id="tab-giaoviec" onclick="switchTasksTab('giaoviec')">📤 Giao việc <span id="gvBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
+  </div>
+
+  <!-- PANEL: TASK CỦA TÔI -->
+  <div id="panel-mytasks" style="border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;padding:0">
+  <div id="tasksOverview">
+    <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border);margin-bottom:0">
+      <div class="panel-title">&#128203; Công việc khác</div>
+      <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+        <select id="tkFilterPerson" onchange="renderTasksOverview()" style="display:none">
+          <option value="">Tất cả người</option>
+          <option>Hải</option><option>Hiếu</option><option>Khác</option>
+        </select>
+        <select id="tkFilterDate" onchange="renderTasksOverview()" style="height:32px;font-size:12px">
+          <option value="">📅 Tất cả ngày</option>
+          <option value="today">Hôm nay</option>
+          <option value="week">7 ngày tới</option>
+          <option value="overdue">Quá hạn</option>
+          <option value="no_deadline">Không deadline</option>
+        </select>
+        <select id="tkFilterPriority" onchange="renderTasksOverview()" style="height:32px;font-size:12px">
+          <option value="">🎯 Tất cả ưu tiên</option>
+          <option value="Cao">🔴 Cao</option>
+          <option value="Bình thường">🟠 Bình thường</option>
+          <option value="Thấp">🟢 Thấp</option>
+        </select>
+        <select id="tkFilterType" onchange="renderTasksOverview()" style="height:32px;font-size:12px">
+          <option value="">🏷️ Tất cả loại</option>
+        </select>
+        <select id="tkFilterStatus" onchange="renderTasksOverview()" style="height:32px;font-size:12px">
+          <option value="">📊 Tất cả trạng thái</option>
+          <option value="active">Đang làm</option>
+          <option value="done">Đã hoàn thành</option>
+          <option value="pending">Pending</option>
+          <option value="overdue">Quá hạn deadline</option>
+        </select>
+        <button class="btn btn-outline btn-sm" data-action="import-message">&#128196; Nhập từ tin nhắn</button>
+        <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">&#43; Thêm task</button>
+        <button class="btn btn-outline btn-sm" onclick="openTaskTrash()" id="trashBtn" style="position:relative">
+          🗑 Thùng rác
+          <span id="trashCount" style="display:none;position:absolute;top:-6px;right:-6px;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;padding:1px 5px;font-weight:600">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PENDING SUMMARY PANEL -->
+    <div id="pendingSummaryPanel" style="display:none;background:#fff8ee;border:none;border-bottom:1px solid #fce0b0;margin-bottom:0;overflow:hidden">
+      <div style="padding:10px 14px;border-bottom:1px solid #fce0b0;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-weight:600;font-size:13px;color:#e67e22">&#9646;&#9646; Đang Pending (<span id="pendingCount">0</span> thẻ)</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px" id="pendingSummaryTable">
+        <thead>
+          <tr style="background:#fff3e0">
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Task gốc</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Thẻ đang pending</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Ngày pending</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Lý do</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Tình trạng xử lý</th>
+            <th style="padding:7px 4px;border-bottom:1px solid #fce0b0"></th>
+          </tr>
+        </thead>
+        <tbody id="pendingSummaryBody"></tbody>
+      </table>
+    </div>
+
+    <div style="padding:14px">
+      <div id="projectGrid"></div>
+      <div id="emptyProjects" class="empty" style="display:none"><div class="icon">&#128203;</div>Chưa có task nào.</div>
+    </div>
+
+    <!-- BULK BAR TASKS -->
+    <div id="taskBulkBar" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2c3e50;color:#fff;border-radius:10px;padding:10px 18px;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:500;white-space:nowrap">
+      <span id="taskBulkCount" style="font-size:13px;font-weight:600">0 task</span>
+      <div style="width:1px;height:20px;background:rgba(255,255,255,.2)"></div>
+      <button onclick="bulkTaskDone()" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none">✓ Done hàng loạt</button>
+      <button onclick="bulkTaskDelete()" class="btn btn-sm" style="background:#e74c3c;color:#fff;border:none">🗑 Xoá hàng loạt</button>
+      <button onclick="clearTaskSelection()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:18px;padding:0 4px">×</button>
+    </div>
+  </div>
+  </div><!-- end panel-mytasks -->
+
+  <!-- PANEL: GIAO VIỆC -->
+  <div id="panel-giaoviec" style="display:none;border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff">
+    <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border)">
+      <div class="panel-title">📤 Danh sách giao việc</div>
+      <div class="toolbar">
+        <select id="gvFilterStatus" onchange="renderGiaoViec()" style="height:32px;font-size:12px">
+          <option value="">Tất cả trạng thái</option>
+          <option value="Chờ làm">Chờ làm</option>
+          <option value="Đang làm">Đang làm</option>
+          <option value="Pending">Pending</option>
+          <option value="Chờ nghiệm thu">Chờ nghiệm thu</option>
+          <option value="Hoàn thành">Hoàn thành</option>
+        </select>
+        <select id="gvFilterPerson" onchange="renderGiaoViec()" style="height:32px;font-size:12px">
+          <option value="">Tất cả người</option>
+        </select>
+        <button id="btnManageAssignees" class="btn btn-outline btn-sm" onclick="openManageAssignees()">⚙ Quản lý người nhận</button>
+      </div>
+    </div>
+
+    <!-- GV PENDING SUMMARY — độc lập với task của tôi -->
+    <div id="gvPendingPanel" style="display:none;background:#fff8ee;border-bottom:2px solid #fce0b0;overflow:hidden">
+      <div style="padding:10px 14px;border-bottom:1px solid #fce0b0;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-weight:600;font-size:13px;color:#e67e22">⏸ Pending trong giao việc (<span id="gvPendingCount">0</span>)</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px" id="gvPendingTable">
+        <thead>
+          <tr style="background:#fff3e0">
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;min-width:140px">Task giao</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Loại pending</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;min-width:90px">Ngày</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Lý do</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Tình trạng</th>
+            <th style="padding:7px 4px;border-bottom:1px solid #fce0b0"></th>
+          </tr>
+        </thead>
+        <tbody id="gvPendingBody"></tbody>
+      </table>
+    </div>
+
+    <!-- GV LIST -->
+    <div id="gvListWrap" style="padding:14px">
+      <div id="gvList"></div>
+      <div id="gvEmpty" class="empty" style="display:none"><div class="icon">📤</div>Chưa có việc nào được giao.</div>
+
+      <!-- GV DONE SECTION -->
+      <div id="gvDoneSection" style="display:none;margin-top:16px">
+        <div onclick="toggleGvDoneSection()" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;background:#f0faf4;border-radius:8px;border:1px solid #a8deba;user-select:none;margin-bottom:0"
+          onmouseover="this.style.background='#e6f7ee'" onmouseout="this.style.background='#f0faf4'">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#27ae60">✅ Đã nghiệm thu (<span id="gvDoneCount">0</span>)</span>
+          <span id="gvDoneChevron" style="font-size:11px;color:#27ae60;display:inline-block">▼</span>
+        </div>
+        <div id="gvDoneList" style="display:none;flex-direction:column;gap:8px;margin-top:8px"></div>
+        <div id="gvDoneBulkBar" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:#2c3e50;color:#fff;border-radius:8px;margin-top:8px">
+          <span id="gvDoneBulkCount" style="font-size:13px;font-weight:600"></span>
+          <button onclick="bulkDeleteGvDone()" class="btn btn-sm" style="background:#e74c3c;color:#fff;border:none">🗑 Xoá</button>
+          <button onclick="document.querySelectorAll('.gv-done-chk').forEach(c=>c.checked=false);updateGvDoneBulk()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;padding:0 4px">×</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GV KANBAN SUB BOARD -->
+    <div id="gvSubBoard" style="display:none;padding:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:#fff;border:1px solid var(--gray-border);border-radius:8px;padding:10px 16px">
+        <button class="btn btn-outline btn-sm" onclick="closeGvBoard()">← Quay lại</button>
+        <div style="font-weight:600;font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="gvSubBoardTitle"></div>
+        <span id="gvSubBoardPerson"></span>
+        <div class="toolbar" style="gap:6px">
+          <div style="position:relative;display:inline-block">
+            <button class="btn btn-outline btn-sm" onclick="toggleGvSelectAllMenu()">☑ Chọn ▾</button>
+            <div id="gvSelectAllMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border:1px solid var(--gray-border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:300;min-width:170px;overflow:hidden">
+              <div onclick="gvSelectAllCards()" style="padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--gray-border);font-weight:500" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background=''">☑ Tất cả các cột</div>
+              <div id="gvSelectColItems"></div>
+              <div onclick="gvClearCardSelection()" style="padding:9px 14px;font-size:13px;cursor:pointer;border-top:1px solid var(--gray-border);color:var(--text-muted)" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''">☐ Bỏ chọn tất cả</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- GV Card Bulk Bar -->
+      <div id="gvCardBulkBar" style="display:none;background:#2c3e50;color:#fff;border-radius:8px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:8px;flex-wrap:wrap">
+        <span id="gvCardBulkCount" style="font-size:13px;font-weight:600"></span>
+        <div style="width:1px;height:18px;background:rgba(255,255,255,.2)"></div>
+        <button onclick="gvBulkCardMove()" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none">→ Chuyển cột tiếp</button>
+        <button onclick="gvBulkCardCopyUrls(this)" class="btn btn-sm" style="background:#2980b9;color:#fff;border:none">🔗 Copy URL</button>
+        <button onclick="gvBulkCardCopyVidco(this)" class="btn btn-sm" style="background:#555;color:#fff;border:none">📋 Copy VIDCO</button>
+        <button onclick="gvBulkCardDelete()" class="btn btn-sm" style="background:#e74c3c;color:#fff;border:none">🗑 Xoá thẻ</button>
+        <button onclick="gvClearCardSelection()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:18px;margin-left:auto;padding:0 4px">×</button>
+      </div>
+      <div id="gvKanbanBoard" style="display:flex;gap:12px;align-items:start;overflow-x:auto;padding-bottom:16px;min-height:300px"></div>
+    </div>
+  </div>
+
+  <div id="taskSubBoard" style="display:none">
+    <div class="panel-header" style="background:#fff;border-radius:8px;border:1px solid var(--gray-border);margin-bottom:14px;padding:10px 16px">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <button class="btn btn-outline btn-sm" onclick="backToOverview()">&#8592; Quay lại</button>
+        <div style="font-weight:600;font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="subBoardTitle"></div>
+        <span id="subBoardPerson"></span>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn-outline btn-sm" onclick="openEditProjectModal()">&#9998; Sửa</button>
+        <div style="position:relative;display:inline-block">
+          <button class="btn btn-outline btn-sm" onclick="toggleSelectAllMenu()">☑ Chọn ▾</button>
+          <div id="selectAllMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border:1px solid var(--gray-border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:300;min-width:170px;overflow:hidden">
+            <div onclick="selectAllCards()" style="padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--gray-border);font-weight:500" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background=''">☑ Tất cả các cột</div>
+            <div id="selectColItems"></div>
+            <div onclick="clearCardSelection()" style="padding:9px 14px;font-size:13px;cursor:pointer;border-top:1px solid var(--gray-border);color:var(--text-muted)" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''">☐ Bỏ chọn tất cả</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openAddCardModal(null)">&#43; Thêm thẻ</button>
+      </div>
+    </div>
+    <!-- CARD BULK BAR -->
+    <div id="cardBulkBar" style="display:none;background:#2c3e50;color:#fff;border-radius:8px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:8px;flex-wrap:wrap">
+      <span id="cardBulkCount" style="font-size:13px;font-weight:600"></span>
+      <div style="width:1px;height:18px;background:rgba(255,255,255,.2)"></div>
+      <button onclick="bulkCardMove('next')" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none">→ Cột tiếp</button>
+      <div style="position:relative;display:inline-block">
+        <button onclick="toggleBulkMoveToMenu()" class="btn btn-sm" style="background:#16a085;color:#fff;border:none">⇒ Chuyển tới ▾</button>
+        <div id="bulkMoveToMenu" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid var(--gray-border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.2);z-index:400;min-width:160px;overflow:hidden" onmousedown="event.stopPropagation()">
+        </div>
+      </div>
+      <button onclick="bulkCardCopyUrls(this)" class="btn btn-sm" style="background:#2980b9;color:#fff;border:none">🔗 Copy URL</button>
+      <button onclick="bulkCardCopyVidco(this)" class="btn btn-sm" style="background:#555;color:#fff;border:none">📋 Copy VIDCO</button>
+      <button onclick="bulkCardDelete()" class="btn btn-sm" style="background:#e74c3c;color:#fff;border:none">🗑 Xoá thẻ</button>
+      <button onclick="clearCardSelection()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:18px;margin-left:auto;padding:0 4px" title="Bỏ chọn & đóng">×</button>
+    </div>
+    <div id="subKanbanBoard" style="display:flex;gap:12px;align-items:start;overflow-x:auto;overflow-y:visible;padding-bottom:16px;min-height:400px;padding-top:4px"></div>
+  </div>
+</div>
+
+<!-- NEW/EDIT PROJECT MODAL -->
+<div class="modal-overlay" id="newProjectModal" onclick="if(event.target===this)closeNewProjectModal()">
+  <div class="modal" style="max-width:500px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="npmTitle">&#43; Thêm task mới</h3>
+      <button class="modal-close" onclick="closeNewProjectModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:10px">
+      <div class="form-group" style="width:100%">
+        <label>Tên task *</label>
+        <input type="text" id="npm_name" style="width:100%" placeholder="VD: Viết 20 bài tk888.fit...">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+        <div class="form-group">
+          <label>Người nhận</label>
+          <select id="npm_person" style="width:100%"><option value="">--</option><option>Hải</option><option>Hiếu</option><option>Khác</option></select>
+        </div>
+        <div class="form-group">
+          <label>Loại</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select id="npm_type" style="flex:1"></select>
+            <button type="button" onclick="openTaskTypeManager()" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px;color:var(--text-muted)" title="Quản lý loại task">⚙</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Dạng task</label>
+          <select id="npm_dang" style="width:100%">
+            <option value="text">📝 Text</option>
+            <option value="url" selected>🔗 URL (mặc định)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Ưu tiên</label>
+          <select id="npm_priority" style="width:100%">
+            <option value="Bình thường">🟠 Bình thường</option>
+            <option value="Cao">🔴 Cao</option>
+            <option value="Thấp">🟢 Thấp</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Ngày giao</label>
+          <input type="date" id="npm_from" style="width:100%">
+        </div>
+        <div class="form-group">
+          <label>Deadline</label>
+          <input type="date" id="npm_deadline" style="width:100%">
+        </div>
+        <div class="form-group" id="npm_team_row">
+          <label>Team</label>
+          <select id="npm_team" style="width:100%">
+            <option value="Team 01">Team 01</option>
+            <option value="Team 02">Team 02</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="width:100%;background:#f8f9fa;border-radius:8px;padding:10px 12px;border:1px solid var(--gray-border)">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px">
+          <input type="checkbox" id="npm_recurring" onchange="toggleRecurringFields()" style="cursor:pointer;accent-color:var(--red);width:14px;height:14px">
+          <span style="font-weight:600;font-size:13px">🔁 Task định kỳ</span>
+        </label>
+        <div id="npm_recurring_fields" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:11px">Chu kỳ</label>
+            <select id="npm_recur_type" style="width:100%;height:32px;font-size:12px">
+              <option value="daily">Hàng ngày</option>
+              <option value="weekly">Hàng tuần</option>
+              <option value="monthly">Hàng tháng</option>
+              <option value="custom">Tùy chỉnh (ngày)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0" id="npm_recur_custom_wrap">
+            <label style="font-size:11px">Số ngày</label>
+            <input type="number" id="npm_recur_days" min="1" value="7" style="width:100%;height:32px;font-size:12px">
+          </div>
+        </div>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Mô tả</label>
+        <textarea id="npm_desc" rows="2" style="width:100%"></textarea>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label style="display:flex;align-items:center;gap:6px">Các bước <span style="font-size:11px;color:var(--text-muted);font-weight:400">(để trống = dùng kanban mặc định)</span></label>
+        <textarea id="npm_steps" rows="4" style="width:100%;font-size:12px" placeholder="Bước 1: Tìm keyword&#10;Bước 2: Viết outline&#10;Bước 3: Viết bài&#10;Bước 4: Đăng và index"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="npm_delete_btn" style="display:none;margin-right:auto" onclick="deleteProject()">&#128465; Xoá task</button>
+      <button class="btn btn-outline" onclick="closeNewProjectModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveProject()">&#10003; Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT CARD MODAL -->
+<div class="modal-overlay" id="addCardModal" onclick="if(event.target===this)closeAddCardModal()">
+  <div class="modal" style="max-width:400px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="acTitle">Thêm thẻ</h3>
+      <button class="modal-close" onclick="closeAddCardModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:10px">
+      <input type="hidden" id="ac_id">
+      <div class="form-group" style="width:100%">
+        <label>Tên thẻ *</label>
+        <input type="text" id="ac_name" style="width:100%">
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Cột</label>
+        <select id="ac_col" style="width:100%"></select>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Ghi chú</label>
+        <textarea id="ac_desc" rows="2" style="width:100%"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="ac_delete_btn" style="display:none;margin-right:auto" onclick="deleteCard()">&#128465;</button>
+      <button class="btn btn-outline" onclick="closeAddCardModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveCard()">&#10003; Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- PENDING MODAL -->
+<div class="modal-overlay" id="pendingModal" onclick="if(event.target===this)closePendingModal()">
+  <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>&#9646;&#9646; Lý do Pending</h3>
+      <button class="modal-close" onclick="closePendingModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="width:100%">
+        <label>Lý do tạm dừng</label>
+        <textarea id="pendingReason" rows="3" style="width:100%" placeholder="VD: Chờ feedback từ khách hàng..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePendingModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="confirmPending()">&#10003; Xác nhận</button>
+    </div>
+  </div>
+</div>
+<!-- PROMPTS PAGE -->
+<div id="page-prompts" class="page">
+  <!-- TAB BAR -->
+  <div style="display:flex;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-border);border-bottom:none;width:fit-content;overflow:hidden">
+    <button class="gv-tab active" id="ptab-viet" onclick="switchPromptTab('viet')">✍️ Prompt viết</button>
+    <button class="gv-tab" id="ptab-anh" onclick="switchPromptTab('anh')">🖼️ Prompt ảnh</button>
+    <button class="gv-tab" id="ptab-note" onclick="switchPromptTab('note')">📝 Note</button>
+  </div>
+  <div style="border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;display:flex;flex-direction:column;height:calc(100vh - 120px);overflow:hidden">
+    <!-- TOOLBAR -->
+    <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border);flex-shrink:0;flex-direction:column;align-items:stretch;gap:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <input type="text" id="promptSearch" placeholder="🔍 Tìm prompt..." oninput="renderPrompts()" style="width:220px;height:32px;font-size:12px">
+        <button class="btn btn-primary btn-sm" onclick="openAddPromptModal()">&#43; Thêm prompt</button>
+      </div>
+      <!-- CATEGORY TAGS -->
+      <div id="promptCatTags" style="display:flex;gap:6px;flex-wrap:wrap;padding:2px 0"></div>
+    </div>
+    <!-- LIST -->
+    <div style="flex:1;overflow-y:auto;padding:16px" id="promptListWrap">
+      <div id="promptList" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="promptEmpty" class="empty" style="display:none"><div class="icon">✍️</div>Chưa có prompt nào.</div>
+    </div>
+  </div>
+</div>
+<!-- LINK QUAN TRỌNG -->
+<div id="page-wstrack" class="page">
+  <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden">
+    <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px">
+      <div class="panel-title">📈 Theo dõi web</div>
+      <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+        <input type="text" id="wst_search" placeholder="🔍 Tìm website..." oninput="renderWsTrack()" style="width:160px;height:32px;font-size:12px">
+        <select id="wst_filter_group" onchange="renderWsTrack()" style="height:32px;font-size:12px">
+          <option value="">Tất cả nhóm</option>
+        </select>
+        <select id="wst_filter_mobot" onchange="renderWsTrack()" style="height:32px;font-size:12px">
+          <option value="">Tất cả bot</option>
+          <option value="Mở">🟢 Mở bot</option>
+          <option value="Đóng">🔴 Đóng bot</option>
+        </select>
+        <select id="wst_filter_index" onchange="renderWsTrack()" style="height:32px;font-size:12px">
+          <option value="">Tất cả index</option>
+          <option value="Đã index">✅ Đã index</option>
+          <option value="Một phần">⚠️ Một phần</option>
+          <option value="Chưa index">❌ Chưa index</option>
+        </select>
+        <button onclick="openWstChecklistManager()" class="btn btn-outline btn-sm">⚙ Checklist</button>
+        <button onclick="openWstApiSettings()" class="btn btn-outline btn-sm">🔑 API Rank</button>
+        <button onclick="wstBulkCheckRank()" class="btn btn-sm" style="background:#e67e22;color:#fff;border:none">🔁 Tự động check Rank (All)</button>
+        <button onclick="openWstPickModal()" class="btn btn-outline btn-sm">+ Thêm web</button>
+        <span id="wstApiBadge" style="font-size:13px;font-weight:700;color:#2980b9;margin-left:8px;padding:4px 8px;background:#ebf5fb;border-radius:6px;display:none;border:1px solid #d6eaf8" title="Trạng thái kết nối Serper.dev">💎 ---</span>
+      </div>
+    </div>
+    <!-- TABLE -->
+    <div style="flex:1;overflow:auto;min-height:0">
+      <table id="wstTable" style="width:100%;border-collapse:collapse;font-size:12px;min-width:900px">
+        <thead id="wstThead" style="position:sticky;top:0;z-index:10;background:#f8f9fa"></thead>
+        <tbody id="wstTbody"></tbody>
+      </table>
+      <div id="wstEmpty" style="display:none;text-align:center;padding:40px;color:var(--text-muted)">
+        <div style="font-size:32px;margin-bottom:8px">📈</div>
+        Chưa theo dõi website nào. Bấm "+ Thêm web" để bắt đầu.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="page-links" class="page">
+
+  <!-- TABS -->
+  <div style="display:flex;gap:0;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-border);border-bottom:none;overflow:hidden;margin-bottom:0;width:fit-content">
+    <button id="linksTab2" onclick="switchLinksTab('websites')"
+      style="padding:11px 20px;font-size:13px;font-weight:600;border:none;cursor:pointer;border-bottom:3px solid var(--red);color:var(--red);background:#fff">
+      &#127760; Websites
+    </button>
+    <button id="linksTab1" onclick="switchLinksTab('links')"
+      style="padding:11px 20px;font-size:13px;font-weight:500;border:none;cursor:pointer;border-bottom:3px solid transparent;color:var(--text-muted);background:#fff">
+      &#128279; Link công việc
+    </button>
+  </div>
+
+  <!-- PANEL 1: LINKS -->
+  <div id="linksPanel" style="background:#fff;border-radius:0 8px 8px 8px;border:1px solid var(--gray-border);padding:0;display:none;flex-direction:column;height:calc(100vh - 130px)">
+    <div style="padding:10px 16px;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;flex-shrink:0">
+      <div class="toolbar" style="flex:1;flex-wrap:wrap;gap:6px">
+        <input type="text" id="linkSearch" placeholder="&#128269; Tìm link..." oninput="renderLinks()" style="width:180px;height:32px;font-size:12px">
+        <select id="linkFilterGroup" onchange="renderLinks()" style="height:32px;font-size:12px">
+          <option value="">Tất cả nhóm</option>
+        </select>
+        <select id="linkFilterOwner" onchange="renderLinks()" style="height:32px;font-size:12px">
+          <option value="">Tất cả người</option><option value="admin">Chung</option><option value="Hải">Hải</option><option value="Hiếu">Hiếu</option>
+        </select>
+        <select id="linkFilterAccount" onchange="renderLinks()" style="height:32px;font-size:12px">
+          <option value="">Tất cả</option>
+          <option value="has_account">Có tài khoản</option>
+          <option value="no_account">Không có TK</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="lkNewLink()">&#43; Thêm link</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 300px;flex:1;overflow:hidden;min-height:0">
+      <!-- LEFT: list -->
+      <div style="overflow-y:auto;padding:14px;border-right:1px solid var(--gray-border)">
+        <div id="lkCount" style="font-size:11px;color:var(--text-muted);margin-bottom:8px"></div>
+        <div id="workLinksGrid"></div>
+        <div id="emptyWorkLinks" style="display:none;padding:32px 0;text-align:center;color:var(--text-muted)">Chưa có link nào</div>
+      </div>
+      <!-- RIGHT: form -->
+      <div id="linkAddPanel" style="overflow-y:auto;border-left:1px solid var(--gray-border);background:#fafafa">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--gray-border);background:#f8f9fa;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:space-between">
+          <span id="linkAddPanelTitle">+ Thêm link</span>
+          <button onclick="lkClearForm()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text-muted)">&#10005;</button>
+        </div>
+        <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+          <div class="form-group"><label>Tên *</label><input type="text" id="lf_name" style="width:100%" placeholder="VD: Spin editor..."></div>
+          <div class="form-group"><label>URL *</label><input type="text" id="lf_url" style="width:100%" placeholder="https://..."></div>
+          <div class="form-group"><label>Tác dụng</label><textarea id="lf_desc" rows="2" style="width:100%"></textarea></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="form-group">
+              <label>Nhóm</label>
+              <div style="display:flex;gap:4px">
+                <select id="lf_group" style="flex:1"></select>
+                <button class="btn btn-outline btn-sm" onclick="openCategoryManager()" style="padding:0 8px;font-size:14px">&#9881;</button>
+              </div>
+            </div>
+            <div class="form-group"><label>Hiển thị cho</label>
+              <select id="lf_owner" style="width:100%">
+                <option value="admin">Chung (tất cả)</option>
+                <option value="Hải">Hải</option>
+                <option value="Hiếu">Hiếu</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group"><label>Ghi chú</label><textarea id="lf_note" rows="2" style="width:100%" placeholder="Ghi chú thêm..."></textarea></div>
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="lf_has_auth" onchange="toggleLfAuth()" style="cursor:pointer;accent-color:var(--red)">
+              Có tài khoản / mật khẩu
+            </label>
+          </div>
+          <div id="lf_auth_fields" style="display:none;flex-direction:column;gap:10px">
+            <div class="form-group">
+              <label>Tài khoản</label>
+              <div style="display:flex;gap:4px">
+                <input type="text" id="lf_account" style="flex:1" placeholder="Email hoặc username">
+                <button onclick="copyFieldVal('lf_account',this)" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px">📋</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Mật khẩu</label>
+              <div style="display:flex;gap:4px">
+                <input type="text" id="lf_password" style="flex:1" placeholder="Mật khẩu">
+                <button onclick="copyFieldVal('lf_password',this)" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px">📋</button>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="lf_type" value="work">
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary" onclick="lkSaveLink()" style="flex:1">&#10003; Lưu</button>
+            <button class="btn btn-danger btn-sm" id="lf_delete_btn" style="display:none" onclick="lkDeleteLink()">&#128465;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: WEBSITES -->
+  <div id="websitesPanel" style="display:flex;background:#fff;border-radius:0 8px 8px 8px;border:1px solid var(--gray-border);flex-direction:column;height:calc(100vh - 130px)">
+    <div style="padding:10px 16px;border-bottom:1px solid var(--gray-border);display:flex;flex-direction:column;gap:8px;flex-shrink:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+          <input type="text" id="websiteSearch" placeholder="&#128269; Tìm website..." oninput="renderWebsites()" style="width:160px;height:32px;font-size:12px">
+          <select id="websiteFilterTeam" onchange="renderWebsites()" style="height:32px;font-size:12px">
+            <option value="">Tất cả team</option>
+            <option value="Team 01">Team 01</option>
+            <option value="Team 02">Team 02</option>
+          </select>
+          <select id="websiteFilterGroup" onchange="renderWebsites()" style="height:32px;font-size:12px;min-width:120px">
+            <option value="">Tất cả nhóm</option>
+          </select>
+          <select id="websiteFilterOwner" onchange="renderWebsites()" style="height:32px;font-size:12px">
+            <option value="">Tất cả người</option>
+            <option value="Hải">Hải</option>
+            <option value="Hiếu">Hiếu</option>
+            <option value="Chung">Chung</option>
+          </select>
+          <input type="hidden" id="websiteFilterStatus" value="">
+          <select id="websiteFilterTracked" onchange="renderWebsites()" style="height:32px;font-size:12px">
+            <option value="">📊 Tất cả</option>
+            <option value="tracked">📈 Đang theo dõi</option>
+            <option value="untracked">⬜ Chưa theo dõi</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="openWsImportModal()" style="font-size:12px">⬆ Import</button>
+          <button class="btn btn-primary btn-sm" onclick="openWebsiteForm()">&#43; Thêm website</button>
+        </div>
+      </div>
+      <!-- Status pills -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <button id="wsPillAll" onclick="wsSetStatusFilter('')" style="height:28px;padding:0 12px;border-radius:20px;border:1px solid var(--gray-border);background:#fff;font-size:12px;cursor:pointer;transition:all .15s;font-weight:600">
+          🌐 Tất cả <span id="wsCntAll" style="background:var(--gray-light);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:400;margin-left:2px">0</span>
+        </button>
+        <button id="wsPillTot" onclick="wsSetStatusFilter('Tốt')" style="height:28px;padding:0 12px;border-radius:20px;border:1px solid #b7e4c7;background:#f0faf4;font-size:12px;cursor:pointer;transition:all .15s">
+          ✅ Tốt <span id="wsCntTot" style="background:#d4edda;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px;color:#27ae60;font-weight:600">0</span>
+        </button>
+        <button id="wsPillMK" onclick="wsSetStatusFilter('Chờ cấp lại mật khẩu')" style="height:28px;padding:0 12px;border-radius:20px;border:1px solid #fce0b0;background:#fff4e5;font-size:12px;cursor:pointer;transition:all .15s">
+          🔒 Sai MK <span id="wsCntMK" style="background:#fce0b0;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px;color:#e67e22;font-weight:600">0</span>
+        </button>
+        <button id="wsPillLoi" onclick="wsSetStatusFilter('Lỗi web')" style="height:28px;padding:0 12px;border-radius:20px;border:1px solid #f5c6c6;background:#fdf2f2;font-size:12px;cursor:pointer;transition:all .15s">
+          ⚠️ Lỗi web <span id="wsCntLoi" style="background:#f5c6c6;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px;color:#e74c3c;font-weight:600">0</span>
+        </button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:0;align-items:stretch;flex:1;overflow:hidden">
+      <div style="padding:0;border-right:1px solid var(--gray-border);overflow-y:auto;height:100%;display:flex;flex-direction:column">
+        <div id="wsBulkBar" style="display:none;flex-direction:column;flex-shrink:0;border-bottom:1px solid #ffe082">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fff8e1">
+            <input type="checkbox" id="wsSelectAll" onclick="wsToggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer;accent-color:var(--red)" title="Chọn tất cả">
+            <span id="wsBulkCount" style="font-size:13px;font-weight:600">0 web đã chọn</span>
+            <button onclick="wsVidcoCopyBulk(this)" class="btn btn-sm" style="background:#2c3e50;color:#fff;border:none">📋 Copy VIDCO</button>
+            <button onclick="wsBulkCopyUrls(this)" class="btn btn-sm" style="background:#2980b9;color:#fff;border:none" title="Copy tất cả URL đã chọn">🔗 Copy URL</button>
+            <button onclick="wsBulkEditToggle()" class="btn btn-sm btn-outline" id="wsBulkEditBtn">✏ Sửa hàng loạt</button>
+            <button onclick="wsBulkAddToTracking()" class="btn btn-sm btn-outline" style="color:#27ae60;border-color:#27ae60" title="Thêm vào theo dõi web">📈 Theo dõi</button>
+            <button onclick="wsBulkDelete()" class="btn btn-sm" style="background:#e74c3c;color:#fff;border:none">🗑 Xoá</button>
+            <button onclick="wsClearSelect()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;margin-left:auto;line-height:1">×</button>
+          </div>
+          <div id="wsBulkEditPanel" style="display:none;padding:10px 14px;background:#fffdf0;border-top:1px solid #ffe082;display:none">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Sửa hàng loạt — chỉ điền trường muốn thay đổi</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-items:end">
+              <div class="form-group" style="margin:0">
+                <label style="font-size:11px">Đuôi quản trị</label>
+                <input type="text" id="wbe_admin" placeholder="wp-admin" style="width:100%;height:30px;font-size:12px">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label style="font-size:11px">Trạng thái</label>
+                <select id="wbe_status" style="width:100%;height:30px;font-size:12px">
+                  <option value="">— Giữ nguyên —</option>
+                  <option value="Tốt">✅ Tốt</option>
+                  <option value="Lỗi web">⚠️ Lỗi web</option>
+                  <option value="Chờ cấp lại mật khẩu">🔒 Chờ cấp lại MK</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label style="font-size:11px">Team</label>
+                <select id="wbe_team" style="width:100%;height:30px;font-size:12px">
+                  <option value="">— Giữ nguyên —</option>
+                  <option value="Team 01">Team 01</option>
+                  <option value="Team 02">Team 02</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label style="font-size:11px">Người quản lý</label>
+                <select id="wbe_owner" style="width:100%;height:30px;font-size:12px">
+                  <option value="">— Giữ nguyên —</option>
+                  <option value="Công ty">Công ty</option>
+                  <option value="Hải">Hải</option>
+                  <option value="Hiếu">Hiếu</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label style="font-size:11px">Nhóm con</label>
+                <input type="text" id="wbe_group" placeholder="Để trống = giữ nguyên" style="width:100%;height:30px;font-size:12px">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label style="font-size:11px">Tài khoản</label>
+                <input type="text" id="wbe_account" placeholder="Để trống = giữ nguyên" style="width:100%;height:30px;font-size:12px">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label style="font-size:11px">Mật khẩu</label>
+                <input type="text" id="wbe_password" placeholder="Để trống = giữ nguyên" style="width:100%;height:30px;font-size:12px">
+              </div>
+              <div style="display:flex;align-items:flex-end">
+                <button onclick="wsBulkApplyEdit()" class="btn btn-primary btn-sm" style="width:100%;height:30px">✓ Áp dụng</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:10px 14px 4px;display:flex;align-items:center;gap:6px;flex-shrink:0;border-bottom:1px solid var(--gray-border)">
+          <input type="checkbox" id="wsSelectAllTop" onclick="wsToggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer;accent-color:var(--red)">
+          <span style="font-size:11px;color:var(--text-muted)">Chọn tất cả</span>
+        </div>
+        <div style="padding:14px;flex:1;overflow-y:auto" id="websitesGrid"></div>
+        <div id="emptyWebsites" style="display:none;padding:32px;text-align:center;color:var(--text-muted)">
+          <div style="font-size:32px;margin-bottom:8px">&#127760;</div>Chưa có website nào
+        </div>
+      </div>
+      <!-- RIGHT: Website form -->
+      <div id="websiteFormPanel" style="overflow-y:auto;height:100%;border-left:1px solid var(--gray-border);background:#fafafa">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--gray-border);background:#f8f9fa;font-weight:600;font-size:13px" id="wfTitle">&#43; Thêm website</div>
+        <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+          <input type="hidden" id="wf_id">
+          <!-- 301 toggle ở trên đầu -->
+          <div style="background:#f8f0ff;border:1px solid #c3b1e1;border-radius:8px;padding:10px 12px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="wf_is301" onchange="wfToggle301()" style="cursor:pointer;accent-color:#6c5ce7;width:15px;height:15px">
+              <span style="font-weight:700;font-size:13px;color:#6c5ce7">🔀 Website 301</span>
+              <span style="font-size:11px;color:var(--text-muted)">(redirect từ web gốc)</span>
+            </label>
+            <div id="wf_301_fields" style="display:none;margin-top:10px">
+              <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px">Chọn web gốc từ kho (sẽ sao chép thông tin)</label>
+              <div style="position:relative">
+                <input type="text" id="wf_source_search" placeholder="🔍 Tìm tên hoặc URL..." 
+                  oninput="wf301Search(this.value)"
+                  style="width:100%;height:32px;font-size:12px;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;box-sizing:border-box">
+                <div id="wf_source_results" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:300;max-height:200px;overflow-y:auto;margin-top:2px"></div>
+              </div>
+              <div style="margin-top:6px;display:flex;align-items:center;gap:6px">
+                <span style="font-size:11px;color:var(--text-muted)">hoặc nhập tay:</span>
+                <input type="text" id="wf_source_url" style="flex:1;font-size:12px;border:1px solid var(--gray-border);border-radius:6px;padding:4px 8px" placeholder="debets.com">
+              </div>
+            </div>
+          </div>
+          <div class="form-group"><label>Tên brand *</label><input type="text" id="wf_brand" style="width:100%" placeholder="VD: Debet, CafeLegend..."></div>
+          <div class="form-group"><label>URL *</label><input type="text" id="wf_url" style="width:100%" placeholder="debets.sbs" oninput="this.value=normalizeUrl(this.value)"></div>
+          <div class="form-group"><label>Đuôi quản trị</label><input type="text" id="wf_admin" style="width:100%" placeholder="wp-admin, admin..." oninput="this.value=this.value.replace(/^\/+/,'')" onblur="this.value=this.value.replace(/\/+$/,'')"></div>
+          <div class="form-group"><label>Tài khoản</label>
+            <div style="display:flex;gap:4px">
+              <input type="text" id="wf_account" style="flex:1">
+              <button class="ws-copy-btn" data-field="wf_account" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px" title="Copy">📋</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Mật khẩu</label>
+            <div style="display:flex;gap:4px">
+              <input type="text" id="wf_password" style="flex:1">
+              <button class="ws-copy-btn" data-field="wf_password" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px" title="Copy">📋</button>
+            </div>
+          </div>
+          <div class="form-group"><label>Trạng thái</label>
+            <select id="wf_status" style="width:100%">
+              <option value="Tốt">&#9989; Tốt</option>
+              <option value="Chờ cấp lại mật khẩu">&#128274; Chờ cấp lại mật khẩu</option>
+              <option value="Lỗi web">&#9888; Lỗi web</option>
+            </select>
+          </div>
+          <div id="wf_team_row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="form-group"><label>Team</label>
+              <select id="wf_team" style="width:100%" onchange="onWfTeamChange()">
+                <option value="Team 01">Team 01</option>
+                <option value="Team 02">Team 02</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Người quản lý</label>
+              <select id="wf_owner" style="width:100%">
+                <option value="Công ty">Công ty</option>
+                <option value="Hải">Hải</option>
+                <option value="Hiếu">Hiếu</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group"><label>Nhóm con <span style="font-size:11px;color:var(--text-muted)">(Team 01)</span></label>
+            <div style="display:flex;gap:4px">
+              <select id="wf_group" style="flex:1"></select>
+              <button onclick="openWsGroupManager()" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:14px" title="Quản lý nhóm">⚙</button>
+            </div>
+          </div>
+          <div class="form-group"><label>Ghi chú</label><textarea id="wf_note" rows="2" style="width:100%"></textarea></div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary" onclick="saveWebsite()" style="flex:1">&#10003; Lưu</button>
+            <button class="btn btn-danger btn-sm" id="wf_delete_btn" style="display:none" onclick="deleteWebsite()">&#128465;</button>
+            <button class="btn btn-outline btn-sm" onclick="clearWebsiteForm()">&#10005;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div> <!-- end panel-workspace-job -->
+
+  <!-- ECOSYSTEM PANELS -->
+  <div id="panel-workspace-finance" class="workspace-panel iframe-panel-wrap">
+    <iframe id="iframe-finance" data-src="/finance" src="about:blank"></iframe>
+  </div>
+  <div id="panel-workspace-tools" class="workspace-panel iframe-panel-wrap">
+    <iframe id="iframe-tools" data-src="/my-tools" src="about:blank"></iframe>
+  </div>
+</main>
+</div>
+
+<!-- TASK TRASH MODAL -->
+<div class="modal-overlay" id="taskTrashModal" onclick="if(event.target===this)closeTaskTrash()">
+  <div class="modal" style="max-width:600px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>🗑 Thùng rác — Task đã xoá</h3>
+      <button class="modal-close" onclick="closeTaskTrash()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:8px;max-height:420px;overflow-y:auto" id="trashBody">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="emptyTrash()">🗑 Xoá tất cả vĩnh viễn</button>
+      <button class="btn btn-outline" onclick="closeTaskTrash()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEBSITE GROUP MANAGER -->
+<div class="modal-overlay" id="wsGroupModal" onclick="if(event.target===this)closeWsGroupManager()">
+  <div class="modal" style="max-width:400px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⚙ Quản lý nhóm website</h3>
+      <button class="modal-close" onclick="closeWsGroupManager()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:10px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Nhóm con của <b>Team 01</b> (Team 02 không có nhóm con)</div>
+      <div id="wsGroupList" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto"></div>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <input type="text" id="wsGroupInput" style="flex:1;height:34px;font-size:13px" placeholder="Tên nhóm mới...">
+        <button class="btn btn-primary btn-sm" onclick="addWsGroup()">+ Thêm</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeWsGroupManager()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEBSITE INFO POPUP -->
+<div class="modal-overlay" id="websiteInfoModal" onclick="if(event.target===this)closeWebsiteInfo()">
+  <div class="modal" style="max-width:420px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>&#127760; Thông tin Website</h3>
+      <button class="modal-close" onclick="closeWebsiteInfo()">&times;</button>
+    </div>
+    <div class="modal-body" id="websiteInfoBody" style="gap:0"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeWebsiteInfo()">Đóng</button>
+      <button class="btn btn-outline" id="wiBtnOpen" style="display:none" onclick="wiOpenAdmin()">🔗 Mở quản trị</button>
+      <button class="btn btn-outline" id="wiBtnVidco" style="display:none" onclick="_cp('wi_vidco',this)">📋 VIDCO</button>
+      <button class="btn btn-primary" id="wiBtnEdit" onclick="goEditWebsite()">&#9998; Sửa</button>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY MANAGER MODAL -->
+<div class="modal-overlay" id="categoryModal" onclick="if(event.target===this)closeCategoryManager()">
+  <div class="modal" style="max-width:440px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>&#9881; Quản lý danh mục</h3>
+      <button class="modal-close" onclick="closeCategoryManager()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <!-- Add new -->
+      <div style="display:flex;gap:6px;width:100%">
+        <select id="cm_type" style="width:120px;height:34px;font-size:12px">
+          <option value="work">Công việc</option>
+          <option value="web">Web</option>
+        </select>
+        <input type="text" id="cm_new_name" placeholder="Tên danh mục mới..." style="flex:1;height:34px;font-size:13px">
+        <button class="btn btn-primary btn-sm" onclick="addCategory()" style="white-space:nowrap">&#43; Thêm</button>
+      </div>
+      <!-- Category list -->
+      <div style="width:100%">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);margin-bottom:6px">💼 Công việc</div>
+        <div id="cmWorkList" style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px"></div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);margin-bottom:6px">🌐 Web</div>
+        <div id="cmWebList" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCategoryManager()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+
+  <!-- HỆ SINH THÃI PAGE -->
+  
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeBulkEdit()">Huỷ</button>
+      <button class="btn btn-primary" onclick="applyBulkEdit()">&#10003; Áp dụng cho tất cả đã chọn</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL XEM CHI TIẾT -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Chi tiết bài</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+
+  
+
+  
+  <!-- Firebase SDK (v8 compat bundle) -->
+  <script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-database.js"></script>
+  <!-- CO LAP LUONG XAC THUC V54 -->
+  <script>
+    const AdminAuth = {
+      setPassword(pw) {
+        try {
+          const pws = JSON.parse(localStorage.getItem('wt_passwords')||'{}');
+          pws['admin'] = pw;
+          localStorage.setItem('wt_passwords', JSON.stringify(pws));
+        } catch(e) {}
+      },
+      submitPassword() {
+        const inp = document.getElementById('loginPwInput');
+        const input = inp?.value.trim() || '';
+        if (!input) {
+          alert('Vui lòng nhập mật khẩu!');
+          return;
+        }
+        const btn = document.querySelector('.login-submit-btn');
+        if (btn) btn.textContent = "Đang xác thực...";
+
+        // Truy vấn trực tiếp mật khẩu thật từ Firebase DB gốc
+        firebase.database().ref('passwords/admin').once('value').then(snapshot => {
+          const correctPassword = snapshot.val();
+          if (input === correctPassword) {
+            if (btn) btn.textContent = "Đăng nhập thành công!";
+            executeLoginSuccess();
+          } else {
+            alert('Sai mật khẩu! Vui lòng kiểm tra lại.');
+            if (btn) btn.textContent = "Đăng nhập";
+          }
+        }).catch(err => {
+          console.error("[V54 Error] Lỗi kết nối Firebase:", err);
+          // Fallback phòng thủ nếu mất mạng hoặc lỗi kết nối Firebase: Quét qua Local Storage cũ
+          const localData = localStorage.getItem('wt_passwords');
+          if (localData) {
+            const storedPasswords = JSON.parse(localData);
+            if (storedPasswords && input === storedPasswords.admin) {
+              executeLoginSuccess();
+              return;
+            }
+          }
+          alert('Lỗi kết nối cơ sở dữ liệu. Vui lòng thử lại sau.');
+          if (btn) btn.textContent = "Đăng nhập";
+        });
+      },
+      togglePwVis() {
+        const inp = document.getElementById('loginPwInput');
+        if (inp) inp.type = (inp.type === 'password') ? 'text' : 'password';
+      },
+      logout() {
+        try { sessionStorage.removeItem('wt_session_admin'); } catch(e) {}
+        const ls = document.getElementById('loginScreen');
+        if (ls) ls.style.display = 'flex';
+      }
     };
 
-    // ── Generate Canvas Favicon from FA icon ──────────────────────────────────
-    function setFaviconFromIcon(iconClass) {
-        const unicode = FA_UNICODE[iconClass];
-        if (!unicode) return;
+    function executeLoginSuccess() {
+      console.log("[V60] Đăng nhập thành công. Tiến hành bẻ khóa giao diện cưỡng bức và đồng bộ lại dữ liệu.");
+      sessionStorage.setItem('wt_session_admin', 'true');
+      localStorage.setItem('wt_activeMember', 'admin');
 
-        const canvas = document.createElement("canvas");
-        canvas.width  = 64;
-        canvas.height = 64;
-        const ctx = canvas.getContext("2d");
+      // 1. Ẩn hoàn toàn màn hình đăng nhập Login
+      const loginContainer = document.getElementById('loginScreen');
+      if (loginContainer) {
+        loginContainer.style.setProperty('display', 'none', 'important');
+      }
 
-        // Rounded blue background
-        ctx.fillStyle = "#3b82f6";
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(0, 0, 64, 64, 14);
-        } else {
-            ctx.rect(0, 0, 64, 64);
-        }
-        ctx.fill();
-
-        // Draw FA icon using the loaded web font
-        ctx.fillStyle = "#ffffff";
-        ctx.font = '900 36px "Font Awesome 6 Free"';
-        ctx.textAlign    = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(unicode, 32, 34);
-
-        const link = document.getElementById("favicon");
-        link.href = canvas.toDataURL("image/png");
+      // 2. Kích hoạt hiển thị lớp vỏ bọc hệ thống chính và đồng bộ dữ liệu
+      if (typeof onAdminLoginSuccess === 'function') {
+        onAdminLoginSuccess();
+      }
+      
+      // Kích hoạt nạp lại dữ liệu tươi từ Firebase
+      if (typeof initFirebaseListener === 'function') {
+        initFirebaseListener();
+      }
     }
 
-    // Wait for fonts to load before rendering favicon
-    function initFavicon(iconClass) {
-        if (document.fonts && document.fonts.ready) {
-            document.fonts.ready.then(() => setFaviconFromIcon(iconClass));
-        } else {
-            setTimeout(() => setFaviconFromIcon(iconClass), 1500);
-        }
-    }
+    function submitPassword() { AdminAuth.submitPassword(); }
+    function togglePwVis() { AdminAuth.togglePwVis(); }
+    function logout() { AdminAuth.logout(); }
 
-    // ── Load & Render Dashboard ───────────────────────────────────────────────
-    async function loadDashboard() {
-        let config;
+    document.addEventListener('DOMContentLoaded', () => {
+      const pwInput = document.getElementById('loginPwInput');
+      const submitBtn = document.querySelector('.login-submit-btn');
+
+      if (submitBtn && pwInput) {
+        function triggerSubmit(e) {
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          if (submitBtn.textContent === "Đang xác thực...") return;
+          submitPassword();
+        }
+
+        // Gán duy nhất 1 luồng xử lý bằng chuột
+        submitBtn.onclick = triggerSubmit;
+
+        // Gán duy nhất 1 luồng xử lý bằng phím Enter trên ô mật khẩu
+        pwInput.onkeydown = function(e) {
+          if (e.key === 'Enter') {
+            triggerSubmit(e);
+          }
+        };
+
+        pwInput.addEventListener('input', () => {
+          const err = document.getElementById('loginPwErr');
+          if (err) err.style.display = 'none';
+        });
+      }
+      
+      const statusDiv = document.getElementById('loginStatusText');
+      if (statusDiv) {
         try {
-            const res = await fetch("/api/config");
-            config = await res.json();
+          const localData = localStorage.getItem('wt_passwords');
+          if (localData) {
+            const stored = JSON.parse(localData);
+            statusDiv.textContent = stored.admin ? "Thiết lập máy khách: Đã nhận mật khẩu riêng" : "Thiết lập máy khách: Trống";
+          } else {
+            statusDiv.textContent = "Thiết lập máy khách: Trống (Chờ đồng bộ)";
+          }
         } catch(e) {
-            console.error("Cannot load config:", e);
-            return;
+          statusDiv.textContent = "Thiết lập máy khách: Trống";
         }
+      }
 
-        // Site title & meta
-        const siteName = config.siteName || "Command Center";
-        document.getElementById("site-name").textContent = siteName;
-        document.title = siteName + " | " + DOMAIN;
+      if (sessionStorage.getItem('wt_session_admin') === 'true') {
+        const ls = document.getElementById('loginScreen');
+        if (ls) ls.style.display = 'none';
+      }
+    });
+  </script>
+  <script src="firebase.js?v=premium_ui_perfect_v8"></script>
+  <script src="script.js?v=premium_ui_perfect_v66"></script>
 
-        // Logo
-        if (config.logoUrl) {
-            document.getElementById("logo-wrap").innerHTML =
-                `<img src="${config.logoUrl}" alt="Logo" class="logo">`;
-        }
+<!-- EDIT INDEX TASK MODAL -->
+<div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">
+  <div class="modal" style="max-width:480px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>✎ Sửa task index</h3>
+      <button class="modal-close" onclick="closeEditIndexModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <input type="hidden" id="eim_taskId">
+      <div class="form-group" style="width:100%">
+        <label>Tên task *</label>
+        <input type="text" id="eim_name" style="width:100%">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+        <div class="form-group">
+          <label>Ngày ép index</label>
+          <input type="date" id="eim_date" style="width:100%">
+        </div>
+        <div class="form-group">
+          <label>STT</label>
+          <input type="text" id="eim_stt" style="width:100%" maxlength="10">
+        </div>
+      </div>
+      <div class="form-group" id="eim_team_row" style="width:100%">
+        <label>Team</label>
+        <div style="display:flex;gap:8px">
+          <button type="button" id="eim_team_btn1" onclick="eimSetTeam('Team 01')" class="btn btn-primary" style="flex:1">Team 01</button>
+          <button type="button" id="eim_team_btn2" onclick="eimSetTeam('Team 02')" class="btn btn-outline" style="flex:1">Team 02</button>
+        </div>
+      </div>
+      <div class="form-group" id="eim_person_row" style="width:100%">
+        <label>Người nhận</label>
+        <div style="display:flex;gap:8px">
+          <button type="button" id="eim_person_btn_hai" onclick="eimSetPerson('Hải')" class="btn btn-primary" style="flex:1">👤 Hải</button>
+          <button type="button" id="eim_person_btn_hieu" onclick="eimSetPerson('Hiếu')" class="btn btn-outline" style="flex:1">👤 Hiếu</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeEditIndexModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveEditIndexTask()">✓ Lưu</button>
+    </div>
+  </div>
+</div>
 
-        // Favicon from first visible tool icon (or fallback)
-        const firstVisible = config.tools?.find(t => t.visible);
-        if (firstVisible?.icon) initFavicon(firstVisible.icon);
+<!-- ADD INDEX TASK MODAL -->
+<div class="modal-overlay" id="addIndexModal" onclick="if(event.target===this)closeAddIndexModal()">
+  <div class="modal" style="max-width:480px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="aimTitle">&#43; Thêm task index</h3>
+      <button class="modal-close" onclick="closeAddIndexModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <div class="form-group" style="width:100%">
+        <label>Tên task *</label>
+        <input type="text" id="aim_name" style="width:100%" placeholder="VD: Index bài tháng 3 - debets.sbs...">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+        <div class="form-group">
+          <label>Ngày ép index</label>
+          <input type="date" id="aim_date" style="width:100%" oninput="updateAimPreview()">
+        </div>
+        <div class="form-group">
+          <label>STT <span style="font-size:11px;color:var(--text-muted)">— để trống ô cuối nếu chỉ 1 bài</span></label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" id="aim_stt_from" style="flex:1;height:36px;font-size:13px" placeholder="Từ" min="1" oninput="updateAimPreview()">
+            <span style="color:var(--text-muted);font-size:14px">—</span>
+            <input type="number" id="aim_stt_to" style="flex:1;height:36px;font-size:13px" placeholder="Đến" min="1" oninput="updateAimPreview()">
+          </div>
+          <input type="hidden" id="aim_stt">
+        </div>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Tháng của ID <span style="font-size:11px;color:var(--text-muted)">— chọn tháng khác nếu muốn tạo ID cho tháng trước</span></label>
+        <select id="aim_month" style="width:100%;height:36px;font-size:13px" onchange="updateAimPreview()"></select>
+      </div>
+      <div class="form-group" id="aim_team_row" style="width:100%">
+        <label>Team</label>
+        <div style="display:flex;gap:8px">
+          <button type="button" id="aim_team_btn1" onclick="aimSetTeam('Team 01')"
+            class="btn btn-primary" style="flex:1">Team 01</button>
+          <button type="button" id="aim_team_btn2" onclick="aimSetTeam('Team 02')"
+            class="btn btn-outline" style="flex:1">Team 02</button>
+        </div>
+      </div>
+      <div class="form-group" id="aim_person_row" style="width:100%">
+        <label>Người nhận</label>
+        <div style="display:flex;gap:8px" id="aim_person_btns">
+          <button type="button" id="aim_person_btn_hai" onclick="aimSetPerson('Hải')"
+            class="btn btn-primary" style="flex:1">👤 Hải</button>
+          <button type="button" id="aim_person_btn_hieu" onclick="aimSetPerson('Hiếu')"
+            class="btn btn-outline" style="flex:1">👤 Hiếu</button>
+        </div>
+      </div>
+      <div style="background:#fff8ee;border-radius:8px;padding:10px 12px;border:1px solid #fce0b0">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="aim_is_sub" onchange="updateAimPreview()" style="cursor:pointer;accent-color:var(--red);width:14px;height:14px">
+          <span style="font-weight:600;font-size:13px">🔗 Task con</span>
+          <span style="font-size:11px;color:var(--text-muted)">— cho phép STT trùng với task cha, tự liên kết</span>
+        </label>
+        <div id="aim_parents_preview" style="display:none;margin-top:6px;font-size:11px;color:#e67e22"></div>
+      </div>
+      <div style="background:#f8f9fa;border-radius:8px;padding:12px;border:1px solid var(--gray-border)">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:600">ID TASK SẼ ĐƯỢC TẠO:</div>
+        <div id="aim_preview_id" style="font-size:20px;font-weight:700;line-height:1.4">—</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px;display:flex;gap:10px">
+          <span><span style="color:#c0392b;font-weight:600">MM</span> = tháng</span>
+          <span><span style="color:#2980b9;font-weight:600">TT</span> = team</span>
+          <span><span style="color:#27ae60;font-weight:600">STT</span> = số thứ tự (tự pad 4 chữ số)</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Ngày dán index dự kiến: <span id="aim_preview_due" style="font-weight:600;color:#e67e22">—</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddIndexModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveAddIndexTask()">&#43; Tạo task</button>
+    </div>
+  </div>
+</div>
 
-        // Render tool cards
-        const grid = document.getElementById("app-grid");
-        grid.innerHTML = "";
-        (config.tools || [])
-            .filter(t => t.visible)
-            .forEach((tool, idx) => {
-                const card = document.createElement("a");
-                card.href      = `https://${tool.id}.${DOMAIN}`;
-                card.target    = "_blank";   // Cô lập session Firebase hoàn toàn
-                card.rel       = "noopener noreferrer";
-                card.className = "app-card";
-                card.style.animationDelay = `${idx * 0.08}s`;
-                card.innerHTML = `
-                    <div class="icon-wrapper">
-                        <i class="fa-solid ${tool.icon}"></i>
-                    </div>
-                    <h2>${tool.name}</h2>
-                    <div class="launch-btn">
-                        Mở ứng dụng <i class="fa-solid fa-arrow-right"></i>
-                    </div>`;
-                grid.appendChild(card);
-                setTimeout(() => card.classList.add("animate-in"), 50);
-            });
-    }
+<!-- ACTION MODAL: Dán index / Pending -->
+<div class="modal-overlay" id="indexActionModal" onclick="if(event.target===this)closeIndexActionModal()">
+  <div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="iamTitle">&#9989; Xác nhận dán index</h3>
+      <button class="modal-close" onclick="closeIndexActionModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <div style="background:#f8f9fa;padding:10px 12px;border-radius:8px;border:1px solid var(--gray-border)">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Task ID</div>
+        <div id="iamTaskId" style="font-family:monospace;font-weight:700;font-size:16px;color:var(--red)"></div>
+        <div id="iamTaskName" style="font-size:12px;color:var(--text-muted);margin-top:3px"></div>
+      </div>
+      <!-- Chọn action -->
+      <div style="display:flex;gap:8px">
+        <button type="button" id="iamBtnDone" onclick="iamSetAction('done')"
+          class="btn btn-primary" style="flex:1;background:#27ae60;border-color:#27ae60">&#10003; Đã dán index</button>
+        <button type="button" id="iamBtnPending" onclick="iamSetAction('pending')"
+          class="btn btn-outline" style="flex:1;color:#e67e22;border-color:#e67e22">&#9203; Pending</button>
+      </div>
+      <!-- Pending fields (ẩn khi chọn Done) -->
+      <div id="iamPendingFields" style="display:none;flex-direction:column;gap:10px">
+        <div class="form-group" style="width:100%">
+          <label>Lý do pending *</label>
+          <textarea id="iamReason" rows="2" style="width:100%" placeholder="Nhập lý do..."></textarea>
+        </div>
+        <div class="form-group" style="width:100%">
+          <label>Ngày dự kiến hoàn thành *</label>
+          <input type="date" id="iamNewDue" style="width:100%">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeIndexActionModal()">Huỷ</button>
+      <button class="btn btn-primary" id="iamSubmitBtn" onclick="submitIndexAction()">&#10003; Xác nhận</button>
+    </div>
+  </div>
+</div>
 
-    loadDashboard();
-    </script>
-</body>
-</html>
+<!-- ASSIGN INDEX ID MODAL -->
+<div class="modal-overlay" id="assignIndexIdModal" onclick="if(event.target===this)closeAssignIndexIdModal()">
+  <div class="modal" style="max-width:420px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>🔍 Gán ID Index</h3>
+      <button class="modal-close" onclick="closeAssignIndexIdModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:10px">
+      <div style="font-size:12px;color:var(--text-muted)" id="assignIdContext"></div>
+      <div class="form-group" style="width:100%">
+        <label>Chọn hoặc nhập ID Index</label>
+        <select id="assignIdSelect" style="width:100%;height:36px;font-size:13px" onchange="onAssignIdSelectChange()">
+          <option value="">-- Chọn từ danh sách --</option>
+        </select>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Hoặc nhập thủ công</label>
+        <input type="text" id="assignIdManual" style="width:100%" placeholder="VD: 030101136-1165">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="applyAssignIndexId()" style="flex:1">✓ Gán</button>
+        <button class="btn btn-danger btn-sm" onclick="clearAssignIndexId()" title="Xoá ID khỏi các dòng này">✕ Xoá ID</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAssignIndexIdModal()">Huỷ</button>
+    </div>
+  </div>
+</div>
+
+<!-- TASK PENDING MODAL -->
+<div class="modal-overlay" id="taskPendingModal" onclick="if(event.target===this)closeTaskPendingModal()">
+  <div class="modal" style="max-width:440px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="tpmTitle">⏸ Pending task</h3>
+      <button class="modal-close" onclick="closeTaskPendingModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <input type="hidden" id="tpm_taskId">
+      <div id="tpmTaskName" style="font-size:13px;font-weight:600;color:var(--text);background:#f8f9fa;padding:10px 12px;border-radius:8px;border:1px solid var(--gray-border)"></div>
+      <div class="form-group" style="width:100%">
+        <label>Lý do pending *</label>
+        <textarea id="tpm_reason" rows="2" style="width:100%" placeholder="Nhập lý do pending..."></textarea>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Ghi chú tình trạng xử lý</label>
+        <textarea id="tpm_note" rows="2" style="width:100%" placeholder="Ghi chú thêm (tùy chọn)..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" id="tpmClearBtn" style="margin-right:auto;display:none" onclick="resolveTaskPendingFromModal()">✓ Bỏ pending</button>
+      <button class="btn btn-outline" onclick="closeTaskPendingModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveTaskPending()">⏸ Xác nhận pending</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT PROMPT MODAL -->
+<div class="modal-overlay" id="promptModal" onclick="if(event.target===this)closePromptModal()">
+  <div class="modal" style="max-width:580px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="promptModalTitle">&#43; Thêm prompt</h3>
+      <button class="modal-close" onclick="closePromptModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <input type="hidden" id="pm_id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+        <div class="form-group">
+          <label>Loại *</label>
+          <select id="pm_type" style="width:100%" onchange="pmRenderCatTags(this.value);pmCatSearch()">
+            <option value="viet">✍️ Prompt viết</option>
+            <option value="anh">🖼️ Prompt ảnh</option>
+            <option value="note">📝 Note</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Danh mục</label>
+          <div style="position:relative" id="pmCatWrap">
+            <input type="text" id="pm_cat" style="width:100%" placeholder="Tìm hoặc nhập danh mục mới..."
+              oninput="pmCatSearch()" onfocus="pmCatSearch()" onblur="setTimeout(pmCatClose,200)"
+              autocomplete="off">
+            <div id="pmCatDrop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-border);border-radius:0 0 6px 6px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:400;max-height:160px;overflow-y:auto"></div>
+          </div>
+          <!-- Existing category tags to click-select -->
+          <div id="pmCatExisting" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Tên prompt *</label>
+        <input type="text" id="pm_name" style="width:100%" placeholder="VD: Viết bài tinh gọn SEO...">
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Nội dung prompt *</label>
+        <textarea id="pm_content" rows="8" style="width:100%;font-family:monospace;font-size:12px;line-height:1.6" placeholder="Nhập nội dung câu lệnh..."></textarea>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Ghi chú</label>
+        <input type="text" id="pm_note" style="width:100%" placeholder="Mô tả ngắn hoặc hướng dẫn sử dụng...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="pm_delete_btn" style="display:none;margin-right:auto" onclick="deletePrompt()">🗑 Xoá</button>
+      <button class="btn btn-outline" onclick="closePromptModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="savePrompt()">✓ Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- GIAO VIỆC MODAL -->
+<div class="modal-overlay" id="giaoViecModal" onclick="if(event.target===this)closeGiaoViecModal()">
+  <div class="modal" style="max-width:520px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="gvModalTitle">📤 Giao việc</h3>
+      <button class="modal-close" onclick="closeGiaoViecModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <input type="hidden" id="gv_editId">
+      <!-- Task info preview -->
+      <div id="gvTaskPreview" style="background:#f8f9fa;border-radius:8px;padding:10px 14px;border:1px solid var(--gray-border);font-size:13px"></div>
+      <div class="form-group" style="width:100%">
+        <label>Giao cho *</label>
+        <div style="position:relative">
+          <input type="text" id="gvAssigneeInput" style="width:100%" placeholder="Tìm hoặc nhập tên người nhận..."
+            oninput="gvAssigneeSearch()" autocomplete="off">
+          <div id="gvAssigneeDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-border);border-radius:0 0 6px 6px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:300;max-height:180px;overflow-y:auto"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+        <div class="form-group">
+          <label>Deadline</label>
+          <input type="date" id="gvDeadline" style="width:100%">
+        </div>
+        <div class="form-group">
+          <label>Trạng thái</label>
+          <select id="gvStatus" style="width:100%">
+            <option value="Chờ làm">⏳ Chờ làm</option>
+            <option value="Đang làm">🔄 Đang làm</option>
+            <option value="Hoàn thành">✅ Hoàn thành</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Ghi chú / hướng dẫn</label>
+        <textarea id="gvNote" rows="2" style="width:100%" placeholder="Mô tả thêm nếu cần..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="gvDeleteBtn" style="display:none;margin-right:auto" onclick="deleteGiaoViec()">🗑 Xoá</button>
+      <button class="btn btn-outline" onclick="closeGiaoViecModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveGiaoViec()">📤 Giao việc</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE ASSIGNEES MODAL -->
+<div class="modal-overlay" id="manageAssigneesModal" onclick="if(event.target===this)closeManageAssignees()">
+  <div class="modal" style="max-width:420px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⚙ Quản lý người nhận</h3>
+      <button class="modal-close" onclick="closeManageAssignees()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:10px">
+      <div style="display:flex;gap:8px;width:100%">
+        <input type="text" id="newAssigneeName" style="flex:1" placeholder="Tên người nhận mới..."
+          onkeydown="if(event.key==='Enter')addAssignee()">
+        <button class="btn btn-primary btn-sm" onclick="addAssignee()">+ Thêm</button>
+      </div>
+      <div id="assigneeList" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeManageAssignees()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal" style="max-width:420px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⚙ Cài đặt giao diện</h3>
+      <button class="modal-close" onclick="closeSettings()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:16px;text-align:center;padding:30px 20px;color:var(--text-muted)">
+      Giao diện Portal được thiết lập mặc định tối giản và sang trọng.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeSettings()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- AVATAR SETTINGS MODAL -->
+<div class="modal-overlay" id="avatarSettingsModal" onclick="if(event.target===this)closeAvatarSettings()">
+  <div class="modal" style="max-width:480px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>🖼️ Ảnh đại diện sảnh chờ</h3>
+      <button class="modal-close" onclick="closeAvatarSettings()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:16px">
+      <p style="font-size:13px;color:var(--text-muted);margin:0">Tải ảnh lên để hiển thị trong sảnh chọn hồ sơ. Ảnh sẽ đồng bộ qua Firebase.</p>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+        <!-- Admin -->
+        <div style="text-align:center">
+          <div id="avPreview_admin" style="width:80px;height:80px;border-radius:50%;background:#2c3e50;color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px;overflow:hidden;border:2px solid var(--gray-border)">⚙</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px">Admin</div>
+          <label style="cursor:pointer;background:#f8f9fa;border:1px solid var(--gray-border);border-radius:6px;padding:4px 10px;font-size:11px;display:inline-block">
+            📁 Chọn ảnh
+            <input type="file" accept="image/*" style="display:none" onchange="handleAvatarUpload(event,'admin')">
+          </label>
+          <button onclick="removeAvatar('admin')" style="display:block;margin:4px auto 0;background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer">✕ Xóa</button>
+        </div>
+        <!-- Hiếu -->
+        <div style="text-align:center">
+          <div id="avPreview_hieu" style="width:80px;height:80px;border-radius:50%;background:#eaf4fd;color:#2980b9;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;margin:0 auto 8px;overflow:hidden;border:2px solid var(--gray-border)">H</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px">Hiếu</div>
+          <label style="cursor:pointer;background:#f8f9fa;border:1px solid var(--gray-border);border-radius:6px;padding:4px 10px;font-size:11px;display:inline-block">
+            📁 Chọn ảnh
+            <input type="file" accept="image/*" style="display:none" onchange="handleAvatarUpload(event,'hieu')">
+          </label>
+          <button onclick="removeAvatar('hieu')" style="display:block;margin:4px auto 0;background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer">✕ Xóa</button>
+        </div>
+        <!-- Hải -->
+        <div style="text-align:center">
+          <div id="avPreview_hai" style="width:80px;height:80px;border-radius:50%;background:#fdf2f2;color:#c0392b;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;margin:0 auto 8px;overflow:hidden;border:2px solid var(--gray-border)">H</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px">Hải</div>
+          <label style="cursor:pointer;background:#f8f9fa;border:1px solid var(--gray-border);border-radius:6px;padding:4px 10px;font-size:11px;display:inline-block">
+            📁 Chọn ảnh
+            <input type="file" accept="image/*" style="display:none" onchange="handleAvatarUpload(event,'hai')">
+          </label>
+          <button onclick="removeAvatar('hai')" style="display:block;margin:4px auto 0;background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer">✕ Xóa</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAvatarSettings()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESET PASSWORD MODAL (Admin only) -->
+<div class="modal-overlay" id="resetPwModal" onclick="if(event.target===this)closeResetPwModal()">
+  <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>🔒 Đặt lại mật khẩu</h3>
+      <button class="modal-close" onclick="closeResetPwModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <p style="font-size:13px;color:var(--text-muted);margin:0">Chọn hồ sơ cần đặt lại về mật khẩu hệ thống <b>123456</b>:</p>
+      <div style="display:flex;gap:10px;width:100%">
+        <button onclick="selectResetTarget('hai')" id="resetBtnHai"
+          style="flex:1;padding:12px;border-radius:8px;border:2px solid var(--gray-border);cursor:pointer;background:#fff;transition:all .15s;font-size:13px;font-weight:600"
+          onmouseover="this.style.borderColor='var(--red)'" onmouseout="if(_resetTarget!=='hai')this.style.borderColor='var(--gray-border)'">
+          <div style="width:36px;height:36px;border-radius:50%;background:#fdf2f2;color:#c0392b;display:flex;align-items:center;justify-content:center;font-weight:700;margin:0 auto 6px">H</div>
+          Hải
+        </button>
+        <button onclick="selectResetTarget('hieu')" id="resetBtnHieu"
+          style="flex:1;padding:12px;border-radius:8px;border:2px solid var(--gray-border);cursor:pointer;background:#fff;transition:all .15s;font-size:13px;font-weight:600"
+          onmouseover="this.style.borderColor='#2980b9'" onmouseout="if(_resetTarget!=='hieu')this.style.borderColor='var(--gray-border)'">
+          <div style="width:36px;height:36px;border-radius:50%;background:#eaf4fd;color:#2980b9;display:flex;align-items:center;justify-content:center;font-weight:700;margin:0 auto 6px">H</div>
+          Hiếu
+        </button>
+      </div>
+      <div id="resetPinWrap" style="display:none;width:100%">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px" id="resetPinLabel"></div>
+        <div class="form-group" style="margin:0">
+          <label>Mã PIN xác nhận *</label>
+          <input type="password" id="cpwPin" style="width:100%" placeholder="Nhập mã PIN..."
+            onkeydown="if(event.key==='Enter')confirmResetProfile()">
+        </div>
+        <div id="cpwPinErr" style="display:none;color:#e74c3c;font-size:12px;margin-top:6px">Mã PIN không đúng.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeResetPwModal()">Huỷ</button>
+      <button class="btn btn-primary" id="resetConfirmBtn" style="display:none" onclick="confirmResetProfile()">✓ Xác nhận đặt lại</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-overlay" id="changePwModal" onclick="if(event.target===this)closeChangePassword()">
+  <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="cpwTitle">🔑 Đổi mật khẩu</h3>
+      <button class="modal-close" onclick="closeChangePassword()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:10px">
+      <div class="form-group" style="width:100%">
+        <label>Mật khẩu hiện tại</label>
+        <input type="password" id="cpwOld" style="width:100%" placeholder="Nhập mật khẩu hiện tại...">
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Mật khẩu mới</label>
+        <input type="password" id="cpwNew" style="width:100%" placeholder="Nhập mật khẩu mới...">
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Xác nhận mật khẩu mới</label>
+        <input type="password" id="cpwConfirm" style="width:100%" placeholder="Nhập lại mật khẩu mới..."
+          onkeydown="if(event.key==='Enter')saveChangePassword()">
+      </div>
+      <div id="cpwErr" style="display:none;color:#e74c3c;font-size:12px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeChangePassword()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveChangePassword()">✓ Đổi mật khẩu</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEBSITE IMPORT MODAL --></div>
+
+
+
+<!-- SWITCH MEMBER PASSWORD MODAL -->
+<div class="modal-overlay" id="switchPwModal" onclick="if(event.target===this)closeSwitchPwModal()" style="display:none">
+  <div class="modal" style="max-width:320px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="switchPwTitle">🔑 Xác nhận chuyển hồ sơ</h3>
+      <button class="modal-close" onclick="closeSwitchPwModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:10px">
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 0">
+        <div id="switchPwAvatar" style="width:48px;height:48px;border-radius:50%;flex-shrink:0;overflow:hidden"></div>
+        <div><div id="switchPwName" style="font-weight:600;font-size:14px"></div><div style="font-size:12px;color:var(--text-muted)">Nhập mật khẩu để chuyển</div></div>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label>Mật khẩu</label>
+        <input type="password" id="switchPwInput" style="width:100%" placeholder="Nhập mật khẩu..." onkeydown="if(event.key==='Enter')submitSwitchPw()">
+      </div>
+      <div id="switchPwErr" style="display:none;color:#e74c3c;font-size:12px">Mật khẩu không đúng.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeSwitchPwModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="submitSwitchPw()">✓ Chuyển</button>
+    </div>
+  </div>
+</div>
+
+<!-- END MONTH MODAL -->
+<div class="modal-overlay" id="endMonthModal" onclick="if(event.target===this)closeEndMonthModal()" style="display:none">
+  <div class="modal" style="max-width:400px" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3>📅 Bắt đầu tháng mới</h3><button class="modal-close" onclick="closeEndMonthModal()">&times;</button></div>
+    <div class="modal-body" style="gap:12px">
+      <div id="endMonthInfo" style="font-size:13px;line-height:1.7;background:#f8f9fa;border-radius:8px;padding:12px;color:var(--text)"></div>
+      <div class="form-group" style="width:100%"><label>Ngày bắt đầu tháng mới *</label><input type="date" id="endMonthNewStart" style="width:100%" oninput="autoFillEndDate(this.value)"></div>
+      <div class="form-group" style="width:100%"><label>Ngày kết thúc tháng cũ <span style="font-weight:400;color:var(--text-muted)">(để trống = ngày bắt đầu tháng mới − 1)</span></label><input type="date" id="endMonthEndDate" style="width:100%"></div>
+      <div class="form-group" style="width:100%"><label>Mã PIN hệ thống *</label><input type="password" id="endMonthPin" style="width:100%" placeholder="Nhập mã PIN..." onkeydown="if(event.key==='Enter')confirmEndMonth()"></div>
+      <div id="endMonthErr" style="display:none;color:#e74c3c;font-size:12px">Mã PIN không đúng.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeEndMonthModal()">Huỷ</button><button class="btn btn-primary" onclick="confirmEndMonth()">✓ Bắt đầu tháng mới</button></div>
+  </div>
+</div>
+
+<!-- EDIT PERIOD START MODAL -->
+<div class="modal-overlay" id="editPeriodModal" onclick="if(event.target===this)closeEditPeriodModal()" style="display:none">
+  <div class="modal" style="max-width:360px" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3>✎ Sửa ngày bắt đầu tháng</h3><button class="modal-close" onclick="closeEditPeriodModal()">&times;</button></div>
+    <div class="modal-body" style="gap:12px">
+      <div class="form-group" style="width:100%"><label>Ngày bắt đầu tháng *</label><input type="date" id="editPeriodDate" style="width:100%"></div>
+      <div class="form-group" style="width:100%"><label>Mã PIN xác nhận *</label><input type="password" id="editPeriodPin" style="width:100%" placeholder="Nhập mã PIN..." onkeydown="if(event.key==='Enter')confirmEditPeriod()"></div>
+      <div id="editPeriodErr" style="display:none;color:#e74c3c;font-size:12px">Mã PIN không đúng.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeEditPeriodModal()">Huỷ</button><button class="btn btn-primary" onclick="confirmEditPeriod()">✓ Lưu</button></div>
+  </div>
+</div>
+
+<!-- PERIOD HISTORY MODAL -->
+<div class="modal-overlay" id="periodHistoryModal" onclick="if(event.target===this)closePeriodHistoryModal()" style="display:none">
+  <div class="modal" style="max-width:520px" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3>📋 Lịch sử các tháng</h3><button class="modal-close" onclick="closePeriodHistoryModal()">&times;</button></div>
+    <div class="modal-body" style="padding:0;gap:0;max-height:460px;overflow-y:auto" id="periodHistoryList"></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closePeriodHistoryModal()">Đóng</button></div>
+  </div>
+</div>
+
+<!-- ROLLBACK MODAL -->
+<div class="modal-overlay" id="rollbackModal" onclick="if(event.target===this)closeRollbackModal()" style="display:none">
+  <div class="modal" style="max-width:380px" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3>↩ Quay về tháng trước</h3><button class="modal-close" onclick="closeRollbackModal()">&times;</button></div>
+    <div class="modal-body" style="gap:12px">
+      <div id="rollbackInfo" style="font-size:13px;line-height:1.7;background:#fff8ee;border:1px solid #fce0b0;border-radius:8px;padding:12px;color:var(--text)"></div>
+      <div class="form-group" style="width:100%"><label>Mã PIN xác nhận *</label><input type="password" id="rollbackPin" style="width:100%" placeholder="Nhập mã PIN..." onkeydown="if(event.key==='Enter')confirmRollback()"></div>
+      <div id="rollbackErr" style="display:none;color:#e74c3c;font-size:12px">Mã PIN không đúng.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeRollbackModal()">Huỷ</button><button class="btn btn-danger" onclick="confirmRollback()">↩ Xác nhận quay về</button></div>
+  </div>
+</div>
+
+<!-- SALARY CONFIG MODAL -->
+<div class="modal-overlay" id="salaryConfigModal" onclick="if(event.target===this)closeSalaryConfigModal()" style="display:none">
+  <div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3 id="scTitle">⚙ Chi phí / Phụ cấp</h3><button class="modal-close" onclick="closeSalaryConfigModal()">&times;</button></div>
+    <div class="modal-body" style="gap:14px">
+      <div style="font-size:12px;color:var(--text-muted);background:#f8f9fa;padding:8px 12px;border-radius:6px"><b>Thực nhận</b> = Lương bài − Tổng chi phí + Tổng phụ cấp</div>
+      <div class="form-group" style="width:100%">
+        <label style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--red)">− Chi phí (trừ đi)</span><button onclick="_scAdd('chiPhi')" class="btn btn-sm btn-outline" style="height:24px;font-size:11px">+ Thêm</button></label>
+        <div id="sc_chiPhi_list" style="margin-top:6px"></div>
+      </div>
+      <div class="form-group" style="width:100%">
+        <label style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--green)">+ Phụ cấp (cộng thêm)</span><button onclick="_scAdd('phuCap')" class="btn btn-sm btn-outline" style="height:24px;font-size:11px">+ Thêm</button></label>
+        <div id="sc_phuCap_list" style="margin-top:6px"></div>
+      </div>
+      <div class="form-group" style="width:100%"><label>Mã PIN xác nhận *</label><input type="password" id="scPin" style="width:100%" placeholder="Nhập mã PIN..." onkeydown="if(event.key==='Enter')saveSalaryConfig()"></div>
+      <div id="scErr" style="display:none;color:#e74c3c;font-size:12px">Mã PIN không đúng.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeSalaryConfigModal()">Huỷ</button><button class="btn btn-primary" onclick="saveSalaryConfig()">✓ Lưu</button></div>
+  </div>
+</div>
+
+<!-- SALARY RATES MODAL -->
+<div class="modal-overlay" id="salaryRatesModal" onclick="if(event.target===this)closeSalaryRatesModal()" style="display:none">
+  <div class="modal" style="max-width:580px" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3>💵 Mức lương theo loại bài</h3><button class="modal-close" onclick="closeSalaryRatesModal()">&times;</button></div>
+    <div class="modal-body" style="gap:14px">
+      <div style="font-size:12px;color:var(--text-muted);background:#f8f9fa;padding:8px 12px;border-radius:6px">Mức lương riêng cho từng người. Cột <b>Mặc định</b> là giá chung của hệ thống.</div>
+      <table class="report-table" style="font-size:13px">
+        <thead><tr><th>Loại bài</th><th style="text-align:center">Hải (đ)</th><th style="text-align:center">Hiếu (đ)</th><th>Mặc định</th></tr></thead>
+        <tbody id="salaryRatesTbody"></tbody>
+      </table>
+      <!-- Quản lý loại bài — chỉ admin -->
+      <div id="loaiManagerSection" style="border-top:2px solid var(--gray-border);padding-top:12px;display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600">⚙ Quản lý loại bài</span>
+          <button onclick="addLoaiBaiRow()" class="btn btn-sm btn-outline" style="height:26px;font-size:11px;color:var(--green);border-color:var(--green)">+ Thêm loại</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Thêm, sửa hoặc xoá loại bài. Loại mặc định (gốc) không thể xoá.</div>
+        <table class="report-table" style="font-size:12px;width:100%">
+          <thead><tr><th>Tên loại bài</th><th style="text-align:center">Giá mặc định (đ)</th><th style="text-align:center">Màu</th><th style="text-align:center">Xoá</th></tr></thead>
+          <tbody id="loaiManagerTbody"></tbody>
+        </table>
+      </div>
+      <div class="form-group" style="width:100%"><label>Mã PIN xác nhận *</label><input type="password" id="salaryRatesPin" style="width:100%" placeholder="Nhập mã PIN..." onkeydown="if(event.key==='Enter')saveSalaryRates()"></div>
+      <div id="salaryRatesErr" style="display:none;color:#e74c3c;font-size:12px">Mã PIN không đúng.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeSalaryRatesModal()">Huỷ</button><button class="btn btn-primary" onclick="saveSalaryRates()">✓ Lưu tất cả</button></div>
+  </div>
+</div>
+
+<!-- NGHIỆM THU MODAL -->
+<div class="modal-overlay" id="ntModal" onclick="if(event.target===this)closeNghiemThu()" style="display:none">
+  <div class="modal" style="max-width:400px" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3>✅ Nghiệm thu bài viết</h3><button class="modal-close" onclick="closeNghiemThu()">&times;</button></div>
+    <div class="modal-body" style="gap:12px">
+      <div style="background:#f8f9fa;border-radius:8px;padding:10px 12px">
+        <div id="ntKeyword" style="font-weight:600;font-size:13px;margin-bottom:4px"></div>
+        <div id="ntLoai" style="font-size:12px;color:var(--text-muted)"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button id="ntBtn100" onclick="selectNT(100)" style="padding:12px;border-radius:8px;border:2px solid #a8deba;cursor:pointer;font-size:15px;font-weight:700;background:#f0faf4;color:#27ae60">100%<div style="font-size:11px;font-weight:400;margin-top:2px">Đầy đủ</div></button>
+        <button id="ntBtn80" onclick="selectNT(80)" style="padding:12px;border-radius:8px;border:2px solid #b8d4ea;cursor:pointer;font-size:15px;font-weight:700;background:#f0f7fd;color:#2980b9">80%<div style="font-size:11px;font-weight:400;margin-top:2px">Khá</div></button>
+        <button id="ntBtn50" onclick="selectNT(50)" style="padding:12px;border-radius:8px;border:2px solid #f5c6c6;cursor:pointer;font-size:15px;font-weight:700;background:#fdf2f2;color:#e74c3c">50%<div style="font-size:11px;font-weight:400;margin-top:2px">Trung bình</div></button>
+        <button id="ntBtn0" onclick="selectNT(0)" style="padding:12px;border-radius:8px;border:2px solid #ccc;cursor:pointer;font-size:15px;font-weight:700;background:#f0f0f0;color:#555">0%<div style="font-size:11px;font-weight:400;margin-top:2px">Không đạt</div></button>
+      </div>
+      <div class="form-group" id="ntReasonRow" style="width:100%;display:none"><label>Lý do <span style="color:var(--red)">*</span></label><textarea id="ntReason" rows="2" style="width:100%" placeholder="Nhập lý do..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeNghiemThu()">Huỷ</button><button class="btn btn-primary" onclick="saveNT()">✓ Xác nhận</button></div>
+  </div>
+</div>
+
+<!-- FLEX SALARY MODAL -->
+<div class="modal-overlay" id="flexSalaryModal" onclick="if(event.target===this)closeFlexSalaryModal()" style="display:none">
+  <div class="modal" style="max-width:480px" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3 id="flexSalaryTitle">🎁 Thưởng / Phạt</h3><button class="modal-close" onclick="closeFlexSalaryModal()">&times;</button></div>
+    <div id="flexSheetPicker" style="padding:20px;display:flex;gap:12px;justify-content:center">
+      <button onclick="_flexModalSheet='hai';_renderFlexModal()" style="flex:1;padding:14px;border-radius:8px;border:2px solid var(--red);cursor:pointer;background:#fdf2f2;color:var(--red);font-size:14px;font-weight:600">👤 Hải</button>
+      <button onclick="_flexModalSheet='hieu';_renderFlexModal()" style="flex:1;padding:14px;border-radius:8px;border:2px solid var(--blue);cursor:pointer;background:#f0f7fd;color:var(--blue);font-size:14px;font-weight:600">👤 Hiếu</button>
+    </div>
+    <div id="flexSheetBody" style="display:none">
+      <div style="display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--gray-border)">
+        <button onclick="addFlexItem('thuong')" class="btn btn-sm btn-outline" style="color:var(--green);border-color:var(--green);flex:1">🟢 + Thêm thưởng</button>
+        <button onclick="addFlexItem('phat')" class="btn btn-sm btn-outline" style="color:var(--red);border-color:var(--red);flex:1">🔴 + Thêm phạt</button>
+      </div>
+      <div id="flexList" style="max-height:400px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeFlexSalaryModal()">Đóng</button></div>
+  </div>
+</div>
+
+<!-- FLEX EDIT MODAL -->
+<div class="modal-overlay" id="flexEditModal" onclick="if(event.target===this)closeFlexEditModal()" style="display:none">
+  <div class="modal" style="max-width:360px" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3>✎ Sửa khoản thưởng/phạt</h3><button class="modal-close" onclick="closeFlexEditModal()">&times;</button></div>
+    <div class="modal-body" style="gap:10px">
+      <input type="hidden" id="flexEditIdx">
+      <div class="form-group" style="width:100%"><label>Loại</label><select id="flexEditLoai" style="width:100%"><option value="thuong">🟢 Thưởng</option><option value="phat">🔴 Phạt</option></select></div>
+      <div class="form-group" style="width:100%"><label>Ngày</label><input type="date" id="flexEditNgay" style="width:100%"></div>
+      <div class="form-group" style="width:100%"><label>Giá trị (đ)</label><input type="text" id="flexEditAmount" style="width:100%;text-align:right" placeholder="0" onfocus="this.value=_parseVND(this.value)||'';;this.select()" oninput="if(_parseVND(this.value)>0)this.value=_parseVND(this.value).toLocaleString('vi-VN')" onblur="this.value=_fmtVND(_parseVND(this.value))"></div>
+      <div class="form-group" style="width:100%"><label>Lý do <span style="color:var(--red)">*</span></label><textarea id="flexEditLydo" rows="2" style="width:100%" placeholder="Nhập lý do..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeFlexEditModal()">Huỷ</button><button class="btn btn-primary" onclick="saveFlexItem()">✓ Lưu</button></div>
+  </div>
+</div>
+
+
+
+<!-- QUICK IMPORT MODAL -->
+<div class="modal-overlay" id="quickImportModal" onclick="TaskImporter.close(event)" style="display:none">
+  <div class="modal" style="max-width:640px; background-color:#161b22; border:1px solid #30363d; color:#c9d1d9" onclick="event.stopPropagation()">
+    <div class="modal-header" style="border-bottom:1px solid #30363d">
+      <h3 style="color:#f0f6fc">&#128196; Nhập nhanh từ tin nhắn</h3>
+      <button class="modal-close" onclick="TaskImporter.close()" style="color:#8b949e">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px; color:#c9d1d9">
+
+      <!-- STEP 1: paste -->
+      <div id="qi_step1">
+        <div class="form-group" style="width:100%">
+          <label style="font-size:13px;font-weight:500;color:#c9d1d9">Dán nội dung tin nhắn / yêu cầu công việc vào đây</label>
+          <textarea id="qi_input" rows="5" placeholder="VD:&#10;sv88.jp.net&#10;Thay logo" 
+            style="width:100%;font-size:13px;line-height:1.6;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9"></textarea>
+          <div id="qi_url_hint" 
+            style="display:none;margin-top:6px;font-size:12px;color:#58a6ff;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.3);border-radius:6px;padding:8px 12px">
+            🔗 Chế độ URL: mỗi dòng là 1 URL. Các dòng không phải URL sẽ bị bỏ qua tự động.
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%">
+          <div class="form-group">
+            <label style="color:#c9d1d9">Dạng task</label>
+            <select id="qi_dang" onchange="TaskImporter.onDangChange()" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+              <option value="text">📝 Text</option>
+              <option value="url" selected>🔗 URL</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="color:#c9d1d9">Giao cho</label>
+            <select id="qi_person" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+              <option value="">-- Chưa chọn --</option>
+              <option>Hải</option><option>Hiếu</option><option>Khác</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="color:#c9d1d9">Tên task (tùy chọn)</label>
+            <input type="text" id="qi_taskname" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9" placeholder="Để trống = tự phân tích">
+          </div>
+          <div class="form-group">
+            <label style="color:#c9d1d9">Ngày giao</label>
+            <input type="date" id="qi_from" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+          </div>
+          <div class="form-group">
+            <label style="color:#c9d1d9">Deadline</label>
+            <input type="date" id="qi_deadline" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+          </div>
+          <div class="form-group">
+            <label style="color:#c9d1d9">Ưu tiên</label>
+            <select id="qi_priority" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+              <option value="Bình thường">🟠 Bình thường</option>
+              <option value="Cao">🔴 Cao</option>
+              <option value="Thấp">🟢 Thấp</option>
+            </select>
+          </div>
+          <div class="form-group" id="qi_team_row">
+            <label style="color:#c9d1d9">Team</label>
+            <select id="qi_team" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+              <option value="Team 01">Team 01</option>
+              <option value="Team 02">Team 02</option>
+            </select>
+          </div>
+        </div>
+        <!-- BƯỚC THỦ CÔNG -->
+        <div class="form-group" id="qi_steps_row" style="width:100%; margin-top:10px">
+          <label style="font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;color:#c9d1d9">
+            <span>Các bước thực hiện <span style="font-weight:400;color:#8b949e">(mỗi dòng 1 bước)</span></span>
+            <button onclick="TaskImporter.addDefaultSteps()" style="background:none;border:1px solid #30363d;border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;color:#8b949e">+ Bước mặc định</button>
+          </label>
+          <textarea id="qi_steps" rows="4" placeholder="VD:&#10;Viết trang chủ&#10;Thêm ảnh vào docs&#10;Thêm ảnh vào drive&#10;Thêm ảnh vào bài đăng" 
+            style="width:100%;font-size:12px;line-height:1.7;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9"></textarea>
+        </div>
+        <div id="qi_error" style="color:var(--red);font-size:12px;display:none;margin-top:6px"></div>
+      </div>
+
+      <!-- STEP 2: preview parsed tasks -->
+      <div id="qi_step2" style="display:none">
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px;color:#c9d1d9">AI đã phân tích được <span id="qi_count" style="color:#58a6ff">0</span> task — kiểm tra trước khi thêm:</div>
+        <div id="qi_preview" style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto"></div>
+      </div>
+
+      <div id="qi_loading" style="display:none;text-align:center;padding:24px;color:#8b949e">
+        <div style="font-size:24px;margin-bottom:8px">&#129302;</div>
+        <div style="font-size:13px">AI đang phân tích nội dung...</div>
+      </div>
+
+    </div>
+    <div class="modal-footer" style="border-top:1px solid #30363d">
+      <button class="btn btn-outline" onclick="TaskImporter.close()" style="background:transparent; border:none; color:#8b949e">Đóng</button>
+      <button class="btn btn-outline" id="qi_btn_back" style="display:none; background:transparent; border:none; color:#8b949e" onclick="TaskImporter.goBack()">&#8592; Nhập lại</button>
+      <button class="btn btn-primary" id="qi_btn_parse" onclick="TaskImporter.parse()" style="background-color:#21262d; border:1px solid #30363d; color:#c9d1d9">&#129302; Phân tích với AI</button>
+      <button class="btn btn-primary" id="qi_btn_parse_url" style="display:none; background-color:#21262d; border:1px solid #30363d; color:#c9d1d9" onclick="TaskImporter.parseUrl()">🔗 Nhận URL</button>
+      <button class="btn btn-primary" id="qi_btn_add" style="display:none; background-color:#238636; border:none; color:#ffffff" onclick="TaskImporter.addAll()">&#43; Thêm tất cả vào Kanban</button>
+    </div>
+  </div>
+</div>
+
+<div id="appVersion" style="display:none;position:fixed;bottom:8px;left:120px;font-size:10px;color:#aaa;z-index:9999;pointer-events:none;user-select:none;font-family:monospace;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;">v1.2.0</div>
+</body></html>
