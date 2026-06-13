@@ -497,16 +497,20 @@ header.main-header, .main-header {
 }
 
 .workspace-panel.iframe-panel-wrap {
-  width: 100% !important;
+  position: absolute !important;
+  top: 56px !important;
+  left: 260px !important;
+  right: 0 !important;
+  bottom: 0 !important;
   height: calc(100vh - 56px) !important;
+  width: calc(100vw - 260px) !important;
   overflow: hidden !important;
-  display: flex;
+  display: flex !important;
   flex-direction: column !important;
 }
 .workspace-panel.iframe-panel-wrap iframe {
-  flex: 1 !important;
   width: 100% !important;
-  height: calc(100vh - 56px) !important;
+  height: 100% !important;
   border: none !important;
   display: block !important;
 }

@@ -9122,11 +9122,21 @@ function switchWorkspace(workspaceId, element) {
 
     if (workspaceId === 'finance' || workspaceId === 'tools' || workspaceId === 'my-tools') {
       const iframe = targetPanel.querySelector('iframe');
-      if (iframe && (!iframe.src || iframe.src.includes('about:blank') || iframe.src === '')) {
+      if (iframe) {
         const dataSrc = iframe.getAttribute('data-src') || iframe.getAttribute('src');
-        if (dataSrc) {
+        if (dataSrc && (!iframe.src || iframe.src.includes('about:blank') || iframe.src === '')) {
           loadEcosystemApp(iframe, dataSrc);
         }
+        
+        // Mạch đo đạc V84: Lắng nghe load bất đồng bộ để ép chiều rộng & chiều cao thực tế khi render xong
+        iframe.addEventListener('load', function() {
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+          console.log(`[V84 Measurement] Chiều cao thực tế (${workspaceId}): ${iframe.offsetHeight}px, Chiều rộng: ${iframe.offsetWidth}px`);
+        }, { once: true });
+        
+        // Force Reflow
+        const forceReflow = iframe.offsetHeight;
       }
     }
   }
