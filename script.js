@@ -9095,12 +9095,26 @@ function switchWorkspace(workspaceId, element) {
     const fallbackBtn = document.getElementById('btn-tab-' + workspaceId);
     if (fallbackBtn) fallbackBtn.classList.add('active');
   }
+
+  // PURGE LOOP: Ẩn triệt để toàn bộ Workspace Panel và các Sub-page con
   document.querySelectorAll('.workspace-panel').forEach(panel => {
     panel.classList.add('is-hidden');
   });
+  document.querySelectorAll('.page').forEach(page => {
+    page.classList.add('is-hidden');
+  });
+
   const targetPanel = document.getElementById('panel-workspace-' + workspaceId);
   if (targetPanel) {
     targetPanel.classList.remove('is-hidden');
+    
+    // Nếu chuyển về tab Job, nạp lại sub-page đang active gần nhất
+    if (workspaceId === 'job') {
+      const activePage = localStorage.getItem('wt_activePage') || 'dashboard';
+      const subPage = document.getElementById('page-' + activePage);
+      if (subPage) subPage.classList.remove('is-hidden');
+    }
+
     if (workspaceId === 'finance' || workspaceId === 'tools' || workspaceId === 'my-tools') {
       const iframe = targetPanel.querySelector('iframe');
       if (iframe && (!iframe.src || iframe.src.includes('about:blank') || iframe.src === '')) {
@@ -9111,6 +9125,19 @@ function switchWorkspace(workspaceId, element) {
       }
     }
   }
+
+  // ĐỒNG BỘ TIÊU ĐỀ HEADER H1
+  const headerTitle = document.getElementById('main-header-title');
+  if (headerTitle) {
+    if (workspaceId === 'job') {
+      headerTitle.innerHTML = '💼 Quản lý công việc';
+    } else if (workspaceId === 'finance') {
+      headerTitle.innerHTML = '💳 Quản lý Tài chính';
+    } else if (workspaceId === 'tools') {
+      headerTitle.innerHTML = '📦 Kho Tool Nhỏ';
+    }
+  }
+
   const submenu = document.getElementById('workspace-submenu');
   if (submenu) {
     submenu.style.display = (workspaceId === 'job') ? 'flex' : 'none';
