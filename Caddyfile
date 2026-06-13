@@ -1,0 +1,92 @@
+# Khối cấu hình nền tảng chung cho Reverse Proxy sang GitHub Pages
+(github_proxy) {
+    reverse_proxy https://konheodat01-web.github.io {
+        header_up Host konheodat01-web.github.io
+        transport http {
+            tls
+            tls_server_name konheodat01-web.github.io
+        }
+    }
+}
+
+# 1. Trang trung chuyển chính (Dashboard) + Admin Panel
+nthieucloud.shop, www.nthieucloud.shop {
+
+    # MÀNG LỌC BẢO MẬT & MẠCH KHỬ CACHE HẠ TẦNG V68
+    header {
+        X-Content-Type-Options "nosniff"
+        X-XSS-Protection "1; mode=block"
+        Content-Security-Policy "frame-ancestors 'self' https://nthieucloud.shop"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        
+        # Chặn trình duyệt găm giữ file HTML cũ
+        Cache-Control "no-cache, no-store, must-revalidate"
+        Pragma "no-cache"
+        Expires "0"
+    }
+
+    # Node.js Backend API & Admin Router (Port 3050)
+    handle /admin* {
+        reverse_proxy localhost:3050
+    }
+    handle /api* {
+        reverse_proxy localhost:3050
+    }
+
+    # Trang chủ Dashboard: bốc giao diện tĩnh từ GitHub Pages
+    handle {
+        rewrite * /dashboard{uri}
+        import github_proxy
+    }
+}
+
+# 2. 10 Tool con công khai - Cô lập bộ nhớ Firebase hoàn toàn
+ai-assistant.nthieucloud.shop {
+    rewrite * /ai-assistant{uri}
+    import github_proxy
+}
+
+bulk-image-tool.nthieucloud.shop {
+    rewrite * /bulk-image-tool{uri}
+    import github_proxy
+}
+
+finance-tracker.nthieucloud.shop {
+    rewrite * /finance-tracker{uri}
+    import github_proxy
+}
+
+gsc-bulk-connect.nthieucloud.shop {
+    rewrite * /gsc-bulk-connect{uri}
+    import github_proxy
+}
+
+gsc-bulk-tool.nthieucloud.shop {
+    rewrite * /gsc-bulk-tool{uri}
+    import github_proxy
+}
+
+haihieu.nthieucloud.shop {
+    rewrite * /haihieu{uri}
+    import github_proxy
+}
+
+seo-content-auditor.nthieucloud.shop {
+    rewrite * /seo-content-auditor{uri}
+    import github_proxy
+}
+
+task-manager.nthieucloud.shop {
+    rewrite * /task-manager{uri}
+    import github_proxy
+}
+
+Team02.nthieucloud.shop {
+    rewrite * /Team02{uri}
+    import github_proxy
+}
+
+vps-control-center.nthieucloud.shop {
+    rewrite * /vps-control-center{uri}
+    import github_proxy
+}
