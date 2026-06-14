@@ -9096,7 +9096,7 @@ function switchWorkspace(workspaceId, element) {
     if (fallbackBtn) fallbackBtn.classList.add('active');
   }
 
-  // 1. Ẩn toàn bộ các panel
+  // 1. Ẩn toàn bộ các panel và sub-page nội bộ
   document.querySelectorAll('.workspace-panel').forEach(panel => {
     panel.classList.add('is-hidden');
   });
@@ -9106,7 +9106,6 @@ function switchWorkspace(workspaceId, element) {
 
   const targetPanel = document.getElementById('panel-workspace-' + workspaceId);
   if (targetPanel) {
-    // 2. Hiển thị panel được chọn
     targetPanel.classList.remove('is-hidden');
     
     if (workspaceId === 'job') {
@@ -9114,103 +9113,18 @@ function switchWorkspace(workspaceId, element) {
       const subPage = document.getElementById('page-' + activePage);
       if (subPage) subPage.classList.remove('is-hidden');
     }
-
-    // 3. Lazy Load có kiểm soát và chống trùng lặp DOM
-    if (workspaceId === 'finance' || workspaceId === 'tools' || workspaceId === 'my-tools') {
-      const iframe = targetPanel.querySelector('iframe');
-      if (iframe) {
-        const dataSrc = iframe.getAttribute('data-src');
-        const currentSrc = iframe.getAttribute('src');
-        
-        if (dataSrc && (!currentSrc || currentSrc === 'about:blank' || currentSrc === '')) {
-          
-          // Chống trùng lặp: Kiểm tra xem loader đã tồn tại chưa trước khi tạo mới
-          let loader = targetPanel.querySelector('.iframe-loading-overlay');
-          if (!loader) {
-            targetPanel.classList.add('is-loading'); // Kích hoạt ẩn iframe tạm thời
-            loader = document.createElement('div');
-            loader.className = 'iframe-loading-overlay';
-            loader.innerHTML = '<div class="iframe-spinner"></div><div style="font-size:12px;color:#8b949e;font-family:sans-serif;">Đang kết nối hệ thống...</div>';
-            targetPanel.appendChild(loader);
-          }
-
-          // Kích hoạt load qua micro-frontend loader (hoặc gán thẳng src)
-          loadEcosystemApp(iframe, dataSrc);
-          
-          // Lắng nghe sự kiện load liên tục có bộ lọc trang trống
-          const handleIframeLoad = function() {
-            try {
-              // Bộ lọc chặn bắt nhầm sự kiện load của about:blank
-              if (iframe.contentWindow && iframe.contentWindow.location.href.includes('about:blank')) {
-                return; 
-              }
-            } catch (e) {
-              // Khác domain (Cross-origin) -> Hợp lệ, chạy tiếp xuống dưới
-            }
-
-            // Ép luồng render của trình duyệt cập nhật xong tọa độ hiển thị mới đo đạc
-            requestAnimationFrame(() => {
-              setTimeout(() => {
-                console.log(`[V90-Verified] Iframe loaded (${workspaceId}). Size: ${iframe.clientWidth}x${iframe.clientHeight}px`);
-                
-                // CỨU HỘ KÍCH THƯỚC: Ép trực tiếp vào thẻ IFRAME thay vì targetPanel
-                if (iframe.clientWidth === 0 || iframe.clientHeight === 0) {
-                  console.warn(`[V90 Warning] Phát hiện lỗi sụp đổ kích thước trên iframe. Kích hoạt cưỡng bức kích thước vật lý.`);
-                  iframe.style.setProperty('width', 'calc(100vw - var(--sidebar-width, 210px))', 'important');
-                  iframe.style.setProperty('height', 'calc(100vh - 56px)', 'important');
-                }
-              }, 60);
-            });
-
-            // Gỡ bỏ loader và hiện iframe
-            if (loader && loader.parentNode) {
-              loader.style.opacity = '0';
-              setTimeout(() => {
-                if (loader && loader.parentNode) loader.remove();
-                targetPanel.classList.remove('is-loading');
-              }, 200);
-            }
-            
-            // Tự hủy sự kiện sau khi đã xử lý xong URL thực tế
-            iframe.removeEventListener('load', handleIframeLoad);
-          };
-
-          iframe.addEventListener('load', handleIframeLoad);
-        }
-      }
-    }
   }
 
-  // ĐỒNG BỘ TIÊU ĐỀ HEADER H1
+  // 2. Đồng bộ tiêu đề header H1 cho trang nội bộ
   const headerTitle = document.getElementById('main-header-title');
-  if (headerTitle) {
-    if (workspaceId === 'job') {
-      headerTitle.innerHTML = '💼 Quản lý công việc';
-    } else if (workspaceId === 'finance') {
-      headerTitle.innerHTML = '💳 Quản lý Tài chính';
-    } else if (workspaceId === 'tools') {
-      headerTitle.innerHTML = '📦 Kho Tool Nhỏ';
-    }
+  if (headerTitle && workspaceId === 'job') {
+    headerTitle.innerHTML = '💼 Quản lý công việc';
   }
   
   const submenu = document.getElementById('workspace-submenu');
   if (submenu) {
     submenu.style.display = (workspaceId === 'job') ? 'flex' : 'none';
   }
-
-  // MẠCH ĐO ĐẠC KÍCH THƯỚC TƯƠI VÀO CONSOLE (V80 & V81)
-  setTimeout(() => {
-    const ifrTools = document.getElementById('iframe-tools');
-    if (ifrTools) {
-      console.log("📐 [V80 Measurement] Chiều cao iframe thực tế (Tools):", ifrTools.getBoundingClientRect().height + "px");
-      console.log("📐 [V80 Measurement] Chiều rộng iframe thực tế (Tools):", ifrTools.getBoundingClientRect().width + "px");
-    }
-    const ifrFinance = document.getElementById('iframe-finance');
-    if (ifrFinance) {
-      console.log("📐 [V80 Measurement] Chiều cao iframe thực tế (Finance):", ifrFinance.getBoundingClientRect().height + "px");
-      console.log("📐 [V80 Measurement] Chiều rộng iframe thực tế (Finance):", ifrFinance.getBoundingClientRect().width + "px");
-    }
-  }, 300);
 }
 
 // ===== MICRO-FRONTEND LOADER V66 =====

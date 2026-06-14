@@ -497,79 +497,8 @@ header.main-header, .main-header {
   width: 100%;
 }
 
-.workspace-panel.iframe-panel-wrap {
-  position: absolute !important;
-  top: 0 !important; 
-  left: var(--sidebar-width, 210px) !important; 
-  right: 0 !important;
-  bottom: 0 !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  visibility: visible !important;
-  transition: opacity 0.15s ease-in-out;
-}
-
-.workspace-panel.iframe-panel-wrap iframe {
-  width: 100% !important;
-  height: 100% !important;
-  border: none !important;
-  display: block !important;
-  transition: opacity 0.2s ease-in-out;
-}
-
-.workspace-panel.iframe-panel-wrap.is-loading iframe {
-  opacity: 0 !important;
-}
-
-.workspace-panel.iframe-panel-wrap.is-hidden {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  visibility: hidden !important;
-  left: -99999px !important;
-  top: -99999px !important;
-  right: auto !important;   
-  bottom: auto !important;  
-}
-
-.workspace-panel:not(.iframe-panel-wrap).is-hidden {
+.workspace-panel.is-hidden {
   display: none !important;
-}
-
-@media (max-width: 768px) {
-  .workspace-panel.iframe-panel-wrap {
-    left: 0 !important;
-  }
-}
-
-.iframe-loading-overlay {
-  position: absolute;
-  inset: 0;
-  background: #0d1117;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999 !important;
-  transition: opacity 0.2s ease;
-}
-
-.iframe-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(56, 139, 253, 0.1);
-  border-left-color: #58a6ff;
-  border-radius: 50%;
-  animation: iframe-spin 1s linear infinite;
-  margin-bottom: 12px;
-}
-
-@keyframes iframe-spin {
-  to { transform: rotate(360deg); }
 }
 
 /* LOGIN DIALOG CLEAN CSS CLASSES (Eliminates inline styling) */
