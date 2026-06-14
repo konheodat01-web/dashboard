@@ -3869,9 +3869,9 @@ function applyAllAvatars(){
 // ===== SETTINGS =====
 let _settings = {};
 function openSettings(){
-  document.getElementById('settingsModal').classList.add('open');
+  console.log("[V92-Muted] Chức năng Cài đặt giao diện đã được đưa về mặc định.");
 }
-function closeSettings(){ document.getElementById('settingsModal').classList.remove('open'); }
+function closeSettings(){}
 
 function saveSettings(){
   const btn = document.getElementById('settingsSaveBtn');
@@ -6522,20 +6522,22 @@ function updateTaskPendingStatus(taskId, status){
 let _gvTaskRef = null; // task being assigned
 
 function switchTasksTab(tab){
-  try{ sessionStorage.setItem('wt_activeSubPage', tab); } catch(e){}
-  document.getElementById('panel-mytasks').style.display = tab==='mytasks' ? 'block' : 'none';
-  document.getElementById('panel-giaoviec').style.display = tab==='giaoviec' ? 'block' : 'none';
-  document.getElementById('tab-mytasks').classList.toggle('active', tab==='mytasks');
-  document.getElementById('tab-giaoviec').classList.toggle('active', tab==='giaoviec');
-  // Ẩn taskSubBoard khi chuyển sang giao việc
-  if(tab==='giaoviec'){
-    const sub = document.getElementById('taskSubBoard');
-    if(sub) sub.style.display='none';
-    const ov = document.getElementById('tasksOverview');
-    if(ov) ov.style.display='block';
-    document.querySelector('main')?.classList.remove('board-mode');
-    renderGiaoViec();
+  if (tab === 'giaoviec' || tab === 'assignment') {
+    tab = 'mytasks';
   }
+  try{ sessionStorage.setItem('wt_activeSubPage', tab); } catch(e){}
+  
+  const myTasksPanel = document.getElementById('panel-mytasks');
+  if (myTasksPanel) myTasksPanel.style.display = 'block';
+  
+  const gvPanel = document.getElementById('panel-giaoviec');
+  if (gvPanel) gvPanel.style.display = 'none';
+  
+  const tabMy = document.getElementById('tab-mytasks');
+  if (tabMy) tabMy.classList.add('active');
+  
+  const tabGv = document.getElementById('tab-giaoviec');
+  if (tabGv) tabGv.classList.remove('active');
 }
 
 function renderGiaoViec(){
