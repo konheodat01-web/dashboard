@@ -9096,7 +9096,7 @@ function switchWorkspace(workspaceId, element) {
     if (fallbackBtn) fallbackBtn.classList.add('active');
   }
 
-  // PURGE LOOP: Ẩn triệt để toàn bộ Workspace Panel và các Sub-page con
+  // 1. Ẩn toàn bộ các panel
   document.querySelectorAll('.workspace-panel').forEach(panel => {
     panel.classList.add('is-hidden');
   });
@@ -9106,37 +9106,65 @@ function switchWorkspace(workspaceId, element) {
 
   const targetPanel = document.getElementById('panel-workspace-' + workspaceId);
   if (targetPanel) {
+    // 2. Hiển thị panel được chọn
     targetPanel.classList.remove('is-hidden');
     
-    // Vá lỗi V81: Quét và giải phóng toàn bộ class ẩn của hệ thống màng bọc con
-    targetPanel.querySelectorAll('.iframe-panel-wrap, iframe').forEach(el => {
-      el.classList.remove('is-hidden');
-    });
-    
-    // Nếu chuyển về tab Job, nạp lại sub-page đang active gần nhất
     if (workspaceId === 'job') {
       const activePage = localStorage.getItem('wt_activePage') || 'dashboard';
       const subPage = document.getElementById('page-' + activePage);
       if (subPage) subPage.classList.remove('is-hidden');
     }
 
+    // 3. Lazy Load có kiểm soát và chống trùng lặp DOM
     if (workspaceId === 'finance' || workspaceId === 'tools' || workspaceId === 'my-tools') {
       const iframe = targetPanel.querySelector('iframe');
       if (iframe) {
-        const dataSrc = iframe.getAttribute('data-src') || iframe.getAttribute('src');
-        if (dataSrc && (!iframe.src || iframe.src.includes('about:blank') || iframe.src === '')) {
+        const dataSrc = iframe.getAttribute('data-src');
+        const currentSrc = iframe.getAttribute('src');
+        
+        if (dataSrc && (!currentSrc || currentSrc === 'about:blank' || currentSrc === '')) {
+          
+          // Chống trùng lặp: Kiểm tra xem loader đã tồn tại chưa trước khi tạo mới
+          let loader = targetPanel.querySelector('.iframe-loading-overlay');
+          if (!loader) {
+            targetPanel.classList.add('is-loading'); // Kích hoạt ẩn iframe tạm thời
+            loader = document.createElement('div');
+            loader.className = 'iframe-loading-overlay';
+            loader.innerHTML = '<div class="iframe-spinner"></div><div style="font-size:12px;color:#8b949e;font-family:sans-serif;">Đang kết nối hệ thống...</div>';
+            targetPanel.appendChild(loader);
+          }
+
+          // Kích hoạt load qua micro-frontend loader (hoặc gán thẳng src)
           loadEcosystemApp(iframe, dataSrc);
+          
+          // Lắng nghe sự kiện load liên tục có bộ lọc trang trống
+          const handleIframeLoad = function() {
+            try {
+              // Bộ lọc chặn bắt nhầm sự kiện load của about:blank
+              if (iframe.contentWindow && iframe.contentWindow.location.href.includes('about:blank')) {
+                return; 
+              }
+            } catch (e) {
+              // Khác domain (Cross-origin) -> Hợp lệ, chạy tiếp xuống dưới
+            }
+
+            // Gỡ bỏ loader và hiện iframe
+            if (loader && loader.parentNode) {
+              loader.style.opacity = '0';
+              setTimeout(() => {
+                if (loader && loader.parentNode) loader.remove();
+                targetPanel.classList.remove('is-loading');
+              }, 200);
+            }
+            
+            console.log(`[V88-Final-Fixed] Iframe loaded (${workspaceId}). Size: ${iframe.clientWidth}x${iframe.clientHeight}px`);
+            
+            // Tự hủy sự kiện sau khi đã xử lý xong URL thực tế
+            iframe.removeEventListener('load', handleIframeLoad);
+          };
+
+          iframe.addEventListener('load', handleIframeLoad);
         }
-        
-        // Mạch đo đạc V84: Lắng nghe load bất đồng bộ để ép chiều rộng & chiều cao thực tế khi render xong
-        iframe.addEventListener('load', function() {
-          iframe.style.width = '100%';
-          iframe.style.height = '100%';
-          console.log(`[V84 Measurement] Chiều cao thực tế (${workspaceId}): ${iframe.offsetHeight}px, Chiều rộng: ${iframe.offsetWidth}px`);
-        }, { once: true });
-        
-        // Force Reflow
-        const forceReflow = iframe.offsetHeight;
       }
     }
   }
@@ -9152,7 +9180,7 @@ function switchWorkspace(workspaceId, element) {
       headerTitle.innerHTML = '📦 Kho Tool Nhỏ';
     }
   }
-
+  
   const submenu = document.getElementById('workspace-submenu');
   if (submenu) {
     submenu.style.display = (workspaceId === 'job') ? 'flex' : 'none';
