@@ -9148,6 +9148,20 @@ function switchWorkspace(workspaceId, element) {
               // Khác domain (Cross-origin) -> Hợp lệ, chạy tiếp xuống dưới
             }
 
+            // Ép luồng render của trình duyệt cập nhật xong tọa độ hiển thị mới đo đạc
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                console.log(`[V90-Verified] Iframe loaded (${workspaceId}). Size: ${iframe.clientWidth}x${iframe.clientHeight}px`);
+                
+                // CỨU HỘ KÍCH THƯỚC: Ép trực tiếp vào thẻ IFRAME thay vì targetPanel
+                if (iframe.clientWidth === 0 || iframe.clientHeight === 0) {
+                  console.warn(`[V90 Warning] Phát hiện lỗi sụp đổ kích thước trên iframe. Kích hoạt cưỡng bức kích thước vật lý.`);
+                  iframe.style.setProperty('width', 'calc(100vw - var(--sidebar-width, 210px))', 'important');
+                  iframe.style.setProperty('height', 'calc(100vh - 56px)', 'important');
+                }
+              }, 60);
+            });
+
             // Gỡ bỏ loader và hiện iframe
             if (loader && loader.parentNode) {
               loader.style.opacity = '0';
@@ -9156,8 +9170,6 @@ function switchWorkspace(workspaceId, element) {
                 targetPanel.classList.remove('is-loading');
               }, 200);
             }
-            
-            console.log(`[V88-Final-Fixed] Iframe loaded (${workspaceId}). Size: ${iframe.clientWidth}x${iframe.clientHeight}px`);
             
             // Tự hủy sự kiện sau khi đã xử lý xong URL thực tế
             iframe.removeEventListener('load', handleIframeLoad);

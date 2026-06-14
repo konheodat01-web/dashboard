@@ -499,19 +499,18 @@ header.main-header, .main-header {
 
 .workspace-panel.iframe-panel-wrap {
   position: absolute !important;
-  top: 56px !important;
+  top: 0 !important; 
   left: var(--sidebar-width, 210px) !important; 
   right: 0 !important;
   bottom: 0 !important;
-  height: calc(100vh - 56px) !important;
-  max-height: calc(100vh - 56px) !important;
+  height: 100% !important;
+  max-height: 100% !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
   opacity: 1 !important;
   pointer-events: auto !important;
   visibility: visible !important;
-  content-visibility: auto;
   transition: opacity 0.15s ease-in-out;
 }
 
@@ -531,7 +530,6 @@ header.main-header, .main-header {
   opacity: 0 !important;
   pointer-events: none !important;
   visibility: hidden !important;
-  content-visibility: hidden !important; 
   left: -99999px !important;
   top: -99999px !important;
   right: auto !important;   
