@@ -501,6 +501,12 @@ header.main-header, .main-header {
   display: none !important;
 }
 
+.brand-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #f0f6fc;
+}
+
 /* LOGIN DIALOG CLEAN CSS CLASSES (Eliminates inline styling) */
 .login-brand {
   text-align: center;
