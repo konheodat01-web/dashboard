@@ -1334,6 +1334,7 @@ if(!_settings.avatars) _settings.avatars = {}; // local fills gaps, fb overrides
         if(active==='links'){renderLinks();renderWebsites();}
         if(active==='index') renderIndexTasks();
         updateNavBadges();
+        if (typeof autoCheckAndMigrateV99 === 'function') autoCheckAndMigrateV99();
       } else {
         tasks.forEach(normalizeTaskCards);
       }
@@ -9716,23 +9717,44 @@ function triggerFlow(siteUrl) {
   window.open(targetUrl, '_blank', 'noopener,noreferrer');
 }
 
-// ===== TẬP LỆNH THANH TRỪNG TỐI CAO V98 - XÓA SẠCH HOÀN TOÀN RÁC TIỀN SỬ =====
-function executePurgeAndMigrationV98() {
+// =========================================================================
+// [V99 PATCH] HÀM TỰ ĐỘNG DI CƯ BẤT ĐỒNG BỘ THÔNG MINH (AUTO SELF-HEALING)
+// =========================================================================
+function autoCheckAndMigrateV99() {
+  const list = websites || [];
+  if (list.length === 0) return; // Đợi khi có dữ liệu thật từ Firebase mới chạy
+
+  // Kiểm tra xem database thực tế có thực sự chứa vết tích tiền sử cần di cư không
+  const needsWebMigration = list.some(site => site.owner && site.owner !== 'Công ty' && site.owner !== 'Admin');
+  const needsTaskMigration = Array.isArray(tasks) && tasks.some(t => t.person === 'Hải' || t.person === 'Hiếu' || t.person === 'Cá nhân' || !t.person || t.person === 'Chung');
+  const needsGvMigration = Array.isArray(giaoViecList) && giaoViecList.some(g => g.assignee === 'Hải' || g.assignee === 'Hiếu' || g.assignee === 'Cá nhân' || !g.assignee);
+
+  if (!needsWebMigration && !needsTaskMigration && !needsGvMigration) {
+    console.log("[V99 Auto-Migration] Dữ liệu đã sạch sẽ, không cần di cư.");
+    return;
+  }
+
   let webCount = 0;
   let taskCount = 0;
   let gvCount = 0;
 
-  // 1. Gột rửa Website
-  if (Array.isArray(websites)) {
-    websites.forEach(site => {
-      if (site.owner && site.owner !== 'Công ty' && site.owner !== 'Admin') {
-        site.owner = 'Admin';
-        webCount++;
-      }
-    });
-  }
+  // 1. Gột rửa Website & Quy đổi hệ trục Team chuẩn (Team 01 = Chaewon, Team 02 = M7)
+  list.forEach(site => {
+    // Ép team chuẩn dựa trên dữ liệu tag nhóm con thực tế của bạn
+    if (site.group === 'M7' || site.nhom_con === 'M7' || site.nhom === 'M7') {
+      if (site.team !== 'Team 02') { site.team = 'Team 02'; webCount++; }
+    } else {
+      if (site.team !== 'Team 01') { site.team = 'Team 01'; webCount++; }
+    }
+    
+    // Gộp owner mồ côi về Admin tối cao
+    if (site.owner && site.owner !== 'Công ty' && site.owner !== 'Admin') {
+      site.owner = 'Admin';
+      webCount++;
+    }
+  });
 
-  // 2. Gột rửa Task (Hải/Hiếu/Cá nhân -> Admin, Trống/Chung -> Công ty)
+  // 2. Gột rửa bảng Task (Tên cũ về Admin, Trống/Chung về Công ty)
   if (Array.isArray(tasks)) {
     tasks.forEach(t => {
       if (t.person === 'Hải' || t.person === 'Hiếu' || t.person === 'Cá nhân') {
@@ -9745,7 +9767,7 @@ function executePurgeAndMigrationV98() {
     });
   }
 
-  // 3. Gột rửa Giao việc
+  // 3. Gột rửa bảng Giao việc
   if (Array.isArray(giaoViecList)) {
     giaoViecList.forEach(g => {
       if (g.assignee === 'Hải' || g.assignee === 'Hiếu' || g.assignee === 'Cá nhân') {
@@ -9758,29 +9780,21 @@ function executePurgeAndMigrationV98() {
     });
   }
 
-  // Khai tử dữ liệu cũ trên biến toàn cục
-  data = { hai: [], hieu: [] };
-  _salaryRates = { hai: {}, hieu: {} };
-  _salaryConfig = { hai: { chiPhi: [], phuCap: [] }, hieu: { chiPhi: [], phuCap: [] } };
-
-  // Xóa sạch bộ nhớ LocalStorage của máy khách
-  localStorage.removeItem('wt_salary_rates');
-  localStorage.removeItem('wt_salary_config');
-  localStorage.removeItem('wt_finance_history');
-  
-  // Đồng bộ bản sạch lên Firebase
+  // Ghi đè bộ nhớ đệm cục bộ
   localStorage.setItem('wt_websites', JSON.stringify(websites));
   localStorage.setItem('wt_tasks', JSON.stringify(tasks));
   localStorage.setItem('wt_giaoviec', JSON.stringify(giaoViecList));
-  
+
+  // Gọi hàm đồng bộ lên đám mây Firebase Realtime Database của hệ thống
   if (typeof saveAppData === 'function') {
     saveAppData(); 
   }
-  
-  console.log(`[V98 Success] Hệ thống đã được thanh lọc dữ liệu sạch sẽ!`);
-  if (typeof renderWebsites === 'function') renderWebsites();
-}
 
-// Gọi lệnh di cư tự động một lần duy nhất
-executePurgeAndMigrationV98();
+  console.log(`[V99 Auto-Migration Success] Di cư thành công: ${webCount} website, ${taskCount} task, ${gvCount} giao việc.`);
+  
+  // Ép giao diện vẽ lại danh sách sạch hoàn chỉnh
+  if (typeof renderWebsites === 'function') {
+    renderWebsites();
+  }
+}
 
