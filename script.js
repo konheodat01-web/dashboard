@@ -9724,13 +9724,16 @@ function autoCheckAndMigrateV99() {
   const list = websites || [];
   if (list.length === 0) return; // Đợi khi có dữ liệu thật từ Firebase mới chạy
 
+  // BIỆN PHÁP CỨU HỘ V99.1: Kiểm tra xem có website nào mang nhãn M7 nhưng đang nằm sai ở Team 01 hay không
+  const hasMisplacedM7 = list.some(site => (site.group === 'M7' || site.nhom_con === 'M7' || site.nhom === 'M7') && site.team !== 'Team 02');
+
   // Kiểm tra xem database thực tế có thực sự chứa vết tích tiền sử cần di cư không
-  const needsWebMigration = list.some(site => site.owner && site.owner !== 'Công ty' && site.owner !== 'Admin');
+  const needsWebMigration = hasMisplacedM7 || list.some(site => site.owner && site.owner !== 'Công ty' && site.owner !== 'Admin');
   const needsTaskMigration = Array.isArray(tasks) && tasks.some(t => t.person === 'Hải' || t.person === 'Hiếu' || t.person === 'Cá nhân' || !t.person || t.person === 'Chung');
   const needsGvMigration = Array.isArray(giaoViecList) && giaoViecList.some(g => g.assignee === 'Hải' || g.assignee === 'Hiếu' || g.assignee === 'Cá nhân' || !g.assignee);
 
   if (!needsWebMigration && !needsTaskMigration && !needsGvMigration) {
-    console.log("[V99 Auto-Migration] Dữ liệu đã sạch sẽ, không cần di cư.");
+    console.log("[V99.1 Auto-Migration] Dữ liệu đã sạch sẽ và nằm đúng Team, không cần di cư.");
     return;
   }
 
