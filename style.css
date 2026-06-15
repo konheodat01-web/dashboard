@@ -6,7 +6,6 @@
     --gray:#6c757d;--gray-light:#f8f9fa;--gray-border:#dee2e6;
     --text:#212529;--text-muted:#6c757d;
     --white:#fff;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08);
-    --sidebar-width: 210px;
   }
   body, html {
   margin: 0;
@@ -475,7 +474,6 @@ header.main-header, .main-header {
 .workspace-panel, .page {
   width: 100%;
   height: 100%;
-  display: block;
 }
 
 /* Static sub-page content wrapper layout */
@@ -497,14 +495,16 @@ header.main-header, .main-header {
   width: 100%;
 }
 
-.workspace-panel.is-hidden {
-  display: none !important;
+.iframe-panel-wrap {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
-
-.brand-title {
-  font-weight: 600;
-  font-size: 13px;
-  color: #f0f6fc;
+.iframe-panel-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
 }
 
 /* LOGIN DIALOG CLEAN CSS CLASSES (Eliminates inline styling) */
@@ -1974,5 +1974,44 @@ nav.sidebar i.fa {
   display: block;
   overflow: hidden;
 }
+
+/* BỘ LỌC ĐỘNG HYBRID V94 - STYLE FILTER BAR */
+.job-filter-bar {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+  margin-bottom: 12px !important;
+  width: 100% !important;
+  height: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex-wrap: wrap !important;
+}
+
+.filter-pills {
+  background: #21262d !important;
+  border: 1px solid #30363d !important;
+  color: #c9d1d9 !important;
+  padding: 4px 12px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, border-color 0.15s ease !important;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-pills:hover {
+  background: #30363d !important;
+  border-color: #8b949e !important;
+}
+
+.filter-pills.active {
+  background: #1f6feb !important;
+  border-color: #388bfd !important;
+  color: #ffffff !important;
+}
+
 
 

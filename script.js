@@ -3869,9 +3869,9 @@ function applyAllAvatars(){
 // ===== SETTINGS =====
 let _settings = {};
 function openSettings(){
-  console.log("[V92-Muted] Chức năng Cài đặt giao diện đã được đưa về mặc định.");
+  document.getElementById('settingsModal').classList.add('open');
 }
-function closeSettings(){}
+function closeSettings(){ document.getElementById('settingsModal').classList.remove('open'); }
 
 function saveSettings(){
   const btn = document.getElementById('settingsSaveBtn');
@@ -4587,14 +4587,86 @@ function switchLinksTab(tab){
 // ===== WEBSITES =====
 let wsGroups = ['Chính', 'Phụ', 'Khách']; // Team 01 sub-groups
 
+// 1. BIẾN TRẠNG THÁI LỌC LAI (HYBRID STATE) V94
+let currentJobFilter = 'all';
+
+// 2. HÀM KÍCH HOẠT LỌC PIL CHUYỂN ĐỔI TRẠNG THÁI (State Reset) V94
+function executeHybridFilter(filterVal, element) {
+  currentJobFilter = filterVal;
+  
+  // Đồng bộ sáng đèn nút bấm phẳng
+  document.querySelectorAll('.job-filter-bar .filter-pills').forEach(btn => btn.classList.remove('active'));
+  if (element) element.classList.add('active');
+
+  // RESET DROPDOWN VỀ RỖNG ĐỂ TRÁNH XUNG ĐỘT PHÉP GIAO LỌC
+  const dTeam = document.getElementById('websiteFilterTeam');
+  const dOwner = document.getElementById('websiteFilterOwner');
+  if (dTeam) dTeam.value = "";
+  if (dOwner) dOwner.value = "";
+
+  // Ép phân hệ render lại dữ liệu tức thì
+  renderWebsites();
+}
+
+// 3. ĐOẠN ĐÁNH CHẶN NGƯỢC (Dropdown change triggers resetting pills) V94
+function resetPillToAll() {
+  currentJobFilter = 'all';
+  document.querySelectorAll('.job-filter-bar .filter-pills').forEach(btn => {
+    if (btn.getAttribute('data-filter') === 'all') btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+}
+
+// 4. HÀM TRẢ VỀ MẢNG LỌC ĐỘNG HYBRID V94
+function getFilteredWebsites() {
+  const websiteList = websites || []; 
+  return websiteList.filter(site => {
+    if (currentJobFilter === 'all') return true;
+    
+    const [targetTeam, targetRole] = currentJobFilter.split('-');
+    const isPersonal = site.owner && site.owner !== 'Công ty';
+    
+    if (targetRole === 'Admin') {
+      return site.team === targetTeam && isPersonal;
+    } else {
+      // Trường hợp Công ty: Không có owner hoặc owner bằng Công ty
+      return site.team === targetTeam && (!site.owner || site.owner === 'Công ty');
+    }
+  });
+}
+
+// 5. HÀM ĐẾM SỐ LƯỢNG ĐỘNG THỜI GIAN THỰC V94
+function updateMacroCounters() {
+  const list = websites || [];
+  
+  const allCount = list.length;
+  const cwnAdmin = list.filter(s => s.team === 'Team 01' && s.owner && s.owner !== 'Công ty').length;
+  const cwnCompany = list.filter(s => s.team === 'Team 01' && (!s.owner || s.owner === 'Công ty')).length;
+  const m7Admin = list.filter(s => s.team === 'Team 02' && s.owner && s.owner !== 'Công ty').length;
+  const m7Company = list.filter(s => s.team === 'Team 02' && (!s.owner || s.owner === 'Công ty')).length;
+
+  const eAll = document.getElementById('cnt-all');
+  const eCwnAdm = document.getElementById('cnt-cwn-adm');
+  const eCwnCom = document.getElementById('cnt-cwn-com');
+  const eM7Adm = document.getElementById('cnt-m7-adm');
+  const eM7Com = document.getElementById('cnt-m7-com');
+
+  if (eAll) eAll.textContent = allCount;
+  if (eCwnAdm) eCwnAdm.textContent = cwnAdmin;
+  if (eCwnCom) eCwnCom.textContent = cwnCompany;
+  if (eM7Adm) eM7Adm.textContent = m7Admin;
+  if (eM7Com) eM7Com.textContent = m7Company;
+}
+
 function renderWebsites(){
+  updateMacroCounters();
   const q=(document.getElementById('websiteSearch')||{}).value?.toLowerCase()||'';
   const fs=(document.getElementById('websiteFilterStatus')||{}).value||'';
   const ft=(document.getElementById('websiteFilterTeam')||{}).value||'';
   const fg=(document.getElementById('websiteFilterGroup')||{}).value||'';
   const fo=(document.getElementById('websiteFilterOwner')||{}).value||'';
   // Update pill counts (pre-status filter, but after team/group/owner filter)
-  wsUpdatePillCounts(websites.filter(w=>{
+  wsUpdatePillCounts(getFilteredWebsites().filter(w=>{
     if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
     if(ft && w.team!==ft) return false;
     if(fg && w.group!==fg) return false;
@@ -4633,7 +4705,7 @@ function renderWebsites(){
   if(wfTeam&&groupRow) groupRow.style.display=wfTeam.value==='Team 02'?'none':'block';
 
   const ftr=(document.getElementById('websiteFilterTracked')||{}).value||'';
-  let list=websites.filter(w=>{
+  let list=getFilteredWebsites().filter(w=>{
     if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
     if(fs && w.status!==fs) return false;
     if(ft && w.team!==ft) return false;
@@ -4673,6 +4745,7 @@ function renderWebsites(){
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
         ${w.is301?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0ff;color:#6c5ce7;border:1px solid #c3b1e1;white-space:nowrap">🔀 301</span>`:''}
         ${(()=>{ const kids=websites.filter(x=>x.is301&&x.sourceUrl&&(x.sourceUrl===w.url||x.sourceUrl===w.url?.replace(/\/$/,''))); return kids.length?`<button onclick="event.stopPropagation();showW301s(${w.id})" style="font-size:10px;padding:1px 7px;border-radius:10px;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;cursor:pointer;white-space:nowrap" title="Xem ${kids.length} web 301">🔀 ×${kids.length}</button>`:'' })()}
+        ${!w.is301?`<button onclick="event.stopPropagation();openAdd301ForParent(${w.id},'${(w.url||'').replace(/'/g,"\\'")}')" style="font-size:10px;padding:1px 7px;border-radius:10px;background:#f3e5f5;color:#8e24aa;border:1px solid #d1c4e9;cursor:pointer;white-space:nowrap" title="Thêm web 301 kế thừa từ web này">+ 301</button>`:''}
         <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${WS_STATUS_COLOR[w.status]||'#999'}18;color:${WS_STATUS_COLOR[w.status]||'#999'};white-space:nowrap">${w.status}</span>
         ${w.admin?`<a href="${joinAdminUrl(w.url,w.admin)}" target="_blank" onclick="event.stopPropagation()" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 8px">Admin</a>`:''}
         <button onclick="event.stopPropagation();copyText(this.dataset.url,this)" data-url="${(w.url||'').replace(/"/g,'&quot;')}" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 8px;color:var(--blue);border-color:#b8d4ea" title="Copy URL">🔗</button>
@@ -6522,22 +6595,20 @@ function updateTaskPendingStatus(taskId, status){
 let _gvTaskRef = null; // task being assigned
 
 function switchTasksTab(tab){
-  if (tab === 'giaoviec' || tab === 'assignment') {
-    tab = 'mytasks';
-  }
   try{ sessionStorage.setItem('wt_activeSubPage', tab); } catch(e){}
-  
-  const myTasksPanel = document.getElementById('panel-mytasks');
-  if (myTasksPanel) myTasksPanel.style.display = 'block';
-  
-  const gvPanel = document.getElementById('panel-giaoviec');
-  if (gvPanel) gvPanel.style.display = 'none';
-  
-  const tabMy = document.getElementById('tab-mytasks');
-  if (tabMy) tabMy.classList.add('active');
-  
-  const tabGv = document.getElementById('tab-giaoviec');
-  if (tabGv) tabGv.classList.remove('active');
+  document.getElementById('panel-mytasks').style.display = tab==='mytasks' ? 'block' : 'none';
+  document.getElementById('panel-giaoviec').style.display = tab==='giaoviec' ? 'block' : 'none';
+  document.getElementById('tab-mytasks').classList.toggle('active', tab==='mytasks');
+  document.getElementById('tab-giaoviec').classList.toggle('active', tab==='giaoviec');
+  // Ẩn taskSubBoard khi chuyển sang giao việc
+  if(tab==='giaoviec'){
+    const sub = document.getElementById('taskSubBoard');
+    if(sub) sub.style.display='none';
+    const ov = document.getElementById('tasksOverview');
+    if(ov) ov.style.display='block';
+    document.querySelector('main')?.classList.remove('board-mode');
+    renderGiaoViec();
+  }
 }
 
 function renderGiaoViec(){
@@ -9097,32 +9168,22 @@ function switchWorkspace(workspaceId, element) {
     const fallbackBtn = document.getElementById('btn-tab-' + workspaceId);
     if (fallbackBtn) fallbackBtn.classList.add('active');
   }
-
-  // 1. Ẩn toàn bộ các panel và sub-page nội bộ
   document.querySelectorAll('.workspace-panel').forEach(panel => {
     panel.classList.add('is-hidden');
   });
-  document.querySelectorAll('.page').forEach(page => {
-    page.classList.add('is-hidden');
-  });
-
   const targetPanel = document.getElementById('panel-workspace-' + workspaceId);
   if (targetPanel) {
     targetPanel.classList.remove('is-hidden');
-    
-    if (workspaceId === 'job') {
-      const activePage = localStorage.getItem('wt_activePage') || 'dashboard';
-      const subPage = document.getElementById('page-' + activePage);
-      if (subPage) subPage.classList.remove('is-hidden');
+    if (workspaceId === 'finance' || workspaceId === 'tools' || workspaceId === 'my-tools') {
+      const iframe = targetPanel.querySelector('iframe');
+      if (iframe && (!iframe.src || iframe.src.includes('about:blank') || iframe.src === '')) {
+        const dataSrc = iframe.getAttribute('data-src') || iframe.getAttribute('src');
+        if (dataSrc) {
+          loadEcosystemApp(iframe, dataSrc);
+        }
+      }
     }
   }
-
-  // 2. Đồng bộ tiêu đề header H1 cho trang nội bộ
-  const headerTitle = document.getElementById('main-header-title');
-  if (headerTitle && workspaceId === 'job') {
-    headerTitle.innerHTML = '💼 Quản lý công việc';
-  }
-  
   const submenu = document.getElementById('workspace-submenu');
   if (submenu) {
     submenu.style.display = (workspaceId === 'job') ? 'flex' : 'none';
@@ -9610,4 +9671,49 @@ window.validateAdminPassword = function(inputPassword) {
   } catch(e) {
     return false;
   }
-};
+};
+
+// ===== V94 AUTO-FILL 301 AND SECURE TRIGGERFLOW =====
+function openAdd301ForParent(parentId, parentUrl) {
+  if (typeof openWebsiteForm === 'function') {
+    openWebsiteForm(null); // Reset form về trống
+  }
+  
+  const wfIs301 = document.getElementById('wf_is301');
+  if (wfIs301) {
+    wfIs301.checked = true;
+    if (typeof wfToggle301 === 'function') wfToggle301();
+  }
+  
+  const wfSourceUrl = document.getElementById('wf_source_url');
+  if (wfSourceUrl) {
+    wfSourceUrl.value = parentUrl; // Liên kết qua sourceUrl
+  }
+  
+  // Tự động kế thừa thông tin cha từ mảng websites toàn cục
+  const parentSite = websites.find(x => x.id === parentId);
+  if (parentSite) {
+    const wfBrand = document.getElementById('wf_brand');
+    if (wfBrand) wfBrand.value = `${parentSite.brand} - 301`;
+    
+    const wfTeam = document.getElementById('wf_team');
+    if (wfTeam) {
+      wfTeam.value = parentSite.team;
+      if (typeof onWfTeamChange === 'function') onWfTeamChange();
+    }
+    
+    const wfOwner = document.getElementById('wf_owner');
+    if (wfOwner) {
+      wfOwner.value = parentSite.owner || 'Công ty';
+    }
+  }
+}
+
+function triggerFlow(siteUrl) {
+  const toolsBaseUrl = 'https://gsc-bulk-tool.nthieucloud.shop';
+  const sessionToken = sessionStorage.getItem('wt_session_admin') === 'true' ? 'secure_admin_active' : 'guest';
+  const targetUrl = `${toolsBaseUrl}?flow_url=${encodeURIComponent(siteUrl)}&auth_token=${encodeURIComponent(sessionToken)}`;
+  
+  window.open(targetUrl, '_blank', 'noopener,noreferrer');
+}
+

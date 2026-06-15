@@ -1,11 +1,34 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quản lý công việc</title>
+  <meta charset="UTF-8">
+  <!-- SCRIPT TỰ ĐỘNG KHỬ SW BÓNG MA CỦA DỰ ÁN CŨ -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        let unregisteredAny = false;
+        let promises = registrations.map(function(registration) {
+          return registration.unregister().then(function(success) {
+            if (success) {
+              console.log('[V94 Patch] Legacy Service Worker unregistered successfully.');
+              unregisteredAny = true;
+            }
+          });
+        });
+        
+        // Chờ gỡ xong tất cả (nếu có) thì tự động reload sạch 1 lần duy nhất
+        Promise.all(promises).then(function() {
+          if (unregisteredAny) {
+            window.location.reload();
+          }
+        });
+      });
+    }
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý công việc</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c0392b'/%3E%3Crect x='7' y='9' width='18' height='2.5' rx='1.2' fill='white'/%3E%3Crect x='7' y='14.7' width='18' height='2.5' rx='1.2' fill='white'/%3E%3Crect x='7' y='20.5' width='12' height='2.5' rx='1.2' fill='white'/%3E%3Ccircle cx='25' cy='22' r='5' fill='%2327ae60'/%3E%3Cpath d='M22.5 22l2 2 3-3' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=premium_ui_perfect_v93">
+  <link rel="stylesheet" href="style.css?v=premium_ui_perfect_v94">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
@@ -46,9 +69,9 @@
   <div style="display:flex;align-items:center;gap:12px">
     <div style="display:flex;align-items:center;gap:8px;">
       <div style="background:#2c3e50;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px">A</div>
-      <span class="brand-title">Admin Portal</span>
+      <span style="font-weight:600;font-size:13px;color:var(--text)">Admin Portal</span>
     </div>
-    <h1 id="main-header-title">💼 Quản lý công việc</h1>
+    <h1>&#128188; Quản lý công việc</h1>
   </div>
   <div class="meta" id="currentDate"></div>
   <!-- UNIFIED SEARCH BOX -->
@@ -206,20 +229,21 @@
       <button type="button" class="sidebar-sub-item" onclick="showPage('wstrack')"><i class="fa fa-desktop"></i> Theo dõi web</button>
     </div>
 
-    <!-- Tab Mẹ 2: Tài chính - Mở cửa sổ mới an toàn -->
-    <a href="https://finance-tracker.nthieucloud.shop" target="_blank" rel="noopener noreferrer" class="sidebar-nav-item" id="btn-tab-finance" style="text-decoration: none;">
+    <!-- Tab Mẹ 2: Tài chính -->
+    <button type="button" class="sidebar-nav-item" id="btn-tab-finance" onclick="switchWorkspace('finance', this)">
       <i class="fa fa-credit-card"></i> <span>Quản lý Tài chính</span>
-    </a>
+    </button>
     
-    <!-- Tab Mẹ 3: Kho Tool Nhỏ - Mở cửa sổ mới an toàn -->
-    <a href="https://gsc-bulk-tool.nthieucloud.shop" target="_blank" rel="noopener noreferrer" class="sidebar-nav-item" id="btn-tab-tools" style="text-decoration: none;">
+    <!-- Tab Mẹ 3: Kho Tool Nhỏ -->
+    <button type="button" class="sidebar-nav-item" id="btn-tab-tools" onclick="switchWorkspace('tools', this)">
       <i class="fa fa-cubes"></i> <span>Kho Tool Nhỏ</span>
-    </a>
+    </button>
   </div>
   
   <!-- Bottom actions: footer aligned -->
   <div class="sidebar-footer" id="navBottomMenu">
     <button type="button" onclick="openChangePassword()"><i class="fa fa-key"></i> Đổi mật khẩu</button>
+    <button type="button" onclick="openSettings()"><i class="fa fa-cog"></i> Cài đặt</button>
     <button type="button" onclick="logout()" class="text-danger"><i class="fa fa-sign-out"></i> Đăng xuất</button>
   </div>
 </nav>
@@ -254,6 +278,7 @@
   <!-- TAB BAR -->
   <div style="display:flex;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-border);border-bottom:none;width:fit-content;margin-bottom:0;overflow:hidden">
     <button class="gv-tab active" id="tab-mytasks" onclick="switchTasksTab('mytasks')">📋 Task của tôi</button>
+    <button class="gv-tab" id="tab-giaoviec" onclick="switchTasksTab('giaoviec')">📤 Giao việc <span id="gvBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
   </div>
 
   <!-- PANEL: TASK CỦA TÔI -->
@@ -335,7 +360,96 @@
   </div><!-- end panel-mytasks -->
 
   <!-- PANEL: GIAO VIỆC -->
-  <div id="panel-giaoviec"></div>
+  <div id="panel-giaoviec" style="display:none;border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff">
+    <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border)">
+      <div class="panel-title">📤 Danh sách giao việc</div>
+      <div class="toolbar">
+        <select id="gvFilterStatus" onchange="renderGiaoViec()" style="height:32px;font-size:12px">
+          <option value="">Tất cả trạng thái</option>
+          <option value="Chờ làm">Chờ làm</option>
+          <option value="Đang làm">Đang làm</option>
+          <option value="Pending">Pending</option>
+          <option value="Chờ nghiệm thu">Chờ nghiệm thu</option>
+          <option value="Hoàn thành">Hoàn thành</option>
+        </select>
+        <select id="gvFilterPerson" onchange="renderGiaoViec()" style="height:32px;font-size:12px">
+          <option value="">Tất cả người</option>
+        </select>
+        <button id="btnManageAssignees" class="btn btn-outline btn-sm" onclick="openManageAssignees()">⚙ Quản lý người nhận</button>
+      </div>
+    </div>
+
+    <!-- GV PENDING SUMMARY — độc lập với task của tôi -->
+    <div id="gvPendingPanel" style="display:none;background:#fff8ee;border-bottom:2px solid #fce0b0;overflow:hidden">
+      <div style="padding:10px 14px;border-bottom:1px solid #fce0b0;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-weight:600;font-size:13px;color:#e67e22">⏸ Pending trong giao việc (<span id="gvPendingCount">0</span>)</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px" id="gvPendingTable">
+        <thead>
+          <tr style="background:#fff3e0">
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;min-width:140px">Task giao</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Loại pending</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;min-width:90px">Ngày</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Lý do</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Tình trạng</th>
+            <th style="padding:7px 4px;border-bottom:1px solid #fce0b0"></th>
+          </tr>
+        </thead>
+        <tbody id="gvPendingBody"></tbody>
+      </table>
+    </div>
+
+    <!-- GV LIST -->
+    <div id="gvListWrap" style="padding:14px">
+      <div id="gvList"></div>
+      <div id="gvEmpty" class="empty" style="display:none"><div class="icon">📤</div>Chưa có việc nào được giao.</div>
+
+      <!-- GV DONE SECTION -->
+      <div id="gvDoneSection" style="display:none;margin-top:16px">
+        <div onclick="toggleGvDoneSection()" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;background:#f0faf4;border-radius:8px;border:1px solid #a8deba;user-select:none;margin-bottom:0"
+          onmouseover="this.style.background='#e6f7ee'" onmouseout="this.style.background='#f0faf4'">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#27ae60">✅ Đã nghiệm thu (<span id="gvDoneCount">0</span>)</span>
+          <span id="gvDoneChevron" style="font-size:11px;color:#27ae60;display:inline-block">▼</span>
+        </div>
+        <div id="gvDoneList" style="display:none;flex-direction:column;gap:8px;margin-top:8px"></div>
+        <div id="gvDoneBulkBar" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:#2c3e50;color:#fff;border-radius:8px;margin-top:8px">
+          <span id="gvDoneBulkCount" style="font-size:13px;font-weight:600"></span>
+          <button onclick="bulkDeleteGvDone()" class="btn btn-sm" style="background:#e74c3c;color:#fff;border:none">🗑 Xoá</button>
+          <button onclick="document.querySelectorAll('.gv-done-chk').forEach(c=>c.checked=false);updateGvDoneBulk()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;padding:0 4px">×</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GV KANBAN SUB BOARD -->
+    <div id="gvSubBoard" style="display:none;padding:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:#fff;border:1px solid var(--gray-border);border-radius:8px;padding:10px 16px">
+        <button class="btn btn-outline btn-sm" onclick="closeGvBoard()">← Quay lại</button>
+        <div style="font-weight:600;font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="gvSubBoardTitle"></div>
+        <span id="gvSubBoardPerson"></span>
+        <div class="toolbar" style="gap:6px">
+          <div style="position:relative;display:inline-block">
+            <button class="btn btn-outline btn-sm" onclick="toggleGvSelectAllMenu()">☑ Chọn ▾</button>
+            <div id="gvSelectAllMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border:1px solid var(--gray-border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:300;min-width:170px;overflow:hidden">
+              <div onclick="gvSelectAllCards()" style="padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--gray-border);font-weight:500" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background=''">☑ Tất cả các cột</div>
+              <div id="gvSelectColItems"></div>
+              <div onclick="gvClearCardSelection()" style="padding:9px 14px;font-size:13px;cursor:pointer;border-top:1px solid var(--gray-border);color:var(--text-muted)" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''">☐ Bỏ chọn tất cả</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- GV Card Bulk Bar -->
+      <div id="gvCardBulkBar" style="display:none;background:#2c3e50;color:#fff;border-radius:8px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:8px;flex-wrap:wrap">
+        <span id="gvCardBulkCount" style="font-size:13px;font-weight:600"></span>
+        <div style="width:1px;height:18px;background:rgba(255,255,255,.2)"></div>
+        <button onclick="gvBulkCardMove()" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none">→ Chuyển cột tiếp</button>
+        <button onclick="gvBulkCardCopyUrls(this)" class="btn btn-sm" style="background:#2980b9;color:#fff;border:none">🔗 Copy URL</button>
+        <button onclick="gvBulkCardCopyVidco(this)" class="btn btn-sm" style="background:#555;color:#fff;border:none">📋 Copy VIDCO</button>
+        <button onclick="gvBulkCardDelete()" class="btn btn-sm" style="background:#e74c3c;color:#fff;border:none">🗑 Xoá thẻ</button>
+        <button onclick="gvClearCardSelection()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:18px;margin-left:auto;padding:0 4px">×</button>
+      </div>
+      <div id="gvKanbanBoard" style="display:flex;gap:12px;align-items:start;overflow-x:auto;padding-bottom:16px;min-height:300px"></div>
+    </div>
+  </div>
 
   <div id="taskSubBoard" style="display:none">
     <div class="panel-header" style="background:#fff;border-radius:8px;border:1px solid var(--gray-border);margin-bottom:14px;padding:10px 16px">
@@ -690,7 +804,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
         <div class="toolbar" style="flex-wrap:wrap;gap:6px">
           <input type="text" id="websiteSearch" placeholder="&#128269; Tìm website..." oninput="renderWebsites()" style="width:160px;height:32px;font-size:12px">
-          <select id="websiteFilterTeam" onchange="renderWebsites()" style="height:32px;font-size:12px">
+          <select id="websiteFilterTeam" onchange="resetPillToAll();renderWebsites()" style="height:32px;font-size:12px">
             <option value="">Tất cả team</option>
             <option value="Team 01">Team 01</option>
             <option value="Team 02">Team 02</option>
@@ -698,7 +812,7 @@
           <select id="websiteFilterGroup" onchange="renderWebsites()" style="height:32px;font-size:12px;min-width:120px">
             <option value="">Tất cả nhóm</option>
           </select>
-          <select id="websiteFilterOwner" onchange="renderWebsites()" style="height:32px;font-size:12px">
+          <select id="websiteFilterOwner" onchange="resetPillToAll();renderWebsites()" style="height:32px;font-size:12px">
             <option value="">Tất cả người</option>
             <option value="Hải">Hải</option>
             <option value="Hiếu">Hiếu</option>
@@ -730,6 +844,14 @@
         <button id="wsPillLoi" onclick="wsSetStatusFilter('Lỗi web')" style="height:28px;padding:0 12px;border-radius:20px;border:1px solid #f5c6c6;background:#fdf2f2;font-size:12px;cursor:pointer;transition:all .15s">
           ⚠️ Lỗi web <span id="wsCntLoi" style="background:#f5c6c6;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px;color:#e74c3c;font-weight:600">0</span>
         </button>
+      </div>
+      <!-- BỘ LỌC ĐỘNG HYBRID V94 - CHÈN TRONG #WEBSITESPANEL -->
+      <div class="job-filter-bar">
+        <button type="button" class="filter-pills active" data-filter="all" onclick="executeHybridFilter('all', this)">Tất cả (<span id="cnt-all">0</span>)</button>
+        <button type="button" class="filter-pills" data-filter="Team 01-Admin" onclick="executeHybridFilter('Team 01-Admin', this)">Chaewon - Admin (<span id="cnt-cwn-adm">0</span>)</button>
+        <button type="button" class="filter-pills" data-filter="Team 01-Company" onclick="executeHybridFilter('Team 01-Company', this)">Chaewon - Công ty (<span id="cnt-cwn-com">0</span>)</button>
+        <button type="button" class="filter-pills" data-filter="Team 02-Admin" onclick="executeHybridFilter('Team 02-Admin', this)">M7 - Admin (<span id="cnt-m7-adm">0</span>)</button>
+        <button type="button" class="filter-pills" data-filter="Team 02-Company" onclick="executeHybridFilter('Team 02-Company', this)">M7 - Công ty (<span id="cnt-m7-com">0</span>)</button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 320px;gap:0;align-items:stretch;flex:1;overflow:hidden">
@@ -889,8 +1011,12 @@
   </div> <!-- end panel-workspace-job -->
 
   <!-- ECOSYSTEM PANELS -->
-  <div id="panel-workspace-finance" class="workspace-panel iframe-panel-wrap is-hidden"></div>
-  <div id="panel-workspace-tools" class="workspace-panel iframe-panel-wrap is-hidden"></div>
+  <div id="panel-workspace-finance" class="workspace-panel iframe-panel-wrap">
+    <iframe id="iframe-finance" data-src="/finance" src="about:blank"></iframe>
+  </div>
+  <div id="panel-workspace-tools" class="workspace-panel iframe-panel-wrap">
+    <iframe id="iframe-tools" data-src="/my-tools" src="about:blank"></iframe>
+  </div>
 </main>
 </div>
 
@@ -1146,7 +1272,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script.js?v=premium_ui_perfect_v93"></script>
+  <script src="script.js?v=premium_ui_perfect_v94"></script>
 
 <!-- EDIT INDEX TASK MODAL -->
 <div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">
@@ -1482,7 +1608,21 @@
   </div>
 </div>
 
-
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal" style="max-width:420px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⚙ Cài đặt giao diện</h3>
+      <button class="modal-close" onclick="closeSettings()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:16px;text-align:center;padding:30px 20px;color:var(--text-muted)">
+      Giao diện Portal được thiết lập mặc định tối giản và sang trọng.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeSettings()">Đóng</button>
+    </div>
+  </div>
+</div>
 
 <!-- AVATAR SETTINGS MODAL -->
 <div class="modal-overlay" id="avatarSettingsModal" onclick="if(event.target===this)closeAvatarSettings()">
