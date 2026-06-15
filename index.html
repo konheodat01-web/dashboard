@@ -809,14 +809,10 @@
             <option value="Team 01">Team 01</option>
             <option value="Team 02">Team 02</option>
           </select>
-          <select id="websiteFilterGroup" onchange="renderWebsites()" style="height:32px;font-size:12px;min-width:120px">
-            <option value="">Tất cả nhóm</option>
-          </select>
           <select id="websiteFilterOwner" onchange="resetPillToAll();renderWebsites()" style="height:32px;font-size:12px">
             <option value="">Tất cả người</option>
-            <option value="Hải">Hải</option>
-            <option value="Hiếu">Hiếu</option>
-            <option value="Chung">Chung</option>
+            <option value="Admin">Admin</option>
+            <option value="Công ty">Công ty</option>
           </select>
           <input type="hidden" id="websiteFilterStatus" value="">
           <select id="websiteFilterTracked" onchange="renderWebsites()" style="height:32px;font-size:12px">
@@ -982,12 +978,10 @@
                 <option value="Team 01">Team 01</option>
                 <option value="Team 02">Team 02</option>
               </select>
-            </div>
             <div class="form-group"><label>Người quản lý</label>
               <select id="wf_owner" style="width:100%">
+                <option value="Admin">Admin</option>
                 <option value="Công ty">Công ty</option>
-                <option value="Hải">Hải</option>
-                <option value="Hiếu">Hiếu</option>
               </select>
             </div>
           </div>

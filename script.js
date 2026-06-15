@@ -4587,28 +4587,35 @@ function switchLinksTab(tab){
 // ===== WEBSITES =====
 let wsGroups = ['Chính', 'Phụ', 'Khách']; // Team 01 sub-groups
 
-// 1. BIẾN TRẠNG THÁI LỌC LAI (HYBRID STATE) V94
+// 1. BIẾN TRẠNG THÁI LỌC PHẲNG V98-TỐI HẬU
 let currentJobFilter = 'all';
 
-// 2. HÀM KÍCH HOẠT LỌC PIL CHUYỂN ĐỔI TRẠNG THÁI (State Reset) V94
-function executeHybridFilter(filterVal, element) {
+// 2. HÀM ĐỒNG BỘ DROPDOWN KHỚP THỊ GIÁC 100%
+function executeFlatFilter(filterVal, element) {
   currentJobFilter = filterVal;
   
-  // Đồng bộ sáng đèn nút bấm phẳng
+  // Đồng bộ hiệu ứng sáng đèn của nút bấm phẳng chuẩn GitHub
   document.querySelectorAll('.job-filter-bar .filter-pills').forEach(btn => btn.classList.remove('active'));
   if (element) element.classList.add('active');
 
-  // RESET DROPDOWN VỀ RỖNG ĐỂ TRÁNH XUNG ĐỘT PHÉP GIAO LỌC
   const dTeam = document.getElementById('websiteFilterTeam');
   const dOwner = document.getElementById('websiteFilterOwner');
-  if (dTeam) dTeam.value = "";
-  if (dOwner) dOwner.value = "";
 
-  // Ép phân hệ render lại dữ liệu tức thì
-  renderWebsites();
+  if (filterVal === 'all') {
+    if (dTeam) dTeam.value = "";
+    if (dOwner) dOwner.value = "";
+  } else {
+    const [targetTeam, targetRole] = filterVal.split('-');
+    if (dTeam) dTeam.value = targetTeam;
+    
+    // Đồng bộ khớp 100% sang 'Admin' hoặc 'Công ty' chuẩn tiếng Việt trên giao diện
+    if (dOwner) dOwner.value = (targetRole === 'Admin') ? 'Admin' : 'Công ty'; 
+  }
+  
+  if (typeof renderWebsites === 'function') renderWebsites();
 }
 
-// 3. ĐOẠN ĐÁNH CHẶN NGƯỢC (Dropdown change triggers resetting pills) V94
+// 3. ĐOẠN ĐÁNH CHẶN NGƯỢC
 function resetPillToAll() {
   currentJobFilter = 'all';
   document.querySelectorAll('.job-filter-bar .filter-pills').forEach(btn => {
@@ -4617,45 +4624,37 @@ function resetPillToAll() {
   });
 }
 
-// 4. HÀM TRẢ VỀ MẢNG LỌC ĐỘNG HYBRID V94
+// 4. HÀM LỌC TỐI GIẢN THEO CHUẨN ADMIN MỚI
 function getFilteredWebsites() {
-  const websiteList = websites || []; 
+  const websiteList = websites || [];
   return websiteList.filter(site => {
     if (currentJobFilter === 'all') return true;
     
     const [targetTeam, targetRole] = currentJobFilter.split('-');
-    const isPersonal = site.owner && site.owner !== 'Công ty';
     
     if (targetRole === 'Admin') {
-      return site.team === targetTeam && isPersonal;
+      return site.team === targetTeam && site.owner === 'Admin';
     } else {
-      // Trường hợp Công ty: Không có owner hoặc owner bằng Công ty
-      return site.team === targetTeam && (!site.owner || site.owner === 'Công ty');
+      return site.team === targetTeam && (site.owner === 'Công ty' || !site.owner);
     }
   });
 }
 
-// 5. HÀM ĐẾM SỐ LƯỢNG ĐỘNG THỜI GIAN THỰC V94
+// 5. HÀM ĐẾM SỐ LƯỢNG ĐỘNG SIÊU NHẸ V98
 function updateMacroCounters() {
   const list = websites || [];
   
   const allCount = list.length;
-  const cwnAdmin = list.filter(s => s.team === 'Team 01' && s.owner && s.owner !== 'Công ty').length;
-  const cwnCompany = list.filter(s => s.team === 'Team 01' && (!s.owner || s.owner === 'Công ty')).length;
-  const m7Admin = list.filter(s => s.team === 'Team 02' && s.owner && s.owner !== 'Công ty').length;
-  const m7Company = list.filter(s => s.team === 'Team 02' && (!s.owner || s.owner === 'Công ty')).length;
+  const cwnAdmin = list.filter(s => s.team === 'Team 01' && s.owner === 'Admin').length;
+  const cwnCompany = list.filter(s => s.team === 'Team 01' && (s.owner === 'Công ty' || !s.owner)).length;
+  const m7Admin = list.filter(s => s.team === 'Team 02' && s.owner === 'Admin').length;
+  const m7Company = list.filter(s => s.team === 'Team 02' && (s.owner === 'Công ty' || !s.owner)).length;
 
-  const eAll = document.getElementById('cnt-all');
-  const eCwnAdm = document.getElementById('cnt-cwn-adm');
-  const eCwnCom = document.getElementById('cnt-cwn-com');
-  const eM7Adm = document.getElementById('cnt-m7-adm');
-  const eM7Com = document.getElementById('cnt-m7-com');
-
-  if (eAll) eAll.textContent = allCount;
-  if (eCwnAdm) eCwnAdm.textContent = cwnAdmin;
-  if (eCwnCom) eCwnCom.textContent = cwnCompany;
-  if (eM7Adm) eM7Adm.textContent = m7Admin;
-  if (eM7Com) eM7Com.textContent = m7Company;
+  if (document.getElementById('cnt-all')) document.getElementById('cnt-all').textContent = allCount;
+  if (document.getElementById('cnt-cwn-adm')) document.getElementById('cnt-cwn-adm').textContent = cwnAdmin;
+  if (document.getElementById('cnt-cwn-com')) document.getElementById('cnt-cwn-com').textContent = cwnCompany;
+  if (document.getElementById('cnt-m7-adm')) document.getElementById('cnt-m7-adm').textContent = m7Admin;
+  if (document.getElementById('cnt-m7-com')) document.getElementById('cnt-m7-com').textContent = m7Company;
 }
 
 function renderWebsites(){
@@ -9716,4 +9715,72 @@ function triggerFlow(siteUrl) {
   
   window.open(targetUrl, '_blank', 'noopener,noreferrer');
 }
+
+// ===== TẬP LỆNH THANH TRỪNG TỐI CAO V98 - XÓA SẠCH HOÀN TOÀN RÁC TIỀN SỬ =====
+function executePurgeAndMigrationV98() {
+  let webCount = 0;
+  let taskCount = 0;
+  let gvCount = 0;
+
+  // 1. Gột rửa Website
+  if (Array.isArray(websites)) {
+    websites.forEach(site => {
+      if (site.owner && site.owner !== 'Công ty' && site.owner !== 'Admin') {
+        site.owner = 'Admin';
+        webCount++;
+      }
+    });
+  }
+
+  // 2. Gột rửa Task (Hải/Hiếu/Cá nhân -> Admin, Trống/Chung -> Công ty)
+  if (Array.isArray(tasks)) {
+    tasks.forEach(t => {
+      if (t.person === 'Hải' || t.person === 'Hiếu' || t.person === 'Cá nhân') {
+        t.person = 'Admin';
+        taskCount++;
+      } else if (!t.person || t.person === 'Chung') {
+        t.person = 'Công ty';
+        taskCount++;
+      }
+    });
+  }
+
+  // 3. Gột rửa Giao việc
+  if (Array.isArray(giaoViecList)) {
+    giaoViecList.forEach(g => {
+      if (g.assignee === 'Hải' || g.assignee === 'Hiếu' || g.assignee === 'Cá nhân') {
+        g.assignee = 'Admin';
+        gvCount++;
+      } else if (!g.assignee) {
+        g.assignee = 'Công ty';
+        gvCount++;
+      }
+    });
+  }
+
+  // Khai tử dữ liệu cũ trên biến toàn cục
+  data = { hai: [], hieu: [] };
+  _salaryRates = { hai: {}, hieu: {} };
+  _salaryConfig = { hai: { chiPhi: [], phuCap: [] }, hieu: { chiPhi: [], phuCap: [] } };
+
+  // Xóa sạch bộ nhớ LocalStorage của máy khách
+  localStorage.removeItem('wt_salary_rates');
+  localStorage.removeItem('wt_salary_config');
+  localStorage.removeItem('wt_finance_history');
+  
+  // Đồng bộ bản sạch lên Firebase
+  localStorage.setItem('wt_websites', JSON.stringify(websites));
+  localStorage.setItem('wt_tasks', JSON.stringify(tasks));
+  localStorage.setItem('wt_giaoviec', JSON.stringify(giaoViecList));
+  
+  if (typeof saveAppData === 'function') {
+    saveAppData(); 
+  }
+  
+  console.log(`[V98 Success] Hệ thống đã được thanh lọc dữ liệu sạch sẽ!`);
+  if (typeof renderWebsites === 'function') renderWebsites();
+}
+
+// Gọi lệnh di cư tự động một lần duy nhất
+executePurgeAndMigrationV98();
 
