@@ -9783,6 +9783,16 @@ function autoCheckAndMigrateV99() {
     });
   }
 
+  // Khai tử dữ liệu cũ trên biến toàn cục
+  if (typeof data !== 'undefined') data = { hai: [], hieu: [] };
+  if (typeof _salaryRates !== 'undefined') _salaryRates = { hai: {}, hieu: {} };
+  if (typeof _salaryConfig !== 'undefined') _salaryConfig = { hai: { chiPhi: [], phuCap: [] }, hieu: { chiPhi: [], phuCap: [] } };
+
+  // Xóa sạch bộ nhớ LocalStorage của máy khách
+  localStorage.removeItem('wt_salary_rates');
+  localStorage.removeItem('wt_salary_config');
+  localStorage.removeItem('wt_finance_history');
+
   // Ghi đè bộ nhớ đệm cục bộ
   localStorage.setItem('wt_websites', JSON.stringify(websites));
   localStorage.setItem('wt_tasks', JSON.stringify(tasks));
@@ -9793,7 +9803,7 @@ function autoCheckAndMigrateV99() {
     saveAppData(); 
   }
 
-  console.log(`[V99 Auto-Migration Success] Di cư thành công: ${webCount} website, ${taskCount} task, ${gvCount} giao việc.`);
+  console.log(`[V99.1 Auto-Migration Success] Di cư thành công: ${webCount} website, ${taskCount} task, ${gvCount} giao việc.`);
   
   // Ép giao diện vẽ lại danh sách sạch hoàn chỉnh
   if (typeof renderWebsites === 'function') {
