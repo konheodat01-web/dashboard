@@ -275,17 +275,11 @@
 
 <div id="page-tasks" class="page">
 
-  <!-- TAB BAR -->
-  <div style="display:flex;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-border);border-bottom:none;width:fit-content;margin-bottom:0;overflow:hidden">
-    <button class="gv-tab active" id="tab-mytasks" onclick="switchTasksTab('mytasks')">📋 Task của tôi</button>
-    <button class="gv-tab" id="tab-giaoviec" onclick="switchTasksTab('giaoviec')">📤 Giao việc <span id="gvBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
-  </div>
-
   <!-- PANEL: TASK CỦA TÔI -->
-  <div id="panel-mytasks" style="border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;padding:0">
+  <div id="panel-mytasks" style="background:#fff;padding:0">
   <div id="tasksOverview">
     <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border);margin-bottom:0">
-      <div class="panel-title">&#128203; Công việc khác</div>
+      <div class="panel-title">&#128203; Danh sách Task</div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
         <select id="tkFilterPerson" onchange="renderTasksOverview()" style="display:none">
           <option value="">Tất cả người</option>

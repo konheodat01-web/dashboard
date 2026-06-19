@@ -1696,8 +1696,7 @@ function renderTasksOverview(){
       <button onclick="event.stopPropagation();openTaskPendingModal(${t.id})" title="${isPendingTask?'Sửa / xoá pending':'Pending task này'}"
         class="${isPendingTask?'btn-pending-active':''}"
         style="cursor:pointer;font-size:11px;flex-shrink:0">⏸</button>
-      ${(currentMember==='admin'||currentMember==='hieu')?`<button onclick="event.stopPropagation();openGiaoViecFromTask(${t.id})" title="Giao việc này"
-        style="cursor:pointer;font-size:11px;font-weight:600;flex-shrink:0">📤 Giao</button>`:''}
+      
       <button onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Xoá task"
         style="cursor:pointer;font-size:15px;flex-shrink:0">🗑</button>
     </div>`;
@@ -3689,7 +3688,8 @@ function renderPendingSummary(){
   const myTasks = currentMember==='admin' ? tasks
     : tasks.filter(t=>{
         const p = (t.person||'').trim();
-        return !p || p===('');
+        // Cố định lỗi: Nếu không phải admin thì chỉ lấy task của chính người đó
+        return p.toLowerCase() === currentMember.toLowerCase() || (!p && currentMember === 'admin');
       });
   myTasks.forEach(task=>{
     const cols=getProjectCols(task);
@@ -4056,7 +4056,6 @@ function confirmResetProfile(){}
 let indexTasks = [];
 let itNextId = 1;
 let selectedTaskIds = new Set();
-let giaoViecList = [];
 let giaoViecNextId = 1;
 let assignees = ['Hải', 'Hiếu']; // default, customizable
 let prompts = [];
@@ -6594,125 +6593,6 @@ function updateTaskPendingStatus(taskId, status){
 // ===== GIAO VIỆC =====
 let _gvTaskRef = null; // task being assigned
 
-function switchTasksTab(tab){
-  try{ sessionStorage.setItem('wt_activeSubPage', tab); } catch(e){}
-  document.getElementById('panel-mytasks').style.display = tab==='mytasks' ? 'block' : 'none';
-  document.getElementById('panel-giaoviec').style.display = tab==='giaoviec' ? 'block' : 'none';
-  document.getElementById('tab-mytasks').classList.toggle('active', tab==='mytasks');
-  document.getElementById('tab-giaoviec').classList.toggle('active', tab==='giaoviec');
-  // Ẩn taskSubBoard khi chuyển sang giao việc
-  if(tab==='giaoviec'){
-    const sub = document.getElementById('taskSubBoard');
-    if(sub) sub.style.display='none';
-    const ov = document.getElementById('tasksOverview');
-    if(ov) ov.style.display='block';
-    document.querySelector('main')?.classList.remove('board-mode');
-    renderGiaoViec();
-  }
-}
-
-function renderGiaoViec(){
-  updateGvBadge();
-  renderGvPendingSummary();
-
-  const listWrap = document.getElementById('gvListWrap');
-  const gvSub = document.getElementById('gvSubBoard');
-  if(gvSub && gvSub.style.display!=='none') return; // board open, don't re-render list
-
-  const list = document.getElementById('gvList');
-  const empty = document.getElementById('gvEmpty');
-  if(!list) return;
-
-  const fStatus = document.getElementById('gvFilterStatus')?.value||'';
-  const fPerson = document.getElementById('gvFilterPerson')?.value||'';
-
-  // Show/hide controls based on member
-  const personSel = document.getElementById('gvFilterPerson');
-  const manageBtn = document.getElementById('btnManageAssignees');
-  if(personSel) personSel.style.display = currentMember==='hai' ? 'none' : '';
-  if(manageBtn) manageBtn.style.display = currentMember==='hai' ? 'none' : '';
-
-  if(personSel){
-    const cur = personSel.value;
-    const all = [...new Set(giaoViecList.map(g=>g.assignee))].sort();
-    personSel.innerHTML = '<option value="">Tất cả người</option>'
-      + all.map(p=>`<option value="${p}" ${p===cur?'selected':''}>${p}</option>`).join('');
-  }
-
-  // Filter active items (exclude đã nghiệm thu)
-  let items = giaoViecList.filter(g=>{
-    if(g.status==='Đã nghiệm thu') return false;
-    if(currentMember==='hai' && g.assignee!=='Hải') return false;
-    if(fStatus==='Pending' && !g.pendingReason) return false;
-    if(fStatus && fStatus!=='Pending' && fStatus!=='Chờ nghiệm thu' && g.status!==fStatus) return false;
-    if(fStatus==='Chờ nghiệm thu' && g.status!=='Chờ nghiệm thu') return false;
-    if(fPerson && g.assignee!==fPerson) return false;
-    return true;
-  }).slice().sort((a,b)=>(b.id||0)-(a.id||0));
-
-  if(!items.length){ list.innerHTML=''; empty.style.display='block'; }
-  else {
-    empty.style.display='none';
-
-  list.innerHTML = items.map(g=>{
-    const isPendingTask = !!g.pendingReason;
-    const autoStatus = gvCalcStatus(g);
-    // Tự động nâng status nếu cards đã done hết nhưng chưa nghiệm thu
-    if(autoStatus==='Hoàn thành' && g.status!=='Đã nghiệm thu' && g.status!=='Chờ nghiệm thu') g.status='Chờ nghiệm thu';
-    const isWaitingAccept = g.status==='Chờ nghiệm thu' || (autoStatus==='Hoàn thành' && g.status!=='Đã nghiệm thu');
-    const badgeCls = isPendingTask?'gv-badge-wait':isWaitingAccept?'gv-badge-wait':autoStatus==='Hoàn thành'?'gv-badge-done':autoStatus==='Đang làm'?'gv-badge-doing':'gv-badge-wait';
-    const badgeLabel = isPendingTask?'⏸ Pending':isWaitingAccept?'🔔 Chờ nghiệm thu':autoStatus;
-    const dlLabel = g.deadline ? `📅 ${fmtDate(g.deadline)}` : '';
-    const isOverdue = g.deadline && g.deadline < todayVN() && !isWaitingAccept;
-    const cardStyle = isPendingTask ? 'border-left:3px solid #e67e22;background:#fff8ee'
-                    : isWaitingAccept ? 'border-left:3px solid #27ae60;background:#f0faf4' : '';
-    const totalCards = (g.taskCards||[]).length;
-    const doneCols = g.taskCols ? new Set([g.taskCols[g.taskCols.length-1]?.id,'done']) : new Set(['done']);
-    const doneCards = (g.taskCards||[]).filter(c=>doneCols.has(c.colId)).length;
-
-    // Phân quyền đổi trạng thái:
-    // - Hải được giao → chỉ Hải đổi
-    // - Người khác được giao → người giao (admin/hieu) đổi
-    // - Khi Chờ nghiệm thu: không ai đổi được qua select, phải bấm nút Nghiệm thu
-    const isHaiTask = g.assignee==='Hải';
-    const canChangeStatus = !isWaitingAccept && (isHaiTask ? currentMember==='hai' : currentMember!=='hai');
-
-    return `<div class="gv-card" style="${cardStyle}">
-      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:200px;cursor:pointer" onclick="openGvBoard(${g.id})">
-          <div style="font-size:13px;font-weight:600;margin-bottom:4px">${g.taskName}</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
-            <span class="${badgeCls}">${badgeLabel}</span>
-            <span style="font-size:12px">👤 <b>${g.assignee}</b></span>
-            ${dlLabel?`<span style="font-size:11px;color:${isOverdue?'#e74c3c':'var(--text-muted)'}">${dlLabel}${isOverdue?' ⚠️':''}</span>`:''}
-            ${g.assigner?`<span style="font-size:11px;color:var(--text-muted)">Giao bởi: ${g.assigner}</span>`:''}
-            ${totalCards?`<span style="font-size:11px;color:var(--text-muted)">${doneCards}/${totalCards} thẻ</span>`:''}
-          </div>
-          ${isPendingTask?`<div style="font-size:11px;color:#e67e22">⏸ ${(g.pendingReason||'').slice(0,80)}</div>`:''}
-          ${isWaitingAccept?`<div style="font-size:11px;color:#27ae60;font-weight:500">🔔 Đã hoàn thành — chờ người giao nghiệm thu</div>`:''}
-          ${g.note?`<div style="font-size:12px;color:var(--text-muted)">📝 ${g.note}</div>`:''}
-        </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;flex-wrap:wrap">
-          ${canChangeStatus ? `<select onchange="updateGvStatus(${g.id},this.value)" style="height:28px;font-size:12px;border:1px solid var(--gray-border);border-radius:6px;padding:0 6px">
-            ${['Chờ làm','Đang làm','Hoàn thành'].map(s=>`<option ${g.status===s?'selected':''}>${s}</option>`).join('')}
-          </select>` : ''}
-          ${isWaitingAccept && currentMember!=='hai' ? `<button onclick="confirmNghiemThu(${g.id})"
-            style="background:#27ae60;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;color:#fff;font-weight:600;white-space:nowrap">✓ Nghiệm thu</button>` : ''}
-          ${isWaitingAccept && currentMember==='hai' ? `<span style="font-size:11px;color:#27ae60;padding:4px 8px;background:#f0faf4;border-radius:6px;border:1px solid #a8deba">⏳ Chờ nghiệm thu</span>` : ''}
-          <button onclick="openGvTaskPending(${g.id})" title="${isPendingTask?'Sửa/xoá pending':'Pending task này'}"
-            style="background:none;border:1px solid ${isPendingTask?'#e67e22':'var(--gray-border)'};border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px;color:${isPendingTask?'#e67e22':'var(--text-muted)'}">⏸</button>
-          ${currentMember!=='hai'?`<button onclick="openEditGiaoViec(${g.id})" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px">✎</button>`:''}
-          ${currentMember!=='hai'?`<button onclick="recallGiaoViec(${g.id})" title="Thu hồi về Task của tôi"
-            style="background:none;border:1px solid #a8deba;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px;color:#27ae60">↩</button>`:''}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-  } // end else
-
-  // Render Done section
-  renderGvDoneSection();
-}
 
 function gvCalcStatus(g){
   if(!g.taskCards||!g.taskCards.length) return g.status||'Chờ làm';
@@ -7265,27 +7145,6 @@ function updateGvBadge(){
   else badge.style.display='none';
 }
 
-function openGiaoViecFromTask(taskId){
-  const t = tasks.find(x=>x.id===taskId);
-  if(!t) return;
-  _gvTaskRef = t;
-  document.getElementById('gv_editId').value='';
-  document.getElementById('gvModalTitle').textContent='📤 Giao việc';
-  const preview = document.getElementById('gvTaskPreview');
-  const pct = calcProjectProgress(t);
-  preview.innerHTML = `<div style="font-weight:600;font-size:13px;margin-bottom:4px">${t.name}</div>
-    <div style="display:flex;gap:8px;font-size:12px;color:var(--text-muted)">
-      <span>${t.type||''}</span>${t.deadline?`<span>📅 DL: ${fmtDate(t.deadline)}</span>`:''}
-      <span>${pct}% hoàn thành</span>
-    </div>`;
-  document.getElementById('gvAssigneeInput').value='';
-  document.getElementById('gvDeadline').value=t.deadline||'';
-  document.getElementById('gvStatus').value='Chờ làm';
-  document.getElementById('gvNote').value='';
-  document.getElementById('gvDeleteBtn').style.display='none';
-  document.getElementById('giaoViecModal').classList.add('open');
-  setTimeout(()=>document.getElementById('gvAssigneeInput').focus(),100);
-}
 
 function openEditGiaoViec(id){
   const g = giaoViecList.find(x=>x.id===id);
@@ -7309,50 +7168,6 @@ function closeGiaoViecModal(){
   _gvTaskRef=null;
 }
 
-function saveGiaoViec(){
-  const assignee = (document.getElementById('gvAssigneeInput')?.value||'').trim();
-  if(!assignee){ toast('Vui lòng nhập người nhận!','#e74c3c'); return; }
-  const editId = document.getElementById('gv_editId')?.value;
-  const obj = {
-    assignee,
-    deadline: document.getElementById('gvDeadline')?.value||'',
-    status: document.getElementById('gvStatus')?.value||'Chờ làm',
-    note: document.getElementById('gvNote')?.value||'',
-    assigner: currentMember==='admin'?'Admin':currentMember==='hieu'?'Hiếu':'',
-    createdAt: todayVN(),
-  };
-  if(editId){
-    const g = giaoViecList.find(x=>x.id===parseInt(editId));
-    if(g) Object.assign(g, obj);
-  } else {
-    const t = _gvTaskRef;
-    const newItem = {
-      id: giaoViecNextId++,
-      taskId: t?.id||null,
-      taskName: t?.name||'(không rõ)',
-      taskType: t?.type||'',
-      taskDesc: t?.desc||'',
-      taskDeadline: t?.deadline||'',
-      taskPriority: t?.priority||'',
-      taskPerson: t?.person||'',
-      taskTeam: t?.team||'',
-      taskFrom: t?.from||'',
-      taskCols: t?.cols||null,
-      taskCards: t?.cards||[],
-      ...obj
-    };
-    giaoViecList.push(newItem);
-    // Auto-add assignee to list if not exists
-    if(!assignees.includes(assignee)) assignees.push(assignee);
-    // Remove from tasks — task đã giao chuyển hẳn sang tab Giao việc
-    if(t) tasks = tasks.filter(x=>x.id!==t.id);
-  }
-  saveAppData();
-  closeGiaoViecModal();
-  renderTasksOverview(); // refresh task list immediately
-  switchTasksTab('giaoviec');
-  toast(`✓ Đã giao việc cho ${assignee}`);
-}
 
 function updateGvStatus(id, status){
   const g = giaoViecList.find(x=>x.id===id);
@@ -7509,17 +7324,7 @@ function recallGiaoViec(id){
   }catch(e){ toast('Lỗi thu hồi: '+e.message,'#e74c3c'); console.error(e); }
 }
 
-function deleteGiaoViec(){
-  const editId = parseInt(document.getElementById('gv_editId')?.value);
-  if(!editId||!confirm('Xoá việc đã giao này?')) return;
-  giaoViecList = giaoViecList.filter(g=>g.id!==editId);
-  saveAppData();
-  closeGiaoViecModal();
-  renderGiaoViec();
-  toast('Đã xoá.');
-}
 
-// Assignee search dropdown
 function gvAssigneeSearch(){
   const q = (document.getElementById('gvAssigneeInput')?.value||'').toLowerCase();
   const drop = document.getElementById('gvAssigneeDropdown');
@@ -9810,4 +9615,4 @@ function autoCheckAndMigrateV99() {
     renderWebsites();
   }
 }
-
+
