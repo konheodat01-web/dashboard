@@ -9225,7 +9225,7 @@ const TaskImporter = {
     const cols = manualSteps ? parseSteps(manualSteps)
                : stepLines.length >= 1 ? parseSteps(stepLines.join('\n'))
                : null;
-    const firstColId = cols ? cols[0].id : 'col_new';
+    const firstColId = cols ? cols[0].id : 'todo';
 
     const itemLines = domainLines.length > 0 ? lines.filter(l => l.length > 2) : lines.filter(l => l.length > 2);
     const cards = itemLines.map((line, i) => {
