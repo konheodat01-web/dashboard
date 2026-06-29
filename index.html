@@ -322,19 +322,21 @@
       <div style="padding:10px 14px;border-bottom:1px solid #fce0b0;display:flex;align-items:center;justify-content:space-between">
         <div style="font-weight:600;font-size:13px;color:#e67e22">&#9646;&#9646; Đang Pending (<span id="pendingCount">0</span> thẻ)</div>
       </div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px" id="pendingSummaryTable">
-        <thead>
-          <tr style="background:#fff3e0">
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Task gốc</th>
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Thẻ đang pending</th>
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Ngày pending</th>
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Lý do</th>
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Tình trạng xử lý</th>
-            <th style="padding:7px 4px;border-bottom:1px solid #fce0b0"></th>
-          </tr>
-        </thead>
-        <tbody id="pendingSummaryBody"></tbody>
-      </table>
+      <div style="max-height: 250px; overflow-y: auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="pendingSummaryTable">
+          <thead>
+            <tr style="background:#fff3e0">
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Task gốc</th>
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Thẻ đang pending</th>
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Ngày pending</th>
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Lý do</th>
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Tình trạng xử lý</th>
+              <th style="padding:7px 4px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2"></th>
+            </tr>
+          </thead>
+          <tbody id="pendingSummaryBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <div style="padding:14px">

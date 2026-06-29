@@ -1718,7 +1718,9 @@ function renderTasksOverview(){
   }
   if(noDeadlineActive.length){
     html += `<div class="task-group-label" style="margin-top:${withDeadlineActive.length?16:0}px">&#8734; Không có deadline <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(${noDeadlineActive.length})</span></div>`;
+    html += `<div style="max-height:350px;overflow-y:auto;padding-right:6px">`;
     html += noDeadlineActive.map(renderRow).join('');
+    html += `</div>`;
   }
 
   // Done section — collapsible
