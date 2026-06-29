@@ -222,8 +222,8 @@
     <!-- Guideline Cây Sub-menu con -->
     <div id="workspace-submenu" class="sidebar-sub-container" style="display: block;">
       <button type="button" class="sidebar-sub-item active" onclick="showPage('dashboard')"><i class="fa fa-pie-chart"></i> Báo cáo</button>
-      <button type="button" class="sidebar-sub-item" onclick="showPage('recurring')"><i class="fa fa-clock-o"></i> Task định kỳ <span id="navBadgeRecurring" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;line-height:1.4"></span></button>
-      <button type="button" class="sidebar-sub-item" onclick="showPage('tasks')"><i class="fa fa-list-ul"></i> Công việc khác <span id="navBadgeTasks" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;line-height:1.4"></span></button>
+      <button type="button" class="sidebar-sub-item" onclick="showPage('recurring')"><i class="fa fa-clock-o"></i> <span style="flex:1; overflow:hidden; text-overflow:ellipsis; text-align:left">Task định kỳ</span> <span id="navBadgeRecurring" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;line-height:1.4"></span></button>
+      <button type="button" class="sidebar-sub-item" onclick="showPage('tasks')"><i class="fa fa-list-ul"></i> <span style="flex:1; overflow:hidden; text-overflow:ellipsis; text-align:left">Công việc khác</span> <span id="navBadgeTasks" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;line-height:1.4"></span></button>
       <button type="button" class="sidebar-sub-item" onclick="showPage('prompts')"><i class="fa fa-code"></i> Prompt</button>
       <button type="button" class="sidebar-sub-item" onclick="showPage('links')"><i class="fa fa-link"></i> Link quan trọng</button>
       <button type="button" class="sidebar-sub-item" onclick="showPage('wstrack')"><i class="fa fa-desktop"></i> Theo dõi web</button>
@@ -322,7 +322,7 @@
       <div style="padding:10px 14px;border-bottom:1px solid #fce0b0;display:flex;align-items:center;justify-content:space-between">
         <div style="font-weight:600;font-size:13px;color:#e67e22">&#9646;&#9646; Đang Pending (<span id="pendingCount">0</span> thẻ)</div>
       </div>
-      <div style="max-height: 250px; overflow-y: auto;">
+      <div style="max-height: 250px; overflow-y: auto; padding-right: 6px;">
         <table style="width:100%;border-collapse:collapse;font-size:12px" id="pendingSummaryTable">
           <thead>
             <tr style="background:#fff3e0">

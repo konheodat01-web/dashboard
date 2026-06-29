@@ -474,6 +474,8 @@ header.main-header, .main-header {
 .workspace-panel, .page {
   width: 100%;
   height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Static sub-page content wrapper layout */
