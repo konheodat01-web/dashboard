@@ -28,8 +28,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quản lý công việc</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c0392b'/%3E%3Crect x='7' y='9' width='18' height='2.5' rx='1.2' fill='white'/%3E%3Crect x='7' y='14.7' width='18' height='2.5' rx='1.2' fill='white'/%3E%3Crect x='7' y='20.5' width='12' height='2.5' rx='1.2' fill='white'/%3E%3Ccircle cx='25' cy='22' r='5' fill='%2327ae60'/%3E%3Cpath d='M22.5 22l2 2 3-3' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=premium_ui_perfect_v99_3">
+  <link rel="stylesheet" href="style.css?v=1782789508886">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
 </head>
 <body>
 
@@ -69,7 +70,7 @@
   <div style="display:flex;align-items:center;gap:12px">
     <div style="display:flex;align-items:center;gap:8px;">
       <div style="background:#2c3e50;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px">A</div>
-      <span class="brand-title" style="font-weight:600;font-size:13px;color:#f0f6fc !important">Admin Portal</span>
+      <span style="font-weight:600;font-size:13px;color:var(--white)">Admin Portal</span>
     </div>
     <h1>&#128188; Quản lý công việc</h1>
   </div>
@@ -135,12 +136,7 @@
         <div class="form-group"><label>Tác dụng</label><textarea id="ql_desc" rows="2" style="width:100%"></textarea></div>
         <div class="form-group"><label>Ghi chú</label><input type="text" id="ql_note_work" style="width:100%"></div>
         <div class="form-group"><label>Hiển thị cho</label>
-          <select id="ql_owner_work" style="width:100%">
-<option value="admin">Chung (tất cả)</option>
-            <option value="Hải">Hải</option>
-            <option value="Hiếu">Hiếu</option>
-            
-          </select>
+          <select id="ql_owner_work" style="width:100%"><option value="admin">Chung (tất cả)</option></select>
         </div>
         <div class="form-group">
           <label>Tài khoản</label>
@@ -167,16 +163,12 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div class="form-group"><label>Team</label>
             <select id="ql_team" style="width:100%">
-              <option value="Team 01">Team 01</option>
-              <option value="Team 02">Team 02</option>
+              <option value="Team 01">Chaewon</option>
+              <option value="Team 02">M7</option>
             </select>
           </div>
           <div class="form-group"><label>Người quản lý</label>
-            <select id="ql_owner" style="width:100%">
-              <option value="Công ty">Công ty</option>
-              <option value="Hải">Hải</option>
-              <option value="Hiếu">Hiếu</option>
-            </select>
+            <select id="ql_owner" style="width:100%"><option value="Công ty">Công ty</option><option value="admin">Admin</option></select>
           </div>
         </div>
         <div class="form-group"><label>Trạng thái</label>
@@ -229,15 +221,15 @@
       <button type="button" class="sidebar-sub-item" onclick="showPage('wstrack')"><i class="fa fa-desktop"></i> Theo dõi web</button>
     </div>
 
-    <!-- Tab Mẹ 2: Tài chính - Mở cửa sổ mới an toàn -->
-    <a href="https://finance-tracker.nthieucloud.shop" target="_blank" rel="noopener noreferrer" class="sidebar-nav-item" id="btn-tab-finance" style="text-decoration: none;">
+    <!-- Tab Mẹ 2: Tài chính -->
+    <button type="button" class="sidebar-nav-item" id="btn-tab-finance" onclick="window.open('https://finance-tracker.nthieucloud.shop/', '_blank')">
       <i class="fa fa-credit-card"></i> <span>Quản lý Tài chính</span>
-    </a>
+    </button>
     
-    <!-- Tab Mẹ 3: Kho Tool Nhỏ - Mở cửa sổ mới an toàn -->
-    <a href="https://gsc-bulk-tool.nthieucloud.shop" target="_blank" rel="noopener noreferrer" class="sidebar-nav-item" id="btn-tab-tools" style="text-decoration: none;">
+    <!-- Tab Mẹ 3: Kho Tool Nhỏ -->
+    <button type="button" class="sidebar-nav-item" id="btn-tab-tools" onclick="window.open('https://gsc-bulk-tool.nthieucloud.shop/', '_blank')">
       <i class="fa fa-cubes"></i> <span>Kho Tool Nhỏ</span>
-    </a>
+    </button>
   </div>
   
   <!-- Bottom actions: footer aligned -->
@@ -275,16 +267,19 @@
 
 <div id="page-tasks" class="page">
 
+  <!-- TAB BAR -->
+  <div style="display:flex;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-border);border-bottom:none;width:fit-content;margin-bottom:0;overflow:hidden">
+    <button class="gv-tab active" id="tab-mytasks" onclick="switchTasksTab('mytasks')">📋 Task của tôi</button>
+    
+  </div>
+
   <!-- PANEL: TASK CỦA TÔI -->
-  <div id="panel-mytasks" style="background:#fff;padding:0">
+  <div id="panel-mytasks" style="border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;padding:0">
   <div id="tasksOverview">
     <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border);margin-bottom:0">
-      <div class="panel-title">&#128203; Danh sách Task</div>
+      <div class="panel-title">&#128203; Công việc khác</div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
-        <select id="tkFilterPerson" onchange="renderTasksOverview()" style="display:none">
-          <option value="">Tất cả người</option>
-          <option>Hải</option><option>Hiếu</option><option>Khác</option>
-        </select>
+        <select id="tkFilterPerson" onchange="renderTasksOverview()" style="display:none"><option value="">Tất cả</option><option value="admin">Admin</option><option value="Khác">Khác</option></select>
         <select id="tkFilterDate" onchange="renderTasksOverview()" style="height:32px;font-size:12px">
           <option value="">📅 Tất cả ngày</option>
           <option value="today">Hôm nay</option>
@@ -322,21 +317,19 @@
       <div style="padding:10px 14px;border-bottom:1px solid #fce0b0;display:flex;align-items:center;justify-content:space-between">
         <div style="font-weight:600;font-size:13px;color:#e67e22">&#9646;&#9646; Đang Pending (<span id="pendingCount">0</span> thẻ)</div>
       </div>
-      <div style="max-height: 250px; overflow-y: auto; padding-right: 6px;">
-        <table style="width:100%;border-collapse:collapse;font-size:12px" id="pendingSummaryTable">
-          <thead>
-            <tr style="background:#fff3e0">
-              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Task gốc</th>
-              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Thẻ đang pending</th>
-              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Ngày pending</th>
-              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Lý do</th>
-              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2">Tình trạng xử lý</th>
-              <th style="padding:7px 4px;border-bottom:1px solid #fce0b0;position:sticky;top:0;background:#fff3e0;z-index:2"></th>
-            </tr>
-          </thead>
-          <tbody id="pendingSummaryBody"></tbody>
-        </table>
-      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px" id="pendingSummaryTable">
+        <thead>
+          <tr style="background:#fff3e0">
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Task gốc</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Thẻ đang pending</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Ngày pending</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Lý do</th>
+            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Tình trạng xử lý</th>
+            <th style="padding:7px 4px;border-bottom:1px solid #fce0b0"></th>
+          </tr>
+        </thead>
+        <tbody id="pendingSummaryBody"></tbody>
+      </table>
     </div>
 
     <div style="padding:14px">
@@ -356,96 +349,7 @@
   </div><!-- end panel-mytasks -->
 
   <!-- PANEL: GIAO VIỆC -->
-  <div id="panel-giaoviec" style="display:none;border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff">
-    <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border)">
-      <div class="panel-title">📤 Danh sách giao việc</div>
-      <div class="toolbar">
-        <select id="gvFilterStatus" onchange="renderGiaoViec()" style="height:32px;font-size:12px">
-          <option value="">Tất cả trạng thái</option>
-          <option value="Chờ làm">Chờ làm</option>
-          <option value="Đang làm">Đang làm</option>
-          <option value="Pending">Pending</option>
-          <option value="Chờ nghiệm thu">Chờ nghiệm thu</option>
-          <option value="Hoàn thành">Hoàn thành</option>
-        </select>
-        <select id="gvFilterPerson" onchange="renderGiaoViec()" style="height:32px;font-size:12px">
-          <option value="">Tất cả người</option>
-        </select>
-        <button id="btnManageAssignees" class="btn btn-outline btn-sm" onclick="openManageAssignees()">⚙ Quản lý người nhận</button>
-      </div>
-    </div>
-
-    <!-- GV PENDING SUMMARY — độc lập với task của tôi -->
-    <div id="gvPendingPanel" style="display:none;background:#fff8ee;border-bottom:2px solid #fce0b0;overflow:hidden">
-      <div style="padding:10px 14px;border-bottom:1px solid #fce0b0;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-weight:600;font-size:13px;color:#e67e22">⏸ Pending trong giao việc (<span id="gvPendingCount">0</span>)</div>
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px" id="gvPendingTable">
-        <thead>
-          <tr style="background:#fff3e0">
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;min-width:140px">Task giao</th>
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Loại pending</th>
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0;min-width:90px">Ngày</th>
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Lý do</th>
-            <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Tình trạng</th>
-            <th style="padding:7px 4px;border-bottom:1px solid #fce0b0"></th>
-          </tr>
-        </thead>
-        <tbody id="gvPendingBody"></tbody>
-      </table>
-    </div>
-
-    <!-- GV LIST -->
-    <div id="gvListWrap" style="padding:14px">
-      <div id="gvList"></div>
-      <div id="gvEmpty" class="empty" style="display:none"><div class="icon">📤</div>Chưa có việc nào được giao.</div>
-
-      <!-- GV DONE SECTION -->
-      <div id="gvDoneSection" style="display:none;margin-top:16px">
-        <div onclick="toggleGvDoneSection()" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;background:#f0faf4;border-radius:8px;border:1px solid #a8deba;user-select:none;margin-bottom:0"
-          onmouseover="this.style.background='#e6f7ee'" onmouseout="this.style.background='#f0faf4'">
-          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#27ae60">✅ Đã nghiệm thu (<span id="gvDoneCount">0</span>)</span>
-          <span id="gvDoneChevron" style="font-size:11px;color:#27ae60;display:inline-block">▼</span>
-        </div>
-        <div id="gvDoneList" style="display:none;flex-direction:column;gap:8px;margin-top:8px"></div>
-        <div id="gvDoneBulkBar" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:#2c3e50;color:#fff;border-radius:8px;margin-top:8px">
-          <span id="gvDoneBulkCount" style="font-size:13px;font-weight:600"></span>
-          <button onclick="bulkDeleteGvDone()" class="btn btn-sm" style="background:#e74c3c;color:#fff;border:none">🗑 Xoá</button>
-          <button onclick="document.querySelectorAll('.gv-done-chk').forEach(c=>c.checked=false);updateGvDoneBulk()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;padding:0 4px">×</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- GV KANBAN SUB BOARD -->
-    <div id="gvSubBoard" style="display:none;padding:14px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:#fff;border:1px solid var(--gray-border);border-radius:8px;padding:10px 16px">
-        <button class="btn btn-outline btn-sm" onclick="closeGvBoard()">← Quay lại</button>
-        <div style="font-weight:600;font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="gvSubBoardTitle"></div>
-        <span id="gvSubBoardPerson"></span>
-        <div class="toolbar" style="gap:6px">
-          <div style="position:relative;display:inline-block">
-            <button class="btn btn-outline btn-sm" onclick="toggleGvSelectAllMenu()">☑ Chọn ▾</button>
-            <div id="gvSelectAllMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border:1px solid var(--gray-border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:300;min-width:170px;overflow:hidden">
-              <div onclick="gvSelectAllCards()" style="padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--gray-border);font-weight:500" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background=''">☑ Tất cả các cột</div>
-              <div id="gvSelectColItems"></div>
-              <div onclick="gvClearCardSelection()" style="padding:9px 14px;font-size:13px;cursor:pointer;border-top:1px solid var(--gray-border);color:var(--text-muted)" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''">☐ Bỏ chọn tất cả</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- GV Card Bulk Bar -->
-      <div id="gvCardBulkBar" style="display:none;background:#2c3e50;color:#fff;border-radius:8px;padding:10px 16px;margin-bottom:10px;align-items:center;gap:8px;flex-wrap:wrap">
-        <span id="gvCardBulkCount" style="font-size:13px;font-weight:600"></span>
-        <div style="width:1px;height:18px;background:rgba(255,255,255,.2)"></div>
-        <button onclick="gvBulkCardMove()" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none">→ Chuyển cột tiếp</button>
-        <button onclick="gvBulkCardCopyUrls(this)" class="btn btn-sm" style="background:#2980b9;color:#fff;border:none">🔗 Copy URL</button>
-        <button onclick="gvBulkCardCopyVidco(this)" class="btn btn-sm" style="background:#555;color:#fff;border:none">📋 Copy VIDCO</button>
-        <button onclick="gvBulkCardDelete()" class="btn btn-sm" style="background:#e74c3c;color:#fff;border:none">🗑 Xoá thẻ</button>
-        <button onclick="gvClearCardSelection()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:18px;margin-left:auto;padding:0 4px">×</button>
-      </div>
-      <div id="gvKanbanBoard" style="display:flex;gap:12px;align-items:start;overflow-x:auto;padding-bottom:16px;min-height:300px"></div>
-    </div>
-  </div>
+  
 
   <div id="taskSubBoard" style="display:none">
     <div class="panel-header" style="background:#fff;border-radius:8px;border:1px solid var(--gray-border);margin-bottom:14px;padding:10px 16px">
@@ -501,7 +405,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
         <div class="form-group">
           <label>Người nhận</label>
-          <select id="npm_person" style="width:100%"><option value="">--</option><option>Hải</option><option>Hiếu</option><option>Khác</option></select>
+          <select id="npm_person" style="width:100%"><option value="">--</option><option value="admin">Admin</option><option value="Khác">Khác</option></select>
         </div>
         <div class="form-group">
           <label>Loại</label>
@@ -536,8 +440,8 @@
         <div class="form-group" id="npm_team_row">
           <label>Team</label>
           <select id="npm_team" style="width:100%">
-            <option value="Team 01">Team 01</option>
-            <option value="Team 02">Team 02</option>
+            <option value="Team 01">Chaewon</option>
+            <option value="Team 02">M7</option>
           </select>
         </div>
       </div>
@@ -663,18 +567,12 @@
         <select id="wst_filter_group" onchange="renderWsTrack()" style="height:32px;font-size:12px">
           <option value="">Tất cả nhóm</option>
         </select>
-        <select id="wst_filter_mobot" onchange="renderWsTrack()" style="height:32px;font-size:12px">
-          <option value="">Tất cả bot</option>
-          <option value="Mở">🟢 Mở bot</option>
-          <option value="Đóng">🔴 Đóng bot</option>
-        </select>
         <select id="wst_filter_index" onchange="renderWsTrack()" style="height:32px;font-size:12px">
           <option value="">Tất cả index</option>
           <option value="Đã index">✅ Đã index</option>
           <option value="Một phần">⚠️ Một phần</option>
           <option value="Chưa index">❌ Chưa index</option>
         </select>
-        <button onclick="openWstChecklistManager()" class="btn btn-outline btn-sm">⚙ Checklist</button>
         <button onclick="openWstApiSettings()" class="btn btn-outline btn-sm">🔑 API Rank</button>
         <button onclick="wstBulkCheckRank()" class="btn btn-sm" style="background:#e67e22;color:#fff;border:none">🔁 Tự động check Rank (All)</button>
         <button onclick="openWstPickModal()" class="btn btn-outline btn-sm">+ Thêm web</button>
@@ -717,9 +615,7 @@
         <select id="linkFilterGroup" onchange="renderLinks()" style="height:32px;font-size:12px">
           <option value="">Tất cả nhóm</option>
         </select>
-        <select id="linkFilterOwner" onchange="renderLinks()" style="height:32px;font-size:12px">
-          <option value="">Tất cả người</option><option value="admin">Chung</option><option value="Hải">Hải</option><option value="Hiếu">Hiếu</option>
-        </select>
+        <select id="linkFilterOwner" onchange="renderLinks()" style="height:32px;font-size:12px"><option value="">Tất cả</option><option value="admin">Chung</option></select>
         <select id="linkFilterAccount" onchange="renderLinks()" style="height:32px;font-size:12px">
           <option value="">Tất cả</option>
           <option value="has_account">Có tài khoản</option>
@@ -754,11 +650,7 @@
               </div>
             </div>
             <div class="form-group"><label>Hiển thị cho</label>
-              <select id="lf_owner" style="width:100%">
-                <option value="admin">Chung (tất cả)</option>
-                <option value="Hải">Hải</option>
-                <option value="Hiếu">Hiếu</option>
-              </select>
+              <select id="lf_owner" style="width:100%"><option value="admin">Chung (tất cả)</option></select>
             </div>
           </div>
           <div class="form-group"><label>Ghi chú</label><textarea id="lf_note" rows="2" style="width:100%" placeholder="Ghi chú thêm..."></textarea></div>
@@ -802,14 +694,13 @@
           <input type="text" id="websiteSearch" placeholder="&#128269; Tìm website..." oninput="renderWebsites()" style="width:160px;height:32px;font-size:12px">
           <select id="websiteFilterTeam" onchange="resetPillToAll();renderWebsites()" style="height:32px;font-size:12px">
             <option value="">Tất cả team</option>
-            <option value="Team 01">Team 01</option>
-            <option value="Team 02">Team 02</option>
+            <option value="Team 01">Chaewon</option>
+            <option value="Team 02">M7</option>
           </select>
-          <select id="websiteFilterOwner" onchange="resetPillToAll();renderWebsites()" style="height:32px;font-size:12px">
-            <option value="">Tất cả người</option>
-            <option value="Admin">Admin</option>
-            <option value="Công ty">Công ty</option>
+          <select id="websiteFilterGroup" onchange="renderWebsites()" style="height:32px;font-size:12px;min-width:120px">
+            <option value="">Tất cả nhóm</option>
           </select>
+          <select id="websiteFilterOwner" onchange="resetPillToAll();renderWebsites()" style="height:32px;font-size:12px"><option value="">Tất cả người</option><option value="Chung">Chung</option></select>
           <input type="hidden" id="websiteFilterStatus" value="">
           <select id="websiteFilterTracked" onchange="renderWebsites()" style="height:32px;font-size:12px">
             <option value="">📊 Tất cả</option>
@@ -837,13 +728,13 @@
           ⚠️ Lỗi web <span id="wsCntLoi" style="background:#f5c6c6;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px;color:#e74c3c;font-weight:600">0</span>
         </button>
       </div>
-      <!-- BỘ LỌC ĐỘNG PHẲNG V98 - CHÈN TRONG #WEBSITESPANEL -->
+      <!-- BỘ LỌC ĐỘNG HYBRID V94 - CHÈN TRONG #WEBSITESPANEL -->
       <div class="job-filter-bar">
-        <button type="button" class="filter-pills active" data-filter="all" onclick="executeFlatFilter('all', this)">Tất cả (<span id="cnt-all">0</span>)</button>
-        <button type="button" class="filter-pills" data-filter="Team 01-Admin" onclick="executeFlatFilter('Team 01-Admin', this)">Chaewon - Admin (<span id="cnt-cwn-adm">0</span>)</button>
-        <button type="button" class="filter-pills" data-filter="Team 01-Company" onclick="executeFlatFilter('Team 01-Company', this)">Chaewon - Công ty (<span id="cnt-cwn-com">0</span>)</button>
-        <button type="button" class="filter-pills" data-filter="Team 02-Admin" onclick="executeFlatFilter('Team 02-Admin', this)">M7 - Admin (<span id="cnt-m7-adm">0</span>)</button>
-        <button type="button" class="filter-pills" data-filter="Team 02-Company" onclick="executeFlatFilter('Team 02-Company', this)">M7 - Công ty (<span id="cnt-m7-com">0</span>)</button>
+        <button type="button" class="filter-pills active" data-filter="all" onclick="executeHybridFilter('all', this)">Tất cả (<span id="cnt-all">0</span>)</button>
+        <button type="button" class="filter-pills" data-filter="Team 01-Admin" onclick="executeHybridFilter('Team 01-Admin', this)">Chaewon - Admin (<span id="cnt-cwn-adm">0</span>)</button>
+        <button type="button" class="filter-pills" data-filter="Team 01-Company" onclick="executeHybridFilter('Team 01-Company', this)">Chaewon - Công ty (<span id="cnt-cwn-com">0</span>)</button>
+        <button type="button" class="filter-pills" data-filter="Team 02-Admin" onclick="executeHybridFilter('Team 02-Admin', this)">M7 - Admin (<span id="cnt-m7-adm">0</span>)</button>
+        <button type="button" class="filter-pills" data-filter="Team 02-Company" onclick="executeHybridFilter('Team 02-Company', this)">M7 - Công ty (<span id="cnt-m7-com">0</span>)</button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 320px;gap:0;align-items:stretch;flex:1;overflow:hidden">
@@ -879,18 +770,13 @@
                 <label style="font-size:11px">Team</label>
                 <select id="wbe_team" style="width:100%;height:30px;font-size:12px">
                   <option value="">— Giữ nguyên —</option>
-                  <option value="Team 01">Team 01</option>
-                  <option value="Team 02">Team 02</option>
+                  <option value="Team 01">Chaewon</option>
+                  <option value="Team 02">M7</option>
                 </select>
               </div>
               <div class="form-group" style="margin:0">
                 <label style="font-size:11px">Người quản lý</label>
-                <select id="wbe_owner" style="width:100%;height:30px;font-size:12px">
-                  <option value="">— Giữ nguyên —</option>
-                  <option value="Công ty">Công ty</option>
-                  <option value="Hải">Hải</option>
-                  <option value="Hiếu">Hiếu</option>
-                </select>
+                <select id="wbe_owner" style="width:100%;height:30px;font-size:12px"><option value="">— Giữ nguyên —</option><option value="Công ty">Công ty</option><option value="admin">Admin</option></select>
               </div>
               <div class="form-group" style="margin:0">
                 <label style="font-size:11px">Nhóm con</label>
@@ -971,14 +857,12 @@
           <div id="wf_team_row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div class="form-group"><label>Team</label>
               <select id="wf_team" style="width:100%" onchange="onWfTeamChange()">
-                <option value="Team 01">Team 01</option>
-                <option value="Team 02">Team 02</option>
+                <option value="Team 01">Chaewon</option>
+                <option value="Team 02">M7</option>
               </select>
+            </div>
             <div class="form-group"><label>Người quản lý</label>
-              <select id="wf_owner" style="width:100%">
-                <option value="Admin">Admin</option>
-                <option value="Công ty">Công ty</option>
-              </select>
+              <select id="wf_owner" style="width:100%"><option value="Công ty">Công ty</option><option value="admin">Admin</option></select>
             </div>
           </div>
           <div class="form-group"><label>Nhóm con <span style="font-size:11px;color:var(--text-muted)">(Team 01)</span></label>
@@ -1001,8 +885,12 @@
   </div> <!-- end panel-workspace-job -->
 
   <!-- ECOSYSTEM PANELS -->
-  <div id="panel-workspace-finance" class="workspace-panel iframe-panel-wrap is-hidden"></div>
-  <div id="panel-workspace-tools" class="workspace-panel iframe-panel-wrap is-hidden"></div>
+  <div id="panel-workspace-finance" class="workspace-panel iframe-panel-wrap">
+    <iframe id="iframe-finance" data-src="https://finance-tracker.nthieucloud.shop/" src="about:blank"></iframe>
+  </div>
+  <div id="panel-workspace-tools" class="workspace-panel iframe-panel-wrap">
+    <iframe id="iframe-tools" data-src="https://gsc-bulk-tool.nthieucloud.shop/" src="about:blank"></iframe>
+  </div>
 </main>
 </div>
 
@@ -1258,7 +1146,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script.js?v=premium_ui_perfect_v99_3"></script>
+  <script src="script.js?v=1782789508886"></script>
 
 <!-- EDIT INDEX TASK MODAL -->
 <div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">
@@ -1528,50 +1416,7 @@
 </div>
 
 <!-- GIAO VIỆC MODAL -->
-<div class="modal-overlay" id="giaoViecModal" onclick="if(event.target===this)closeGiaoViecModal()">
-  <div class="modal" style="max-width:520px" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h3 id="gvModalTitle">📤 Giao việc</h3>
-      <button class="modal-close" onclick="closeGiaoViecModal()">&times;</button>
-    </div>
-    <div class="modal-body" style="gap:12px">
-      <input type="hidden" id="gv_editId">
-      <!-- Task info preview -->
-      <div id="gvTaskPreview" style="background:#f8f9fa;border-radius:8px;padding:10px 14px;border:1px solid var(--gray-border);font-size:13px"></div>
-      <div class="form-group" style="width:100%">
-        <label>Giao cho *</label>
-        <div style="position:relative">
-          <input type="text" id="gvAssigneeInput" style="width:100%" placeholder="Tìm hoặc nhập tên người nhận..."
-            oninput="gvAssigneeSearch()" autocomplete="off">
-          <div id="gvAssigneeDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--gray-border);border-radius:0 0 6px 6px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:300;max-height:180px;overflow-y:auto"></div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
-        <div class="form-group">
-          <label>Deadline</label>
-          <input type="date" id="gvDeadline" style="width:100%">
-        </div>
-        <div class="form-group">
-          <label>Trạng thái</label>
-          <select id="gvStatus" style="width:100%">
-            <option value="Chờ làm">⏳ Chờ làm</option>
-            <option value="Đang làm">🔄 Đang làm</option>
-            <option value="Hoàn thành">✅ Hoàn thành</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group" style="width:100%">
-        <label>Ghi chú / hướng dẫn</label>
-        <textarea id="gvNote" rows="2" style="width:100%" placeholder="Mô tả thêm nếu cần..."></textarea>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-danger btn-sm" id="gvDeleteBtn" style="display:none;margin-right:auto" onclick="deleteGiaoViec()">🗑 Xoá</button>
-      <button class="btn btn-outline" onclick="closeGiaoViecModal()">Huỷ</button>
-      <button class="btn btn-primary" onclick="saveGiaoViec()">📤 Giao việc</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- MANAGE ASSIGNEES MODAL -->
 <div class="modal-overlay" id="manageAssigneesModal" onclick="if(event.target===this)closeManageAssignees()">
@@ -1728,7 +1573,83 @@
   </div>
 </div>
 
-<!-- WEBSITE IMPORT MODAL --></div>
+<!-- WEBSITE IMPORT MODAL -->
+<div id="wsImportModal" class="modal-overlay" onclick="if(event.target===this)closeWsImportModal()" style="display:none">
+  <div class="modal" style="max-width:650px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⬆ Import website nhanh</h3>
+      <button class="modal-close" onclick="closeWsImportModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <!-- Tab switch -->
+      <div style="display:flex;gap:0;border-bottom:1px solid #30363d;margin-bottom:4px">
+        <button id="wsImpTabNormal" onclick="wsImpSwitchTab('normal')" style="flex:1;padding:10px;font-size:13px;font-weight:600;border:none;cursor:pointer;border-bottom:2px solid var(--red);color:var(--red);background:transparent;margin-bottom:-1px">🌐 Import thường</button>
+        <button id="wsImpTab301" onclick="wsImpSwitchTab('301')" style="flex:1;padding:10px;font-size:13px;font-weight:500;border:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--text-muted);background:transparent;margin-bottom:-1px">🔀 Import 301</button>
+      </div>
+
+      <!-- NORMAL MODE -->
+      <div id="wsImpPanelNormal">
+        <div style="font-size:12px;color:#8b949e;background:rgba(255,255,255,0.03);padding:10px 12px;border:1px solid #30363d;border-radius:6px;line-height:1.7">
+          <b>Dán danh sách URL</b> (mỗi dòng 1 URL) hoặc <b>upload file CSV/TXT</b><br>
+          Định dạng CSV: <code>brand, url, admin, account, password, status, team, owner, group, note</code>
+        </div>
+        <div class="form-group" style="width:100%;margin-top:8px">
+          <label>Dán danh sách URL / CSV</label>
+          <textarea id="wsImportText" rows="8" style="width:100%;font-size:12px;font-family:monospace;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px" placeholder="https://debets.sbs&#10;https://ggwin.llc&#10;..."></textarea>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <input type="file" id="wsImportFile" accept=".csv,.txt" style="display:none" onchange="wsImportReadFile(this)">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('wsImportFile').click()">📂 Upload CSV</button>
+          <span id="wsImportFileName" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
+      </div>
+
+      <!-- 301 MODE -->
+      <div id="wsImpPanel301" style="display:none">
+        <div style="font-size:12px;color:#a29bfe;background:rgba(108,92,231,0.08);padding:10px 12px;border-radius:6px;line-height:1.7;border:1px solid rgba(108,92,231,0.2)">
+          Dán danh sách URL vào <b>2 cột tương ứng</b> (mỗi dòng 1 URL).<br>
+          <span style="font-size:11px;opacity:0.85">Thông tin tài khoản, mật khẩu, đuôi quản trị sẽ tự động sao chép từ web gốc tương ứng trong kho dữ liệu.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+          <div class="form-group" style="margin:0">
+            <label style="font-weight:600;color:#f85149">🌐 Website gốc</label>
+            <textarea id="wsImport301Source" rows="8" style="width:100%;font-size:12px;font-family:monospace;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px" placeholder="debets.sbs&#10;ggwin.llc&#10;..."></textarea>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-weight:600;color:#a29bfe">🔀 Website 301 mới</label>
+            <textarea id="wsImport301Target" rows="8" style="width:100%;font-size:12px;font-family:monospace;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px" placeholder="debets301.com&#10;ggwin301.net&#10;..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMMON DEFAULTS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px">
+        <div class="form-group">
+          <label>Team mặc định</label>
+          <select id="wsImportTeam" style="width:100%"><option value="Team 01">Chaewon</option><option value="Team 02">M7</option></select>
+        </div>
+        <div class="form-group">
+          <label>Người quản lý</label>
+          <select id="wsImportOwner" style="width:100%"><option value="Công ty">Công ty</option><option value="admin">Admin</option></select>
+        </div>
+        <div class="form-group">
+          <label>Trạng thái mặc định</label>
+          <select id="wsImportStatus" style="width:100%">
+            <option>Tốt</option>
+            <option>Lỗi web</option>
+            <option>Chờ cấp lại mật khẩu</option>
+          </select>
+        </div>
+      </div>
+      <div id="wsImportPreview" style="max-height:140px;overflow-y:auto;font-size:12px;display:none;border:1px solid #30363d;border-radius:6px;padding:8px;background:#0d1117;color:#c9d1d9"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeWsImportModal()">Huỷ</button>
+      <button class="btn btn-primary" id="wsImportRunBtn" onclick="wsImportRun()">⬆ Import tất cả</button>
+      <button class="btn" id="wsImport301RunBtn" onclick="wsImport301Run()" style="display:none;background:#6c5ce7;color:#fff;border:none">🔀 Import 301</button>
+    </div>
+  </div>
+</div>
 
 
 
@@ -1944,10 +1865,7 @@
           </div>
           <div class="form-group">
             <label style="color:#c9d1d9">Giao cho</label>
-            <select id="qi_person" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
-              <option value="">-- Chưa chọn --</option>
-              <option>Hải</option><option>Hiếu</option><option>Khác</option>
-            </select>
+            <select id="qi_person" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9"><option value="">-- Chưa chọn --</option><option value="admin">Admin</option><option value="Khác">Khác</option></select>
           </div>
           <div class="form-group">
             <label style="color:#c9d1d9">Tên task (tùy chọn)</label>
@@ -1972,8 +1890,8 @@
           <div class="form-group" id="qi_team_row">
             <label style="color:#c9d1d9">Team</label>
             <select id="qi_team" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
-              <option value="Team 01">Team 01</option>
-              <option value="Team 02">Team 02</option>
+              <option value="Team 01">Chaewon</option>
+              <option value="Team 02">M7</option>
             </select>
           </div>
         </div>
@@ -2007,6 +1925,321 @@
       <button class="btn btn-primary" id="qi_btn_parse" onclick="TaskImporter.parse()" style="background-color:#21262d; border:1px solid #30363d; color:#c9d1d9">&#129302; Phân tích với AI</button>
       <button class="btn btn-primary" id="qi_btn_parse_url" style="display:none; background-color:#21262d; border:1px solid #30363d; color:#c9d1d9" onclick="TaskImporter.parseUrl()">🔗 Nhận URL</button>
       <button class="btn btn-primary" id="qi_btn_add" style="display:none; background-color:#238636; border:none; color:#ffffff" onclick="TaskImporter.addAll()">&#43; Thêm tất cả vào Kanban</button>
+    </div>
+  </div>
+</div>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- GSC DETAIL MODAL -->
+<div id="wstGscDetailModal" style="display:none; position:fixed; top:90px; left:210px; width:calc(100vw - 210px); height:calc(100vh - 90px); z-index:9999; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); justify-content:center; align-items:flex-start; overflow-y:auto;">
+  <div style="background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 12px; width: 95%; max-width: 1100px; height: calc(100vh - 110px); margin-top: 10px; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.5); overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <!-- Header -->
+    <div style="padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; justify-content: space-between; background: #0d1117;">
+      <div>
+        <h3 id="gscModalTitle" style="margin: 0; font-size: 16px; font-weight: 600; color: #f0f6fc;">Google Search Console Analytics</h3>
+        <div id="gscModalSubtitle" style="font-size: 11px; color: #8b949e; margin-top: 4px;"></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button id="gscSyncBtn" onclick="wstSyncGscNow()" class="btn btn-sm" style="background: #238636; color: #fff; border: 1px solid rgba(240,246,252,0.1); border-radius: 6px; padding: 6px 12px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 500;">
+          <span>🔁 Đồng bộ ngay</span>
+        </button>
+        <button onclick="wstCloseGscModal()" style="background: none; border: none; color: #8b949e; font-size: 20px; cursor: pointer; padding: 4px;">&times;</button>
+      </div>
+    </div>
+    
+    <!-- Controls & Tab bar -->
+    <div style="padding: 12px 20px; background: #0d1117; border-bottom: 1px solid #30363d; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+      <!-- Tabs -->
+      <div style="display: flex; gap: 4px; background: #161b22; padding: 3px; border-radius: 6px; border: 1px solid #30363d;">
+        <button id="gscTabPerf" onclick="wstSwitchGscTab('perf')" style="background: #21262d; color: #fff; border: none; border-radius: 4px; padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">📊 Hiệu suất</button>
+        <button id="gscTabQueries" onclick="wstSwitchGscTab('queries')" style="background: transparent; color: #8b949e; border: none; border-radius: 4px; padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">🔍 Cụm từ tìm kiếm</button>
+        <button id="gscTabPages" onclick="wstSwitchGscTab('pages')" style="background: transparent; color: #8b949e; border: none; border-radius: 4px; padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">📄 Trang</button>
+      </div>
+      
+      <!-- Date Range select -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 11px; color: #8b949e;">Khoảng thời gian:</span>
+        <select id="gscDateRange" onchange="wstChangeGscRange()" style="background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; outline: none;">
+          <option value="7d">7 ngày qua</option>
+          <option value="28d" selected>28 ngày qua</option>
+          <option value="3m">3 tháng qua</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- Content Area -->
+    <div style="flex: 1; overflow-y: auto; padding: 20px; background: #0d1117; display: flex; flex-direction: column; gap: 20px;">
+      
+      <!-- Summary metrics cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;" id="gscSummaryCards">
+        <!-- Card: Clicks -->
+        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; text-align: center;">
+          <div style="font-size: 11px; color: #8b949e; margin-bottom: 4px;">Tổng số lượt nhấp</div>
+          <div id="gscSumClicks" style="font-size: 20px; font-weight: 700; color: #58a6ff;">—</div>
+        </div>
+        <!-- Card: Impressions -->
+        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; text-align: center;">
+          <div style="font-size: 11px; color: #8b949e; margin-bottom: 4px;">Tổng số lượt hiển thị</div>
+          <div id="gscSumImpressions" style="font-size: 20px; font-weight: 700; color: #3fb950;">—</div>
+        </div>
+        <!-- Card: CTR -->
+        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; text-align: center;">
+          <div style="font-size: 11px; color: #8b949e; margin-bottom: 4px;">CTR trung bình</div>
+          <div id="gscSumCtr" style="font-size: 20px; font-weight: 700; color: #f2a154;">—</div>
+        </div>
+        <!-- Card: Average Position -->
+        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; text-align: center;">
+          <div style="font-size: 11px; color: #8b949e; margin-bottom: 4px;">Vị trí trung bình</div>
+          <div id="gscSumPosition" style="font-size: 20px; font-weight: 700; color: #bc8cff;">—</div>
+        </div>
+      </div>
+      
+      <!-- Panel: Performance (Chart.js) -->
+      <div id="gscPanelPerf" style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; height: 350px; position: relative;">
+        <canvas id="gscChart" style="width: 100%; height: 100%;"></canvas>
+        <div id="gscChartLoading" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,27,34,0.85); display: flex; align-items: center; justify-content: center; font-size: 13px; color: #8b949e; border-radius: 8px;">
+          ⏳ Đang tải biểu đồ dữ liệu...
+        </div>
+      </div>
+      
+      <!-- Panel: Queries Table -->
+      <div id="gscPanelQueries" style="display: none; background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden;">
+        <div style="max-height: 450px; overflow-y: auto;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px;">
+            <thead>
+              <tr style="background: #21262d; border-bottom: 1px solid #30363d; color: #8b949e;">
+                <th style="padding: 10px 16px;">Cụm từ tìm kiếm</th>
+                <th style="padding: 10px 16px; text-align: right;">Số lượt nhấp</th>
+                <th style="padding: 10px 16px; text-align: right;">Số lượt hiển thị</th>
+                <th style="padding: 10px 16px; text-align: right;">CTR</th>
+                <th style="padding: 10px 16px; text-align: right;">Vị trí</th>
+              </tr>
+            </thead>
+            <tbody id="gscQueriesTbody">
+              <tr>
+                <td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Đang tải danh sách từ khóa...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Panel: Pages Table -->
+      <div id="gscPanelPages" style="display: none; background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden;">
+        <div style="max-height: 450px; overflow-y: auto;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px;">
+            <thead>
+              <tr style="background: #21262d; border-bottom: 1px solid #30363d; color: #8b949e;">
+                <th style="padding: 10px 16px;">Trang</th>
+                <th style="padding: 10px 16px; text-align: right;">Số lượt nhấp</th>
+                <th style="padding: 10px 16px; text-align: right;">Số lượt hiển thị</th>
+                <th style="padding: 10px 16px; text-align: right;">CTR</th>
+                <th style="padding: 10px 16px; text-align: right;">Vị trí</th>
+              </tr>
+            </thead>
+            <tbody id="gscPagesTbody">
+              <tr>
+                <td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Đang tải danh sách trang...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<!-- ==================== WST PROJECT DASHBOARD MODAL ==================== -->
+<div id="wstDashboardModalContainer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(4px); z-index:99999;">
+  <style>
+    #wstDashboardModalContainer *, #wstDashboardModalContainer *::before, #wstDashboardModalContainer *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    #wstDashboardModalContainer .wst-modal {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 980px;
+      height: 720px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,.7);
+      display: flex;
+      flex-direction: column;
+    }
+    #wstDashboardModalContainer .mh {
+      flex-shrink: 0; padding: 14px 18px; background: #0d1117; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 12px;
+    }
+    #wstDashboardModalContainer .mh-icon {
+      width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg,#1a7f37,#2ea043); display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
+    }
+    #wstDashboardModalContainer .mh-info { flex: 1; min-width: 0; }
+    #wstDashboardModalContainer .mh-name { font-weight: 700; font-size: 14px; color: #e6edf3; }
+    #wstDashboardModalContainer .mh-url { font-size: 11px; color: #58a6ff; margin-top: 1px; }
+    #wstDashboardModalContainer .mh-tags { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+    #wstDashboardModalContainer .tag { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 20px; white-space: nowrap; }
+    #wstDashboardModalContainer .tg { background: #1a7f3720; color: #3fb950; border: 1px solid #1a7f3740; }
+    #wstDashboardModalContainer .tb { background: #1158bd20; color: #58a6ff; border: 1px solid #1158bd40; }
+    #wstDashboardModalContainer .tp { background: #6e40c920; color: #bc8cff; border: 1px solid #6e40c940; }
+    #wstDashboardModalContainer .to { background: #9e640020; color: #d29922; border: 1px solid #9e640040; }
+    #wstDashboardModalContainer .btn-x {
+      width: 28px; height: 28px; border-radius: 6px; border: 1px solid #30363d; background: transparent; color: #8b949e; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s;
+    }
+    #wstDashboardModalContainer .btn-x:hover { background: #21262d; color: #e6edf3; }
+    
+    #wstDashboardModalContainer .ms {
+      flex-shrink: 0; display: grid; grid-template-columns: repeat(5, 1fr); background: #0d1117; border-bottom: 1px solid #21262d;
+    }
+    #wstDashboardModalContainer .si {
+      padding: 10px 12px; border-right: 1px solid #21262d; display: flex; flex-direction: column; justify-content: center;
+    }
+    #wstDashboardModalContainer .si:last-child { border-right: none; }
+    #wstDashboardModalContainer .sl { font-size: 9px; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; text-align: center; }
+    #wstDashboardModalContainer .sv-group { display: flex; justify-content: space-around; align-items: baseline; gap: 8px; }
+    #wstDashboardModalContainer .sv-item { display: flex; flex-direction: column; align-items: center; }
+    #wstDashboardModalContainer .sv-num { font-size: 15px; font-weight: 800; }
+    #wstDashboardModalContainer .sv-source { font-size: 8px; color: #8b949e; text-transform: uppercase; margin-top: 1px; }
+    #wstDashboardModalContainer .cb { color: #58a6ff; }
+    #wstDashboardModalContainer .cg { color: #3fb950; }
+    #wstDashboardModalContainer .co { color: #d29922; }
+    #wstDashboardModalContainer .cp { color: #bc8cff; }
+    #wstDashboardModalContainer .cbing { color: #008373; }
+    #wstDashboardModalContainer .up { color: #3fb950; font-size: 9px; }
+    #wstDashboardModalContainer .dn { color: #f85149; font-size: 9px; }
+
+    #wstDashboardModalContainer .mt {
+      flex-shrink: 0; display: flex; gap: 2px; padding: 7px 16px 0; background: #0d1117; border-bottom: 1px solid #21262d; overflow-x: auto;
+    }
+    #wstDashboardModalContainer .mt::-webkit-scrollbar { height: 0; }
+    #wstDashboardModalContainer .tb-btn {
+      padding: 6px 14px; font-size: 12px; font-weight: 600; border: none; background: transparent; color: #8b949e; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; font-family: inherit; transition: color .15s; display: flex; align-items: center; gap: 5px;
+    }
+    #wstDashboardModalContainer .tb-btn:hover { color: #c9d1d9; }
+    #wstDashboardModalContainer .tb-btn.on { color: #e6edf3; border-bottom-color: #58a6ff; }
+
+    #wstDashboardModalContainer .mc { flex: 1; min-height: 0; position: relative; overflow: hidden; background: #161b22; }
+    #wstDashboardModalContainer .tp-panel {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow-y: auto; padding: 16px 18px; display: none;
+    }
+    #wstDashboardModalContainer .tp-panel::-webkit-scrollbar { width: 4px; }
+    #wstDashboardModalContainer .tp-panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+    #wstDashboardModalContainer .tp-panel.on { display: block; }
+
+    #wstDashboardModalContainer .mf {
+      flex-shrink: 0; padding: 9px 16px; background: #0d1117; border-top: 1px solid #21262d; display: flex; align-items: center; justify-content: space-between;
+    }
+    #wstDashboardModalContainer .mf-info { font-size: 10px; color: #8b949e; }
+    #wstDashboardModalContainer .mf-btns { display: flex; gap: 6px; }
+    #wstDashboardModalContainer .btn {
+      display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: all .15s;
+    }
+    #wstDashboardModalContainer .btn-g { background: #238636; color: #fff; }
+    #wstDashboardModalContainer .btn-g:hover { background: #2ea043; }
+    #wstDashboardModalContainer .btn-o { background: transparent; border: 1px solid #30363d; color: #c9d1d9; }
+    #wstDashboardModalContainer .btn-o:hover { border-color: #58a6ff; color: #58a6ff; }
+    #wstDashboardModalContainer .btn-d { background: transparent; border: 1px solid #f8514940; color: #f85149; }
+    #wstDashboardModalContainer .btn-d:hover { background: #f8514918; }
+
+    #wstDashboardModalContainer .sh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+    #wstDashboardModalContainer .st-title { font-size: 13px; font-weight: 700; color: #e6edf3; }
+    #wstDashboardModalContainer .btn-a {
+      font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 6px; border: 1px solid #238636; background: #238636; color: #fff; cursor: pointer; font-family: inherit; transition: all .15s;
+    }
+    #wstDashboardModalContainer .btn-a:hover { background: #2ea043; }
+
+    #wstDashboardModalContainer table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    #wstDashboardModalContainer thead tr { background: #0d1117; }
+    #wstDashboardModalContainer th {
+      padding: 7px 9px; text-align: left; font-size: 9px; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid #21262d;
+    }
+    #wstDashboardModalContainer th.c { text-align: center; }
+    #wstDashboardModalContainer td { padding: 8px 9px; border-bottom: 1px solid #21262d; color: #c9d1d9; vertical-align: middle; }
+    #wstDashboardModalContainer tr:last-child td { border-bottom: none; }
+    #wstDashboardModalContainer tr:hover td { background: #1c2128; }
+    #wstDashboardModalContainer td.c { text-align: center; }
+
+    #wstDashboardModalContainer .rank-container {
+      display: inline-flex; align-items: center; justify-content: center; position: relative; width: 70px;
+    }
+    #wstDashboardModalContainer .rb {
+      display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 24px; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 12px;
+    }
+    #wstDashboardModalContainer .r1 { background: #9e640030; color: #d29922; }
+    #wstDashboardModalContainer .r2 { background: #1158bd20; color: #58a6ff; }
+    #wstDashboardModalContainer .r3 { background: #6e40c920; color: #bc8cff; }
+    #wstDashboardModalContainer .dt { position: absolute; right: 0; font-size: 9px; font-weight: bold; }
+
+    #wstDashboardModalContainer .ib { font-size: 10px; padding: 2px 6px; border-radius: 10px; }
+    #wstDashboardModalContainer .iy { background: #1a7f3720; color: #3fb950; }
+    #wstDashboardModalContainer .in { background: #f8514920; color: #f85149; }
+    #wstDashboardModalContainer .ip { background: #9e640020; color: #d29922; }
+    #wstDashboardModalContainer .kw { background: #1c2128; border: 1px solid #30363d; border-radius: 3px; padding: 2px 6px; font-size: 10px; color: #c9d1d9; }
+    #wstDashboardModalContainer .dbtn { background: none; border: none; cursor: pointer; color: #8b949e; font-size: 11px; }
+
+    #wstDashboardModalContainer .gsc-g { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 13px; }
+    #wstDashboardModalContainer .gsc-c { background: #0d1117; border: 1px solid #21262d; border-radius: 9px; padding: 11px; }
+    #wstDashboardModalContainer .gc-l { font-size: 9px; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    #wstDashboardModalContainer .gc-v { font-size: 22px; font-weight: 800; margin-top: 4px; }
+    #wstDashboardModalContainer .gc-t { font-size: 10px; color: #8b949e; margin-top: 2px; }
+    #wstDashboardModalContainer .spark { margin-top: 7px; height: 28px; display: flex; align-items: flex-end; gap: 2px; }
+    #wstDashboardModalContainer .bar { flex: 1; border-radius: 2px 2px 0 0; min-width: 2px; }
+
+    #wstDashboardModalContainer .tl { position: relative; padding-left: 16px; }
+    #wstDashboardModalContainer .tl::before { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: #21262d; }
+    #wstDashboardModalContainer .tli { position: relative; padding: 9px 0 9px 16px; border-bottom: 1px dashed #21262d; }
+    #wstDashboardModalContainer .tli:last-child { border-bottom: none; }
+    #wstDashboardModalContainer .tld { position: absolute; left: -16px; top: 13px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid #d29922; background: #0d1117; }
+    #wstDashboardModalContainer .tl-date { font-size: 10px; color: #8b949e; margin-bottom: 3px; }
+    #wstDashboardModalContainer .tl-main { font-size: 12px; color: #c9d1d9; font-weight: 600; }
+    #wstDashboardModalContainer .tl-url { font-size: 10px; color: #58a6ff; margin-top: 2px; }
+    #wstDashboardModalContainer .tl-tags { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+
+    #wstDashboardModalContainer .sc-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 14px; }
+    #wstDashboardModalContainer .sc-c { background: #0d1117; border: 1px solid #21262d; border-radius: 9px; padding: 11px; }
+    #wstDashboardModalContainer .sc-l { font-size: 9px; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    #wstDashboardModalContainer .sc-v { font-size: 20px; font-weight: 800; margin-top: 3px; }
+
+    #wstDashboardModalContainer .plan-container { display: flex; gap: 16px; height: 100%; overflow: hidden; }
+    #wstDashboardModalContainer .kanban-board { flex: 7; display: flex; gap: 10px; height: 100%; }
+    #wstDashboardModalContainer .kanban-col { flex: 1; background: #0d1117; border: 1px solid #21262d; border-radius: 8px; display: flex; flex-direction: column; max-height: 100%; }
+    #wstDashboardModalContainer .kb-header { padding: 10px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #8b949e; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center; }
+    #wstDashboardModalContainer .kb-count { background: #30363d; color: #e6edf3; font-size: 9px; padding: 1px 6px; border-radius: 10px; }
+    #wstDashboardModalContainer .kb-list { padding: 10px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    #wstDashboardModalContainer .kb-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 10px; font-size: 11px; cursor: grab; transition: border-color .15s; }
+    #wstDashboardModalContainer .kb-card:hover { border-color: #58a6ff; }
+    #wstDashboardModalContainer .kb-title { font-weight: 600; color: #e6edf3; margin-bottom: 4px; }
+    #wstDashboardModalContainer .kb-desc { color: #8b949e; line-height: 1.4; margin-bottom: 6px; }
+    #wstDashboardModalContainer .kb-meta { display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #8b949e; }
+    #wstDashboardModalContainer .kb-priority { padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+    #wstDashboardModalContainer .prio-high { background: #f8514920; color: #f85149; }
+    #wstDashboardModalContainer .prio-med  { background: #d2992220; color: #d29922; }
+    #wstDashboardModalContainer .prio-low  { background: #3fb95020; color: #3fb950; }
+
+    #wstDashboardModalContainer .strategy-panel { flex: 3; background: #0d1117; border: 1px solid #21262d; border-radius: 8px; display: flex; flex-direction: column; padding: 12px; }
+    #wstDashboardModalContainer .sp-title { font-size: 12px; font-weight: 700; color: #e6edf3; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    #wstDashboardModalContainer .sp-textarea { flex: 1; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; padding: 10px; font-size: 12px; line-height: 1.5; resize: none; font-family: inherit; }
+    #wstDashboardModalContainer .sp-textarea:focus { outline: none; border-color: #58a6ff; }
+  </style>
+  <div class="wst-modal" id="wstDashboardModal">
+    <!-- Nội dung Modal sẽ được Javascript render động theo từng Website -->
+  </div>
+</div>
+
+<!-- POPUP NHẬP LÝ DO PENDING CHO KANBAN (CÔ LẬP KHÔNG DÙNG CHUNG) -->
+<div id="wstPendingModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:999999; align-items:center; justify-content:center;">
+  <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; width:360px; box-shadow:0 8px 32px rgba(0,0,0,.5);">
+    <div style="font-weight:700; font-size:14px; color:#e6edf3; margin-bottom:10px;">⏳ Lý do hoãn (Pending Reason)</div>
+    <textarea id="wstPendingReasonText" style="width:100%; height:80px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#c9d1d9; padding:8px; font-size:12px; resize:none; font-family:inherit; outline:none;" placeholder="Nhập lý do hoãn thẻ công việc này..."></textarea>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+      <button class="btn btn-o" onclick="wstCancelPendingDrop()" style="font-size:11px; padding:4px 10px;">Hủy</button>
+      <button class="btn btn-g" onclick="wstSubmitPendingDrop()" style="font-size:11px; padding:4px 10px;">Xác nhận</button>
     </div>
   </div>
 </div>

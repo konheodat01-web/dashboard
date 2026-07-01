@@ -1,3 +1,6 @@
+
+// SAFEGUARD: Automatically clear removed feature data from browser storage
+try { localStorage.removeItem('wt_giaoviec'); } catch(e) {}
 let currentMember = 'admin'; // declared first to avoid TDZ
 let websites = [
   {id:1, brand:'Debet', url:'https://debets.sbs', admin:'wp-admin', account:'dybala5858585858@gmail.com', password:'Mktb2022@', status:'Tốt', note:''},
@@ -21,6 +24,37 @@ function _loadCustomLoai(){
   }catch(e){}
 }
 _loadCustomLoai();
+
+// ===== SYSTEM MAPPING & LABELS =====
+const SYSTEM_MAPPING = {
+  teams: {
+    'Team 01': 'Chaewon',
+    'Team 02': 'M7'
+  },
+  websiteOwners: {
+    'admin': 'Admin',
+    'Công ty': 'Công ty'
+  },
+  taskOwners: {
+    'admin': 'Chung (tất cả)',
+    'Khác': 'Khác'
+  }
+};
+
+function getTeamLabel(teamVal) {
+  return SYSTEM_MAPPING.teams[teamVal] || teamVal || 'Chưa phân team';
+}
+
+function getWebsiteOwnerLabel(ownerVal) {
+  if (ownerVal === 'Hải' || ownerVal === 'Hiếu') return 'Admin';
+  return SYSTEM_MAPPING.websiteOwners[ownerVal] || ownerVal || 'Chưa phân công';
+}
+
+function getTaskOwnerLabel(ownerVal) {
+  if (ownerVal === 'Hải' || ownerVal === 'Hiếu') return 'Khác';
+  return SYSTEM_MAPPING.taskOwners[ownerVal] || ownerVal || 'Chung (tất cả)';
+}
+
 
 function _saveCustomLoai(){
   try{ localStorage.setItem('wt_loai_config', JSON.stringify(LOAI_CONFIG)); }catch(e){}
@@ -1119,7 +1153,7 @@ function fbPayload(ts){
     tasks, taskOrder: tasks.map(t=>t.id),
     deletedTasks, links, linkCategories,
     websites, wsGroups,
-    giaoViecList, assignees, prompts, recurringTasks, khoId: khoIdList,
+     assignees, prompts, recurringTasks, khoId: khoIdList,
     recurDoneToday: getRecurDoneToday(),
     siteTracking,
     passwords: (typeof getProfilePasswords === 'function') ? getProfilePasswords() : {},
@@ -1143,8 +1177,7 @@ function saveToLocalStorage(){
     localStorage.setItem('wt_link_categories', JSON.stringify(linkCategories));
     localStorage.setItem('wt_websites',        JSON.stringify(websites));
     localStorage.setItem('wt_ws_groups',       JSON.stringify(wsGroups));
-    localStorage.setItem('wt_giaoviec',        JSON.stringify(giaoViecList));
-    localStorage.setItem('wt_assignees',       JSON.stringify(assignees));
+        localStorage.setItem('wt_assignees',       JSON.stringify(assignees));
     localStorage.setItem('wt_prompts',         JSON.stringify(prompts));
     localStorage.setItem('wt_recurring',       JSON.stringify(recurringTasks));
     localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
@@ -1189,9 +1222,7 @@ function initFirebaseListener(){
       updateNavBadges();
       renderTasksOverview();
       if(document.querySelector('.page.active')?.id==='page-tasks'){
-        const gvPanel = document.getElementById('panel-giaoviec');
-        if(gvPanel && gvPanel.style.display!=='none') renderGiaoViec();
-      }
+                      }
       // Update recurDoneToday even on own push
       if(Array.isArray(r.siteTracking) && r.siteTracking.length > 0){ 
         siteTracking=r.siteTracking; 
@@ -1284,7 +1315,7 @@ function initFirebaseListener(){
       }
       if(Array.isArray(r.recurDoneToday)){ const _td=r.recurDoneToday.filter(d=>d.date===todayVN()); const _cur=localStorage.getItem('wt_recur_done_today'); if(JSON.stringify(_td)!==_cur){ setRecurDoneToday(_td); if(document.querySelector('.page.active')?.id==='page-recurring') renderRecurringTasks(); } }
       if(r.khoId && Array.isArray(r.khoId)){ khoIdList=r.khoId; localStorage.setItem('wt_kho_id',JSON.stringify(khoIdList)); if(document.querySelector('.page.active')?.id==='page-index') renderKhoId(); }
-      if(Array.isArray(r.giaoViecList)){ giaoViecList=r.giaoViecList; giaoViecNextId=Math.max(1,...giaoViecList.map(g=>g.id||0))+1; }
+      
       if(Array.isArray(r.assignees) && r.assignees.length) assignees=r.assignees;
       if(Array.isArray(r.prompts)){      prompts=r.prompts;           promptNextId=Math.max(1,...prompts.map(p=>p.id||0))+1; }
       if(r.passwords && typeof r.passwords==='object') localStorage.setItem('wt_passwords', JSON.stringify(r.passwords));
@@ -1308,8 +1339,7 @@ if(!_settings.avatars) _settings.avatars = {}; // local fills gaps, fb overrides
       localStorage.setItem('wt_websites',        JSON.stringify(websites));
       localStorage.setItem('wt_ws_groups',       JSON.stringify(wsGroups));
       localStorage.setItem('wt_index_tasks',     JSON.stringify(indexTasks));
-      localStorage.setItem('wt_giaoviec',        JSON.stringify(giaoViecList));
-      localStorage.setItem('wt_assignees',       JSON.stringify(assignees));
+            localStorage.setItem('wt_assignees',       JSON.stringify(assignees));
       localStorage.setItem('wt_prompts',         JSON.stringify(prompts));
     localStorage.setItem('wt_recurring',       JSON.stringify(recurringTasks));
     localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
@@ -1334,7 +1364,6 @@ if(!_settings.avatars) _settings.avatars = {}; // local fills gaps, fb overrides
         if(active==='links'){renderLinks();renderWebsites();}
         if(active==='index') renderIndexTasks();
         updateNavBadges();
-        if (typeof autoCheckAndMigrateV99 === 'function') autoCheckAndMigrateV99();
       } else {
         tasks.forEach(normalizeTaskCards);
       }
@@ -1383,8 +1412,7 @@ function loadAppData(){
     const _rec=localStorage.getItem('wt_recurring'); if(_rec){ recurringTasks=JSON.parse(_rec); recurNextId=Math.max(1,...recurringTasks.map(r=>r.id||0))+1; }
     const wsg=localStorage.getItem('wt_ws_groups'); if(wsg) wsGroups=JSON.parse(wsg);
     const it=localStorage.getItem('wt_index_tasks'); if(it){ indexTasks=JSON.parse(it); itNextId=Math.max(1,...indexTasks.map(t=>t._id||0))+1; }
-    const gv=localStorage.getItem('wt_giaoviec'); if(gv){ giaoViecList=JSON.parse(gv); giaoViecNextId=Math.max(1,...giaoViecList.map(g=>g.id||0))+1; }
-    const ga=localStorage.getItem('wt_assignees'); if(ga) assignees=JSON.parse(ga);
+        const ga=localStorage.getItem('wt_assignees'); if(ga) assignees=JSON.parse(ga);
     const pr=localStorage.getItem('wt_prompts'); if(pr){ prompts=JSON.parse(pr); promptNextId=Math.max(1,...prompts.map(p=>p.id||0))+1; }
     const st=localStorage.getItem('wt_settings');
     if(st){
@@ -1481,9 +1509,7 @@ function getProjectCols(task){
 
 function calcProjectProgress(task){
   if(!task.cards||!task.cards.length) return 0;
-  const cols = getProjectCols(task);
-  const lastColId = cols[cols.length-1].id;
-  const done = task.cards.filter(c=>c.colId===lastColId||c.colId==='done').length;
+  const done = task.cards.filter(c=>c.colId==='done').length;
   return Math.round(done/task.cards.length*100);
 }
 
@@ -1671,8 +1697,8 @@ function renderTasksOverview(){
             <span class="badge ${TASK_TYPE_COLORS[t.type]||'badge-gray'}" style="font-size:10px">${t.type}</span>
             ${priBadge}
             ${getTaskStatusBadge(t)}
-            ${t.person?`<span class="tag-person ${t.person==='Hải'?'tag-hai':t.person==='Hiếu'?'tag-hieu':''}" style="font-size:10px">${t.person}</span>`:''}
-            ${t.team==='Team 02'?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#555">Team 2</span>':''}
+            ${t.person?`<span class="tag-person" style="font-size:10px">${getTaskOwnerLabel(t.person)}</span>`:''}
+            ${t.team==='Team 02'?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#555">M7</span>':'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>'}
             <span style="font-weight:600;font-size:13px${isDone?';text-decoration:line-through;color:var(--text-muted)':''}">${t.name}</span>
           </div>
           ${isPendingTask?`<div style="font-size:11px;color:#e67e22;margin-top:3px">⏸ Pending: ${(t.pendingReason||'').slice(0,80)}</div>`:''}
@@ -1696,7 +1722,7 @@ function renderTasksOverview(){
       <button onclick="event.stopPropagation();openTaskPendingModal(${t.id})" title="${isPendingTask?'Sửa / xoá pending':'Pending task này'}"
         class="${isPendingTask?'btn-pending-active':''}"
         style="cursor:pointer;font-size:11px;flex-shrink:0">⏸</button>
-      
+      ${(currentMember==='admin'||currentMember==='hieu')?``:''}
       <button onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Xoá task"
         style="cursor:pointer;font-size:15px;flex-shrink:0">🗑</button>
     </div>`;
@@ -1718,9 +1744,7 @@ function renderTasksOverview(){
   }
   if(noDeadlineActive.length){
     html += `<div class="task-group-label" style="margin-top:${withDeadlineActive.length?16:0}px">&#8734; Không có deadline <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(${noDeadlineActive.length})</span></div>`;
-    html += `<div style="max-height:350px;overflow-y:auto;padding-right:6px">`;
     html += noDeadlineActive.map(renderRow).join('');
-    html += `</div>`;
   }
 
   // Done section — collapsible
@@ -1892,10 +1916,8 @@ function calcTaskAutoStatus(task){
   const cards = task.cards || [];
   if(!cards.length) return task.status || 'Chưa làm';
   const firstColId = cols[0].id;
-  const lastColId  = cols[cols.length-1].id;
-  const pendingColIds = new Set(cols.filter(c=>c.id==='pending'||c.id==='col_pending'||c.label.toLowerCase().includes('pending')).map(c=>c.id));
-  // Done: all cards in last col
-  if(cards.every(c=>c.colId===lastColId||c.colId==='done')) return 'Hoàn thành';
+  // Done: all cards in 'done' column
+  if(cards.every(c=>c.colId==='done')) return 'Hoàn thành';
   // Pending if task itself is pending
   if(task.pendingReason) return 'Pending';
   // Chưa làm: all cards still in first col (or todo)
@@ -2056,7 +2078,7 @@ function openTaskTypeManager(){
   const overlay = document.createElement('div');
   overlay.id = 'taskTypeModal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);width:360px">
+  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);width:360px">
     <div style="font-weight:700;font-size:15px;margin-bottom:14px">⚙ Quản lý loại task</div>
     <div id="ttList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
       ${types.map((t,i)=>`<div style="display:flex;align-items:center;gap:8px">
@@ -2109,7 +2131,7 @@ function openWstApiSettings() {
   const overlay = document.createElement('div');
   overlay.id = 'wstApiModal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;width:400px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;width:400px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
     <div style="font-weight:700;font-size:15px;margin-bottom:8px">🔑 Thiết lập API Serper.dev</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5">Nhập API Key cung cấp bởi <a href="https://serper.dev" target="_blank" style="color:var(--blue)">Serper.dev</a>. Đăng ký mới sẽ được tặng ngay 2.500 lượt miễn phí.</div>
     <div class="form-group" style="margin-bottom:12px"><label>Serper.dev API Key</label>
@@ -2522,71 +2544,7 @@ function saveWsTrack(){
 }
 
 
-function getWstChecklist(){
-  try{ return JSON.parse(localStorage.getItem('wst_checklist')||'null') || ['Dựng web','Content']; }catch(e){ return ['Dựng web','Content']; }
-}
-function saveWstChecklist(items){ localStorage.setItem('wst_checklist', JSON.stringify(items)); }
 
-function openWstChecklistManager(){
-  const items = getWstChecklist();
-  const overlay = document.createElement('div');
-  overlay.id = 'wstClModal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;width:380px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-    <div style="font-weight:700;font-size:15px;margin-bottom:4px">⚙ Quản lý Checklist</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Kéo ☰ để sắp xếp thứ tự</div>
-    <div id="wstClList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
-    <button onclick="wstClAddRow()" class="btn btn-sm btn-outline" style="width:100%;margin-bottom:12px">+ Thêm mục</button>
-    <div style="display:flex;justify-content:space-between">
-      <button onclick="document.getElementById('wstClModal').remove()" class="btn btn-outline">Huỷ</button>
-      <button onclick="wstClSave()" class="btn btn-primary">✓ Lưu</button>
-    </div>
-  </div>`;
-  document.body.appendChild(overlay);
-  // Build rows with drag handles
-  const list = document.getElementById('wstClList');
-  items.forEach(item => wstClMakeRow(list, item));
-  wstClInitDrag(list);
-}
-
-function wstClMakeRow(list, value){
-  const row = document.createElement('div');
-  row.className = 'wst-cl-row';
-  row.draggable = true;
-  row.style.cssText = 'display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--gray-border);border-radius:6px;padding:3px 6px';
-  row.innerHTML =
-    '<span class="wst-cl-handle" style="cursor:grab;color:var(--text-muted);font-size:16px;padding:0 4px;user-select:none">☰</span>' +
-    '<input type="text" value="'+(value||'')+'" class="wst-cl-input" style="flex:1;border:none;outline:none;padding:4px 0;font-size:13px" placeholder="Tên mục...">' +
-    '<button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:16px;padding:0">×</button>';
-  list.appendChild(row);
-  if(value==='') row.querySelector('input').focus();
-}
-
-function wstClAddRow(){
-  const list = document.getElementById('wstClList');
-  if(!list) return;
-  wstClMakeRow(list, '');
-  wstClInitDrag(list);
-}
-
-function wstClInitDrag(list){
-  let dragEl = null;
-  list.querySelectorAll('.wst-cl-row').forEach(row=>{
-    row.addEventListener('dragstart', e=>{ dragEl=row; setTimeout(()=>row.style.opacity='.4',0); });
-    row.addEventListener('dragend', ()=>{ row.style.opacity='1'; dragEl=null; });
-    row.addEventListener('dragover', e=>{ e.preventDefault(); if(dragEl&&dragEl!==row){ const rect=row.getBoundingClientRect(); const mid=rect.top+rect.height/2; if(e.clientY<mid) list.insertBefore(dragEl,row); else list.insertBefore(dragEl,row.nextSibling); } });
-  });
-}
-
-function wstClSave(){
-  const inputs = document.querySelectorAll('#wstClList .wst-cl-input');
-  const items = [...inputs].map(i=>(i.value||'').trim()).filter(Boolean);
-  if(!items.length){ toast('Cần ít nhất 1 mục!','#e74c3c'); return; }
-  saveWstChecklist(items);
-  document.getElementById('wstClModal').remove();
-  renderWsTrack();
-  toast('✓ Đã lưu checklist');
-}
 
 function getWstSite(wsId){
   return siteTracking.find(s=>s.wsId===wsId);
@@ -2655,7 +2613,6 @@ function renderWsTrack(){
   if(!tbody) return;
 
   const allTrackedWs = siteTracking.map(s=>websites.find(w=>w.id===s.wsId)).filter(Boolean);
-  const chkItems = getWstChecklist();
 
   if(wtApiKey && !window._wstApiLoaded) {
       window._wstApiLoaded = true;
@@ -2669,22 +2626,17 @@ function renderWsTrack(){
 
   const q=(document.getElementById('wst_search')?.value||'').toLowerCase();
   const fGroup=gSel?.value||'';
-  const fCheck='';
-
   let list = allTrackedWs.filter(w=>{
     if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
     if(fGroup && (w.group||'')!==fGroup) return false;
-    if(fCheck){
-      const cl=getWstSite(w.id)?.checklist||{};
-      if(fCheck==='all_done' && !chkItems.every(i=>cl[i])) return false;
-      if(fCheck==='partial' && chkItems.every(i=>cl[i])) return false;
-      if(fCheck.startsWith('done_') && !cl[fCheck.slice(5)]) return false;
-      if(fCheck.startsWith('undone_') && cl[fCheck.slice(7)]) return false;
-    }
     return true;
   });
 
-  if(!list.length){ tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block'; return; }
+  if(!list.length){ 
+    tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block'; 
+    if(typeof _debug_shown === 'undefined'){ window._debug_shown=true; setTimeout(()=>toast('Debug: Tracked='+allTrackedWs.length+', siteTrk='+siteTracking.length+', webs='+websites.length, '#e74c3c', 10000), 1000); }
+    return; 
+  }
   empty.style.display='none';
 
   // Get 301 children helper
@@ -2692,26 +2644,15 @@ function renderWsTrack(){
     return websites.filter(x=>x.is301&&x.sourceUrl&&(x.sourceUrl===w.url||x.sourceUrl===(w.url||'').replace(/\/$/,'')));
   }
 
-  // Filters: moBot, index
-  const fMobot = document.getElementById('wst_filter_mobot')?.value||'';
+  // Filter: index
   const fIndex = document.getElementById('wst_filter_index')?.value||'';
-  list = list.filter(w=>{
-    if(fMobot){
+  if(fIndex){
+    list = list.filter(w=>{
       const site=getWstSite(w.id);
       const entries=(site?.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-      const mb=entries[0]?.moBot||site?.moBot||'';
-      if(mb!==fMobot) return false;
-    }
-    if(fIndex){
-      const site=getWstSite(w.id);
-      const entries=(site?.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-      if(entries[0]?.indexed!==fIndex) return false;
-    }
-    return true;
-  });
-
-  // Checklist filter (from fCheck already computed above)
-  // (fCheck handled inline in list filter)
+      return entries[0]?.indexed===fIndex;
+    });
+  }
 
   if(!list.length){ tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
@@ -2724,8 +2665,10 @@ function renderWsTrack(){
       <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:130px">Website (gốc)</th>
       <th style="padding:8px 10px;text-align:left;font-size:11px">Nhóm</th>
       <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:140px">Từ khóa SEO</th>
-      ${chkItems.map(item=>`<th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap">${item}</th>`).join('')}
-      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap">Mở bot</th>
+      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Clicks (28 ngày qua)">Clicks (28d)</th>
+      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Impressions (28 ngày qua)">Imps (28d)</th>
+      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="CTR trung bình 28 ngày">CTR</th>
+      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Vị trí trung bình 28 ngày">Vị trí</th>
       <th style="padding:8px 10px;text-align:center;font-size:11px">🏆 Rank</th>
       <th style="padding:8px 10px;text-align:center;font-size:11px">🔍 Index</th>
       <th style="padding:8px 10px;text-align:left;font-size:11px">Cập nhật</th>
@@ -2735,10 +2678,8 @@ function renderWsTrack(){
 
   tbody.innerHTML = list.map(w=>{
     const site = getWstSite(w.id);
-    const cl = site?.checklist||{};
     const entries = (site?.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
     const last = entries[0];
-    const allDone = chkItems.length && chkItems.every(i=>cl[i]);
     const kids = getW301Children(w);
     // Latest 301: sort by added order (last in array), use url or sourceUrl
     const latest301 = kids.length ? kids[kids.length-1] : null;
@@ -2746,9 +2687,8 @@ function renderWsTrack(){
     const isSameAsSource = !latest301;
     const isSelected = _wstSelected.has(w.id);
     const indexIcon = last?.indexed==='Đã index'?'✅':last?.indexed==='Chưa index'?'❌':last?.indexed==='Một phần'?'⚠️':'—';
-    const mb = last?.moBot||site?.moBot||'';
 
-    return `<tr style="border-bottom:1px solid #f0f0f0;${allDone?'background:#f6fff8':''};${isSelected?'background:#fdf2f2;':''}" onmouseover="if(!${isSelected})this.style.background='#fafafa'" onmouseout="if(!${isSelected})this.style.background='${allDone?'#f6fff8':''}'">
+    return `<tr style="border-bottom:1px solid #f0f0f0;${isSelected?'background:#fdf2f2;':''}" onmouseover="if(!${isSelected})this.style.background='#fafafa'" onmouseout="if(!${isSelected})this.style.background=''">
       <td style="padding:6px;text-align:center">
         <input type="checkbox" class="wst-chk" data-id="${w.id}" onchange="wstToggleSelect(${w.id},this)" ${isSelected?'checked':''} style="cursor:pointer;accent-color:var(--red)">
       </td>
@@ -2787,19 +2727,61 @@ function renderWsTrack(){
           <button onclick="var btn=this;btn.innerHTML='⏳'; wstFetchRank(${w.id}).then(r=>{btn.innerHTML='↺'; renderWsTrack(); if(r.error)toast(r.error,'#e74c3c'); else toast('Xong!','#27ae60')})" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 4px;font-size:10px" title="Kiểm tra rank ngay">↺</button>
         </div>
       </td>
-      ${chkItems.map(item=>`<td style="padding:8px 10px;text-align:center">
-        <span onclick="wstToggleCheck(${w.id},'${item}')" style="cursor:pointer;font-size:16px" title="${item}">${cl[item]?'✅':'⬜'}</span>
-      </td>`).join('')}
-      <td style="padding:8px 10px;text-align:center">
-        <input type="checkbox" onchange="wstToggleMoBot(${w.id},this.checked)" ${last?.moBot==='Mở'?'checked':''} style="width:16px;height:16px;cursor:pointer;accent-color:#27ae60" title="${last?.moBot==='Mở'?'Đang Mở — click để Đóng':'Đang Đóng — click để Mở'}">
-      </td>
+      ${(()=>{
+        const redirectChain = getWstRedirectChainBackward(w);
+        let totalClicks = 0;
+        let totalImpressions = 0;
+        let totalWeightedPosition = 0;
+        
+        const limitDate = new Date();
+        limitDate.setDate(limitDate.getDate() - 28);
+        const limitStr = limitDate.toISOString().split('T')[0];
+        
+        const combinedHistory = {};
+        redirectChain.forEach(s => {
+          const cache = (typeof _gscCache !== 'undefined' ? _gscCache[s.id] : null) || {};
+          const hist = cache.performanceHistory || [];
+          hist.forEach(h => {
+            if (h.date >= limitStr) {
+              if (!combinedHistory[h.date]) {
+                combinedHistory[h.date] = { clicks: 0, impressions: 0, position: 0 };
+              }
+              combinedHistory[h.date].clicks += h.clicks || 0;
+              combinedHistory[h.date].impressions += h.impressions || 0;
+              combinedHistory[h.date].position = h.position || 0;
+            }
+          });
+        });
+        
+        Object.keys(combinedHistory).forEach(d => {
+          const item = combinedHistory[d];
+          totalClicks += item.clicks;
+          totalImpressions += item.impressions;
+          totalWeightedPosition += (item.position * item.impressions);
+        });
+        
+        const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+        const avgPos = totalImpressions > 0 ? (totalWeightedPosition / totalImpressions) : 0;
+        
+        const clicksStr = totalClicks.toLocaleString();
+        const impsStr = totalImpressions >= 1000 ? (totalImpressions / 1000).toFixed(1) + 'k' : totalImpressions.toLocaleString();
+        const ctrStr = ctr.toFixed(1) + '%';
+        const posStr = avgPos > 0 ? avgPos.toFixed(1) : '—';
+        
+        return `
+          <td style="padding:8px 10px;text-align:center;font-weight:600;color:#58a6ff;cursor:pointer" onclick="wstOpenGscModal(${w.id})" title="Xem chi tiết GSC">${clicksStr}</td>
+          <td style="padding:8px 10px;text-align:center;color:#88d49e;cursor:pointer" onclick="wstOpenGscModal(${w.id})" title="Xem chi tiết GSC">${impsStr}</td>
+          <td style="padding:8px 10px;text-align:center;color:#f2a154;cursor:pointer" onclick="wstOpenGscModal(${w.id})" title="Xem chi tiết GSC">${ctrStr}</td>
+          <td style="padding:8px 10px;text-align:center;color:#c5a3ff;font-weight:600;cursor:pointer" onclick="wstOpenGscModal(${w.id})" title="Xem chi tiết GSC">${posStr}</td>
+        `;
+      })()}
       <td id="rank_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600">
-        ${!last?'<span style="color:var(--text-muted)">N/A</span>':last.moBot==='Đóng'?'<span style="color:#e74c3c">CMB</span>':wstFormatRankUI(last.rank)}
+        ${!last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank)}
       </td>
       <td style="padding:8px 10px;text-align:center;font-size:16px">${indexIcon}</td>
       <td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap">${last?.date||'—'}</td>
       <td style="padding:8px 10px;text-align:center;white-space:nowrap">
-        <button onclick="wstOpenDetail(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px" title="Xem lịch sử">📋</button>
+        <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px" title="Xem Dashboard">📊</button>
         <button onclick="wstAddEntry(${w.id})" class="btn btn-sm" style="font-size:11px;padding:2px 7px;background:var(--red);color:#fff;border:none" title="Thêm dữ liệu">+</button>
         <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c" title="Bỏ theo dõi">×</button>
       </td>
@@ -2856,30 +2838,7 @@ function wstShowWebInfo(wsId){
   showWebsiteInfo(w, true);
 }
 
-function wstToggleMoBot(wsId, checked){
-  let site = getWstSite(wsId);
-  if(!site){ siteTracking.push({wsId,entries:[]}); site=getWstSite(wsId); }
-  if(!site.entries) site.entries=[];
-  // Get last entry and update its moBot, or create new entry
-  const entries = site.entries.slice().sort((a,b)=>b.date.localeCompare(a.date));
-  const last = entries[0];
-  if(last){
-    // Update moBot on latest entry
-    const idx = site.entries.findIndex(e=>e.id===last.id);
-    if(idx>=0) site.entries[idx].moBot = checked?'Mở':'Đóng';
-  } else {
-    site.entries.push({id:'wste'+Date.now(),date:todayVN(),moBot:checked?'Mở':'Đóng',rank:null,indexed:'',note:''});
-  }
-  saveWsTrack();
-  renderWsTrack();
-}
 
-function wstSaveMoBot(wsId, val){
-  let site = getWstSite(wsId);
-  if(!site){ siteTracking.push({wsId,entries:[]}); site=getWstSite(wsId); }
-  site.moBot = val.trim();
-  saveWsTrack();
-}
 
 function wstAddEntry(wsId){
   _wstSelectedWsId = wsId;
@@ -2966,14 +2925,7 @@ function renderWstContent(wsId){
       <div style="font-size:11px;color:var(--blue)">${w.url||''}</div>
       <button onclick="openWstAddModal()" class="btn btn-primary btn-sm" style="margin-left:auto">+ Thêm dữ liệu</button>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;padding:10px 12px;background:#f8f9fa;border-radius:8px;border:1px solid var(--gray-border)">
-      <span style="font-size:11px;font-weight:600;color:var(--text-muted);line-height:2">Checklist:</span>
-      ${getWstChecklist().map(item=>{
-        const done=(site&&site.checklist&&site.checklist[item]);
-        const btn = '<button onclick="wstToggleCheck('+wsId+',\''+item+'\') " style="display:flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;border:1px solid '+(done?'#27ae60':'var(--gray-border)')+';background:'+(done?'#d4edda':'#fff')+';color:'+(done?'#155724':'var(--text-muted)')+';cursor:pointer;font-size:12px">'+(done?'✅ ':'⬜ ')+item+'</button>';
-        return btn;
-      }).join('')}
-    </div>
+
     ${!entries.length ? '<div style="text-align:center;padding:32px;color:var(--text-muted)">Chưa có dữ liệu nào. Bấm "+ Thêm dữ liệu" để bắt đầu.</div>' : `
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead><tr style="background:#f8f9fa;border-bottom:2px solid var(--gray-border)">
@@ -3014,7 +2966,7 @@ function openWstPickModal(){
   const overlay = document.createElement('div');
   overlay.id = 'wstPickOverlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:20px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
     <div style="font-weight:700;font-size:14px;margin-bottom:12px">+ Chọn website để theo dõi</div>
     <input type="text" placeholder="🔍 Tìm..." oninput="wstPickFilter(this.value)" style="width:100%;border:1px solid var(--gray-border);border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:10px">
     <div id="wstPickList" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
@@ -3085,22 +3037,14 @@ function openWstAddModal(){
   const overlay = document.createElement('div');
   overlay.id = 'wstAddOverlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;width:400px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;width:400px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
     <div style="font-weight:700;font-size:14px;margin-bottom:14px">📈 Thêm dữ liệu — ${w?.brand||''}</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <div class="form-group"><label>Ngày ghi nhận</label>
         <input type="date" id="wst_date" style="width:100%" value="${todayVN()}">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="form-group"><label>🤖 Mở bot</label>
-          <select id="wst_mobot" style="width:100%">
-            <option value="Đóng" selected>🔴 Đóng</option>
-            <option value="Mở">🟢 Mở</option>
-          </select>
-        </div>
-        <div class="form-group"><label>🏆 Rank trung bình</label>
+      <div class="form-group"><label>🏆 Rank trung bình</label>
           <input type="number" id="wst_rank" min="1" style="width:100%" placeholder="VD: 15">
-        </div>
       </div>
       <div class="form-group"><label>🔍 Trạng thái Index Google</label>
         <select id="wst_indexed" style="width:100%">
@@ -3143,14 +3087,7 @@ function wstSaveEntry(){
   toast('✓ Đã lưu dữ liệu theo dõi');
 }
 
-function wstToggleCheck(wsId, item){
-  let site = getWstSite(wsId);
-  if(!site){ siteTracking.push({wsId,entries:[]}); site=getWstSite(wsId); }
-  if(!site.checklist) site.checklist={};
-  site.checklist[item] = !site.checklist[item];
-  saveWsTrack();
-  renderWsTrack();
-}
+
 
 function wstDeleteEntry(wsId, entryId){
   if(!confirm('Xoá mục này?')) return;
@@ -3238,7 +3175,7 @@ function openNewRecurringModal(id){
   const overlay = document.createElement('div');
   overlay.id = 'recurringModal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);width:420px;max-width:95vw">
+  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);width:420px;max-width:95vw">
     <div style="font-weight:700;font-size:15px;margin-bottom:16px">${r?'✎ Sửa':'+ Thêm'} task định kỳ</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <div class="form-group"><label>Tên task *</label>
@@ -3690,8 +3627,7 @@ function renderPendingSummary(){
   const myTasks = currentMember==='admin' ? tasks
     : tasks.filter(t=>{
         const p = (t.person||'').trim();
-        // Cố định lỗi: Nếu không phải admin thì chỉ lấy task của chính người đó
-        return p.toLowerCase() === currentMember.toLowerCase() || (!p && currentMember === 'admin');
+        return !p || p===('');
       });
   myTasks.forEach(task=>{
     const cols=getProjectCols(task);
@@ -4058,7 +3994,6 @@ function confirmResetProfile(){}
 let indexTasks = [];
 let itNextId = 1;
 let selectedTaskIds = new Set();
-let giaoViecNextId = 1;
 let assignees = ['Hải', 'Hiếu']; // default, customizable
 let prompts = [];
 let promptNextId = 1;
@@ -4264,6 +4199,13 @@ function populateGroupSelect(typeVal){
 
 // Hook lf_type change to repopulate group
 document.addEventListener('DOMContentLoaded', ()=>{
+  // One-time migration: dọn dẹp localStorage keys của tính năng đã xóa
+  if (!localStorage.getItem('migrated_v2_cleanup')) {
+    localStorage.removeItem('wst_checklist');
+    localStorage.removeItem('wst_filter_mobot');
+    localStorage.setItem('migrated_v2_cleanup', '1');
+  }
+
   const typeEl = document.getElementById('lf_type');
   if(typeEl) typeEl.addEventListener('change', ()=>populateGroupSelect(typeEl.value));
   populateGroupSelect('work');
@@ -4589,35 +4531,28 @@ function switchLinksTab(tab){
 // ===== WEBSITES =====
 let wsGroups = ['Chính', 'Phụ', 'Khách']; // Team 01 sub-groups
 
-// 1. BIẾN TRẠNG THÁI LỌC PHẲNG V98-TỐI HẬU
+// 1. BIẾN TRẠNG THÁI LỌC LAI (HYBRID STATE) V94
 let currentJobFilter = 'all';
 
-// 2. HÀM ĐỒNG BỘ DROPDOWN KHỚP THỊ GIÁC 100%
-function executeFlatFilter(filterVal, element) {
+// 2. HÀM KÍCH HOẠT LỌC PIL CHUYỂN ĐỔI TRẠNG THÁI (State Reset) V94
+function executeHybridFilter(filterVal, element) {
   currentJobFilter = filterVal;
   
-  // Đồng bộ hiệu ứng sáng đèn của nút bấm phẳng chuẩn GitHub
+  // Đồng bộ sáng đèn nút bấm phẳng
   document.querySelectorAll('.job-filter-bar .filter-pills').forEach(btn => btn.classList.remove('active'));
   if (element) element.classList.add('active');
 
+  // RESET DROPDOWN VỀ RỖNG ĐỂ TRÁNH XUNG ĐỘT PHÉP GIAO LỌC
   const dTeam = document.getElementById('websiteFilterTeam');
   const dOwner = document.getElementById('websiteFilterOwner');
+  if (dTeam) dTeam.value = "";
+  if (dOwner) dOwner.value = "";
 
-  if (filterVal === 'all') {
-    if (dTeam) dTeam.value = "";
-    if (dOwner) dOwner.value = "";
-  } else {
-    const [targetTeam, targetRole] = filterVal.split('-');
-    if (dTeam) dTeam.value = targetTeam;
-    
-    // Đồng bộ khớp 100% sang 'Admin' hoặc 'Công ty' chuẩn tiếng Việt trên giao diện
-    if (dOwner) dOwner.value = (targetRole === 'Admin') ? 'Admin' : 'Công ty'; 
-  }
-  
-  if (typeof renderWebsites === 'function') renderWebsites();
+  // Ép phân hệ render lại dữ liệu tức thì
+  renderWebsites();
 }
 
-// 3. ĐOẠN ĐÁNH CHẶN NGƯỢC
+// 3. ĐOẠN ĐÁNH CHẶN NGƯỢC (Dropdown change triggers resetting pills) V94
 function resetPillToAll() {
   currentJobFilter = 'all';
   document.querySelectorAll('.job-filter-bar .filter-pills').forEach(btn => {
@@ -4626,37 +4561,45 @@ function resetPillToAll() {
   });
 }
 
-// 4. HÀM LỌC TỐI GIẢN THEO CHUẨN ADMIN MỚI
+// 4. HÀM TRẢ VỀ MẢNG LỌC ĐỘNG HYBRID V94
 function getFilteredWebsites() {
-  const websiteList = websites || [];
+  const websiteList = websites || []; 
   return websiteList.filter(site => {
     if (currentJobFilter === 'all') return true;
     
     const [targetTeam, targetRole] = currentJobFilter.split('-');
+    const isPersonal = site.owner && site.owner !== 'Công ty';
     
     if (targetRole === 'Admin') {
-      return site.team === targetTeam && site.owner === 'Admin';
+      return site.team === targetTeam && isPersonal;
     } else {
-      return site.team === targetTeam && (site.owner === 'Công ty' || !site.owner);
+      // Trường hợp Công ty: Không có owner hoặc owner bằng Công ty
+      return site.team === targetTeam && (!site.owner || site.owner === 'Công ty');
     }
   });
 }
 
-// 5. HÀM ĐẾM SỐ LƯỢNG ĐỘNG SIÊU NHẸ V98
+// 5. HÀM ĐẾM SỐ LƯỢNG ĐỘNG THỜI GIAN THỰC V94
 function updateMacroCounters() {
   const list = websites || [];
   
   const allCount = list.length;
-  const cwnAdmin = list.filter(s => s.team === 'Team 01' && s.owner === 'Admin').length;
-  const cwnCompany = list.filter(s => s.team === 'Team 01' && (s.owner === 'Công ty' || !s.owner)).length;
-  const m7Admin = list.filter(s => s.team === 'Team 02' && s.owner === 'Admin').length;
-  const m7Company = list.filter(s => s.team === 'Team 02' && (s.owner === 'Công ty' || !s.owner)).length;
+  const cwnAdmin = list.filter(s => s.team === 'Team 01' && s.owner && s.owner !== 'Công ty').length;
+  const cwnCompany = list.filter(s => s.team === 'Team 01' && (!s.owner || s.owner === 'Công ty')).length;
+  const m7Admin = list.filter(s => s.team === 'Team 02' && s.owner && s.owner !== 'Công ty').length;
+  const m7Company = list.filter(s => s.team === 'Team 02' && (!s.owner || s.owner === 'Công ty')).length;
 
-  if (document.getElementById('cnt-all')) document.getElementById('cnt-all').textContent = allCount;
-  if (document.getElementById('cnt-cwn-adm')) document.getElementById('cnt-cwn-adm').textContent = cwnAdmin;
-  if (document.getElementById('cnt-cwn-com')) document.getElementById('cnt-cwn-com').textContent = cwnCompany;
-  if (document.getElementById('cnt-m7-adm')) document.getElementById('cnt-m7-adm').textContent = m7Admin;
-  if (document.getElementById('cnt-m7-com')) document.getElementById('cnt-m7-com').textContent = m7Company;
+  const eAll = document.getElementById('cnt-all');
+  const eCwnAdm = document.getElementById('cnt-cwn-adm');
+  const eCwnCom = document.getElementById('cnt-cwn-com');
+  const eM7Adm = document.getElementById('cnt-m7-adm');
+  const eM7Com = document.getElementById('cnt-m7-com');
+
+  if (eAll) eAll.textContent = allCount;
+  if (eCwnAdm) eCwnAdm.textContent = cwnAdmin;
+  if (eCwnCom) eCwnCom.textContent = cwnCompany;
+  if (eM7Adm) eM7Adm.textContent = m7Admin;
+  if (eM7Com) eM7Com.textContent = m7Company;
 }
 
 function renderWebsites(){
@@ -4735,9 +4678,9 @@ function renderWebsites(){
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
           <span style="font-weight:600;font-size:13px">${w.brand}</span>
-          ${w.team==='Team 02'?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#666">Team 2</span>`:''}
+          ${w.team==='Team 02'?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#666">M7</span>`:`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>`}
           ${w.group?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fff3cd;color:#856404">${w.group}</span>`:''}
-          ${w.owner&&w.owner!=='Công ty'&&w.owner!=='Chung'?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${w.owner==='Hải'?'#fdf2f2':'#f0f7fd'};color:${w.owner==='Hải'?'var(--red)':'var(--blue)'}">${w.owner}</span>`:''}
+          ${w.owner&&w.owner!=='Công ty'&&w.owner!=='Chung'?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f7fd;color:var(--blue)">${getWebsiteOwnerLabel(w.owner)}</span>`:''}
         </div>
         <div style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${w.url||''}</div>
         ${w.note?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${w.note}</div>`:''}
@@ -4812,7 +4755,7 @@ function showW301s(wsId){
   overlay.id = 'w301Overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center';
   overlay.onclick = e=>{ if(e.target===overlay) overlay.remove(); };
-  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div style="font-weight:700;font-size:15px">🔀 Web 301 từ <span style="color:var(--red)">${w.brand}</span></div>
       <button onclick="document.getElementById('w301Overlay').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted)">×</button>
@@ -5499,18 +5442,14 @@ function updateOwnerFilters(m){
   const linkOwner=document.getElementById('linkFilterOwner');
   if(linkOwner){
     const cur=linkOwner.value;
-    if(m==='hai') linkOwner.innerHTML='<option value="">Tất cả</option><option value="admin">Chung</option><option value="Hải">Hải</option>';
-    else if(m==='hieu') linkOwner.innerHTML='<option value="">Tất cả</option><option value="admin">Chung</option><option value="Hiếu">Hiếu</option>';
-    else linkOwner.innerHTML='<option value="">Tất cả</option><option value="admin">Chung (tất cả)</option><option value="Hải">Hải</option><option value="Hiếu">Hiếu</option>';
-    linkOwner.value=['','admin','Hải','Hiếu'].includes(cur)?cur:'';
+    linkOwner.innerHTML='<option value="">Tất cả</option><option value="admin">Chung</option>';
+    linkOwner.value=['','admin'].includes(cur)?cur:'';
   }
   const wsOwner=document.getElementById('websiteFilterOwner');
   if(wsOwner){
     const cur2=wsOwner.value;
-    if(m==='hai') wsOwner.innerHTML='<option value="">Tất cả người</option><option value="Công ty">Công ty</option><option value="Hải">Hải</option>';
-    else if(m==='hieu') wsOwner.innerHTML='<option value="">Tất cả người</option><option value="Công ty">Công ty</option><option value="Hiếu">Hiếu</option>';
-    else wsOwner.innerHTML='<option value="">Tất cả người</option><option value="Công ty">Công ty</option><option value="Hải">Hải</option><option value="Hiếu">Hiếu</option>';
-    wsOwner.value=['','Công ty','Hải','Hiếu'].includes(cur2)?cur2:'';
+    wsOwner.innerHTML='<option value="">Tất cả người</option><option value="Chung">Chung</option>';
+    wsOwner.value=['','Chung'].includes(cur2)?cur2:'';
   }
 }
 
@@ -5519,17 +5458,13 @@ function onWfTeamChange(){
   const ownerSel = document.getElementById('wf_owner');
   const groupRow = document.getElementById('wf_group')?.closest('.form-group');
 
-  // Owner options: Team 01 = Công ty/Hải/Hiếu, Team 02 = Công ty/Hiếu only
   if(ownerSel){
     const cur = ownerSel.value;
-    ownerSel.innerHTML = team==='Team 02'
-      ? '<option value="Công ty">Công ty</option><option value="Hiếu">Hiếu</option>'
-      : '<option value="Công ty">Công ty</option><option value="Hải">Hải</option><option value="Hiếu">Hiếu</option>';
-    // If previous value still valid, keep it
+    ownerSel.innerHTML = '<option value="Công ty">Công ty</option><option value="admin">Admin</option>';
     if([...ownerSel.options].find(o=>o.value===cur)) ownerSel.value=cur;
     else ownerSel.value='Công ty';
   }
-  // Group only for Team 01
+  // Group only for Team 01 (Chaewon)
   if(groupRow) groupRow.style.display = team==='Team 02' ? 'none' : 'block';
 }
 function openWsGroupManager(){
@@ -6029,8 +5964,8 @@ function renderIndexTasks(){
     const isOverdue = !isDone && t.dueDate < today;
     const isDue = !isDone && t.dueDate === today;
     const teamBadge = t.team==='Team 02'
-      ? '<span class="it-badge-team t2">Team 02</span>'
-      : '<span class="it-badge-team">Team 01</span>';
+      ? '<span class="it-badge-team t2">M7</span>'
+      : '<span class="it-badge-team">Chaewon</span>';
     let statusCell = '';
     if(isDone) statusCell = '<span class="it-status-done">✅ Done</span>';
     else if(isPending) statusCell = '<span class="it-status-pending">⏳ Pending</span>';
@@ -6130,8 +6065,8 @@ function renderIndexDueBanner(){
     return `<div class="it-due-card ${isOverdue?'overdue':isPending?'waiting':''}">
       ${renderItId(t.taskId)}${t.isSubTask?'<span style="font-size:9px;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;padding:1px 5px;margin-left:3px">sub</span>':''}
       ${t.name?`<span style="font-size:12px;font-weight:500;color:var(--text)">${t.name}</span>`:''}
-      <span class="${t.team==='Team 02'?'it-badge-team t2':'it-badge-team'}">${t.team}</span>
-      ${t.person?`<span class="tag-person ${t.person==='Hải'?'tag-hai':'tag-hieu'}" style="font-size:11px">${t.person}</span>`:''}
+      <span class="${t.team==='Team 02'?'it-badge-team t2':'it-badge-team'}">${t.team==='Team 02'?'M7':'Chaewon'}</span>
+      ${t.person?`<span class="tag-person" style="font-size:11px">${getTaskOwnerLabel(t.person)}</span>`:''}
       <span style="font-size:12px;color:var(--text-muted)">STT: ${t.stt}</span>
       ${isPending?`<span style="font-size:11px;color:#e67e22;flex:1">📝 ${t.pendingReason||''}</span>`:'<span style="flex:1"></span>'}
       ${isOverdue?`<span style="font-size:11px;color:#e74c3c;font-weight:600">⚠️ Trễ ${Math.ceil((new Date(today)-new Date(t.dueDate))/(864e5))}n</span>`:''}
@@ -6595,599 +6530,67 @@ function updateTaskPendingStatus(taskId, status){
 // ===== GIAO VIỆC =====
 let _gvTaskRef = null; // task being assigned
 
-
-function gvCalcStatus(g){
-  if(!g.taskCards||!g.taskCards.length) return g.status||'Chờ làm';
-  const cols = g.taskCols||null;
-  const lastColId = cols ? cols[cols.length-1].id : 'done';
-  const firstColId = cols ? cols[0].id : 'col_new';
-  const allDone = g.taskCards.every(c=>c.colId===lastColId||c.colId==='done');
-  if(allDone) return 'Hoàn thành';
-  const allFirst = g.taskCards.every(c=>(c.colId===firstColId||c.colId==='todo'||!c.colId));
-  if(allFirst) return 'Chờ làm';
-  return 'Đang làm';
-}
-
-// Gọi sau mỗi thay đổi card GV: tự cập nhật status và thông báo khi done
-function gvSyncStatus(g){
-  const prev = g.status;
-  const next = gvCalcStatus(g);
-  if(next === prev) return;
-  g.status = next;
-  if(next === 'Hoàn thành' && prev !== 'Hoàn thành' && prev !== 'Chờ nghiệm thu'){
-    // Tất cả cards done → chuyển sang Chờ nghiệm thu thay vì Hoàn thành
-    g.status = 'Chờ nghiệm thu';
-    const who = g.assignee || 'Người thực hiện';
-    toast(`🔔 "${g.taskName}" hoàn thành — chờ nghiệm thu!`, '#27ae60', 5000);
-    return; // status đã set riêng
+function switchTasksTab(tab){
+  try{ sessionStorage.setItem('wt_activeSubPage', tab); } catch(e){}
+  document.getElementById('panel-mytasks').style.display = tab==='mytasks' ? 'block' : 'none';
+  document.getElementById('panel-giaoviec').style.display = tab==='giaoviec' ? 'block' : 'none';
+  document.getElementById('tab-mytasks').classList.toggle('active', tab==='mytasks');
+  document.getElementById('tab-giaoviec').classList.toggle('active', tab==='giaoviec');
+  // Ẩn taskSubBoard khi chuyển sang giao việc
+  if(tab==='giaoviec'){
+    const sub = document.getElementById('taskSubBoard');
+    if(sub) sub.style.display='none';
+    const ov = document.getElementById('tasksOverview');
+    if(ov) ov.style.display='block';
+    document.querySelector('main')?.classList.remove('board-mode');
+    renderGiaoViec();
   }
 }
 
+
+
+// Gọi sau mỗi thay đổi card GV: tự cập nhật status và thông báo khi done
+
 // GV: open kanban board for a giao viec item
 let _gvBoardId = null;
-function openGvBoard(gvId){
-  const g = giaoViecList.find(x=>x.id===gvId);
-  if(!g) return;
-  _gvBoardId = gvId;
-  // Build a temp task object for renderSubBoard
-  const tempTask = {
-    id: gvId,
-    name: g.taskName,
-    person: g.assignee,
-    cols: g.taskCols,
-    cards: g.taskCards||[],
-  };
-  document.getElementById('gvListWrap').style.display='none';
-  document.getElementById('gvPendingPanel').style.display='none';
-  document.getElementById('gvSubBoard').style.display='block';
-  document.getElementById('gvSubBoardTitle').textContent = g.taskName;
-  const gvPersonEl = document.getElementById('gvSubBoardPerson');
-  if(gvPersonEl) gvPersonEl.innerHTML = g.assignee ? `<span class="tag-person ${g.assignee==='Hải'?'tag-hai':'tag-hieu'}" style="font-size:12px">${g.assignee}</span>` : '';
-  renderGvKanban(tempTask);
-}
 
-function closeGvBoard(){
-  _gvBoardId=null;
-  _currentGvBoardId=null;
-  _gvSelectedCardIds.clear();
-  document.getElementById('gvSubBoard').style.display='none';
-  document.getElementById('gvListWrap').style.display='block';
-  const pp = document.getElementById('gvPendingPanel');
-  if(pp) pp.style.display='none';
-  renderGiaoViec();
-}
 
-function renderGvKanban(tempTask){
-  const board = document.getElementById('gvKanbanBoard');
-  if(!board) return;
-  const g = giaoViecList.find(x=>x.id===tempTask.id);
-  const cols = getProjectCols(tempTask);
-  board.innerHTML='';
-  cols.forEach(col=>{
-    const cards=(tempTask.cards||[]).filter(c=>{
-      if(c.colId===col.id) return true;
-      if(col.id==='col_new'&&c.colId==='todo') return true;
-      if(col.id==='col_pending'&&c.colId==='pending') return true;
-      return false;
-    });
-    const isPending = col.id==='pending'||col.id==='col_pending';
-    const colEl=document.createElement('div');
-    colEl.style.cssText=`flex:0 0 220px;background:var(--gray-light);border-radius:10px;padding:10px;border-top:3px solid ${col.color};min-height:200px;max-height:calc(100vh - 220px);display:flex;flex-direction:column;overflow:hidden`;
-    colEl.dataset.colId = col.id;
-    colEl.innerHTML=`
-      <div class="kb-col-header">
-        <span class="kb-col-title" style="color:${col.color}">${col.label}</span>
-        <span class="kb-col-count">${cards.length}</span>
-      </div>
-      <div class="kb-cards" id="gvcards-${col.id}" style="overflow-y:auto;flex:1"></div>
-      <button class="kb-add-btn" onclick="openGvAddCardModal('${col.id}',${tempTask.id})">&#43; Thêm thẻ</button>`;
-    // Drop target
-    colEl.addEventListener('dragover',e=>{e.preventDefault();colEl.style.background='#fde8e8';});
-    colEl.addEventListener('dragleave',()=>colEl.style.background='var(--gray-light)');
-    colEl.addEventListener('drop',e=>{
-      e.preventDefault(); colEl.style.background='var(--gray-light)';
-      if(!dragCardId) return;
-      if(isPending){
-        pendingDragCard={cardId:dragCardId,colId:col.id,gvId:tempTask.id};
-        const card=(tempTask.cards||[]).find(c=>c.id===dragCardId);
-        document.getElementById('pendingReason').value=card?.pendingReason||'';
-        document.getElementById('pendingModal').classList.add('open');
-      } else {
-        const card=(tempTask.cards||[]).find(c=>c.id===dragCardId);
-        if(card){card.colId=col.id; delete card.pendingReason;}
-        if(g){g.taskCards=tempTask.cards; gvSyncStatus(g);}
-        saveAppData();
-        renderGvKanban(tempTask);
-        renderGiaoViec();
-        toast('Đã chuyển thẻ');
-      }
-      dragCardId=null;
-    });
-    board.appendChild(colEl);
-
-    const cardsEl=colEl.querySelector('#gvcards-'+col.id);
-    const isLastCol=col.id===cols[cols.length-1].id||col.id==='done';
-    cards.forEach(card=>{
-      const nextCol=!isLastCol?cols[cols.indexOf(col)+1]:null;
-
-      const rowEl=document.createElement('div');
-      rowEl.style.cssText='display:flex;align-items:center;gap:5px;margin-bottom:8px';
-
-      // Left: select checkbox
-      const gvSelWrap=document.createElement('div');
-      gvSelWrap.style.cssText='flex-shrink:0;width:18px;display:flex;align-items:center;justify-content:center';
-      gvSelWrap.innerHTML=`<input type="checkbox" class="gv-card-chk" data-cardid="${card.id}" data-gvid="${tempTask.id}"
-        style="cursor:pointer;accent-color:var(--red);width:14px;height:14px"
-        onchange="onGvCardCheck(event)">`;
-
-      // Card body
-      const cardEl=document.createElement('div');
-      cardEl.className='kb-card';
-      cardEl.style.cssText='margin-bottom:0;flex:1;min-width:0;position:relative';
-      cardEl.draggable=true;
-      cardEl.innerHTML=`
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="flex:1;min-width:0;overflow:hidden">
-            <div style="font-size:13px;font-weight:500;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isLastCol?'text-decoration:line-through;color:var(--text-muted)':''}">
-              <span class="kb-card-name" style="cursor:pointer"
-                onclick="event.stopPropagation();openGvEditCardModal('${col.id}','${card.id}',${tempTask.id})"
-                title="${(card.name||'').replace(/"/g,'&quot;')}">${card.name}</span>
-            </div>
-            ${card.desc?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer"
-              onclick="event.stopPropagation();openGvEditCardModal('${col.id}','${card.id}',${tempTask.id})">${card.desc}</div>`:''}
-            ${card.pendingReason?`<div class="kb-card-pending">❙❙ ${card.pendingReason}</div>`:''}
-          </div>
-        </div>
-        <span class="kb-card-tooltip-data" data-name="${(card.name||'').replace(/"/g,'&quot;').replace(/\`/g,'&#96;')}" data-desc="${(card.desc||'').replace(/"/g,'&quot;').replace(/\`/g,'&#96;')}" style="display:none"></span>`;
-
-      // Right: tick to next col
-      const tickWrap=document.createElement('label');
-      tickWrap.title = nextCol ? '→ '+nextCol.label : 'Hoàn thành';
-      tickWrap.style.cssText='flex-shrink:0;width:32px;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;opacity:.5;transition:opacity .15s';
-      tickWrap.onmouseover=()=>tickWrap.style.opacity='1';
-      tickWrap.onmouseout=()=>tickWrap.style.opacity='.5';
-      tickWrap.innerHTML=`
-        <input type="checkbox" ${isLastCol?'checked':''} style="cursor:pointer;accent-color:var(--red);width:14px;height:14px"
-          onchange="gvMoveCard(event,${tempTask.id},'${card.id}','${col.id}')" onclick="event.stopPropagation()">
-        <span style="font-size:8px;color:var(--text-muted);line-height:1.1;text-align:center">${nextCol?nextCol.label.slice(0,5):'Done'}</span>`;
-
-      rowEl.appendChild(gvSelWrap);
-      rowEl.appendChild(cardEl);
-      rowEl.appendChild(tickWrap);
-
-      cardEl.addEventListener('dragstart',e=>{e.stopPropagation();dragCardId=card.id;setTimeout(()=>cardEl.classList.add('dragging'),0);});
-      cardEl.addEventListener('dragend',()=>{cardEl.classList.remove('dragging');dragCardId=null;});
-      cardEl.addEventListener('mouseenter',e=>{
-        const data=cardEl.querySelector('.kb-card-tooltip-data');
-        if(!data) return;
-        const name=data.dataset.name, desc=data.dataset.desc;
-        if(!name&&!desc) return;
-        showKbTooltip(e, name, desc);
-      });
-      cardEl.addEventListener('mousemove',e=>moveKbTooltip(e));
-      cardEl.addEventListener('mouseleave',()=>hideKbTooltip());
-
-      cardsEl.appendChild(rowEl);
-    });
-  });
-}
 
 // GV add/edit card modal (reuse the same modal as tasks)
 let _gvEditCardId = null;
 let _gvEditCardTaskId = null;
 let _gvEditCardColId = null;
 
-function openGvAddCardModal(colId, gvId){
-  _gvEditCardId = null; _gvEditCardTaskId = gvId; _gvEditCardColId = colId;
-  const g = giaoViecList.find(x=>x.id===gvId);
-  if(!g) return;
-  const cols = getProjectCols({cols:g.taskCols});
-  document.getElementById('acTitle').textContent = 'Thêm thẻ';
-  const sel = document.getElementById('ac_col');
-  sel.innerHTML = cols.map(c=>`<option value="${c.id}" ${c.id===colId?'selected':''}>${c.label}</option>`).join('');
-  document.getElementById('ac_name').value='';
-  document.getElementById('ac_desc').value='';
-  document.getElementById('ac_delete_btn').style.display='none';
-  // Override save/delete to target gv
-  document.getElementById('ac_delete_btn').onclick = ()=>deleteGvCard(gvId);
-  document.querySelector('#addCardModal .modal-footer .btn-primary').onclick = ()=>saveGvCard(gvId);
-  document.getElementById('addCardModal').classList.add('open');
-  setTimeout(()=>document.getElementById('ac_name').focus(),100);
-}
 
-function openGvEditCardModal(colId, cardId, gvId){
-  _gvEditCardId = cardId; _gvEditCardTaskId = gvId; _gvEditCardColId = colId;
-  const g = giaoViecList.find(x=>x.id===gvId);
-  if(!g) return;
-  const card = (g.taskCards||[]).find(c=>c.id===cardId);
-  if(!card) return;
-  const cols = getProjectCols({cols:g.taskCols});
-  document.getElementById('acTitle').textContent = '✎ Sửa thẻ';
-  const sel = document.getElementById('ac_col');
-  sel.innerHTML = cols.map(c=>`<option value="${c.id}" ${c.id===colId?'selected':''}>${c.label}</option>`).join('');
-  document.getElementById('ac_name').value = card.name||'';
-  document.getElementById('ac_desc').value = card.desc||'';
-  document.getElementById('ac_delete_btn').style.display='inline-flex';
-  document.getElementById('ac_delete_btn').onclick = ()=>deleteGvCard(gvId);
-  document.querySelector('#addCardModal .modal-footer .btn-primary').onclick = ()=>saveGvCard(gvId);
-  document.getElementById('addCardModal').classList.add('open');
-  setTimeout(()=>document.getElementById('ac_name').focus(),100);
-}
 
-function saveGvCard(gvId){
-  const name = (document.getElementById('ac_name').value||'').trim();
-  if(!name){ toast('Nhập tên thẻ!','#e74c3c'); return; }
-  const g = giaoViecList.find(x=>x.id===gvId);
-  if(!g) return;
-  const colId = document.getElementById('ac_col').value;
-  const desc = document.getElementById('ac_desc').value.trim();
-  if(_gvEditCardId){
-    const card = (g.taskCards||[]).find(c=>c.id===_gvEditCardId);
-    if(card){ card.name=name; card.colId=colId; card.desc=desc; }
-  } else {
-    if(!g.taskCards) g.taskCards=[];
-    g.taskCards.push({id:'gvc'+cardNextId++, colId, name, desc});
-  }
-  gvSyncStatus(g);
-  saveAppData();
-  closeAddCardModal();
-  renderGvKanban({id:gvId, name:g.taskName, cols:g.taskCols, cards:g.taskCards});
-  toast('✓ Đã lưu thẻ!');
-}
 
-function deleteGvCard(gvId){
-  if(!_gvEditCardId||!confirm('Xoá thẻ này?')) return;
-  const g = giaoViecList.find(x=>x.id===gvId);
-  if(!g) return;
-  g.taskCards = (g.taskCards||[]).filter(c=>c.id!==_gvEditCardId);
-  saveAppData();
-  closeAddCardModal();
-  renderGvKanban({id:gvId, name:g.taskName, cols:g.taskCols, cards:g.taskCards});
-  toast('Đã xoá thẻ.');
-}
 
 // ===== GV CARD BULK SELECT =====
 let _gvSelectedCardIds = new Set();
 let _currentGvBoardId = null;
 
-function onGvCardCheck(event){
-  event.stopPropagation();
-  const chk = event.target;
-  const cardId = chk.dataset.cardid;
-  const gvId = parseInt(chk.dataset.gvid);
-  _currentGvBoardId = gvId;
-  if(chk.checked) _gvSelectedCardIds.add(cardId);
-  else _gvSelectedCardIds.delete(cardId);
-  updateGvCardBulkBar();
-}
 
-function updateGvCardBulkBar(){
-  const bar = document.getElementById('gvCardBulkBar');
-  const cnt = document.getElementById('gvCardBulkCount');
-  if(!bar) return;
-  if(_gvSelectedCardIds.size > 0){
-    bar.style.display='flex';
-    cnt.textContent = _gvSelectedCardIds.size + ' thẻ đã chọn';
-  } else {
-    bar.style.display='none';
-  }
-}
 
-function gvClearCardSelection(){
-  _gvSelectedCardIds.clear();
-  document.querySelectorAll('.gv-card-chk').forEach(c=>c.checked=false);
-  updateGvCardBulkBar();
-}
 
-function toggleGvSelectAllMenu(){
-  const menu = document.getElementById('gvSelectAllMenu');
-  if(!menu) return;
-  const isOpen = menu.style.display!=='none';
-  if(isOpen){ menu.style.display='none'; return; }
-  // Populate column items
-  if(_currentGvBoardId){
-    const g = giaoViecList.find(x=>x.id===_currentGvBoardId);
-    const colItems = document.getElementById('gvSelectColItems');
-    if(g && colItems){
-      const cols = getProjectCols({cols:g.taskCols});
-      colItems.innerHTML = cols.map(col=>{
-        const cnt = (g.taskCards||[]).filter(c=>c.colId===col.id||(col.id==='col_new'&&c.colId==='todo')).length;
-        return `<div onclick="gvSelectColCards('${col.id}')"
-          style="padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--gray-border);display:flex;align-items:center;justify-content:space-between"
-          onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background=''">
-          <span style="color:${col.color}">${col.label}</span>
-          <span style="font-size:11px;color:var(--text-muted)">${cnt}</span>
-        </div>`;
-      }).join('');
-    }
-  }
-  menu.style.display='block';
-  setTimeout(()=>{
-    function outsideClick(e){
-      if(!document.getElementById('gvSelectAllMenu')?.contains(e.target)){
-        document.getElementById('gvSelectAllMenu').style.display='none';
-        document.removeEventListener('click', outsideClick);
-      }
-    }
-    document.addEventListener('click', outsideClick);
-  }, 10);
-}
 
-function gvSelectAllCards(){
-  if(!_currentGvBoardId) return;
-  const g = giaoViecList.find(x=>x.id===_currentGvBoardId);
-  if(!g) return;
-  (g.taskCards||[]).forEach(c=>_gvSelectedCardIds.add(c.id));
-  document.querySelectorAll('.gv-card-chk').forEach(chk=>{ chk.checked=true; });
-  updateGvCardBulkBar();
-}
 
-function gvSelectColCards(colId){
-  if(!_currentGvBoardId) return;
-  const g = giaoViecList.find(x=>x.id===_currentGvBoardId);
-  if(!g) return;
-  const colCards = (g.taskCards||[]).filter(c=>c.colId===colId||(colId==='col_new'&&c.colId==='todo'));
-  const ids = new Set(colCards.map(c=>c.id));
-  document.querySelectorAll('.gv-card-chk').forEach(chk=>{
-    if(!ids.has(chk.dataset.cardid)) return;
-    chk.checked=true;
-    _gvSelectedCardIds.add(chk.dataset.cardid);
-  });
-  updateGvCardBulkBar();
-  toast(`☑ Đã chọn ${colCards.length} thẻ trong cột`, '#2c3e50', 2000);
-}
 
-function gvBulkCardMove(){
-  if(!_currentGvBoardId||!_gvSelectedCardIds.size) return;
-  const g = giaoViecList.find(x=>x.id===_currentGvBoardId);
-  if(!g) return;
-  const cols = getProjectCols({cols:g.taskCols});
-  (g.taskCards||[]).forEach(card=>{
-    if(!_gvSelectedCardIds.has(card.id)) return;
-    const curIdx = cols.findIndex(c=>c.id===card.colId||(c.id==='col_new'&&card.colId==='todo'));
-    const next = cols[curIdx+1];
-    if(next && next.id!=='pending' && next.id!=='col_pending') card.colId=next.id;
-  });
-  gvSyncStatus(g);
-  saveAppData();
-  gvClearCardSelection();
-  renderGvKanban({id:g.id, name:g.taskName, cols:g.taskCols, cards:g.taskCards});
-  toast('→ Đã chuyển thẻ sang cột tiếp');
-}
 
-function gvBulkCardCopyUrls(btn){
-  if(!_currentGvBoardId||!_gvSelectedCardIds.size) return;
-  const g = giaoViecList.find(x=>x.id===_currentGvBoardId);
-  if(!g) return;
-  const urls = (g.taskCards||[]).filter(c=>_gvSelectedCardIds.has(c.id)).map(c=>c.name).join('\n');
-  copyText(urls, btn);
-}
 
-function gvBulkCardCopyVidco(btn){
-  if(!_currentGvBoardId||!_gvSelectedCardIds.size) return;
-  const g = giaoViecList.find(x=>x.id===_currentGvBoardId);
-  if(!g) return;
-  const selected = (g.taskCards||[]).filter(c=>_gvSelectedCardIds.has(c.id));
-  const lines = selected.map(c=>{
-    const q=c.name.toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'');
-    const ws=websites.find(w=>{const wu=(w.url||'').toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'');return wu===q||wu.includes(q)||q.includes(wu);});
-    if(!ws) return null;
-    const domain=(ws.url||'').replace(/https?:\/\//,'').replace(/\/$/,'');
-    const owner=(ws.owner&&ws.owner!=='Công ty'&&ws.owner!=='Chung')?ws.owner:'';
-    return domain+' | '+(ws.admin||'')+' | '+(ws.account||'')+' | '+(ws.password||'')+' | '+(ws.group||'')+' | '+owner;
-  }).filter(Boolean);
-  if(!lines.length){ toast('Không có URL nào nhận diện được.','#e67e22'); return; }
-  copyText(lines.join('\n'), btn);
-}
 
-function gvBulkCardDelete(){
-  if(!_currentGvBoardId||!_gvSelectedCardIds.size) return;
-  const g = giaoViecList.find(x=>x.id===_currentGvBoardId);
-  if(!g||!confirm('Xoá '+_gvSelectedCardIds.size+' thẻ đã chọn?')) return;
-  const n = _gvSelectedCardIds.size;
-  g.taskCards = (g.taskCards||[]).filter(c=>!_gvSelectedCardIds.has(c.id));
-  saveAppData();
-  gvClearCardSelection();
-  renderGvKanban({id:g.id, name:g.taskName, cols:g.taskCols, cards:g.taskCards});
-  toast('🗑 Đã xoá '+n+' thẻ');
-}
 
-function gvMoveCard(event, gvId, cardId, currentColId){
-  event.stopPropagation();
-  const g = giaoViecList.find(x=>x.id===gvId);
-  if(!g) return;
-  const cols = getProjectCols({cols:g.taskCols});
-  const card=(g.taskCards||[]).find(c=>c.id===cardId);
-  if(!card) return;
-  const curIdx=cols.findIndex(c=>c.id===currentColId);
-  const nextCol=cols[curIdx+1];
-  if(!nextCol){
-    if(!event.target.checked&&curIdx>0) card.colId=cols[curIdx-1].id;
-    gvSyncStatus(g);
-    saveAppData(); renderGvKanban({id:gvId,cols:g.taskCols,cards:g.taskCards}); renderGiaoViec(); return;
-  }
-  if(nextCol.id==='pending'||nextCol.id==='col_pending'){
-    event.target.checked=false;
-    pendingDragCard={cardId,colId:nextCol.id,gvId};
-    document.getElementById('pendingReason').value=card.pendingReason||'';
-    document.getElementById('pendingModal').classList.add('open');
-  } else {
-    card.colId=nextCol.id;
-    delete card.pendingReason;
-    const _g=giaoViecList.find(x=>x.id===gvId);
-    if(_g) _g.taskCards=g.taskCards;
-    gvSyncStatus(g);
-    saveAppData();
-    renderGvKanban({id:gvId,name:g.taskName,cols:g.taskCols,cards:g.taskCards});
-    renderGiaoViec();
-    toast(`→ ${nextCol.label}`);
-  }
-}
 
 // GV: pending task cha (trong giao viec)
-function openGvTaskPending(gvId){
-  const g = giaoViecList.find(x=>x.id===gvId);
-  if(!g) return;
-  document.getElementById('tpm_taskId').value = 'gv_'+gvId;
-  document.getElementById('tpmTaskName').textContent = g.taskName + ' → ' + g.assignee;
-  document.getElementById('tpm_reason').value = g.pendingReason||'';
-  document.getElementById('tpm_note').value = g.pendingNote||'';
-  const isAlready = !!g.pendingReason;
-  document.getElementById('tpmTitle').textContent = isAlready?'⏸ Sửa / xoá pending':'⏸ Pending task giao';
-  document.getElementById('tpmClearBtn').style.display = isAlready?'inline-flex':'none';
-  document.getElementById('taskPendingModal').classList.add('open');
-  setTimeout(()=>document.getElementById('tpm_reason').focus(),100);
-}
 
 // GV: pending summary
-function renderGvPendingSummary(){
-  const panel = document.getElementById('gvPendingPanel');
-  const body = document.getElementById('gvPendingBody');
-  const cnt = document.getElementById('gvPendingCount');
-  if(!panel||!body) return;
-
-  // Pending parent gv tasks
-  const pendingParents = giaoViecList.filter(g=>g.pendingReason && (currentMember!=='hai' || g.assignee==='Hải'));
-  // Pending child cards within gv tasks
-  const pendingCards = [];
-  giaoViecList.filter(g=>currentMember!=='hai' || g.assignee==='Hải').forEach(g=>{
-    (g.taskCards||[]).forEach(card=>{
-      if(card.pendingReason) pendingCards.push({g,card});
-    });
-  });
-  const total = pendingParents.length + pendingCards.length;
-  if(!total){panel.style.display='none';return;}
-  panel.style.display='block';
-  cnt.textContent=total;
-
-  const STATUSES=['Chờ xử lý','Đang xử lý','Đã xử lý xong'];
-  const sColor={'Chờ xử lý':'#e67e22','Đang xử lý':'#2980b9','Đã xử lý xong':'#27ae60'};
-
-  const parentRows = pendingParents.map(g=>{
-    const st=g.pendingStatus||'Chờ xử lý';
-    const age=g.pendingDate?daysSince(g.pendingDate):0;
-    const ageStr=age===0?'Hôm nay':age===1?'Hôm qua':`${age} ngày`;
-    return `<tr style="border-bottom:1px solid #fce0b0;background:#fff3e6">
-      <td style="padding:7px 12px;font-size:12px;font-weight:600">${g.taskName} <span style="font-size:10px;background:#e67e22;color:#fff;border-radius:10px;padding:1px 6px;margin-left:4px">Task cha</span></td>
-      <td style="padding:7px 12px;font-size:11px;color:var(--text-muted)">👤 ${g.assignee}</td>
-      <td style="padding:7px 12px;font-size:12px;white-space:nowrap">${g.pendingDate?fmtDate(g.pendingDate):'?'} <span style="font-size:11px;color:var(--text-muted)">(${ageStr})</span></td>
-      <td style="padding:7px 12px;font-size:12px;color:var(--text-muted);max-width:180px">${g.pendingReason||'—'}</td>
-      <td style="padding:7px 12px">
-        <select onchange="updateGvPendingStatus(${g.id},null,this.value)"
-          style="font-size:11px;padding:2px 6px;border:1px solid #fce0b0;border-radius:4px;background:#fff;color:${sColor[st]};font-weight:500">
-          ${STATUSES.map(s=>`<option ${st===s?'selected':''}>${s}</option>`).join('')}
-        </select>
-      </td>
-      <td style="padding:7px 8px;white-space:nowrap">
-        <button onclick="resolveGvPending(${g.id},null)" class="btn btn-sm btn-outline" style="font-size:11px;padding:3px 8px;color:#27ae60;border-color:#27ae60">✓ Bỏ pending</button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  const cardRows = pendingCards.map(({g,card})=>{
-    const st=card.pendingStatus||'Chờ xử lý';
-    const age=card.pendingDate?daysSince(card.pendingDate):0;
-    const ageStr=age===0?'Hôm nay':age===1?'Hôm qua':`${age} ngày`;
-    return `<tr style="border-bottom:1px solid #fce0b0">
-      <td style="padding:7px 12px;font-size:12px"><span onclick="openGvBoard(${g.id})" style="color:var(--blue);cursor:pointer;font-weight:500">${g.taskName}</span></td>
-      <td style="padding:7px 12px;font-size:12px;font-weight:500">${card.name}</td>
-      <td style="padding:7px 12px;font-size:12px;white-space:nowrap">${card.pendingDate?fmtDate(card.pendingDate):'?'} <span style="font-size:11px;color:var(--text-muted)">(${ageStr})</span></td>
-      <td style="padding:7px 12px;font-size:12px;color:var(--text-muted);max-width:180px">${card.pendingReason||'—'}</td>
-      <td style="padding:7px 12px">
-        <select onchange="updateGvPendingStatus(${g.id},'${card.id}',this.value)"
-          style="font-size:11px;padding:2px 6px;border:1px solid #fce0b0;border-radius:4px;background:#fff;color:${sColor[st]};font-weight:500">
-          ${STATUSES.map(s=>`<option ${st===s?'selected':''}>${s}</option>`).join('')}
-        </select>
-      </td>
-      <td style="padding:7px 8px;white-space:nowrap">
-        <button onclick="resolveGvPending(${g.id},'${card.id}')" class="btn btn-sm btn-primary" style="font-size:11px;padding:3px 8px">✓ Done</button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  body.innerHTML = parentRows + cardRows;
-}
-
-function updateGvPendingStatus(gvId, cardId, status){
-  const g = giaoViecList.find(x=>x.id===gvId);
-  if(!g) return;
-  if(cardId){
-    const card=(g.taskCards||[]).find(c=>c.id===cardId);
-    if(card) card.pendingStatus=status;
-  } else {
-    g.pendingStatus=status;
-  }
-  saveAppData();
-}
-
-function resolveGvPending(gvId, cardId){
-  const g = giaoViecList.find(x=>x.id===gvId);
-  if(!g) return;
-  if(cardId){
-    const card=(g.taskCards||[]).find(c=>c.id===cardId);
-    if(card){ const cols=getProjectCols({cols:g.taskCols}); const pIdx=cols.findIndex(c=>c.id==='col_pending'||c.id==='pending'); card.colId=pIdx>0?cols[pIdx-1].id:cols[0].id; delete card.pendingReason; delete card.pendingDate; delete card.pendingStatus; }
-  } else {
-    delete g.pendingReason; delete g.pendingNote; delete g.pendingDate; delete g.pendingStatus;
-  }
-  saveAppData();
-  renderGiaoViec();
-  toast('✓ Đã bỏ pending');
-}
-
-function updateGvBadge(){
-  const badge = document.getElementById('gvBadge');
-  if(!badge) return;
-  const myItems = currentMember==='hai'
-    ? giaoViecList.filter(g=>g.assignee==='Hải')
-    : currentMember==='hieu'
-    ? giaoViecList.filter(g=>g.assignee==='Hiếu')
-    : giaoViecList;
-  const pending = myItems.filter(g=>g.status!=='Hoàn thành'&&g.status!=='Đã nghiệm thu').length;
-  if(pending){ badge.textContent=pending; badge.style.display='inline'; }
-  else badge.style.display='none';
-}
 
 
-function openEditGiaoViec(id){
-  const g = giaoViecList.find(x=>x.id===id);
-  if(!g) return;
-  _gvTaskRef = null;
-  document.getElementById('gv_editId').value=id;
-  document.getElementById('gvModalTitle').textContent='✎ Sửa giao việc';
-  const preview = document.getElementById('gvTaskPreview');
-  preview.innerHTML=`<div style="font-weight:600;font-size:13px">${g.taskName}</div>`;
-  document.getElementById('gvAssigneeInput').value=g.assignee||'';
-  document.getElementById('gvDeadline').value=g.deadline||'';
-  document.getElementById('gvStatus').value=g.status||'Chờ làm';
-  document.getElementById('gvNote').value=g.note||'';
-  document.getElementById('gvDeleteBtn').style.display='inline-flex';
-  document.getElementById('giaoViecModal').classList.add('open');
-  setTimeout(()=>document.getElementById('gvAssigneeInput').focus(),100);
-}
-
-function closeGiaoViecModal(){
-  document.getElementById('giaoViecModal').classList.remove('open');
-  _gvTaskRef=null;
-}
 
 
-function updateGvStatus(id, status){
-  const g = giaoViecList.find(x=>x.id===id);
-  if(!g) return;
-  if(status==='Hoàn thành'){
-    // Mọi task khi chuyển Hoàn thành → Chờ nghiệm thu (cần xác nhận nghiệm thu)
-    g.status='Chờ nghiệm thu';
-    g.completedAt=todayVN();
-    saveAppData();
-    renderGiaoViec();
-    toast(`🔔 "${g.taskName}" — đang chờ nghiệm thu`,'#27ae60');
-  } else {
-    g.status = status;
-    saveAppData();
-    renderGiaoViec();
-    toast(`✓ Cập nhật trạng thái: ${status}`);
-  }
-}
+
+
+
+
 
 function confirmNghiemThu(id){
   const g = giaoViecList.find(x=>x.id===id);
@@ -7199,151 +6602,16 @@ function confirmNghiemThu(id){
   toast('✅ Đã nghiệm thu: '+g.taskName);
 }
 
-function renderGvDoneSection(){
-  const sec = document.getElementById('gvDoneSection');
-  const doneList = document.getElementById('gvDoneList');
-  const cnt = document.getElementById('gvDoneCount');
-  if(!sec) return;
-
-  const doneItems = giaoViecList.filter(g=>{
-    if(g.status!=='Đã nghiệm thu') return false;
-    if(currentMember==='hai' && g.assignee!=='Hải') return false;
-    return true;
-  }).slice().sort((a,b)=>(b.acceptedAt||'').localeCompare(a.acceptedAt||''));
-
-  if(!doneItems.length){ sec.style.display='none'; return; }
-  sec.style.display='block';
-  cnt.textContent=doneItems.length;
-
-  const isOpen=(localStorage.getItem('gv_done_open')||'0')==='1';
-  const chevron=document.getElementById('gvDoneChevron');
-  if(chevron) chevron.textContent=isOpen?'▲':'▼';
-  doneList.style.display=isOpen?'flex':'none';
-
-  // Bulk select
-  const selIds = new Set();
-  doneList.innerHTML = doneItems.map(g=>`
-    <div class="gv-card" style="opacity:.85;border-left:3px solid #27ae60">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <input type="checkbox" class="gv-done-chk" data-id="${g.id}" onchange="updateGvDoneBulk()"
-          style="width:16px;height:16px;cursor:pointer;accent-color:var(--red);flex-shrink:0">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600">${g.taskName}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
-            👤 ${g.assignee}
-            ${g.assigner?` · Giao bởi: ${g.assigner}`:''}
-            ${g.acceptedAt?` · Nghiệm thu: ${fmtDate(g.acceptedAt)}`:''}
-          </div>
-        </div>
-        ${currentMember!=='hai'?`<button onclick="restoreGvDone(${g.id})" title="Khôi phục về Chờ làm"
-          style="background:none;border:1px solid #b8d4ea;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px;color:#2980b9">↩ Khôi phục</button>
-        <button onclick="deleteGvDone(${g.id})" title="Xoá"
-          style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--text-muted);opacity:.5"
-          onmouseover="this.style.opacity=1;this.style.color='#e74c3c'" onmouseout="this.style.opacity=.5;this.style.color='var(--text-muted)'">🗑</button>`:''}
-      </div>
-    </div>`).join('');
-
-  // Bulk bar
-  const bar = document.getElementById('gvDoneBulkBar');
-  if(bar) bar.style.display='none';
-}
-
-function toggleGvDoneSection(){
-  const cur=(localStorage.getItem('gv_done_open')||'0')==='1';
-  localStorage.setItem('gv_done_open', cur?'0':'1');
-  renderGvDoneSection();
-}
-
-function updateGvDoneBulk(){
-  const chks=[...document.querySelectorAll('.gv-done-chk:checked')];
-  const bar=document.getElementById('gvDoneBulkBar');
-  const cnt=document.getElementById('gvDoneBulkCount');
-  if(bar){ bar.style.display=chks.length?'flex':'none'; }
-  if(cnt) cnt.textContent=chks.length+' đã chọn';
-}
-
-function bulkDeleteGvDone(){
-  const ids=[...document.querySelectorAll('.gv-done-chk:checked')].map(c=>parseInt(c.dataset.id));
-  if(!ids.length) return;
-  if(!confirm('Xoá '+ids.length+' task đã nghiệm thu?')) return;
-  giaoViecList=giaoViecList.filter(g=>!ids.includes(g.id));
-  saveAppData(); renderGiaoViec(); toast('Đã xoá '+ids.length+' task.');
-}
-
-function restoreGvDone(id){
-  const g=giaoViecList.find(x=>x.id===id);
-  if(!g) return;
-  g.status='Chờ làm';
-  delete g.acceptedAt; delete g.completedAt;
-  saveAppData(); renderGiaoViec();
-  toast('↩ Đã khôi phục: '+g.taskName);
-}
-
-function deleteGvDone(id){
-  const g=giaoViecList.find(x=>x.id===id);
-  if(!g||!confirm('Xoá "'+g.taskName+'"?')) return;
-  giaoViecList=giaoViecList.filter(x=>x.id!==id);
-  saveAppData(); renderGiaoViec(); toast('Đã xoá.');
-}
-
-function recallGiaoViec(id){
-  try{
-  const g = giaoViecList.find(x=>x.id===id);
-  if(!g){ toast('Không tìm thấy task id='+id,'#e74c3c'); return; }
-  if(!confirm(`Thu hồi "${g.taskName}"?\nTask sẽ trở về tab "Task của tôi".`)) return;
-  // Person: giao lại cho người thu hồi (Hiếu/admin), không phải Hải
-  const recallPerson = currentMember==='hieu' ? 'Hiếu' : currentMember==='admin' ? (g.taskPerson==='Hải'?'Hiếu':g.taskPerson||'') : g.taskPerson||'';
-  const restored = {
-    id: taskNextId++,
-    name: g.taskName,
-    type: g.taskType||'Khác',
-    desc: g.taskDesc||'',
-    deadline: g.taskDeadline||'',
-    priority: g.taskPriority||'Bình thường',
-    person: recallPerson,
-    team: g.taskTeam||'Team 01',
-    from: g.taskFrom||todayVN(),
-    cols: g.taskCols||null,
-    cards: g.taskCards||[],
-  };
-  // Also normalize taskCols from giaoViec if it's an object
-  if(restored.cols && !Array.isArray(restored.cols) && typeof restored.cols === 'object'){
-    const e = Object.entries(restored.cols).sort((a,b)=>parseInt(a[0])-parseInt(b[0]));
-    restored.cols = e.map(x=>x[1]);
-  }
-  if(restored.cards && !Array.isArray(restored.cards) && typeof restored.cards === 'object'){
-    const e = Object.entries(restored.cards).sort((a,b)=>parseInt(a[0])-parseInt(b[0]));
-    restored.cards = e.map(x=>x[1]);
-  }
-  normalizeTaskCards(restored);
-  tasks.push(restored);
-  giaoViecList = giaoViecList.filter(x=>x.id!==id);
-  saveAppData();
-  renderGiaoViec();
-  renderTasksOverview();
-  switchTasksTab('mytasks');
-  toast('↩ Đã thu hồi: '+g.taskName);
-  }catch(e){ toast('Lỗi thu hồi: '+e.message,'#e74c3c'); console.error(e); }
-}
 
 
-function gvAssigneeSearch(){
-  const q = (document.getElementById('gvAssigneeInput')?.value||'').toLowerCase();
-  const drop = document.getElementById('gvAssigneeDropdown');
-  if(!drop) return;
-  const filtered = assignees.filter(a=>a.toLowerCase().includes(q));
-  if(!filtered.length||!q){ drop.style.display='none'; return; }
-  drop.innerHTML = filtered.map(a=>`<div class="search-item" onclick="gvSelectAssignee('${a.replace(/'/g,"\\'")}')"
-    style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gray-border)">👤 ${a}</div>`).join('');
-  drop.style.display='block';
-}
 
-function gvSelectAssignee(name){
-  const inp = document.getElementById('gvAssigneeInput');
-  if(inp) inp.value=name;
-  const drop = document.getElementById('gvAssigneeDropdown');
-  if(drop) drop.style.display='none';
-}
+
+
+
+
+
+// Assignee search dropdown
+
 
 // Close dropdown on outside click
 document.addEventListener('click',e=>{ if(!e.target.closest('#giaoViecModal')) { const d=document.getElementById('gvAssigneeDropdown'); if(d) d.style.display='none'; } });
@@ -7387,8 +6655,7 @@ function renameAssignee(i, newName){
   if(!newName){ renderAssigneeList(); return; }
   const old = assignees[i];
   assignees[i] = newName;
-  // Update in giaoViecList too
-  giaoViecList.forEach(g=>{ if(g.assignee===old) g.assignee=newName; });
+  
   saveAppData();
   renderAssigneeList();
 }
@@ -8261,7 +7528,7 @@ function autoBackupDaily(){
       hai: data.hai,
       hieu: data.hieu,
       tasks: tasks,
-      giaoViecList: giaoViecList,
+      
       indexTasks: indexTasks,
       websites: websites,
       links: links,
@@ -8287,7 +7554,7 @@ function restoreFromBackup(dateKey){
     if(Array.isArray(s.hai))  data.hai  = s.hai;
     if(Array.isArray(s.hieu)) data.hieu = s.hieu;
     if(Array.isArray(s.tasks)) tasks = s.tasks;
-    if(Array.isArray(s.giaoViecList)) giaoViecList = s.giaoViecList;
+    
     if(Array.isArray(s.indexTasks))   indexTasks   = s.indexTasks;
     if(Array.isArray(s.websites))     websites     = s.websites;
     if(Array.isArray(s.links))        links        = s.links;
@@ -8304,7 +7571,7 @@ function openBackupModal(){
   const overlay = document.createElement('div');
   overlay.id = 'backupOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);min-width:400px;max-width:500px">
+  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);min-width:400px;max-width:500px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div style="font-weight:700;font-size:15px">🗃️ Backup tự động (7 ngày gần nhất)</div>
       <button onclick="document.getElementById('backupOverlay').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted)">&times;</button>
@@ -8385,7 +7652,7 @@ function restoreSubTab(savedSubPage) {
   if (!savedSubPage) return;
   const activePage = localStorage.getItem('wt_activePage');
   if (activePage === 'tasks') {
-    if (savedSubPage === 'mytasks' || savedSubPage === 'giaoviec') {
+    if (savedSubPage === 'mytasks' ) {
       switchTasksTab(savedSubPage);
     }
   } else if (activePage === 'links') {
@@ -8908,7 +8175,7 @@ function bulkNghiemThu(sheet){
   const overlay = document.createElement('div');
   overlay.id='bulkNtOverlay';
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML=`<div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);min-width:380px;max-width:480px">
+  overlay.innerHTML=`<div class="modal" style="border-radius:12px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);min-width:380px;max-width:480px">
     <div style="font-weight:700;font-size:15px;margin-bottom:16px">🎯 Nghiệm thu cho ${ids.size} bài</div>
     <div id="bulkNtBtns" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">${btns}</div>
     <div id="bulkNtReasonWrap" style="display:none;margin-top:16px">
@@ -9065,19 +8332,28 @@ function updateNavBadges() {
   if (badgeRecur) {
     let doneIds = new Set();
     try { doneIds = new Set(getRecurDoneToday().map(d => d.taskId)); } catch(e) {}
-    const activeRecurs = (recurringTasks || []).filter(t => !doneIds.has(t.id)).length;
+    const today = todayVN();
+    // Only count recurring tasks that are due or overdue today and not completed today
+    const activeRecurs = (recurringTasks || []).filter(t => {
+      const isDue = t.nextDate && t.nextDate <= today;
+      return isDue && !doneIds.has(t.id);
+    }).length;
     badgeRecur.textContent = activeRecurs || '';
     badgeRecur.style.display = activeRecurs ? 'inline-block' : 'none';
   }
   const badgeTasks = document.getElementById('navBadgeTasks');
   if (badgeTasks) {
-    const activeTasksCount = (tasks || []).length;
+    // Only count active (unfinished) tasks
+    const activeTasksCount = (tasks || []).filter(t => {
+      const isDone = calcProjectProgress(t) >= 100 || calcTaskAutoStatus(t) === 'Hoàn thành';
+      return !isDone;
+    }).length;
     badgeTasks.textContent = activeTasksCount || '';
     badgeTasks.style.display = activeTasksCount ? 'inline-block' : 'none';
   }
   const badgeGv = document.getElementById('gvBadge');
   if (badgeGv) {
-    const activeGv = (giaoViecList || []).filter(g => g.status !== 'Done' && g.status !== 'Đã Duyệt').length;
+    const activeGv = 0;
     badgeGv.textContent = activeGv || '';
     badgeGv.style.display = activeGv ? 'inline-block' : 'none';
   }
@@ -9524,97 +8800,1347 @@ function triggerFlow(siteUrl) {
   window.open(targetUrl, '_blank', 'noopener,noreferrer');
 }
 
-// =========================================================================
-// [V99 PATCH] HÀM TỰ ĐỘNG DI CƯ BẤT ĐỒNG BỘ THÔNG MINH (AUTO SELF-HEALING)
-// =========================================================================
-function autoCheckAndMigrateV99() {
-  const list = websites || [];
-  if (list.length === 0) return; // Đợi khi có dữ liệu thật từ Firebase mới chạy
+// ==========================================
+// TÍNH NĂNG IMPORT WEBSITE (KHÔI PHỤC & TỐI ƯU)
+// ==========================================
+let _wsImpMode = 'normal';
 
-  // BIỆN PHÁP CỨU HỘ V99.1: Kiểm tra xem có website nào mang nhãn M7 nhưng đang nằm sai ở Team 01 hay không
-  const hasMisplacedM7 = list.some(site => (site.group === 'M7' || site.nhom_con === 'M7' || site.nhom === 'M7') && site.team !== 'Team 02');
+function openWsImportModal(){
+  const modal = document.getElementById('wsImportModal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  
+  const textInput = document.getElementById('wsImportText');
+  if(textInput) textInput.value = '';
+  
+  const preview = document.getElementById('wsImportPreview');
+  if(preview) {
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+  }
+  
+  const fileLabel = document.getElementById('wsImportFileName');
+  if(fileLabel) fileLabel.textContent = '';
+  
+  const fileInput = document.getElementById('wsImportFile');
+  if(fileInput) fileInput.value = '';
+}
 
-  // Kiểm tra xem database thực tế có thực sự chứa vết tích tiền sử cần di cư không
-  const needsWebMigration = hasMisplacedM7 || list.some(site => site.owner && site.owner !== 'Công ty' && site.owner !== 'Admin');
-  const needsTaskMigration = Array.isArray(tasks) && tasks.some(t => t.person === 'Hải' || t.person === 'Hiếu' || t.person === 'Cá nhân' || !t.person || t.person === 'Chung');
-  const needsGvMigration = Array.isArray(giaoViecList) && giaoViecList.some(g => g.assignee === 'Hải' || g.assignee === 'Hiếu' || g.assignee === 'Cá nhân' || !g.assignee);
+function closeWsImportModal(){
+  const modal = document.getElementById('wsImportModal');
+  if(modal) modal.style.display = 'none';
+}
 
-  if (!needsWebMigration && !needsTaskMigration && !needsGvMigration) {
-    console.log("[V99.1 Auto-Migration] Dữ liệu đã sạch sẽ và nằm đúng Team, không cần di cư.");
-    return;
+function wsImpSwitchTab(mode){
+  _wsImpMode = mode;
+  const tabN = document.getElementById('wsImpTabNormal');
+  const tab3 = document.getElementById('wsImpTab301');
+  const panN = document.getElementById('wsImpPanelNormal');
+  const pan3 = document.getElementById('wsImpPanel301');
+  const btnN = document.getElementById('wsImportRunBtn');
+  const btn3 = document.getElementById('wsImport301RunBtn');
+  
+  if(!tabN || !tab3 || !panN || !pan3 || !btnN || !btn3) return;
+
+  if(mode === '301'){
+    tab3.style.borderBottomColor = '#6c5ce7';
+    tab3.style.color = '#a29bfe';
+    tab3.style.fontWeight = '600';
+    
+    tabN.style.borderBottomColor = 'transparent';
+    tabN.style.color = 'var(--text-muted)';
+    tabN.style.fontWeight = '500';
+    
+    panN.style.display = 'none';
+    pan3.style.display = 'block';
+    
+    btnN.style.display = 'none';
+    btn3.style.display = 'inline-flex';
+  } else {
+    tabN.style.borderBottomColor = 'var(--red)';
+    tabN.style.color = 'var(--red)';
+    tabN.style.fontWeight = '600';
+    
+    tab3.style.borderBottomColor = 'transparent';
+    tab3.style.color = 'var(--text-muted)';
+    tab3.style.fontWeight = '500';
+    
+    panN.style.display = 'block';
+    pan3.style.display = 'none';
+    
+    btnN.style.display = 'inline-flex';
+    btn3.style.display = 'none';
+  }
+  
+  const preview = document.getElementById('wsImportPreview');
+  if(preview) preview.style.display = 'none';
+}
+
+function wsImportReadFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  
+  const fileLabel = document.getElementById('wsImportFileName');
+  if(fileLabel) fileLabel.textContent = file.name;
+  
+  const reader = new FileReader();
+  reader.onload = e => {
+    const textInput = document.getElementById('wsImportText');
+    if(textInput) {
+      textInput.value = e.target.result;
+      wsImportPreview();
+    }
+  };
+  reader.readAsText(file);
+}
+
+function wsImportParseLines(){
+  const textInput = document.getElementById('wsImportText');
+  const raw = textInput ? textInput.value.trim() : '';
+  if(!raw) return [];
+  
+  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l);
+  
+  const teamEl = document.getElementById('wsImportTeam');
+  const ownerEl = document.getElementById('wsImportOwner');
+  const statusEl = document.getElementById('wsImportStatus');
+  
+  const team = teamEl ? teamEl.value : 'Team 01';
+  const owner = ownerEl ? ownerEl.value : 'Công ty';
+  const status = statusEl ? statusEl.value : 'Tốt';
+  
+  return lines.map(line=>{
+    const sep = line.includes('|') ? '|' : ',';
+    const parts = line.split(sep).map(p=>p.trim());
+    if(parts.length >= 2){
+      const brandRaw = parts[0] || '';
+      const urlRaw = parts[1] || '';
+      const urlFull = normalizeUrl(urlRaw || brandRaw);
+      const url = urlFull.split('/')[0];
+      const brand = brandRaw || url.split('.')[0];
+      
+      let teamRaw = parts[6] || team;
+      if (teamRaw === 'Chaewon') teamRaw = 'Team 01';
+      if (teamRaw === 'M7') teamRaw = 'Team 02';
+      
+      let ownerRaw = parts[7] || owner;
+      if (ownerRaw === 'Hải' || ownerRaw === 'Hiếu') ownerRaw = 'admin';
+      
+      return {
+        brand,
+        url,
+        admin: normalizeAdmin(parts[2] || ''),
+        account: parts[3] || '',
+        password: parts[4] || '',
+        status: parts[5] || status,
+        team: teamRaw,
+        owner: ownerRaw,
+        group: parts[8] || '',
+        note: parts[9] || ''
+      };
+    } else {
+      const urlRaw = parts[0];
+      const url = normalizeUrl(urlRaw);
+      const domain = url.split('/')[0];
+      let brand = domain.replace(/^www\./, '').split('.')[0];
+      brand = brand.charAt(0).toUpperCase() + brand.slice(1);
+      
+      let teamRaw = team;
+      if (teamRaw === 'Chaewon') teamRaw = 'Team 01';
+      if (teamRaw === 'M7') teamRaw = 'Team 02';
+      
+      let ownerRaw = owner;
+      if (ownerRaw === 'Hải' || ownerRaw === 'Hiếu') ownerRaw = 'admin';
+      
+      return { brand, url, admin:'', account:'', password:'', status, team: teamRaw, owner: ownerRaw, group:'', note:'' };
+    }
+  });
+}
+
+function wsImportPreview(){
+  const items = wsImportParseLines();
+  const el = document.getElementById('wsImportPreview');
+  if(!el) return;
+  if(!items.length){ el.style.display = 'none'; return; }
+  
+  el.style.display = 'block';
+  el.innerHTML = '<div style="font-weight:600;margin-bottom:6px;color:#f0f6fc">Đang tải cấu trúc dữ liệu (' + items.length + ' website):</div>'
+    + items.map(w=>`<div style="padding:4px 0;border-bottom:1px solid #30363d;display:flex;justify-content:space-between"><span style="font-weight:500;color:#c9d1d9">${w.brand}</span><span style="color:var(--blue)">${w.url}</span></div>`).join('');
+}
+
+// Bổ sung sự kiện cập nhật preview khi gõ text
+document.addEventListener('DOMContentLoaded', () => {
+  const wsText = document.getElementById('wsImportText');
+  if (wsText) {
+    wsText.addEventListener('input', wsImportPreview);
+  }
+});
+
+function wsImportRun(){
+  const items = wsImportParseLines();
+  if(!items.length){ toast('Không có dữ liệu để import!','#e74c3c'); return; }
+
+  const toAdd = [];
+  const toDup = [];
+  
+  items.forEach(w=>{
+    if(!w.url && !w.brand) return;
+    const dup = websites.find(x=>
+      w.url && x.url && x.url.replace(/\/$/,'') === w.url.replace(/\/$/,'')
+    );
+    if(dup) toDup.push({item:w, dup});
+    else toAdd.push(w);
+  });
+
+  let replaceAll = false;
+  if(toDup.length){
+    const names = toDup.map(d=>'• '+d.dup.brand+' ('+d.dup.url+')').join('\n');
+    const msg = toDup.length + ' website đã tồn tại trong hệ thống:\n' + names + '\n\nBấm OK để thay thế dữ liệu trùng lặp\nBấm Cancel để bỏ qua website trùng lặp.';
+    replaceAll = confirm(msg);
   }
 
-  let webCount = 0;
-  let taskCount = 0;
-  let gvCount = 0;
-
-  // 1. Gột rửa Website & Quy đổi hệ trục Team chuẩn (Team 01 = Chaewon, Team 02 = M7)
-  list.forEach(site => {
-    // Ép team chuẩn dựa trên dữ liệu tag nhóm con thực tế của bạn
-    if (site.group === 'M7' || site.nhom_con === 'M7' || site.nhom === 'M7') {
-      if (site.team !== 'Team 02') { site.team = 'Team 02'; webCount++; }
-    } else {
-      if (site.team !== 'Team 01') { site.team = 'Team 01'; webCount++; }
-    }
-    
-    // Gộp owner mồ côi về Admin tối cao
-    if (site.owner && site.owner !== 'Công ty' && site.owner !== 'Admin') {
-      site.owner = 'Admin';
-      webCount++;
+  let added = 0, replaced = 0, skipped = 0;
+  toAdd.forEach(w=>{ 
+    websites.push({...w, id: wsNextId++}); 
+    added++; 
+  });
+  
+  toDup.forEach(({item:w, dup})=>{
+    if(replaceAll){
+      const i = websites.findIndex(x=>x.id === dup.id);
+      if(i >= 0){ 
+        websites[i] = {...w, id: dup.id}; 
+        replaced++; 
+      }
+    } else { 
+      skipped++; 
     }
   });
 
-  // 2. Gột rửa bảng Task (Tên cũ về Admin, Trống/Chung về Công ty)
-  if (Array.isArray(tasks)) {
-    tasks.forEach(t => {
-      if (t.person === 'Hải' || t.person === 'Hiếu' || t.person === 'Cá nhân') {
-        t.person = 'Admin';
-        taskCount++;
-      } else if (!t.person || t.person === 'Chung') {
-        t.person = 'Công ty';
-        taskCount++;
-      }
-    });
-  }
-
-  // 3. Gột rửa bảng Giao việc
-  if (Array.isArray(giaoViecList)) {
-    giaoViecList.forEach(g => {
-      if (g.assignee === 'Hải' || g.assignee === 'Hiếu' || g.assignee === 'Cá nhân') {
-        g.assignee = 'Admin';
-        gvCount++;
-      } else if (!g.assignee) {
-        g.assignee = 'Công ty';
-        gvCount++;
-      }
-    });
-  }
-
-  // Khai tử dữ liệu cũ trên biến toàn cục
-  if (typeof data !== 'undefined') data = { hai: [], hieu: [] };
-  if (typeof _salaryRates !== 'undefined') _salaryRates = { hai: {}, hieu: {} };
-  if (typeof _salaryConfig !== 'undefined') _salaryConfig = { hai: { chiPhi: [], phuCap: [] }, hieu: { chiPhi: [], phuCap: [] } };
-
-  // Xóa sạch bộ nhớ LocalStorage của máy khách
-  localStorage.removeItem('wt_salary_rates');
-  localStorage.removeItem('wt_salary_config');
-  localStorage.removeItem('wt_finance_history');
-
-  // Ghi đè bộ nhớ đệm cục bộ
-  localStorage.setItem('wt_websites', JSON.stringify(websites));
-  localStorage.setItem('wt_tasks', JSON.stringify(tasks));
-  localStorage.setItem('wt_giaoviec', JSON.stringify(giaoViecList));
-
-  // Gọi hàm đồng bộ lên đám mây Firebase Realtime Database của hệ thống
-  if (typeof saveAppData === 'function') {
-    saveAppData(); 
-  }
-
-  console.log(`[V99.1 Auto-Migration Success] Di cư thành công: ${webCount} website, ${taskCount} task, ${gvCount} giao việc.`);
+  saveAppData(); 
+  renderWebsites(); 
+  autoFillAnchors(); 
+  updateWsIcons();
+  closeWsImportModal();
   
-  // Ép giao diện vẽ lại danh sách sạch hoàn chỉnh
-  if (typeof renderWebsites === 'function') {
-    renderWebsites();
+  let msg = '✓ Nhập dữ liệu hoàn tất: ' + added + ' thêm mới';
+  if(replaced) msg += ', ' + replaced + ' cập nhật';
+  if(skipped) msg += ', ' + skipped + ' bỏ qua';
+  toast(msg);
+}
+
+function wsImport301Run(){
+  const rawSource = document.getElementById('wsImport301Source')?.value.trim();
+  const rawTarget = document.getElementById('wsImport301Target')?.value.trim();
+  
+  if(!rawSource || !rawTarget){ toast('Vui lòng dán URL vào cả 2 cột!','#e74c3c'); return; }
+  
+  const sourceLines = rawSource.split('\n').map(l=>l.trim()).filter(l=>l);
+  const targetLines = rawTarget.split('\n').map(l=>l.trim()).filter(l=>l);
+  
+  if(sourceLines.length !== targetLines.length){
+    toast('Số lượng dòng của 2 cột không khớp nhau! Gốc: '+sourceLines.length+', Target: '+targetLines.length,'#e74c3c');
+    return;
   }
+  
+  const teamSelectVal = document.getElementById('wsImportTeam')?.value || 'Team 01';
+  const ownerSelectVal = document.getElementById('wsImportOwner')?.value || 'Công ty';
+  const status = document.getElementById('wsImportStatus')?.value || 'Tốt';
+  
+  let team = teamSelectVal;
+  if (team === 'Chaewon') team = 'Team 01';
+  if (team === 'M7') team = 'Team 02';
+  
+  let owner = ownerSelectVal;
+  if (owner === 'Hải' || owner === 'Hiếu') owner = 'admin';
+
+  let added = 0, skipped = 0, notFound = [];
+  
+  for(let i = 0; i < sourceLines.length; i++){
+    const sourceUrlRaw = normalizeUrl(sourceLines[i]);
+    const newUrlRaw = normalizeUrl(targetLines[i]);
+    const sourceDomain = sourceUrlRaw.split('/')[0];
+    const newDomain = newUrlRaw.split('/')[0];
+
+    const dupCheck = websites.find(x=> x.url && x.url.replace(/\/$/,'') === newDomain.replace(/\/$/,''));
+    if(dupCheck){ skipped++; continue; }
+
+    const source = websites.find(x=> x.url && (
+      x.url.replace(/\/$/,'') === sourceDomain.replace(/\/$/,'') ||
+      x.url.replace(/\/$/,'') === sourceUrlRaw.replace(/\/$/,'')
+    ));
+
+    let newBrand = newDomain.replace(/^www\./, '').split('.')[0];
+    newBrand = newBrand.charAt(0).toUpperCase() + newBrand.slice(1);
+
+    const entry = {
+      id: wsNextId++,
+      brand: source ? source.brand : newBrand,
+      url: newDomain,
+      admin: source ? (source.admin||'') : '',
+      account: source ? (source.account||'') : '',
+      password: source ? (source.password||'') : '',
+      status: status,
+      team: source ? (source.team||team) : team,
+      owner: source ? (source.owner||owner) : owner,
+      group: source ? (source.group||'') : '',
+      note: '301 từ ' + sourceDomain,
+      is301: true,
+      sourceUrl: sourceDomain
+    };
+
+    websites.push(entry);
+    added++;
+    if(!source) notFound.push(sourceDomain);
+  }
+
+  saveAppData(); 
+  renderWebsites(); 
+  autoFillAnchors(); 
+  updateWsIcons();
+  closeWsImportModal();
+
+  let msg = '✓ Nhập 301 hoàn tất: ' + added + ' website 301 được thêm';
+  if(skipped) msg += ', ' + skipped + ' bỏ qua (đã tồn tại)';
+  if(notFound.length) msg += '. ⚠ ' + notFound.length + ' website gốc không khớp dữ liệu trong kho';
+  toast(msg);
+}
+
+
+// =====================================================================
+// GOOGLE SEARCH CONSOLE CONTROLLER (Bulletproof Spec v5.0)
+// =====================================================================
+let _gscCache = {};
+let _gscActiveSiteId = null;
+let _gscActiveTab = 'perf'; // 'perf' | 'queries' | 'pages'
+let _gscChartInstance = null;
+
+// Normalize URL helper
+function wstNormalizeUrl(v) {
+  let url = (v || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  url = url.replace(/^sc-domain:/i, '');
+  return url.toLowerCase();
+}
+
+// Trace redirect chain backward (C -> B -> A)
+function getWstRedirectChainBackward(site, depth = 0, visited = new Set()) {
+  if (depth > 5 || !site || visited.has(site.id)) return [];
+  visited.add(site.id);
+  const chain = [site];
+  
+  if (site.is301 && site.sourceUrl) {
+    const parentNorm = wstNormalizeUrl(site.sourceUrl);
+    const parent = websites.find(w => {
+      if (w.id === site.id) return false;
+      return wstNormalizeUrl(w.url) === parentNorm;
+    });
+    if (parent) {
+      chain.push(...getWstRedirectChainBackward(parent, depth + 1, visited));
+    }
+  }
+  return chain;
+}
+
+// Sanitize websites to strip raw passwords
+function sanitizeWebsitesForApi(rawWebsites) {
+  if (!Array.isArray(rawWebsites)) return [];
+  return rawWebsites.map(w => ({
+    id: w.id,
+    url: w.url,
+    brand: w.brand,
+    is301: !!w.is301,
+    sourceUrl: w.sourceUrl || '',
+    gscPropertyUrl: w.gscPropertyUrl || ''
+  }));
+}
+
+// Load GSC Cache from Firebase RTDB
+async function loadGscCache() {
+  try {
+    const res = await fetch('https://haihieu-tracker-default-rtdb.asia-southeast1.firebasedatabase.app/gsc_cache.json');
+    if (res.ok) {
+      _gscCache = await res.json() || {};
+      renderWsTrack();
+    }
+  } catch (err) {
+    console.error('Failed to load GSC Cache:', err);
+  }
+}
+
+// Open GSC Detail Modal
+async function wstOpenGscModal(siteId) {
+  _gscActiveSiteId = siteId;
+  const site = websites.find(w => w.id === siteId);
+  if (!site) return;
+  
+  const modal = document.getElementById('wstGscDetailModal');
+  if (modal) modal.style.display = 'flex';
+  
+  // Header text
+  document.getElementById('gscModalTitle').innerText = `${site.brand} Analytics (Google Search Console)`;
+  
+  const redirectChain = getWstRedirectChainBackward(site);
+  let chainText = `Chuỗi chuyển hướng: ${redirectChain.map(s => s.brand).join(' ➜ ')}`;
+  document.getElementById('gscModalSubtitle').innerText = chainText;
+  
+  _gscActiveTab = 'perf';
+  document.getElementById('gscDateRange').value = '28d';
+  
+  wstSwitchGscTab('perf');
+  wstLoadGscDetailData();
+}
+
+// Close Modal
+function wstCloseGscModal() {
+  const modal = document.getElementById('wstGscDetailModal');
+  if (modal) modal.style.display = 'none';
+  _gscActiveSiteId = null;
+  if (_gscChartInstance) {
+    _gscChartInstance.destroy();
+    _gscChartInstance = null;
+  }
+}
+
+// Switch Tabs
+function wstSwitchGscTab(tab) {
+  _gscActiveTab = tab;
+  
+  ['perf', 'queries', 'pages'].forEach(t => {
+    const btn = document.getElementById(`gscTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    if (btn) {
+      if (t === tab) {
+        btn.style.background = '#21262d';
+        btn.style.color = '#fff';
+      } else {
+        btn.style.background = 'transparent';
+        btn.style.color = '#8b949e';
+      }
+    }
+  });
+  
+  const panels = {
+    perf: document.getElementById('gscPanelPerf'),
+    queries: document.getElementById('gscPanelQueries'),
+    pages: document.getElementById('gscPanelPages')
+  };
+  
+  Object.keys(panels).forEach(p => {
+    if (panels[p]) panels[p].style.display = (p === tab) ? 'block' : 'none';
+  });
+}
+
+// Trigger load on date range change
+function wstChangeGscRange() {
+  wstLoadGscDetailData();
+}
+
+// Fetch details from GSC API via Backend Proxy
+async function wstLoadGscDetailData() {
+  if (!_gscActiveSiteId) return;
+  const site = websites.find(w => w.id === _gscActiveSiteId);
+  if (!site) return;
+  
+  const range = document.getElementById('gscDateRange').value;
+  
+  // Show loading indicator
+  document.getElementById('gscChartLoading').style.display = 'flex';
+  
+  const host = 'https://api.nthieucloud.shop'; // VPS API endpoint
+  try {
+    const perfRes = await fetch(`${host}/api/gsc/performance-history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        siteId: _gscActiveSiteId,
+        websites: sanitizeWebsitesForApi(websites)
+      })
+    });
+    
+    if (perfRes.ok) {
+      const data = await perfRes.json();
+      const history = data.performanceHistory || [];
+      
+      // Calculate summary stats
+      let clicks = 0;
+      let imps = 0;
+      let totalPos = 0;
+      
+      let dateLimit = new Date();
+      if (range === '7d') dateLimit.setDate(dateLimit.getDate() - 7);
+      else if (range === '28d') dateLimit.setDate(dateLimit.getDate() - 28);
+      else dateLimit.setDate(dateLimit.getDate() - 90);
+      const limitStr = dateLimit.toISOString().split('T')[0];
+      
+      const filteredHist = history.filter(h => h.date >= limitStr);
+      filteredHist.forEach(h => {
+        clicks += h.clicks || 0;
+        imps += h.impressions || 0;
+        totalPos += (h.position || 0) * (h.impressions || 0);
+      });
+      
+      const ctr = imps > 0 ? (clicks / imps) * 100 : 0;
+      const avgPos = imps > 0 ? (totalPos / imps) : 0;
+      
+      document.getElementById('gscSumClicks').innerText = clicks.toLocaleString();
+      document.getElementById('gscSumImpressions').innerText = imps.toLocaleString();
+      document.getElementById('gscSumCtr').innerText = ctr.toFixed(1) + '%';
+      document.getElementById('gscSumPosition').innerText = avgPos > 0 ? avgPos.toFixed(1) : '—';
+      
+      wstDrawGscChart(filteredHist);
+      document.getElementById('gscChartLoading').style.display = 'none';
+    }
+  } catch (err) {
+    console.error('Error loading GSC performance history:', err);
+  }
+  
+  // Fetch Top Queries and Pages dynamically
+  const queriesTbody = document.getElementById('gscQueriesTbody');
+  const pagesTbody = document.getElementById('gscPagesTbody');
+  
+  if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">⏳ Đang tải cụm từ tìm kiếm...</td></tr>';
+  if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">⏳ Đang tải danh sách trang...</td></tr>';
+  
+  let finalGscUrl = site.gscPropertyUrl || site.url;
+  if (!finalGscUrl) {
+    if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Chưa cấu hình GSC Property URL cho web này!</td></tr>';
+    if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Chưa cấu hình GSC Property URL cho web này!</td></tr>';
+    return;
+  }
+  
+  try {
+    const qRes = await fetch(`${host}/api/gsc/queries-and-pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gscPropertyUrl: finalGscUrl,
+        range: range
+      })
+    });
+    
+    if (qRes.ok) {
+      const data = await qRes.json();
+      
+      // Queries Table
+      const queries = data.queries || [];
+      if (queries.length === 0) {
+        if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Không tìm thấy dữ liệu từ khóa.</td></tr>';
+      } else {
+        if (queriesTbody) {
+          queriesTbody.innerHTML = queries.map(q => `
+            <tr style="border-bottom: 1px solid #30363d; height: 38px;">
+              <td style="padding: 8px 16px; color: #c9d1d9; font-weight: 500;">${q.query}</td>
+              <td style="padding: 8px 16px; text-align: right; color: #58a6ff; font-weight: 600;">${q.clicks.toLocaleString()}</td>
+              <td style="padding: 8px 16px; text-align: right; color: #8b949e;">${q.impressions.toLocaleString()}</td>
+              <td style="padding: 8px 16px; text-align: right; color: #f2a154;">${(q.ctr * 100).toFixed(1)}%</td>
+              <td style="padding: 8px 16px; text-align: right; color: #bc8cff; font-weight: 600;">${q.position.toFixed(1)}</td>
+            </tr>
+          `).join('');
+        }
+      }
+      
+      // Pages Table (with home page pinned)
+      const pages = data.pages || [];
+      if (pages.length === 0) {
+        if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Không tìm thấy dữ liệu trang.</td></tr>';
+      } else {
+        if (pagesTbody) {
+          pagesTbody.innerHTML = pages.map(p => {
+            const isHome = p.page === '/';
+            return `
+              <tr style="border-bottom: 1px solid #30363d; height: 38px; ${isHome ? 'background: rgba(88,166,255,0.06); font-weight: 600;' : ''}">
+                <td style="padding: 8px 16px; color: ${isHome ? '#58a6ff' : '#c9d1d9'}; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${p.fullUrl}">
+                  ${isHome ? '🏠 ' : ''}${p.page}
+                </td>
+                <td style="padding: 8px 16px; text-align: right; color: #58a6ff;">${p.clicks.toLocaleString()}</td>
+                <td style="padding: 8px 16px; text-align: right; color: #8b949e;">${p.impressions.toLocaleString()}</td>
+                <td style="padding: 8px 16px; text-align: right; color: #f2a154;">${(p.ctr * 100).toFixed(1)}%</td>
+                <td style="padding: 8px 16px; text-align: right; color: #bc8cff;">${p.position.toFixed(1)}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+    } else {
+      const errData = await qRes.json();
+      if (queriesTbody) queriesTbody.innerHTML = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi: ${errData.error}</td></tr>`;
+      if (pagesTbody) pagesTbody.innerHTML = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi: ${errData.error}</td></tr>`;
+    }
+  } catch (err) {
+    console.error('Error fetching queries/pages:', err);
+    if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi kết nối VPS.</td></tr>';
+    if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi kết nối VPS.</td></tr>';
+  }
+}
+
+// Sync Now via GSC API
+async function wstSyncGscNow() {
+  if (!_gscActiveSiteId) return;
+  const syncBtn = document.getElementById('gscSyncBtn');
+  if (syncBtn) {
+    syncBtn.disabled = true;
+    syncBtn.innerHTML = '<span>⏳ Đang đồng bộ...</span>';
+  }
+  
+  const host = 'https://api.nthieucloud.shop';
+  try {
+    const res = await fetch(`${host}/api/gsc/sync-now`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        siteId: _gscActiveSiteId,
+        websites: sanitizeWebsitesForApi(websites),
+        force: true
+      })
+    });
+    
+    if (res.ok) {
+      toast('Đồng bộ GSC thành công!', '#27ae60');
+      await loadGscCache();
+      wstLoadGscDetailData();
+    } else {
+      const data = await res.json();
+      toast(`Lỗi đồng bộ: ${data.error || 'Unknown'}`, '#e74c3c');
+    }
+  } catch (err) {
+    console.error('Error triggering GSC sync:', err);
+    toast('Lỗi kết nối VPS!', '#e74c3c');
+  } finally {
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.innerHTML = '<span>🔁 Đồng bộ ngay</span>';
+    }
+  }
+}
+
+// Draw GSC performance chart using Chart.js
+function wstDrawGscChart(history) {
+  const canvasEl = document.getElementById('gscChart');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+  
+  if (_gscChartInstance) {
+    _gscChartInstance.destroy();
+  }
+  
+  const labels = history.map(h => h.date);
+  const clicksData = history.map(h => h.clicks);
+  const impressionsData = history.map(h => h.impressions);
+  
+  _gscChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Clicks',
+          data: clicksData,
+          borderColor: '#58a6ff',
+          backgroundColor: 'rgba(88,166,255,0.1)',
+          yAxisID: 'yClicks',
+          borderWidth: 2.5,
+          tension: 0.3,
+          pointRadius: 3
+        },
+        {
+          label: 'Impressions',
+          data: impressionsData,
+          borderColor: '#3fb950',
+          backgroundColor: 'rgba(63,185,80,0.1)',
+          yAxisID: 'yImps',
+          borderWidth: 2.5,
+          tension: 0.3,
+          pointRadius: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          labels: { color: '#c9d1d9', font: { size: 11 } }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#30363d' },
+          ticks: { color: '#8b949e', font: { size: 10 } }
+        },
+        yClicks: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          grid: { color: '#30363d' },
+          ticks: { color: '#58a6ff', font: { size: 10 } },
+          title: { display: true, text: 'Clicks', color: '#58a6ff' }
+        },
+        yImps: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { color: '#3fb950', font: { size: 10 } },
+          title: { display: true, text: 'Impressions', color: '#3fb950' }
+        }
+      }
+    }
+  });
+}
+
+    if (name === 'wstrack') {
+      loadGscCache();
+    }
+  };
+  
+  // Chạy dọn dẹp task Done cũ khi mở trang
+  setTimeout(wstCleanOldDoneTasks, 2000);
+})();
+
+// ==================== CODES FOR WST PROJECT DASHBOARD ====================
+let _wstActiveSiteId = null;
+let _wstDragCardId = null;
+let _wstPendingCardObj = null;
+
+// Tự động dọn dẹp task đã Done quá 3 ngày
+function wstCleanOldDoneTasks() {
+  if (!Array.isArray(siteTracking)) return;
+  let hasChange = false;
+  const today = new Date();
+  
+  siteTracking.forEach(site => {
+    if (site.kanban && Array.isArray(site.kanban.done)) {
+      const originalLength = site.kanban.done.length;
+      site.kanban.done = site.kanban.done.filter(task => {
+        if (!task.completedAt) return true; // Keep task if no completion date
+        const compDate = new Date(task.completedAt);
+        const diffTime = Math.abs(today - compDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 3; // Chỉ giữ lại các task hoàn thành trong 3 ngày qua
+      });
+      if (site.kanban.done.length !== originalLength) {
+        hasChange = true;
+      }
+    }
+  });
+  
+  if (hasChange) {
+    console.log('[Dashboard clean] Auto removed done tasks older than 3 days.');
+    saveWsTrack();
+  }
+}
+
+// Mở Dashboard cho một website
+function wstOpenDashboard(wsId) {
+  const w = websites.find(x => x.id === wsId);
+  const site = getWstSite(wsId);
+  if (!w || !site) {
+    toast('Không tìm thấy dữ liệu tracking của website!', '#e74c3c');
+    return;
+  }
+  _wstActiveSiteId = wsId;
+
+  // Lấy dữ liệu Google Search Console & Bing mockup
+  const cache = (typeof _gscCache !== 'undefined' ? _gscCache[wsId] : null) || {};
+  const history = cache.performanceHistory || [];
+  let clicksGoogle = 0, impsGoogle = 0, sumCtrGoogle = 0, avgPosGoogle = 0;
+  if (history.length) {
+    let totalWeighted = 0;
+    history.forEach(h => {
+      clicksGoogle += h.clicks || 0;
+      impsGoogle += h.impressions || 0;
+      totalWeighted += (h.position || 0) * (h.impressions || 0);
+    });
+    sumCtrGoogle = impsGoogle > 0 ? (clicksGoogle / impsGoogle) * 100 : 0;
+    avgPosGoogle = impsGoogle > 0 ? (totalWeighted / impsGoogle) : 0;
+  }
+
+  // Định nghĩa dữ liệu Mockup cho Bing
+  const clicksBing = Math.floor(clicksGoogle * 0.28);
+  const impsBing = Math.floor(impsGoogle * 0.24);
+  const ctrBing = clicksBing > 0 ? (clicksBing / impsBing) * 100 : 0;
+  const avgPosBing = avgPosGoogle > 0 ? avgPosGoogle * 0.8 : 0;
+
+  // Render khung Modal
+  const modalContainer = document.getElementById('wstDashboardModalContainer');
+  const modalContent = document.getElementById('wstDashboardModal');
+  
+  modalContent.innerHTML = `
+    <!-- HEADER -->
+    <div class="mh" id="wst-h">
+      <div class="mh-icon">🌐</div>
+      <div class="mh-info">
+        <div class="mh-name">${w.brand}</div>
+        <div class="mh-url">${w.url || '—'} · Nhóm: ${w.group || 'Chưa phân nhóm'} · Trạng thái: ${w.status || '—'}</div>
+        <div class="mh-tags">
+          <span class="tag tg">✅ ${w.status || 'Tốt'}</span>
+          <span class="tag tb">📈 Đang theo dõi</span>
+          <span class="tag to">🏆 Vị trí: ${avgPosGoogle > 0 ? avgPosGoogle.toFixed(1) : '—'}</span>
+        </div>
+      </div>
+      <button class="btn-x" onclick="wstCloseDashboard()">×</button>
+    </div>
+
+    <!-- QUICK STATS (Google & Bing Song Song) -->
+    <div class="ms" id="wst-s">
+      <div class="si">
+        <div class="sl">Clicks 28d</div>
+        <div class="sv-group">
+          <div class="sv-item"><span class="sv-num cb">${clicksGoogle.toLocaleString()}</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cbing">${clicksBing.toLocaleString()}</span><span class="sv-source">Bing</span></div>
+        </div>
+      </div>
+      <div class="si">
+        <div class="sl">Impressions</div>
+        <div class="sv-group">
+          <div class="sv-item"><span class="sv-num cg">${impsGoogle >= 1000 ? (impsGoogle/1000).toFixed(1) + 'k' : impsGoogle}</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cbing">${impsBing >= 1000 ? (impsBing/1000).toFixed(1) + 'k' : impsBing}</span><span class="sv-source">Bing</span></div>
+        </div>
+      </div>
+      <div class="si">
+        <div class="sl">CTR</div>
+        <div class="sv-group">
+          <div class="sv-item"><span class="sv-num co">${sumCtrGoogle.toFixed(1)}%</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cbing">${ctrBing.toFixed(1)}%</span><span class="sv-source">Bing</span></div>
+        </div>
+      </div>
+      <div class="si">
+        <div class="sl">Vị trí TB</div>
+        <div class="sv-group">
+          <div class="sv-item"><span class="sv-num cp">${avgPosGoogle > 0 ? avgPosGoogle.toFixed(1) : '—'}</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cbing">${avgPosBing > 0 ? avgPosBing.toFixed(1) : '—'}</span><span class="sv-source">Bing</span></div>
+        </div>
+      </div>
+      <div class="si">
+        <div class="sl">Index</div>
+        <div class="sv-group">
+          <div class="sv-item"><span class="sv-num cg">✅</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cg">✅</span><span class="sv-source">Bing</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS BAR -->
+    <div class="mt" id="wst-t">
+      <button class="tb-btn on" onclick="wstSwitchTab(this,'rank')">📈 Check Rank</button>
+      <button class="tb-btn" onclick="wstSwitchTab(this,'gsc')">📊 GSC Data</button>
+      <button class="tb-btn" onclick="wstSwitchTab(this,'bing')">🔍 Bing Data</button>
+      <button class="tb-btn" onclick="wstSwitchTab(this,'dichvu')">🛠️ Dịch vụ</button>
+      <button class="tb-btn" onclick="wstSwitchTab(this,'plan')">📝 Kế hoạch & Strategy</button>
+    </div>
+
+    <!-- CONTAINER PANELS -->
+    <div class="mc" id="wst-c">
+      <!-- 1. PANEL RANK -->
+      <div class="tp-panel on" id="wst-tab-rank">
+        <div class="sh"><span class="st-title">📈 Lịch sử check Rank & Index</span></div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Ngày</th>
+                <th>Từ khóa chính</th>
+                <th class="c" style="width:100px">🏆 Rank</th>
+                <th class="c">🔗 Backlinks</th>
+                <th class="c">🔍 Index</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(site.entries || []).slice().sort((a,b)=>b.date.localeCompare(a.date)).map((e, idx, arr) => {
+                const prev = arr[idx+1];
+                const rD = prev && prev.rank && e.rank ? e.rank - prev.rank : null;
+                const indexIcon = e.indexed === 'Đã index' ? 'iy' : e.indexed === 'Chưa index' ? 'in' : 'ip';
+                return `
+                  <tr>
+                    <td><strong>${e.date}</strong></td>
+                    <td><span class="kw">${site.mainKeyword || w.brand || '—'}</span></td>
+                    <td class="c">
+                      <div class="rank-container">
+                        <span class="rb r1">${e.rank || '—'}</span>
+                        ${rD !== null ? `<span class="dt ${rD < 0 ? 'du' : 'dd'}">${rD < 0 ? '▲' + Math.abs(rD) : '▼' + rD}</span>` : ''}
+                      </div>
+                    </td>
+                    <td class="c cp" style="font-weight:700">${e.backlinks || '—'}</td>
+                    <td class="c"><span class="ib ${indexIcon}">${e.indexed || 'Chưa index'}</span></td>
+                    <td style="color:#8b949e; font-size:11px">${e.note || '—'}</td>
+                  </tr>`;
+              }).join('') || '<tr><td colspan="6" style="text-align:center; padding:32px; color:#8b949e">Chưa ghi nhận lịch sử check rank. Bấm nút (+) ở bảng Web Tracking ngoài để thêm dữ liệu.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. PANEL GSC -->
+      <div class="tp-panel" id="wst-tab-gsc">
+        <div class="sh"><span class="st-title">📊 Google Search Console — Chi tiết 28 ngày qua</span></div>
+        <div class="gsc-g">
+          <div class="gsc-c">
+            <div class="gc-l">Clicks</div><div class="gc-v cb">${clicksGoogle.toLocaleString()}</div>
+            <div class="spark">
+              ${history.slice(-8).map(h=>`<div class="bar" style="height:${Math.max(10, (h.clicks/Math.max(1, clicksGoogle))*400)}%; background:#1158bd80"></div>`).join('')}
+            </div>
+          </div>
+          <div class="gsc-c">
+            <div class="gc-l">Impressions</div><div class="gc-v cg">${impsGoogle.toLocaleString()}</div>
+            <div class="spark">
+              ${history.slice(-8).map(h=>`<div class="bar" style="height:${Math.max(10, (h.impressions/Math.max(1, impsGoogle))*400)}%; background:#1a7f3780"></div>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="st-title" style="margin-bottom:8px">Top cụm từ khóa tìm kiếm (GSC)</div>
+        <div id="wstGscQueriesBox" style="color:#8b949e; font-size:11px; font-style:italic; padding:10px;">Đang tải dữ liệu Google Search Console...</div>
+      </div>
+
+      <!-- 3. PANEL BING -->
+      <div class="tp-panel" id="wst-tab-bing">
+        <div class="sh"><span class="st-title">🔍 Bing Webmaster Tools — Chỉ số Mockup tích hợp</span></div>
+        <div class="gsc-g">
+          <div class="gsc-c">
+            <div class="gc-l">Bing Clicks</div><div class="gc-v" style="color:#008373">${clicksBing.toLocaleString()}</div>
+            <div class="spark">
+              <div class="bar bing-bar" style="height:30%"></div><div class="bar bing-bar" style="height:55%"></div><div class="bar bing-bar" style="height:80%"></div><div class="bar bing-bar" style="height:100%"></div>
+            </div>
+          </div>
+          <div class="gsc-c">
+            <div class="gc-l">Bing Impressions</div><div class="gc-v cg">${impsBing.toLocaleString()}</div>
+            <div class="spark">
+              <div class="bar bing-bar" style="height:40%"></div><div class="bar bing-bar" style="height:70%"></div><div class="bar bing-bar" style="height:100%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="st-title" style="margin-bottom:8px">Top từ khóa phổ biến (Bing)</div>
+        <table>
+          <thead><tr><th>Từ khóa Bing</th><th class="c">Clicks</th><th class="c">Imps</th><th class="c">CTR</th><th class="c">Vị trí</th></tr></thead>
+          <tbody>
+            <tr><td><span class="kw">${site.mainKeyword || w.brand || 'nbet'} login</span></td><td class="c" style="color:#008373; font-weight:700">${Math.floor(clicksBing*0.6)}</td><td class="c cg">${Math.floor(impsBing*0.5)}</td><td class="c co">4.2%</td><td class="c"><span class="rb r1">2.4</span></td></tr>
+            <tr><td><span class="kw">${site.mainKeyword || w.brand || 'nbet'} game bài</span></td><td class="c" style="color:#008373; font-weight:700">${Math.floor(clicksBing*0.3)}</td><td class="c cg">${Math.floor(impsBing*0.3)}</td><td class="c co">3.1%</td><td class="c"><span class="rb r2">5.3</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 4. PANEL DỊCH VỤ -->
+      <div class="tp-panel" id="wst-tab-dichvu">
+        <div class="sh">
+          <span class="st-title">🛠️ Nhật ký Dịch vụ SEO đã mua (Gõ tay)</span>
+          <button class="btn-a" onclick="wstAddServicePrompt()">+ Ghi nhận dịch vụ</button>
+        </div>
+        <div class="sc-g" id="wstServiceSummary">
+          <!-- Summary cards rendered by JS -->
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Ngày</th>
+                <th>Loại</th>
+                <th>Mô tả / Đợt mua</th>
+                <th class="c">Số lượng</th>
+                <th>Ghi chú</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="wstServiceListBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 5. PANEL PLAN & KANBAN -->
+      <div class="tp-panel" id="wst-tab-plan">
+        <div class="plan-container">
+          <!-- Kanban columns -->
+          <div class="kanban-board" id="wstKanbanBoard">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <!-- Strategy Panel -->
+          <div class="strategy-panel">
+            <div class="sp-title">📝 Chiến lược & Định hướng</div>
+            <textarea class="sp-textarea" id="wstStrategyText" onchange="wstSaveStrategyNote(this.value)" placeholder="Nhập chiến lược dài hạn, kế hoạch phát triển hoặc cảnh báo rủi ro cho website này...">${site.strategyNote || ''}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="mf" id="wst-f">
+      <div class="mf-info">🕐 Cập nhật hệ thống: <strong>${last?.date || 'Chưa rõ'}</strong> · ID site: ws_${wsId}</div>
+      <div class="mf-btns">
+        <button class="btn btn-d" onclick="wstRemoveTrackingFromDashboard(${wsId})">🗑 Bỏ theo dõi</button>
+        <button class="btn btn-o" onclick="wstCloseDashboard()">Đóng</button>
+        <button class="btn btn-g" onclick="wstAddEntryFromDashboard(${wsId})">+ Thêm dữ liệu</button>
+      </div>
+    </div>
+  `;
+
+  modalContainer.style.display = 'block';
+  
+  // Render sub sections
+  wstRenderServices();
+  wstRenderKanban();
+  wstLoadGscQueries();
+}
+
+function wstCloseDashboard() {
+  document.getElementById('wstDashboardModalContainer').style.display = 'none';
+  _wstActiveSiteId = null;
+}
+
+function wstSwitchTab(btn, tabId) {
+  const container = document.getElementById('wstDashboardModalContainer');
+  container.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('on'));
+  container.querySelectorAll('.tp-panel').forEach(p => p.classList.remove('on'));
+  
+  btn.classList.add('on');
+  document.getElementById('wst-tab-' + tabId).classList.add('on');
+}
+
+// --- RENDER DỊCH VỤ NHẬP TAY ---
+function wstRenderServices() {
+  const site = getWstSite(_wstActiveSiteId);
+  const services = site.services || [];
+  
+  // Tính tổng quan
+  let backlinks = 0, textlinks = 0, entity = 0;
+  services.forEach(s => {
+    if (s.type === 'backlink') backlinks += Number(s.amount || 0);
+    else if (s.type === 'textlink') textlinks += Number(s.amount || 0);
+    else if (s.type === 'entity') entity += Number(s.amount || 0);
+  });
+
+  const sumBox = document.getElementById('wstServiceSummary');
+  sumBox.innerHTML = `
+    <div class="sc-c"><div class="sc-l">Tổng Backlinks</div><div class="sc-v cp">${backlinks}</div></div>
+    <div class="sc-c"><div class="sc-l">Textlinks</div><div class="sc-v cb">${textlinks}</div></div>
+    <div class="sc-c"><div class="sc-l">Entity / GP</div><div class="sc-v co">${entity}</div></div>
+  `;
+
+  const listBody = document.getElementById('wstServiceListBody');
+  if (services.length === 0) {
+    listBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:#8b949e">Chưa ghi nhận đợt mua dịch vụ nào.</td></tr>';
+    return;
+  }
+
+  listBody.innerHTML = services.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(s => {
+    const typeLabel = s.type === 'backlink' ? '🔗 Backlink' : s.type === 'textlink' ? '📝 Textlink' : '🏛️ Entity';
+    const typeClass = s.type === 'backlink' ? 'tp' : s.type === 'textlink' ? 'tb' : 'to';
+    return `
+      <tr>
+        <td><strong>${s.date}</strong></td>
+        <td><span class="tag ${typeClass}">${typeLabel}</span></td>
+        <td>${s.description || '—'}</td>
+        <td class="c cp" style="font-weight:700">+${s.amount || 0}</td>
+        <td style="color:#8b949e">${s.note || '—'}</td>
+        <td class="c"><button class="dbtn" onclick="wstDeleteService('${s.id}')">🗑</button></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function wstAddServicePrompt() {
+  const dateStr = new Date().toISOString().split('T')[0];
+  const date = prompt('Nhập ngày dịch vụ (YYYY-MM-DD):', dateStr);
+  if (!date) return;
+  
+  const type = prompt('Nhập loại dịch vụ (1: Backlink, 2: Textlink, 3: Entity):', '1');
+  if (!['1','2','3'].includes(type)) return;
+  const typeStr = type === '1' ? 'backlink' : type === '2' ? 'textlink' : 'entity';
+  
+  const desc = prompt('Nhập mô tả / Đợt mua (Ví dụ: PBN tier 1 batch 3):');
+  const amount = Number(prompt('Nhập số lượng:', '1') || 0);
+  const note = prompt('Nhập ghi chú thêm (nếu có):');
+
+  const site = getWstSite(_wstActiveSiteId);
+  if (!site.services) site.services = [];
+  
+  site.services.push({
+    id: 'srv_' + Date.now(),
+    date,
+    type: typeStr,
+    description: desc,
+    amount,
+    note
+  });
+
+  saveWsTrack();
+  wstRenderServices();
+  toast('Đã ghi nhận dịch vụ SEO', '#27ae60');
+}
+
+function wstDeleteService(srvId) {
+  if (!confirm('Xóa ghi nhận dịch vụ này?')) return;
+  const site = getWstSite(_wstActiveSiteId);
+  site.services = (site.services || []).filter(s => s.id !== srvId);
+  saveWsTrack();
+  wstRenderServices();
+}
+
+function wstSaveStrategyNote(val) {
+  const site = getWstSite(_wstActiveSiteId);
+  site.strategyNote = val;
+  saveWsTrack();
+  toast('Đã tự động lưu ghi chú chiến lược', '#27ae60');
+}
+
+// --- DRAG AND DROP KANBAN BOARD ---
+function wstRenderKanban() {
+  const site = getWstSite(_wstActiveSiteId);
+  const kanban = site.kanban || { todo: [], doing: [], done: [], pending: [] };
+  if (!site.kanban) site.kanban = kanban;
+
+  const cols = [
+    { id: 'todo', label: '⚠️ Vấn đề', color: '#f85149' },
+    { id: 'doing', label: '⚙️ Đang làm', color: '#58a6ff' },
+    { id: 'done', label: '✅ Hoàn thành', color: '#2ea043' },
+    { id: 'pending', label: '⏳ Pending', color: '#bc8cff' }
+  ];
+
+  const board = document.getElementById('wstKanbanBoard');
+  board.innerHTML = '';
+
+  cols.forEach(col => {
+    const list = kanban[col.id] || [];
+    const colEl = document.createElement('div');
+    colEl.className = 'kanban-col';
+    colEl.dataset.colId = col.id;
+
+    colEl.innerHTML = `
+      <div class="kb-header">
+        <span style="color:${col.color}">${col.label}</span>
+        <span class="kb-count" style="background:#30363d">${list.length}</span>
+      </div>
+      <div class="kb-list" id="wst-kb-list-${col.id}" style="min-height:100px;"></div>
+      <button class="btn btn-o" onclick="wstAddKanbanTaskPrompt('${col.id}')" style="margin: 8px 10px; font-size:10px; justify-content:center;">+ Thêm thẻ</button>
+    `;
+
+    // Drop events
+    colEl.addEventListener('dragover', e => {
+      e.preventDefault();
+      colEl.style.background = '#21262d';
+    });
+    colEl.addEventListener('dragleave', () => {
+      colEl.style.background = '#0d1117';
+    });
+    colEl.addEventListener('drop', e => {
+      e.preventDefault();
+      colEl.style.background = '#0d1117';
+      if (!_wstDragCardId) return;
+
+      const cardSource = wstFindCardById(_wstDragCardId);
+      if (!cardSource) return;
+
+      if (col.id === 'pending') {
+        // Mở popup nhập lý do hoãn
+        _wstPendingCardObj = { cardId: _wstDragCardId, targetColId: 'pending', sourceColId: cardSource.colId };
+        document.getElementById('wstPendingReasonText').value = cardSource.card.pendingReason || '';
+        document.getElementById('wstPendingModal').style.display = 'flex';
+      } else {
+        wstMoveKanbanCard(cardSource.card, cardSource.colId, col.id);
+      }
+      _wstDragCardId = null;
+    });
+
+    board.appendChild(colEl);
+
+    // Append cards
+    const listEl = document.getElementById(`wst-kb-list-${col.id}`);
+    list.forEach(card => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'kb-card';
+      cardEl.draggable = true;
+      cardEl.dataset.cardId = card.id;
+
+      const prioLabel = card.priority === 'high' ? 'Cao' : card.priority === 'med' ? 'T.Bình' : 'Thấp';
+      const prioClass = card.priority === 'high' ? 'prio-high' : card.priority === 'med' ? 'prio-med' : 'prio-low';
+      const reasonHtml = (col.id === 'pending' && card.pendingReason) 
+        ? `<div style="font-size:10px; color:#bc8cff; border-top:1px dashed #30363d; margin-top:5px; padding-top:4px;">⏳ Hoãn vì: ${card.pendingReason}</div>`
+        : '';
+
+      cardEl.innerHTML = `
+        <div class="kb-title" style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <span>${card.title}</span>
+          <span style="cursor:pointer; color:#8b949e;" onclick="wstDeleteKanbanCard('${col.id}', '${card.id}')">&times;</span>
+        </div>
+        <div class="kb-desc">${card.desc || ''}</div>
+        <div class="kb-meta">
+          <span class="kb-priority ${prioClass}">${prioLabel}</span>
+          <span style="font-size:8px; color:#8b949e;">${card.createdAt}</span>
+        </div>
+        ${reasonHtml}
+      `;
+
+      cardEl.addEventListener('dragstart', () => {
+        _wstDragCardId = card.id;
+      });
+
+      listEl.appendChild(cardEl);
+    });
+  });
+}
+
+function wstFindCardById(cardId) {
+  const site = getWstSite(_wstActiveSiteId);
+  const kanban = site.kanban || { todo: [], doing: [], done: [], pending: [] };
+  for (let colId in kanban) {
+    const found = kanban[colId].find(c => c.id === cardId);
+    if (found) return { card: found, colId: colId };
+  }
+  return null;
+}
+
+function wstMoveKanbanCard(card, sourceColId, targetColId) {
+  if (sourceColId === targetColId) return;
+  const site = getWstSite(_wstActiveSiteId);
+  
+  // Remove from old column
+  site.kanban[sourceColId] = site.kanban[sourceColId].filter(c => c.id !== card.id);
+  
+  // Update properties
+  card.colId = targetColId;
+  if (targetColId === 'done') {
+    card.completedAt = new Date().toISOString().split('T')[0];
+  } else {
+    delete card.completedAt;
+  }
+  if (targetColId !== 'pending') {
+    delete card.pendingReason;
+  }
+
+  // Push to new column
+  site.kanban[targetColId].push(card);
+  
+  saveWsTrack();
+  wstRenderKanban();
+  toast('Đã chuyển trạng thái task', '#27ae60');
+}
+
+function wstSubmitPendingDrop() {
+  const reason = document.getElementById('wstPendingReasonText').value.trim();
+  if (!reason) {
+    alert('Vui lòng điền lý do pending!');
+    return;
+  }
+  if (_wstPendingCardObj) {
+    const site = getWstSite(_wstActiveSiteId);
+    const cardSource = wstFindCardById(_wstPendingCardObj.cardId);
+    if (cardSource) {
+      cardSource.card.pendingReason = reason;
+      wstMoveKanbanCard(cardSource.card, _wstPendingCardObj.sourceColId, 'pending');
+    }
+  }
+  wstCancelPendingDrop();
+}
+
+function wstCancelPendingDrop() {
+  document.getElementById('wstPendingModal').style.display = 'none';
+  _wstPendingCardObj = null;
+}
+
+function wstAddKanbanTaskPrompt(colId) {
+  const title = prompt('Nhập tiêu đề công việc:');
+  if (!title) return;
+  const desc = prompt('Nhập chi tiết/mô tả công việc:');
+  const prio = prompt('Ưu tiên (1: Cao, 2: T.Bình, 3: Thấp):', '2');
+  const prioStr = prio === '1' ? 'high' : prio === '3' ? 'low' : 'med';
+
+  const site = getWstSite(_wstActiveSiteId);
+  if (!site.kanban) site.kanban = { todo: [], doing: [], done: [], pending: [] };
+  if (!site.kanban[colId]) site.kanban[colId] = [];
+
+  site.kanban[colId].push({
+    id: 'tsk_' + Date.now(),
+    title,
+    desc,
+    priority: prioStr,
+    colId,
+    createdAt: new Date().toISOString().split('T')[0]
+  });
+
+  saveWsTrack();
+  wstRenderKanban();
+  toast('Đã thêm thẻ mới', '#27ae60');
+}
+
+function wstDeleteKanbanCard(colId, cardId) {
+  if (!confirm('Xóa thẻ công việc này?')) return;
+  const site = getWstSite(_wstActiveSiteId);
+  site.kanban[colId] = (site.kanban[colId] || []).filter(c => c.id !== cardId);
+  saveWsTrack();
+  wstRenderKanban();
+}
+
+// Tải dữ liệu GSC Queries thực tế nạp vào tab
+async function wstLoadGscQueries() {
+  const site = websites.find(x => x.id === _wstActiveSiteId);
+  const qBox = document.getElementById('wstGscQueriesBox');
+  if (!site || !qBox) return;
+
+  const host = 'https://api.nthieucloud.shop';
+  let finalGscUrl = site.gscPropertyUrl || site.url;
+  if (!finalGscUrl) {
+    qBox.innerHTML = '<span style="color:#e74c3c">Chưa cấu hình GSC Property URL.</span>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${host}/api/gsc/queries-and-pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gscPropertyUrl: finalGscUrl, range: 28 })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      const queries = data.queries || [];
+      if (queries.length === 0) {
+        qBox.innerHTML = 'Không tìm thấy từ khóa nào.';
+      } else {
+        qBox.innerHTML = `
+          <table style="width:100%;">
+            <thead>
+              <tr style="background:#0d1117">
+                <th>Từ khóa Google</th>
+                <th class="c">Clicks</th>
+                <th class="c">Imps</th>
+                <th class="c">CTR</th>
+                <th class="c">Vị trí</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${queries.slice(0, 5).map(q => `
+                <tr>
+                  <td><span class="kw">${q.query}</span></td>
+                  <td class="c cb" style="font-weight:700">${q.clicks.toLocaleString()}</td>
+                  <td class="c cg">${q.impressions.toLocaleString()}</td>
+                  <td class="c co">${(q.ctr * 100).toFixed(1)}%</td>
+                  <td class="c"><span class="rb r1">${q.position.toFixed(1)}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+    } else {
+      qBox.innerHTML = '<span style="color:#e74c3c">Không có quyền truy cập hoặc lỗi GSC.</span>';
+    }
+  } catch (err) {
+    qBox.innerHTML = '<span style="color:#e74c3c">Không thể tải dữ liệu tự động.</span>';
+  }
+}
+
+// Bổ sung các lệnh đồng bộ khi gọi Add/Remove từ Dashboard
+function wstAddEntryFromDashboard(wsId) {
+  wstCloseDashboard();
+  wstAddEntry(wsId);
+}
+
+function wstRemoveTrackingFromDashboard(wsId) {
+  wstCloseDashboard();
+  wstRemoveTracking(wsId);
 }
 
