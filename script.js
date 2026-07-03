@@ -9548,6 +9548,9 @@ function wstOpenDashboard(wsId) {
   }
   _wstActiveSiteId = wsId;
 
+  // Lấy dòng lịch sử kiểm tra gần nhất
+  const last = site.entries && site.entries.length ? site.entries[site.entries.length - 1] : null;
+
   // Lấy dữ liệu Google Search Console & Bing mockup
   const cache = (typeof _gscCache !== 'undefined' ? _gscCache[wsId] : null) || {};
   const history = cache.performanceHistory || [];
