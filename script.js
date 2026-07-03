@@ -9491,6 +9491,11 @@ function wstDrawGscChart(history) {
   });
 }
 
+// Automatically load GSC Cache when track page is opened
+(function initGscCacheLoader() {
+  const originShowPage = window.showPage;
+  window.showPage = function(name) {
+    if (typeof originShowPage === 'function') originShowPage(name);
     if (name === 'wstrack') {
       loadGscCache();
     }
