@@ -3034,37 +3034,103 @@ function openWstAddModal(){
   const wsId = _wstSelectedWsId;
   if(!wsId){ toast('Chọn website trước!','#e74c3c'); return; }
   const w = websites.find(x=>x.id===wsId);
+  const site = getWstSite(wsId);
+  if(!site) return;
+  const entries = site.entries || [];
+
   const overlay = document.createElement('div');
   overlay.id = 'wstAddOverlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;width:400px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-    <div style="font-weight:700;font-size:14px;margin-bottom:14px">📈 Thêm dữ liệu — ${w?.brand||''}</div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="form-group"><label>Ngày ghi nhận</label>
-        <input type="date" id="wst_date" style="width:100%" value="${todayVN()}">
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center';
+  
+  // Tạo dropdown chọn ngày
+  let dayOptions = `<option value="new">— Thêm ngày mới... —</option>`;
+  entries.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(e => {
+    dayOptions += `<option value="${e.id}">Ngày ${e.date} (Rank: ${e.rank || '—'}, Backlinks: ${e.backlinks || '—'})</option>`;
+  });
+
+  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2);background:#1a202c;color:#f8fafc">
+    <div style="font-weight:700;font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px">✏️ Điều chỉnh & Thêm dữ liệu lịch sử</div>
+    
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="form-group">
+        <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;color:#a0aec0">Chọn ngày cần điều chỉnh</label>
+        <select id="wst_select_entry" onchange="wstPopulateAddFormFields(this.value)" style="width:100%;padding:6px;border-radius:6px;background:#2d3748;color:#fff;border:1px solid #4a5568">
+          ${dayOptions}
+        </select>
       </div>
-      <div class="form-group"><label>🏆 Rank trung bình</label>
-          <input type="number" id="wst_rank" min="1" style="width:100%" placeholder="VD: 15">
+
+      <div class="form-group" id="wst_date_group">
+        <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;color:#a0aec0">Ngày ghi nhận</label>
+        <input type="date" id="wst_date" style="width:100%;padding:6px;border-radius:6px;background:#2d3748;color:#fff;border:1px solid #4a5568" value="${todayVN()}">
       </div>
-      <div class="form-group"><label>🔍 Trạng thái Index Google</label>
-        <select id="wst_indexed" style="width:100%">
+
+      <div class="form-group">
+        <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;color:#a0aec0">🏆 Rank Google</label>
+        <input type="text" id="wst_rank" style="width:100%;padding:6px;border-radius:6px;background:#2d3748;color:#fff;border:1px solid #4a5568" placeholder="Nhập số (VD: 15) hoặc Out 100">
+      </div>
+
+      <div class="form-group">
+        <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;color:#a0aec0">🔗 Số lượng Backlinks</label>
+        <input type="text" id="wst_backlinks" style="width:100%;padding:6px;border-radius:6px;background:#2d3748;color:#fff;border:1px solid #4a5568" placeholder="VD: 1520">
+      </div>
+
+      <div class="form-group">
+        <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;color:#a0aec0">🔍 Trạng thái Index Google</label>
+        <select id="wst_indexed" style="width:100%;padding:6px;border-radius:6px;background:#2d3748;color:#fff;border:1px solid #4a5568">
           <option value="">-- Chưa kiểm tra --</option>
           <option value="Đã index">✅ Đã index</option>
           <option value="Một phần">⚠️ Một phần</option>
           <option value="Chưa index">❌ Chưa index</option>
         </select>
       </div>
-      <div class="form-group"><label>📝 Ghi chú</label>
-        <textarea id="wst_note" rows="2" style="width:100%" placeholder="Ghi chú tình trạng, thay đổi..."></textarea>
+
+      <div class="form-group">
+        <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;color:#a0aec0">📝 Ghi chú</label>
+        <textarea id="wst_note" rows="2" style="width:100%;padding:6px;border-radius:6px;background:#2d3748;color:#fff;border:1px solid #4a5568" placeholder="Ghi chú tình trạng, thay đổi..."></textarea>
       </div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-top:16px">
-      <button onclick="document.getElementById('wstAddOverlay').remove()" class="btn btn-outline">Huỷ</button>
-      <button onclick="wstSaveEntry()" class="btn btn-primary">✓ Lưu</button>
+
+    <div style="display:flex;justify-content:space-between;margin-top:20px">
+      <button onclick="document.getElementById('wstAddOverlay').remove()" class="btn btn-outline" style="padding:6px 14px">Huỷ</button>
+      <button onclick="wstSaveEntry()" class="btn btn-primary" style="padding:6px 16px">✓ Lưu thay đổi</button>
     </div>
   </div>`;
   document.body.appendChild(overlay);
-  setTimeout(()=>document.getElementById('wst_date')?.focus(),50);
+  
+  // Tạo hàm global tạm thời để populate dữ liệu khi chọn ngày khác nhau
+  window.wstPopulateAddFormFields = function(entryId) {
+    const wsId = _wstSelectedWsId;
+    const site = getWstSite(wsId);
+    if(!site) return;
+    
+    const dateInput = document.getElementById('wst_date');
+    const dateGroup = document.getElementById('wst_date_group');
+    const rankInput = document.getElementById('wst_rank');
+    const backlinksInput = document.getElementById('wst_backlinks');
+    const indexedSelect = document.getElementById('wst_indexed');
+    const noteTextarea = document.getElementById('wst_note');
+
+    if(entryId === 'new') {
+      dateInput.value = todayVN();
+      dateInput.disabled = false;
+      dateGroup.style.opacity = '1';
+      rankInput.value = '';
+      backlinksInput.value = '';
+      indexedSelect.value = '';
+      noteTextarea.value = '';
+    } else {
+      const entry = site.entries.find(e => e.id === entryId);
+      if(entry) {
+        dateInput.value = entry.date;
+        dateInput.disabled = true; 
+        dateGroup.style.opacity = '0.7';
+        rankInput.value = entry.rank || '';
+        backlinksInput.value = entry.backlinks || '';
+        indexedSelect.value = entry.indexed || '';
+        noteTextarea.value = entry.note || '';
+      }
+    }
+  };
 }
 
 function wstSaveEntry(){
@@ -3072,19 +3138,56 @@ function wstSaveEntry(){
   if(!wsId) return;
   let site = getWstSite(wsId);
   if(!site){ siteTracking.push({wsId,entries:[]}); site=getWstSite(wsId); }
-  if(!site.entries) site.entries = []; // safety fix
-  const entry = {
-    id: 'wste'+Date.now(),
-    date: document.getElementById('wst_date').value||todayVN(),
-    rank: parseInt(document.getElementById('wst_rank').value)||null,
-    indexed: document.getElementById('wst_indexed').value||'',
-    note: (document.getElementById('wst_note').value||'').trim(),
-  };
-  site.entries.push(entry);
+  if(!site.entries) site.entries = [];
+
+  const entrySelect = document.getElementById('wst_select_entry');
+  const selectedValue = entrySelect.value;
+
+  const dateVal = document.getElementById('wst_date').value || todayVN();
+  const rankValRaw = document.getElementById('wst_rank').value.trim();
+  const rankVal = rankValRaw === 'Out 100' ? 'Out 100' : (parseInt(rankValRaw) || rankValRaw || null);
+  const backlinksVal = document.getElementById('wst_backlinks').value.trim() || null;
+  const indexedVal = document.getElementById('wst_indexed').value || '';
+  const noteVal = document.getElementById('wst_note').value.trim();
+
+  if(selectedValue === 'new') {
+    // Check trùng ngày
+    const duplicate = site.entries.find(e => e.date === dateVal);
+    if(duplicate) {
+      if(!confirm(`Ngày ${dateVal} đã có dữ liệu. Bạn có muốn ghi đè lên ngày này không?`)) {
+        return;
+      }
+      duplicate.rank = rankVal;
+      duplicate.backlinks = backlinksVal;
+      duplicate.indexed = indexedVal;
+      duplicate.note = noteVal;
+    } else {
+      site.entries.push({
+        id: 'wste'+Date.now(),
+        date: dateVal,
+        rank: rankVal,
+        backlinks: backlinksVal,
+        indexed: indexedVal,
+        note: noteVal
+      });
+    }
+  } else {
+    // Cập nhật ngày cũ
+    const entry = site.entries.find(e => e.id === selectedValue);
+    if(entry) {
+      entry.rank = rankVal;
+      entry.backlinks = backlinksVal;
+      entry.indexed = indexedVal;
+      entry.note = noteVal;
+    }
+  }
+
   saveWsTrack();
   document.getElementById('wstAddOverlay').remove();
+  
   renderWsTrack();
-  toast('✓ Đã lưu dữ liệu theo dõi');
+  wstOpenDashboard(wsId); 
+  toast('✓ Đã lưu và cập nhật dữ liệu lịch sử');
 }
 
 
@@ -9783,7 +9886,7 @@ function wstOpenDashboard(wsId) {
       <div class="mf-btns">
         <button class="btn btn-d" onclick="wstRemoveTrackingFromDashboard(${wsId})">🗑 Bỏ theo dõi</button>
         <button class="btn btn-o" onclick="wstCloseDashboard()">Đóng</button>
-        <button class="btn btn-g" onclick="wstAddEntryFromDashboard(${wsId})">+ Thêm dữ liệu</button>
+        <button class="btn btn-g" onclick="wstAddEntryFromDashboard(${wsId})">✏️ Chỉnh sửa / Thêm dữ liệu</button>
       </div>
     </div>
   `;
