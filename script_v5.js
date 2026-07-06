@@ -9660,7 +9660,9 @@ function wstOpenDashboard(wsId) {
             <tbody>
               ${(site.entries || []).slice().sort((a,b)=>b.date.localeCompare(a.date)).map((e, idx, arr) => {
                 const prev = arr[idx+1];
-                const rD = prev && prev.rank && e.rank ? e.rank - prev.rank : null;
+                const valCurr = parseInt(e.rank);
+                const valPrev = prev ? parseInt(prev.rank) : NaN;
+                const rD = (!isNaN(valCurr) && !isNaN(valPrev)) ? valCurr - valPrev : null;
                 const indexIcon = e.indexed === 'Đã index' ? 'iy' : e.indexed === 'Chưa index' ? 'in' : 'ip';
                 return `
                   <tr>
