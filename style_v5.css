@@ -603,6 +603,14 @@ header.main-header, .main-header {
 .login-submit-btn:hover {
   opacity: 0.85;
 }
+.login-google-btn {
+  transition: all 0.2s ease !important;
+}
+.login-google-btn:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.1) !important;
+}
 .login-footer-text {
   color: rgba(255, 255, 255, 0.15);
   font-size: 11px;
