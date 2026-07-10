@@ -9270,6 +9270,190 @@ async function loadGscCache() {
   }
 }
 
+// =====================================================================
+// GSC AUTO-SYNC ENGINE (Client-side Direct API v1.0)
+// =====================================================================
+
+// Cập nhật giao diện Badge trạng thái
+function wstSetGscBadge(state, progress) {
+  const badge = document.getElementById('gscSyncBadge');
+  if (!badge) return;
+  badge.style.display = 'inline-flex';
+  const styles = {
+    ready:    { text: '☁️ GSC: Sẵn sàng',         color: '#8b949e', bg: 'rgba(139,148,158,0.1)', border: 'rgba(139,148,158,0.2)' },
+    syncing:  { text: `🔄 Đang đồng bộ... (${progress||''})`, color: '#58a6ff', bg: 'rgba(88,166,255,0.1)', border: 'rgba(88,166,255,0.3)' },
+    done:     { text: '✅ GSC: Đã cập nhật',        color: '#3fb950', bg: 'rgba(63,185,80,0.1)',  border: 'rgba(63,185,80,0.3)' },
+    noscope:  { text: '⚠️ GSC: Thiếu quyền',        color: '#d29922', bg: 'rgba(210,153,34,0.1)', border: 'rgba(210,153,34,0.3)' },
+    nomatch:  { text: 'ℹ️ GSC: 0 web trùng khớp',   color: '#8b949e', bg: 'rgba(139,148,158,0.1)', border: 'rgba(139,148,158,0.2)' },
+    expired:  { text: '⚠️ GSC: Hết hạn token',      color: '#d29922', bg: 'rgba(210,153,34,0.1)', border: 'rgba(210,153,34,0.3)' },
+    error:    { text: '❌ GSC: Lỗi kết nối',        color: '#f85149', bg: 'rgba(248,81,73,0.1)',  border: 'rgba(248,81,73,0.3)' }
+  };
+  const s = styles[state] || styles.ready;
+  badge.textContent = s.text;
+  badge.style.color = s.color;
+  badge.style.background = s.bg;
+  badge.style.borderColor = s.border;
+}
+
+// Gia hạn token (click vào badge khi hết hạn)
+async function wstTriggerGscReauth() {
+  const badge = document.getElementById('gscSyncBadge');
+  const currentText = badge ? badge.textContent : '';
+  if (!currentText.includes('Hết hạn') && !currentText.includes('Thiếu quyền') && !currentText.includes('Lỗi')) return;
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
+    const result = await firebase.auth().signInWithPopup(provider);
+    if (result.credential && result.credential.accessToken) {
+      sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
+      await wstSyncGscRealtime(result.credential.accessToken);
+    }
+  } catch (e) {
+    console.warn('[GSC Reauth] Failed:', e.message);
+    wstSetGscBadge('error');
+  }
+}
+
+// Hàm đồng bộ chính — chạy tự động sau khi đăng nhập Google
+async function wstSyncGscRealtime(token) {
+  const accessToken = token || sessionStorage.getItem('gsc_access_token');
+  if (!accessToken) {
+    wstSetGscBadge('noscope');
+    return;
+  }
+
+  // Hiện Badge trạng thái đang đồng bộ
+  wstSetGscBadge('syncing', '...');
+
+  try {
+    // Bước 1: Lấy danh sách tất cả site trong tài khoản GSC của người dùng
+    const sitesRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (sitesRes.status === 401) {
+      sessionStorage.removeItem('gsc_access_token');
+      wstSetGscBadge('expired');
+      return;
+    }
+    if (!sitesRes.ok) {
+      wstSetGscBadge('error');
+      return;
+    }
+
+    const sitesData = await sitesRes.json();
+    const gscSites = (sitesData.siteEntry || []).map(s => ({
+      siteUrl: s.siteUrl,
+      normalized: wstNormalizeUrl(s.siteUrl)
+    }));
+
+    if (gscSites.length === 0) {
+      wstSetGscBadge('nomatch');
+      return;
+    }
+
+    // Bước 2: Lấy tất cả domain 301 đang theo dõi trong database
+    const tracked = (typeof websites !== 'undefined' ? websites : []);
+    const allDomains = tracked.map(w => ({
+      id: w.id,
+      normalized: wstNormalizeUrl(w.url),
+      original: w.url
+    }));
+
+    // Bước 3: Đối chiếu (match) domain
+    const matched = [];
+    allDomains.forEach(d => {
+      const hit = gscSites.find(g => g.normalized === d.normalized || g.normalized.endsWith('.' + d.normalized) || d.normalized.endsWith('.' + g.normalized));
+      if (hit) matched.push({ siteId: d.id, siteUrl: hit.siteUrl });
+    });
+
+    if (matched.length === 0) {
+      wstSetGscBadge('nomatch');
+      return;
+    }
+
+    // Bước 4: Lấy dữ liệu Search Analytics cho từng domain khớp (theo đợt, có delay nhỏ)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 28);
+    const fmt = d => d.toISOString().split('T')[0];
+
+    let done = 0;
+    const updates = {};
+
+    for (const item of matched) {
+      wstSetGscBadge('syncing', `${done}/${matched.length}`);
+      try {
+        const analyticsRes = await fetch(
+          `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(item.siteUrl)}/searchAnalytics/query`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              startDate: fmt(startDate),
+              endDate: fmt(endDate),
+              dimensions: ['date'],
+              rowLimit: 28
+            })
+          }
+        );
+
+        if (analyticsRes.status === 401) {
+          sessionStorage.removeItem('gsc_access_token');
+          wstSetGscBadge('expired');
+          return;
+        }
+
+        if (analyticsRes.ok) {
+          const analyticsData = await analyticsRes.json();
+          const rows = analyticsData.rows || [];
+          const performanceHistory = rows.map(r => ({
+            date:        r.keys[0],
+            clicks:      r.clicks || 0,
+            impressions: r.impressions || 0,
+            position:    r.position || 0,
+            ctr:         r.ctr || 0
+          }));
+          updates[item.siteId] = { performanceHistory, syncedAt: fmt(endDate) };
+        }
+      } catch (e) {
+        console.warn(`[GSC Sync] Skip ${item.siteUrl}:`, e.message);
+      }
+      done++;
+      // Delay nhỏ giữa mỗi request tránh rate limit
+      await new Promise(r => setTimeout(r, 150));
+    }
+
+    // Bước 5: Cập nhật vào Firebase gsc_cache và bộ nhớ cục bộ
+    if (Object.keys(updates).length > 0) {
+      try {
+        await firebase.database().ref('gsc_cache').update(updates);
+        // Cập nhật biến cục bộ _gscCache luôn để UI refresh ngay
+        Object.assign(_gscCache, updates);
+        renderWsTrack();
+      } catch (fbErr) {
+        console.warn('[GSC Sync] Firebase write failed:', fbErr.message);
+        // Vẫn update local cache dù Firebase thất bại
+        Object.assign(_gscCache, updates);
+        renderWsTrack();
+      }
+      wstSetGscBadge('done');
+      // Sau 5 giây tự chuyển về ready
+      setTimeout(() => wstSetGscBadge('ready'), 5000);
+    } else {
+      wstSetGscBadge('nomatch');
+    }
+
+  } catch (err) {
+    console.error('[GSC Sync] Critical error:', err);
+    wstSetGscBadge('error');
+  }
+}
+
+
 // Open GSC Detail Modal
 async function wstOpenGscModal(siteId) {
   _gscActiveSiteId = siteId;

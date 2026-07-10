@@ -586,6 +586,7 @@
         <button onclick="wstBulkCheckRank()" class="btn btn-sm" style="background:#e67e22;color:#fff;border:none">🔁 Tự động check Rank (All)</button>
         <button onclick="openWstPickModal()" class="btn btn-outline btn-sm">+ Thêm web</button>
         <span id="wstApiBadge" style="font-size:13px;font-weight:700;color:#2980b9;margin-left:8px;padding:4px 8px;background:#ebf5fb;border-radius:6px;display:none;border:1px solid #d6eaf8" title="Trạng thái kết nối Serper.dev">💎 ---</span>
+        <span id="gscSyncBadge" style="font-size:12px;font-weight:600;margin-left:8px;padding:4px 8px;border-radius:6px;display:none;align-items:center;gap:4px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#8b949e" onclick="wstTriggerGscReauth()" title="Trạng thái đồng bộ Google Search Console">☁️ GSC: Sẵn sàng</span>
       </div>
     </div>
     <!-- TABLE -->
@@ -1085,9 +1086,16 @@
         if (btn) btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Đang xác thực...';
         
         const provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
+        
         firebase.auth().signInWithPopup(provider).then((result) => {
           const user = result.user;
           const email = user.email;
+          const credential = result.credential;
+          
+          if (credential && credential.accessToken) {
+            sessionStorage.setItem('gsc_access_token', credential.accessToken);
+          }
           
           firebase.database().ref('passwords/admin_emails').once('value').then(snapshot => {
             const allowedEmails = snapshot.val() || ["konheodat01@gmail.com", "admin@nthieucloud.shop"];
@@ -1147,6 +1155,14 @@
       if (typeof initFirebaseListener === 'function') {
         initFirebaseListener();
       }
+
+      // Kích hoạt đồng bộ GSC tự động sau khi đăng nhập
+      setTimeout(() => {
+        if (typeof wstSyncGscRealtime === 'function') {
+          const token = sessionStorage.getItem('gsc_access_token');
+          wstSyncGscRealtime(token);
+        }
+      }, 1500); // Delay nhỏ chờ dữ liệu websites tải xong
     }
 
     function updateAdminProfileHeader(name, photoURL) {
@@ -1225,6 +1241,13 @@
         firebase.auth().onAuthStateChanged((user) => {
           if (user && sessionStorage.getItem('wt_session_admin') === 'true') {
             updateAdminProfileHeader(user.displayName, user.photoURL);
+            // Khi F5/tải lại trang: nếu đã có token GSC, tự động đồng bộ lại
+            const existingToken = sessionStorage.getItem('gsc_access_token');
+            if (existingToken && typeof wstSyncGscRealtime === 'function') {
+              setTimeout(() => wstSyncGscRealtime(existingToken), 2000);
+            } else if (typeof wstSetGscBadge === 'function') {
+              wstSetGscBadge('ready');
+            }
           } else {
             updateAdminProfileHeader('Admin Portal', null);
           }
