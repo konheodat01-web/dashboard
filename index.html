@@ -1096,6 +1096,9 @@
           if (credential && credential.accessToken) {
             sessionStorage.setItem('gsc_access_token', credential.accessToken);
           }
+          // Lưu thông tin hồ sơ vào sessionStorage để dùng lại khi reauth
+          if (user.displayName) sessionStorage.setItem('admin_display_name', user.displayName);
+          if (user.photoURL)    sessionStorage.setItem('admin_photo_url',    user.photoURL);
           
           firebase.database().ref('passwords/admin_emails').once('value').then(snapshot => {
             const allowedEmails = snapshot.val() || ["konheodat01@gmail.com", "admin@nthieucloud.shop"];
@@ -1166,19 +1169,25 @@
     }
 
     function updateAdminProfileHeader(name, photoURL) {
+      // Dùng thông tin đã lưu trong session làm fallback khi name/photoURL bị null
+      const savedName  = sessionStorage.getItem('admin_display_name');
+      const savedPhoto = sessionStorage.getItem('admin_photo_url');
+      const finalName  = name  || savedName  || 'Admin Portal';
+      const finalPhoto = photoURL || savedPhoto || null;
+
       const avatarEl = document.getElementById('admin-avatar');
-      const nameEl = document.getElementById('admin-name');
+      const nameEl   = document.getElementById('admin-name');
       if (avatarEl) {
-        if (photoURL) {
-          avatarEl.style.backgroundImage = `url('${photoURL}')`;
+        if (finalPhoto) {
+          avatarEl.style.backgroundImage = `url('${finalPhoto}')`;
           avatarEl.textContent = '';
         } else {
           avatarEl.style.backgroundImage = 'none';
-          avatarEl.textContent = (name && name[0]) ? name[0].toUpperCase() : 'A';
+          avatarEl.textContent = (finalName && finalName[0]) ? finalName[0].toUpperCase() : 'A';
         }
       }
       if (nameEl) {
-        nameEl.textContent = name || 'Admin Portal';
+        nameEl.textContent = finalName;
       }
     }
 

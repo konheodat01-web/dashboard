@@ -9380,6 +9380,7 @@ async function wstSyncGscRealtime(token) {
 
     let done = 0;
     const updates = {};
+    let skipped = 0;
 
     for (const item of matched) {
       wstSetGscBadge('syncing', `${done}/${matched.length}`);
@@ -9418,13 +9419,20 @@ async function wstSyncGscRealtime(token) {
             ctr:         r.ctr || 0
           }));
           updates[item.siteId] = { performanceHistory, syncedAt: fmt(endDate) };
+        } else {
+          // 403 và các lỗi khác — đếm thầm, không log từng cái
+          skipped++;
         }
       } catch (e) {
-        console.warn(`[GSC Sync] Skip ${item.siteUrl}:`, e.message);
+        skipped++;
       }
       done++;
       // Delay nhỏ giữa mỗi request tránh rate limit
       await new Promise(r => setTimeout(r, 150));
+    }
+
+    if (skipped > 0) {
+      console.log(`[GSC Sync] ${Object.keys(updates).length} site thành công, ${skipped} site bị giới hạn quyền GSC (bỏ qua).`);
     }
 
     // Bước 5: Cập nhật vào Firebase gsc_cache và bộ nhớ cục bộ
