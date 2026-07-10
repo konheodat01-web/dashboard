@@ -78,8 +78,8 @@
 <header class="main-header">
   <div style="display:flex;align-items:center;gap:12px">
     <div style="display:flex;align-items:center;gap:8px;">
-      <div style="background:#2c3e50;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px">A</div>
-      <span style="font-weight:600;font-size:13px;color:var(--white)">Admin Portal</span>
+      <div id="admin-avatar" style="background:#2c3e50;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;background-size:cover;background-position:center">A</div>
+      <span id="admin-name" style="font-weight:600;font-size:13px;color:var(--white)">Admin Portal</span>
     </div>
     <h1>&#128188; Quản lý công việc</h1>
   </div>
@@ -1149,6 +1149,23 @@
       }
     }
 
+    function updateAdminProfileHeader(name, photoURL) {
+      const avatarEl = document.getElementById('admin-avatar');
+      const nameEl = document.getElementById('admin-name');
+      if (avatarEl) {
+        if (photoURL) {
+          avatarEl.style.backgroundImage = `url('${photoURL}')`;
+          avatarEl.textContent = '';
+        } else {
+          avatarEl.style.backgroundImage = 'none';
+          avatarEl.textContent = (name && name[0]) ? name[0].toUpperCase() : 'A';
+        }
+      }
+      if (nameEl) {
+        nameEl.textContent = name || 'Admin Portal';
+      }
+    }
+
     function submitPassword() { AdminAuth.submitPassword(); }
     function togglePwVis() { AdminAuth.togglePwVis(); }
     function logout() { AdminAuth.logout(); }
@@ -1202,6 +1219,16 @@
       if (sessionStorage.getItem('wt_session_admin') === 'true') {
         const ls = document.getElementById('loginScreen');
         if (ls) ls.style.display = 'none';
+      }
+
+      if (typeof firebase !== 'undefined') {
+        firebase.auth().onAuthStateChanged((user) => {
+          if (user && sessionStorage.getItem('wt_session_admin') === 'true') {
+            updateAdminProfileHeader(user.displayName, user.photoURL);
+          } else {
+            updateAdminProfileHeader('Admin Portal', null);
+          }
+        });
       }
     });
   </script>
