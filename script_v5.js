@@ -9758,11 +9758,8 @@ function wstGetIndexBadgeHTML(v, isSmall = true) {
     return `<span style="font-size:${isSmall?'10px':'11px'};background:#fff3cd;color:#856404;padding:${isSmall?'1px 6px':'2px 7px'};border-radius:10px;font-weight:600">⚠️ Cần kiểm tra</span>`;
   }
   if (v.startsWith('Chưa index')) {
-    // Trích xuất lý do cụ thể trong ngoặc nếu có
-    const match = v.match(/\(([^)]+)\)/);
-    const reason = match ? match[1] : '';
-    const label = reason ? `Chưa (${reason})` : 'Chưa index';
-    return `<span style="font-size:${isSmall?'10px':'11px'};background:#f8d7da;color:#721c24;padding:${isSmall?'1px 6px':'2px 7px'};border-radius:10px;font-weight:600" title="${v}">❌ ${label}</span>`;
+    const label = isSmall ? '❌ Chưa' : '❌ Chưa index';
+    return `<span style="font-size:${isSmall?'10px':'11px'};background:#f8d7da;color:#721c24;padding:${isSmall?'1px 6px':'2px 7px'};border-radius:10px;font-weight:600;cursor:help" title="${v}">${label}</span>`;
   }
   return v;
 }
