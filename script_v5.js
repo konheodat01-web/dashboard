@@ -2537,7 +2537,14 @@ async function wstBulkCheckRank() {
   }
 }
 
-function saveWsTrack(){
+function saveWsTrack(wsId){
+  const targetId = wsId || _wstActiveSiteId;
+  if (targetId) {
+    const site = getWstSite(targetId);
+    if (site) {
+      site.lastUpdatedAt = new Date().toISOString().split('T')[0];
+    }
+  }
   try{ localStorage.setItem('wt_site_tracking', JSON.stringify(siteTracking)); }catch(e){}
   // Push to Firebase in fbPayload via saveAppData
   saveAppData();
@@ -2783,13 +2790,15 @@ function renderWsTrack(){
         const cache = (typeof _gscCache !== 'undefined' ? _gscCache[w.id] : null) || {};
         const gscDate = cache.syncedAt || '';
         const rankDate = last?.date || '';
+        const manualDate = site?.lastUpdatedAt || '';
         let finalDate = '—';
-        if (gscDate && rankDate) {
-          finalDate = gscDate > rankDate ? gscDate : rankDate;
-        } else {
-          finalDate = gscDate || rankDate || '—';
+        
+        const dates = [manualDate, gscDate, rankDate].filter(Boolean);
+        if (dates.length > 0) {
+          dates.sort();
+          finalDate = dates[dates.length - 1];
         }
-        return `<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap" title="Rank: ${rankDate || 'Chưa rõ'}\nGSC: ${gscDate || 'Chưa rõ'}">${finalDate}</td>`;
+        return `<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap" title="Bất kỳ thay đổi nào: ${finalDate}\nCheck Rank: ${rankDate || 'Chưa rõ'}\nĐồng bộ GSC: ${gscDate || 'Chưa rõ'}\nNhập thủ công/Note: ${manualDate || 'Chưa rõ'}">${finalDate}</td>`;
       })()}
       <td style="padding:8px 10px;text-align:center;white-space:nowrap">
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px" title="Xem Dashboard">📊</button>
@@ -9452,6 +9461,16 @@ async function wstSyncGscRealtime(token) {
         await firebase.database().ref('gsc_cache').update(updates);
         // Cập nhật biến cục bộ _gscCache luôn để UI refresh ngay
         Object.assign(_gscCache, updates);
+        
+        // Touch ngày cập nhật cho tất cả site đã sync thành công
+        Object.keys(updates).forEach(siteId => {
+          const siteObj = getWstSite(parseInt(siteId));
+          if (siteObj) {
+            siteObj.lastUpdatedAt = fmt(endDate);
+          }
+        });
+        saveWsTrack(); // Lưu lại siteTracking lên Firebase
+        
         renderWsTrack();
       } catch (fbErr) {
         console.warn('[GSC Sync] Firebase write failed:', fbErr.message);
@@ -9828,6 +9847,7 @@ async function wstSyncGscNow() {
     
     await firebase.database().ref('gsc_cache').update(updates);
     Object.assign(_gscCache, updates);
+    saveWsTrack(_gscActiveSiteId); // Cập nhật ngày thay đổi cuối cho website này
     renderWsTrack();
     
     toast('Đồng bộ dữ liệu thành công!', '#27ae60');
@@ -10210,7 +10230,20 @@ function wstOpenDashboard(wsId) {
 
     <!-- FOOTER -->
     <div class="mf" id="wst-f">
-      <div class="mf-info">🕐 Cập nhật hệ thống: <strong>${last?.date || 'Chưa rõ'}</strong> (GSC: <strong>${cache.syncedAt || 'Chưa rõ'}</strong>) · ID site: ws_${wsId}</div>
+      ${(() => {
+        const gscDate = cache.syncedAt || 'Chưa rõ';
+        const rankDate = last?.date || 'Chưa rõ';
+        const manualDate = site?.lastUpdatedAt || 'Chưa rõ';
+        
+        const dates = [site?.lastUpdatedAt, cache.syncedAt, last?.date].filter(Boolean);
+        let finalDate = 'Chưa rõ';
+        if (dates.length > 0) {
+          dates.sort();
+          finalDate = dates[dates.length - 1];
+        }
+        
+        return `<div class="mf-info">🕐 Cập nhật hệ thống: <strong>${finalDate}</strong> <span style="font-size:10px;color:#8b949e;margin-left:5px">(Rank: ${rankDate} · GSC: ${gscDate} · Thủ công/Note: ${manualDate})</span> · ID site: ws_${wsId}</div>`;
+      })()}
       <div class="mf-btns">
         <button class="btn btn-d" onclick="wstRemoveTrackingFromDashboard(${wsId})">🗑 Bỏ theo dõi</button>
         <button class="btn btn-o" onclick="wstCloseDashboard()">Đóng</button>
