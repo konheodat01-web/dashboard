@@ -2331,7 +2331,8 @@ async function wstFetchRank(wsId) {
     } else {
       site.entries.push({id:'wste'+Date.now(), date:tbDay, rank: finalRankStr || "Out 100", indexed:'', moBot:site.moBot||'Mở', note:''});
     }
-    saveWsTrack();
+    saveWsTrack(wsId);
+    wstAddChangelog(wsId, 'rank_check', `Check rank Serper từ khóa: "${keyword}" - Hạng: ${finalRankStr || 'Out 100'}`);
     return {success: true, rank: finalRankStr || "Out 100", rankD, rankM, keyword};
   } catch(e) {
     return {error: "Lỗi kết nối API"};
@@ -2802,7 +2803,7 @@ function renderWsTrack(){
       })()}
       <td style="padding:8px 10px;text-align:center;white-space:nowrap">
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px" title="Xem Dashboard">📊</button>
-        <button onclick="wstAddEntry(${w.id})" class="btn btn-sm" style="font-size:11px;padding:2px 7px;background:var(--red);color:#fff;border:none" title="Thêm dữ liệu">+</button>
+        <button onclick="wstOpenHistoryModal(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;color:#8b949e;border-color:#30363d" title="Lịch sử thay đổi dữ liệu">🕒</button>
         <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c" title="Bỏ theo dõi">×</button>
       </td>
     </tr>`;
@@ -3202,7 +3203,8 @@ function wstSaveEntry(){
     }
   }
 
-  saveWsTrack();
+  saveWsTrack(wsId);
+  wstAddChangelog(wsId, 'manual_entry', `Nhập dữ liệu Rank: ${rankVal || '—'}, Backlinks: ${backlinksVal || '—'}, Note: ${noteVal || '—'}`);
   document.getElementById('wstAddOverlay').remove();
   
   renderWsTrack();
@@ -3217,7 +3219,8 @@ function wstDeleteEntry(wsId, entryId){
   const site = getWstSite(wsId);
   if(!site) return;
   site.entries = site.entries.filter(e=>e.id!==entryId);
-  saveWsTrack();
+  saveWsTrack(wsId);
+  wstAddChangelog(wsId, 'manual_entry', 'Xóa một dòng dữ liệu lịch sử');
   renderWsTrack();
 }
 
@@ -4990,7 +4993,18 @@ function saveWebsite(){
   };
   if(editingWsId){
     const i=websites.findIndex(w=>w.id===editingWsId);
-    if(i>=0) websites[i]=obj; else websites.push(obj);
+    if(i>=0) {
+      websites[i]=obj;
+      if (obj.is301 && obj.sourceUrl) {
+        const parentSite = websites.find(w => !w.is301 && (w.url === obj.sourceUrl || w.brand === obj.sourceUrl));
+        if (parentSite) {
+          wstAddChangelog(parentSite.id, '301_received', `Kết nối/Cập nhật web 301 chuyển hướng: ${obj.url}`);
+          saveWsTrack(parentSite.id);
+        }
+      }
+    } else {
+      websites.push(obj);
+    }
   } else {
     // Check for duplicate URL
     // Chỉ check trùng URL, không check brand (nhiều web có thể cùng brand)
@@ -4999,12 +5013,28 @@ function saveWebsite(){
       const msg = 'Website "'+dup.brand+'" ('+dup.url+') đã tồn tại!\n\nChọn:\n• OK = Thay thế thông tin cũ bằng dữ liệu vừa nhập\n• Huỷ = Bỏ, giữ nguyên dữ liệu cũ';
       if(confirm(msg)){
         const i=websites.findIndex(w=>w.id===dup.id);
-        if(i>=0) websites[i]={...obj, id:dup.id};
+        if(i>=0) {
+          websites[i]={...obj, id:dup.id};
+          if (obj.is301 && obj.sourceUrl) {
+            const parentSite = websites.find(w => !w.is301 && (w.url === obj.sourceUrl || w.brand === obj.sourceUrl));
+            if (parentSite) {
+              wstAddChangelog(parentSite.id, '301_received', `Cập nhật web 301 chuyển hướng: ${obj.url}`);
+              saveWsTrack(parentSite.id);
+            }
+          }
+        }
       } else {
         return; // Cancel - keep old data, discard new
       }
     } else {
       websites.push(obj);
+      if (obj.is301 && obj.sourceUrl) {
+        const parentSite = websites.find(w => !w.is301 && (w.url === obj.sourceUrl || w.brand === obj.sourceUrl));
+        if (parentSite) {
+          wstAddChangelog(parentSite.id, '301_received', `Nhận thêm web chuyển hướng 301 mới: ${obj.url}`);
+          saveWsTrack(parentSite.id);
+        }
+      }
     }
   }
   editingWsId=null;
@@ -10357,7 +10387,8 @@ function wstDeleteService(srvId) {
 function wstSaveStrategyNote(val) {
   const site = getWstSite(_wstActiveSiteId);
   site.strategyNote = val;
-  saveWsTrack();
+  saveWsTrack(_wstActiveSiteId);
+  wstAddChangelog(_wstActiveSiteId, 'manual_entry', 'Cập nhật ghi chú Chiến lược & Định hướng');
   toast('Đã tự động lưu ghi chú chiến lược', '#27ae60');
 }
 
@@ -10609,6 +10640,105 @@ async function wstLoadGscQueries() {
     qBox.innerHTML = `<span style="color:#e74c3c">Lỗi: ${err.message}</span>`;
   }
 }
+
+// Ghi nhận lịch sử thay đổi dữ liệu
+function wstAddChangelog(wsId, type, detail) {
+  const site = getWstSite(wsId);
+  if (!site) return;
+  if (!site.changelog) site.changelog = [];
+  
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Tránh ghi nhận trùng lặp dữ liệu trong cùng 1 ngày
+  const isDuplicate = site.changelog.some(log => log.date === today && log.type === type && log.detail === detail);
+  if (!isDuplicate) {
+    site.changelog.unshift({
+      id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      date: today,
+      type: type,
+      detail: detail
+    });
+    // Giới hạn tối đa lưu 50 dòng log gần nhất
+    if (site.changelog.length > 50) {
+      site.changelog = site.changelog.slice(0, 50);
+    }
+  }
+}
+
+// Mở modal lịch sử thay đổi dữ liệu
+function wstOpenHistoryModal(wsId) {
+  const w = websites.find(x => x.id === wsId);
+  const site = getWstSite(wsId);
+  if (!w || !site) return;
+
+  const logs = site.changelog || [];
+  const displayLogs = [...logs];
+  
+  // Backward compatibility: Tự động khôi phục lịch sử từ entries/cache cũ nếu chưa có log
+  if (displayLogs.length === 0) {
+    const cache = (typeof _gscCache !== 'undefined' ? _gscCache[wsId] : null) || {};
+    if (cache.syncedAt) {
+      displayLogs.push({ date: cache.syncedAt, type: 'gsc_synced', detail: 'Đồng bộ GSC thành công (Khôi phục từ Cache)' });
+    }
+    const entries = site.entries || [];
+    entries.forEach(e => {
+      displayLogs.push({ date: e.date, type: 'manual_entry', detail: `Kiểm tra Rank: ${e.rank || '—'}, Note: ${e.note || '—'} (Khôi phục từ entries)` });
+    });
+    // Tìm các web 301 đang trỏ về web này
+    const redirects = websites.filter(x => x.is301 && x.sourceUrl === w.url);
+    redirects.forEach(r => {
+      displayLogs.push({ date: 'Trước đây', type: '301_received', detail: `Đã kết nối web 301 chuyển hướng: ${r.url}` });
+    });
+    displayLogs.sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  // Tạo overlay modal hiển thị lịch sử
+  const overlay = document.createElement('div');
+  overlay.id = 'wstHistoryOverlay';
+  overlay.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:10001;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:#161b22;width:550px;max-height:85%;border:1px solid #30363d;border-radius:12px;padding:20px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #30363d;padding-bottom:12px;margin-bottom:16px">
+        <h3 style="margin:0;color:#c9d1d9;font-size:16px;display:flex;align-items:center;gap:8px">🕒 Lịch sử thay đổi dữ liệu: ${w.brand}</h3>
+        <button onclick="document.getElementById('wstHistoryOverlay').remove()" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:24px;line-height:20px;padding:0">&times;</button>
+      </div>
+      <div style="overflow-y:auto;flex:1;padding-right:8px" class="custom-scroll">
+        ${displayLogs.length === 0 ? '<div style="color:#8b949e;text-align:center;padding:24px">Chưa có lịch sử ghi nhận thay đổi nào.</div>' : `
+          <div style="display:flex;flex-direction:column;gap:12px">
+            ${displayLogs.map(l => {
+              let icon = '📝';
+              let badgeColor = '#58a6ff';
+              let badgeBg = 'rgba(88,166,255,0.1)';
+              if (l.type === '301_received') { icon = '🔗'; badgeColor = '#bc8cff'; badgeBg = 'rgba(188,140,255,0.1)'; }
+              else if (l.type === 'gsc_synced') { icon = '☁️'; badgeColor = '#3fb950'; badgeBg = 'rgba(63,185,80,0.1)'; }
+              else if (l.type === 'rank_check') { icon = '🎯'; badgeColor = '#f2a154'; badgeBg = 'rgba(242,161,84,0.1)'; }
+              
+              return `
+                <div style="display:flex;gap:12px;border-bottom:1px solid #21262d;padding-bottom:10px">
+                  <div style="font-size:16px;padding-top:2px">${icon}</div>
+                  <div style="flex:1">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                      <span style="font-size:11px;color:#8b949e;font-weight:600">${l.date}</span>
+                      <span style="font-size:9px;color:${badgeColor};background:${badgeBg};padding:2px 6px;border-radius:10px;font-weight:600;text-transform:uppercase">
+                        ${l.type === '301_received' ? 'Web 301' : l.type === 'gsc_synced' ? 'GSC Sync' : l.type === 'rank_check' ? 'Serper Rank' : 'Thủ công'}
+                      </span>
+                    </div>
+                    <div style="font-size:12px;color:#c9d1d9">${l.detail}</div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+      <div style="text-align:right;border-top:1px solid #30363d;padding-top:12px;margin-top:16px">
+        <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="document.getElementById('wstHistoryOverlay').remove()">Đóng</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
 
 // Bổ sung các lệnh đồng bộ khi gọi Add/Remove từ Dashboard
 function wstAddEntryFromDashboard(wsId) {
