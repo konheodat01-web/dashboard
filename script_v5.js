@@ -10726,12 +10726,18 @@ function wstOpenHistoryModal(wsId) {
     entries.forEach(e => {
       displayLogs.push({ date: e.date, type: 'manual_entry', detail: `Kiểm tra Rank: ${e.rank || '—'}, Note: ${e.note || '—'} (Khôi phục từ entries)` });
     });
-    // Tìm các web 301 đang trỏ về web này
-    const redirects = websites.filter(x => x.is301 && x.sourceUrl === w.url);
-    redirects.forEach(r => {
-      displayLogs.push({ date: 'Trước đây', type: '301_received', detail: `Đã kết nối web 301 chuyển hướng: ${r.url}` });
-    });
   }
+  
+  // Tìm các web 301 đang trỏ về web này và chưa có trong log chính thức
+  const redirects = websites.filter(x => x.is301 && x.sourceUrl === w.url);
+  const oldestEntryDate = site.entries && site.entries.length ? site.entries.slice().sort((a,b)=>a.date.localeCompare(b.date))[0].date : '';
+  redirects.forEach(r => {
+    const alreadyLogged = logs.some(l => l.type === '301_received' && l.detail.includes(r.url));
+    if (!alreadyLogged) {
+      const dateToShow = r.createdDate || oldestEntryDate || 'Trước đây';
+      displayLogs.push({ date: dateToShow, type: '301_received', detail: `Đã kết nối web 301 chuyển hướng: ${r.url}` });
+    }
+  });
 
   // Sắp xếp theo thứ tự thời gian giảm dần (Đẩy "Trước đây" xuống cuối cùng)
   displayLogs.sort((a, b) => {
