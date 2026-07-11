@@ -551,6 +551,13 @@ function todayVN(){
   return vn.toISOString().split('T')[0];
 }
 
+function nowVN(){
+  const now = new Date();
+  const vn = new Date(now.getTime() + 7*60*60*1000);
+  const iso = vn.toISOString();
+  return iso.split('T')[0] + ' ' + iso.split('T')[1].split('.')[0];
+}
+
 function addDays(dateStr, n){
   if(!dateStr || dateStr.length!==10) dateStr = todayVN();
   const d = new Date(dateStr + 'T12:00:00');
@@ -9345,18 +9352,41 @@ function wstSetGscBadge(state, progress) {
   badge.style.borderColor = s.border;
 }
 
-// Gia hạn token (click vào badge khi hết hạn)
+// Gia hạn token hoặc đồng bộ lại khi người dùng click vào badge
 async function wstTriggerGscReauth() {
   const badge = document.getElementById('gscSyncBadge');
   const currentText = badge ? badge.textContent : '';
-  if (!currentText.includes('Hết hạn') && !currentText.includes('Thiếu quyền') && !currentText.includes('Lỗi')) return;
+  const token = sessionStorage.getItem('gsc_access_token');
+  
+  const isErrState = currentText.includes('Hết hạn') || currentText.includes('Thiếu quyền') || currentText.includes('Lỗi');
+  
+  if (!isErrState) {
+    if (token) {
+      if (confirm('Tài khoản GSC của bạn đã được đồng bộ hôm nay. Bạn có muốn đồng bộ lại dữ liệu GSC trong ngày hôm nay không?')) {
+        await wstSyncGscRealtime(token, true);
+      }
+      return;
+    }
+  }
+
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
     const result = await firebase.auth().signInWithPopup(provider);
     if (result.credential && result.credential.accessToken) {
       sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
-      await wstSyncGscRealtime(result.credential.accessToken);
+      
+      const today = todayVN();
+      const lastSync = localStorage.getItem('gsc_last_global_sync_date');
+      if (lastSync === today) {
+        if (confirm('Dữ liệu GSC hôm nay đã được đồng bộ trước đó. Bạn có muốn đồng bộ lại không?')) {
+          await wstSyncGscRealtime(result.credential.accessToken, true);
+        } else {
+          wstSetGscBadge('done');
+        }
+      } else {
+        await wstSyncGscRealtime(result.credential.accessToken);
+      }
     }
   } catch (e) {
     console.warn('[GSC Reauth] Failed:', e.message);
@@ -9365,10 +9395,18 @@ async function wstTriggerGscReauth() {
 }
 
 // Hàm đồng bộ chính — chạy tự động sau khi đăng nhập Google
-async function wstSyncGscRealtime(token) {
+async function wstSyncGscRealtime(token, force = false) {
   const accessToken = token || sessionStorage.getItem('gsc_access_token');
   if (!accessToken) {
     wstSetGscBadge('noscope');
+    return;
+  }
+
+  const today = todayVN();
+  const lastSync = localStorage.getItem('gsc_last_global_sync_date');
+  if (!force && lastSync === today) {
+    console.log('[GSC Auto-Sync] Đã đồng bộ hôm nay. Bỏ qua tự động đồng bộ.');
+    wstSetGscBadge('done');
     return;
   }
 
@@ -9496,7 +9534,8 @@ async function wstSyncGscRealtime(token) {
         Object.keys(updates).forEach(siteId => {
           const siteObj = getWstSite(parseInt(siteId));
           if (siteObj) {
-            siteObj.lastUpdatedAt = fmt(endDate);
+            siteObj.lastUpdatedAt = nowVN();
+            wstAddChangelog(siteObj.wsId, 'gsc_synced', 'Đồng bộ GSC tự động thành công');
           }
         });
         saveWsTrack(); // Lưu lại siteTracking lên Firebase
@@ -9509,10 +9548,12 @@ async function wstSyncGscRealtime(token) {
         renderWsTrack();
       }
       wstSetGscBadge('done');
+      localStorage.setItem('gsc_last_global_sync_date', today);
       // Sau 5 giây tự chuyển về ready
       setTimeout(() => wstSetGscBadge('ready'), 5000);
     } else {
       wstSetGscBadge('nomatch');
+      localStorage.setItem('gsc_last_global_sync_date', today);
     }
 
   } catch (err) {
@@ -10641,20 +10682,21 @@ async function wstLoadGscQueries() {
   }
 }
 
-// Ghi nhận lịch sử thay đổi dữ liệu
+// Ghi nhận lịch sử thay đổi dữ liệu (bao gồm ngày giờ)
 function wstAddChangelog(wsId, type, detail) {
   const site = getWstSite(wsId);
   if (!site) return;
   if (!site.changelog) site.changelog = [];
   
-  const today = new Date().toISOString().split('T')[0];
+  const currentDateTime = nowVN();
   
-  // Tránh ghi nhận trùng lặp dữ liệu trong cùng 1 ngày
-  const isDuplicate = site.changelog.some(log => log.date === today && log.type === type && log.detail === detail);
+  // Tránh ghi nhận trùng lặp dữ liệu trong vòng 1 phút
+  const currentMinute = currentDateTime.substring(0, 16); // "YYYY-MM-DD HH:mm"
+  const isDuplicate = site.changelog.some(log => log.date.startsWith(currentMinute) && log.type === type && log.detail === detail);
   if (!isDuplicate) {
     site.changelog.unshift({
       id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-      date: today,
+      date: currentDateTime,
       type: type,
       detail: detail
     });
@@ -10689,8 +10731,14 @@ function wstOpenHistoryModal(wsId) {
     redirects.forEach(r => {
       displayLogs.push({ date: 'Trước đây', type: '301_received', detail: `Đã kết nối web 301 chuyển hướng: ${r.url}` });
     });
-    displayLogs.sort((a, b) => b.date.localeCompare(a.date));
   }
+
+  // Sắp xếp theo thứ tự thời gian giảm dần (Đẩy "Trước đây" xuống cuối cùng)
+  displayLogs.sort((a, b) => {
+    const da = a.date === 'Trước đây' ? '1970-01-01 00:00:00' : a.date;
+    const db = b.date === 'Trước đây' ? '1970-01-01 00:00:00' : b.date;
+    return db.localeCompare(da);
+  });
 
   // Tạo overlay modal hiển thị lịch sử
   const overlay = document.createElement('div');
