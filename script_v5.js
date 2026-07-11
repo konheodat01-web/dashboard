@@ -2779,7 +2779,18 @@ function renderWsTrack(){
         ${!last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank)}
       </td>
       <td style="padding:8px 10px;text-align:center;font-size:16px">${indexIcon}</td>
-      <td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap">${last?.date||'—'}</td>
+      ${(() => {
+        const cache = (typeof _gscCache !== 'undefined' ? _gscCache[w.id] : null) || {};
+        const gscDate = cache.syncedAt || '';
+        const rankDate = last?.date || '';
+        let finalDate = '—';
+        if (gscDate && rankDate) {
+          finalDate = gscDate > rankDate ? gscDate : rankDate;
+        } else {
+          finalDate = gscDate || rankDate || '—';
+        }
+        return `<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap" title="Rank: ${rankDate || 'Chưa rõ'}\nGSC: ${gscDate || 'Chưa rõ'}">${finalDate}</td>`;
+      })()}
       <td style="padding:8px 10px;text-align:center;white-space:nowrap">
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px" title="Xem Dashboard">📊</button>
         <button onclick="wstAddEntry(${w.id})" class="btn btn-sm" style="font-size:11px;padding:2px 7px;background:var(--red);color:#fff;border:none" title="Thêm dữ liệu">+</button>
@@ -10199,7 +10210,7 @@ function wstOpenDashboard(wsId) {
 
     <!-- FOOTER -->
     <div class="mf" id="wst-f">
-      <div class="mf-info">🕐 Cập nhật hệ thống: <strong>${last?.date || 'Chưa rõ'}</strong> · ID site: ws_${wsId}</div>
+      <div class="mf-info">🕐 Cập nhật hệ thống: <strong>${last?.date || 'Chưa rõ'}</strong> (GSC: <strong>${cache.syncedAt || 'Chưa rõ'}</strong>) · ID site: ws_${wsId}</div>
       <div class="mf-btns">
         <button class="btn btn-d" onclick="wstRemoveTrackingFromDashboard(${wsId})">🗑 Bỏ theo dõi</button>
         <button class="btn btn-o" onclick="wstCloseDashboard()">Đóng</button>
