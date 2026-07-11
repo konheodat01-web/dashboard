@@ -2336,7 +2336,7 @@ async function wstFetchRank(wsId) {
     
     // Nếu website lọt Top 100 thì chắc chắn đã được Google Index
     const hasRank = finalRankStr && finalRankStr !== "Out 100";
-    const autoIndexVal = hasRank ? 'Da index' : (last ? last.indexed : '');
+    const autoIndexVal = hasRank ? 'Đã index' : (last ? last.indexed : '');
     
     if(last && last.date === tbDay) {
       last.rank = finalRankStr || "Out 100";
@@ -2707,7 +2707,7 @@ function renderWsTrack(){
     const display301Url = latest301 ? (latest301.url||latest301.sourceUrl||'—') : (w.url||'—');
     const isSameAsSource = !latest301;
     const isSelected = _wstSelected.has(w.id);
-    const indexIcon = last?.indexed==='Đã index'?'✅':last?.indexed==='Chưa index'?'❌':last?.indexed==='Một phần'?'⚠️':'—';
+    const indexIcon = last?.indexed==='Đã index'?'✅':last?.indexed==='Chưa index'?'❌':(last?.indexed==='Một phần'||last?.indexed==='Cần kiểm tra')?'⚠️':'—';
 
     return `<tr style="border-bottom:1px solid #f0f0f0;${isSelected?'background:#fdf2f2;':''}" onmouseover="if(!${isSelected})this.style.background='#fafafa'" onmouseout="if(!${isSelected})this.style.background=''">
       <td style="padding:6px;text-align:center">
@@ -2892,7 +2892,7 @@ function wstOpenDetail(wsId){
   const site = getWstSite(wsId);
   if(!w||!site) return;
   const entries = (site.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  const indexBadge = v=>v==='Đã index'?'<span style="font-size:10px;background:#d4edda;color:#155724;padding:1px 6px;border-radius:10px">✅ Đã index</span>':v==='Chưa index'?'<span style="font-size:10px;background:#f8d7da;color:#721c24;padding:1px 6px;border-radius:10px">❌ Chưa</span>':v==='Một phần'?'<span style="font-size:10px;background:#fff3cd;color:#856404;padding:1px 6px;border-radius:10px">⚠️ Một phần</span>':'—';
+  const indexBadge = v=>v==='Đã index'?'<span style="font-size:10px;background:#d4edda;color:#155724;padding:1px 6px;border-radius:10px">✅ Đã index</span>':v==='Chưa index'?'<span style="font-size:10px;background:#f8d7da;color:#721c24;padding:1px 6px;border-radius:10px">❌ Chưa</span>':(v==='Một phần'||v==='Cần kiểm tra')?'<span style="font-size:10px;background:#fff3cd;color:#856404;padding:1px 6px;border-radius:10px">⚠️ Cần kiểm tra</span>':'—';
   const ov = document.createElement('div');
   ov.id='wstDetailOv';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
@@ -2951,7 +2951,7 @@ function renderWstContent(wsId){
 
   const indexBadge = v => v==='Đã index'?'<span style="font-size:11px;background:#d4edda;color:#155724;padding:2px 7px;border-radius:10px">✅ Đã index</span>':
     v==='Chưa index'?'<span style="font-size:11px;background:#f8d7da;color:#721c24;padding:2px 7px;border-radius:10px">❌ Chưa index</span>':
-    v==='Một phần'?'<span style="font-size:11px;background:#fff3cd;color:#856404;padding:2px 7px;border-radius:10px">⚠️ Một phần</span>':'—';
+    (v==='Một phần'||v==='Cần kiểm tra')?'<span style="font-size:11px;background:#fff3cd;color:#856404;padding:2px 7px;border-radius:10px">⚠️ Cần kiểm tra</span>':'—';
 
   content.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
@@ -3113,7 +3113,7 @@ function openWstAddModal(){
         <select id="wst_indexed" style="width:100%;padding:6px;border-radius:6px;background:#2d3748;color:#fff;border:1px solid #4a5568">
           <option value="">-- Chưa kiểm tra --</option>
           <option value="Đã index">✅ Đã index</option>
-          <option value="Một phần">⚠️ Một phần</option>
+          <option value="Cần kiểm tra">⚠️ Cần kiểm tra</option>
           <option value="Chưa index">❌ Chưa index</option>
         </select>
       </div>
@@ -9520,7 +9520,7 @@ async function wstSyncGscRealtime(token, force = false) {
               const inspectResult = await wstInspectUrlGsc(item.siteUrl, wObj.url);
               if (inspectResult && inspectResult.indexStatusResult) {
                 const verdict = inspectResult.indexStatusResult.verdict;
-                indexedStatus = verdict === 'PASS' ? 'Da index' : 'Chua index';
+                indexedStatus = verdict === 'PASS' ? 'Đã index' : 'Chưa index';
               }
             } catch (inspectErr) {
               console.warn('[GSC Inspect Auto-Sync Failed]', wObj.url, inspectErr);
@@ -9561,7 +9561,7 @@ async function wstSyncGscRealtime(token, force = false) {
             // Cập nhật trạng thái Index chính xác từ GSC URL Inspection hoặc dùng heuristic fallback
             const history = updates[siteId].performanceHistory || [];
             const totalImps = history.reduce((sum, r) => sum + (r.impressions || 0), 0);
-            const indexedStatus = updates[siteId].indexedStatus || (totalImps > 0 ? 'Da index' : '');
+            const indexedStatus = updates[siteId].indexedStatus || (totalImps > 0 ? 'Đã index' : '');
             if (indexedStatus) {
               if (!siteObj.entries) siteObj.entries = [];
               const todayStr = todayVN();
@@ -10014,22 +10014,37 @@ async function wstSyncGscNow() {
     const updates = {};
     updates[_gscActiveSiteId] = { performanceHistory, syncedAt: fmt(endDate) };
     
-    // Tự động chuyển Index thành "Da index" nếu site có impressions > 0 trên Search Console
+    // Lấy trạng thái Index chính xác từ GSC URL Inspection hoặc dùng heuristic fallback
     const totalImps = performanceHistory.reduce((sum, r) => sum + (r.impressions || 0), 0);
+    let indexedStatus = '';
+    try {
+      const gscPropertyUrl = await wstGetExactGscPropertyUrl(site.url);
+      const inspectResult = await wstInspectUrlGsc(gscPropertyUrl, site.url);
+      if (inspectResult && inspectResult.indexStatusResult) {
+        const verdict = inspectResult.indexStatusResult.verdict;
+        indexedStatus = verdict === 'PASS' ? 'Đã index' : 'Chưa index';
+      }
+    } catch (gscErr) {
+      console.warn('[GSC Inspect Single GSC Sync Failed]', site.url, gscErr);
+    }
+    if (!indexedStatus && totalImps > 0) {
+      indexedStatus = 'Đã index';
+    }
+
     const siteObj = getWstSite(_gscActiveSiteId);
-    if (siteObj && totalImps > 0) {
+    if (siteObj && indexedStatus) {
       if (!siteObj.entries) siteObj.entries = [];
       const todayStr = todayVN();
       const lastEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
       if (lastEntry && lastEntry.date === todayStr) {
-        lastEntry.indexed = 'Da index';
+        lastEntry.indexed = indexedStatus;
       } else {
         siteObj.entries.push({
           id: 'wste'+Date.now(),
           date: todayStr,
           rank: lastEntry ? lastEntry.rank : 'Out 100',
           backlinks: lastEntry ? lastEntry.backlinks : null,
-          indexed: 'Da index',
+          indexed: indexedStatus,
           moBot: siteObj.moBot || 'Mở',
           note: ''
         });
@@ -10931,7 +10946,7 @@ async function wstCheckIndexStatus(wsId) {
       const inspectResult = await wstInspectUrlGsc(gscPropertyUrl, w.url);
       if (inspectResult && inspectResult.indexStatusResult) {
         const verdict = inspectResult.indexStatusResult.verdict;
-        const finalStatus = verdict === 'PASS' ? 'Da index' : 'Chua index';
+        const finalStatus = verdict === 'PASS' ? 'Đã index' : 'Chưa index';
 
         // Cập nhật vào entry mới nhất hoặc tạo mới cho ngày hôm nay
         const tbDay = todayVN();
@@ -10953,9 +10968,9 @@ async function wstCheckIndexStatus(wsId) {
         }
 
         saveWsTrack(wsId);
-        wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index bằng GSC Inspection: ${finalStatus === 'Da index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
+        wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index bằng GSC Inspection: ${finalStatus === 'Đã index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
         renderWsTrack();
-        toast(`✓ GSC Inspect: ${finalStatus === 'Da index' ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
+        toast(`✓ GSC Inspect: ${finalStatus === 'Đã index' ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
         return;
       }
     } catch (gscErr) {
@@ -11000,7 +11015,7 @@ async function wstCheckIndexStatusSerper(wsId) {
     if (typeof wstUpdateAPIUsage === 'function') wstUpdateAPIUsage();
 
     const hasResults = data.organic && data.organic.length > 0;
-    const finalStatus = hasResults ? 'Da index' : 'Chua index';
+    const finalStatus = hasResults ? 'Đã index' : 'Chưa index';
 
     const tbDay = todayVN();
     if(!site.entries) site.entries = [];
@@ -11021,10 +11036,10 @@ async function wstCheckIndexStatusSerper(wsId) {
     }
 
     saveWsTrack(wsId);
-    wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index bằng Serper: ${finalStatus === 'Da index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
+    wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index bằng Serper: ${finalStatus === 'Đã index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
     
     renderWsTrack();
-    toast(`✓ Check Index: ${finalStatus === 'Da index' ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
+    toast(`✓ Check Index: ${finalStatus === 'Đã index' ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
   } catch (err) {
     console.error('Error checking index via Serper:', err);
     renderWsTrack();
