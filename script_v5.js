@@ -9461,16 +9461,63 @@ async function wstSyncGscRealtime(token) {
   }
 }
 
+// Tự động phân giải định dạng property chính xác (sc-domain: vs https:// vs http://) từ GSC của người dùng
+async function wstGetExactGscPropertyUrl(siteUrl) {
+  let userSites = [];
+  try {
+    const cached = sessionStorage.getItem('gsc_user_sites');
+    if (cached) {
+      userSites = JSON.parse(cached);
+    }
+  } catch (e) {}
+
+  if (!userSites || userSites.length === 0) {
+    const token = sessionStorage.getItem('gsc_access_token');
+    if (!token) throw new Error('No access token');
+    const res = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      userSites = (data.siteEntry || []).map(s => ({
+        siteUrl: s.siteUrl,
+        normalized: wstNormalizeUrl(s.siteUrl)
+      }));
+      sessionStorage.setItem('gsc_user_sites', JSON.stringify(userSites));
+    }
+  }
+
+  const normTarget = wstNormalizeUrl(siteUrl);
+  // Tìm kiếm khớp chính xác hoặc khớp tương đối (ends with)
+  const hit = userSites.find(g => g.normalized === normTarget || g.normalized.endsWith('.' + normTarget) || normTarget.endsWith('.' + g.normalized));
+  if (hit) {
+    return hit.siteUrl; // Trả về định dạng chuẩn của Google (sc-domain:kqbd88.co.com hoặc https://kqbd88.co.com/...)
+  }
+  
+  // Fallback về mặc định
+  return siteUrl.startsWith('http://') || siteUrl.startsWith('https://') || siteUrl.startsWith('sc-domain:') 
+    ? siteUrl 
+    : 'sc-domain:' + siteUrl;
+}
+
 // Gọi API Search Console trực tiếp từ trình duyệt của Client
 async function wstFetchGscDataDirect(siteUrl, body) {
   const token = sessionStorage.getItem('gsc_access_token');
   if (!token) {
     throw new Error('Chưa đăng nhập bằng Google hoặc thiếu token GSC.');
   }
+
+  // Tự động giải mã định dạng chính xác mà Google hiểu đối với tài khoản này
   let targetUrl = siteUrl;
-  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('sc-domain:')) {
-    targetUrl = 'sc-domain:' + targetUrl;
+  try {
+    targetUrl = await wstGetExactGscPropertyUrl(siteUrl);
+  } catch (urlErr) {
+    console.warn('[GSC URL Match Failed]', urlErr);
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('sc-domain:')) {
+      targetUrl = 'sc-domain:' + targetUrl;
+    }
   }
+
   const res = await fetch(
     `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(targetUrl)}/searchAnalytics/query`,
     {
@@ -9485,10 +9532,13 @@ async function wstFetchGscDataDirect(siteUrl, body) {
   if (res.status === 401) {
     sessionStorage.removeItem('gsc_access_token');
     if (typeof wstSetGscBadge === 'function') wstSetGscBadge('expired');
-    throw new Error('Phiên làm việc Google hết hạn. Vui lòng đăng nhập lại.');
+    throw new Error('Phiên đăng nhập Google hết hạn. Vui lòng click vào Badge GSC ở thanh công cụ để đăng nhập lại.');
+  }
+  if (res.status === 403) {
+    throw new Error('Tài khoản Google hiện tại không có quyền quản trị website này trong Search Console.');
   }
   if (!res.ok) {
-    throw new Error(`Google API returned status ${res.status}`);
+    throw new Error(`Lỗi Google API (${res.status})`);
   }
   return await res.json();
 }
