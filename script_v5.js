@@ -9512,7 +9512,22 @@ async function wstSyncGscRealtime(token, force = false) {
             position:    r.position || 0,
             ctr:         r.ctr || 0
           }));
-          updates[item.siteId] = { performanceHistory, syncedAt: fmt(endDate) };
+          
+          let indexedStatus = '';
+          const wObj = websites.find(w => w.id === item.siteId);
+          if (wObj && wObj.url) {
+            try {
+              const inspectResult = await wstInspectUrlGsc(item.siteUrl, wObj.url);
+              if (inspectResult && inspectResult.indexStatusResult) {
+                const verdict = inspectResult.indexStatusResult.verdict;
+                indexedStatus = verdict === 'PASS' ? 'Da index' : 'Chua index';
+              }
+            } catch (inspectErr) {
+              console.warn('[GSC Inspect Auto-Sync Failed]', wObj.url, inspectErr);
+            }
+          }
+
+          updates[item.siteId] = { performanceHistory, syncedAt: fmt(endDate), indexedStatus };
         } else {
           // 403 và các lỗi khác — đếm thầm, không log từng cái
           skipped++;
@@ -9543,22 +9558,23 @@ async function wstSyncGscRealtime(token, force = false) {
             siteObj.lastUpdatedAt = nowVN();
             wstAddChangelog(siteObj.wsId, 'gsc_synced', 'Đồng bộ GSC tự động thành công');
             
-            // Tự động chuyển Index thành "Da index" nếu site có impressions > 0 trên Search Console
+            // Cập nhật trạng thái Index chính xác từ GSC URL Inspection hoặc dùng heuristic fallback
             const history = updates[siteId].performanceHistory || [];
             const totalImps = history.reduce((sum, r) => sum + (r.impressions || 0), 0);
-            if (totalImps > 0) {
+            const indexedStatus = updates[siteId].indexedStatus || (totalImps > 0 ? 'Da index' : '');
+            if (indexedStatus) {
               if (!siteObj.entries) siteObj.entries = [];
               const todayStr = todayVN();
               const lastEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
               if (lastEntry && lastEntry.date === todayStr) {
-                lastEntry.indexed = 'Da index';
+                lastEntry.indexed = indexedStatus;
               } else {
                 siteObj.entries.push({
                   id: 'wste'+Date.now(),
                   date: todayStr,
                   rank: lastEntry ? lastEntry.rank : 'Out 100',
                   backlinks: lastEntry ? lastEntry.backlinks : null,
-                  indexed: 'Da index',
+                  indexed: indexedStatus,
                   moBot: siteObj.moBot || 'Mở',
                   note: ''
                 });
@@ -9628,6 +9644,60 @@ async function wstGetExactGscPropertyUrl(siteUrl) {
     ? siteUrl 
     : 'sc-domain:' + siteUrl;
 }
+
+// Gọi GSC URL Inspection API để lấy trạng thái Index chính xác từ Google Search Console
+async function wstInspectUrlGsc(gscPropertyUrl, homepageUrl) {
+  const token = sessionStorage.getItem('gsc_access_token');
+  if (!token) return null;
+
+  // Đảm bảo inspectionUrl bắt đầu bằng http:// hoặc https://
+  let inspectionUrl = homepageUrl;
+  if (!inspectionUrl.startsWith('http://') && !inspectionUrl.startsWith('https://')) {
+    inspectionUrl = 'https://' + inspectionUrl;
+  }
+  // Thêm dấu gạch chéo cuối nếu không có
+  if (!inspectionUrl.endsWith('/')) {
+    inspectionUrl += '/';
+  }
+
+  const url = 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect';
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+  const body = JSON.stringify({
+    inspectionUrl: inspectionUrl,
+    siteUrl: gscPropertyUrl,
+    languageCode: 'vi'
+  });
+
+  try {
+    const res = await fetch(url, { method: 'POST', headers, body });
+    if (res.ok) {
+      const data = await res.json();
+      return data.inspectionResult || null;
+    } else {
+      // Nếu lỗi do dùng https:// thì thử lại với http://
+      if (inspectionUrl.startsWith('https://')) {
+        const fallbackBody = JSON.stringify({
+          inspectionUrl: inspectionUrl.replace('https://', 'http://'),
+          siteUrl: gscPropertyUrl,
+          languageCode: 'vi'
+        });
+        const fallbackRes = await fetch(url, { method: 'POST', headers, body: fallbackBody });
+        if (fallbackRes.ok) {
+          const data = await fallbackRes.json();
+          return data.inspectionResult || null;
+        }
+      }
+      console.warn('[GSC Inspect] Failed for siteUrl:', gscPropertyUrl, 'status:', res.status);
+    }
+  } catch (err) {
+    console.error('[GSC Inspect] Error:', err);
+  }
+  return null;
+}
+
 
 // Gọi API Search Console trực tiếp từ trình duyệt của Client
 async function wstFetchGscDataDirect(siteUrl, body) {
@@ -10844,17 +10914,74 @@ function wstOpenHistoryModal(wsId) {
 }
 
 
-// Tự động kiểm tra trạng thái Index của website qua Serper API (q: site:domain)
+// Tự động kiểm tra trạng thái Index của website qua GSC Inspection API hoặc Serper Fallback
 async function wstCheckIndexStatus(wsId) {
+  const w = websites.find(x => x.id === wsId);
+  const site = getWstSite(wsId);
+  if (!w || !site) return;
+
+  // Hiển thị trạng thái đang check (loading)
+  const td = document.getElementById(`index_td_${wsId}`);
+  if (td) td.innerHTML = '⏳';
+
+  const token = sessionStorage.getItem('gsc_access_token');
+  if (token) {
+    try {
+      const gscPropertyUrl = await wstGetExactGscPropertyUrl(w.url);
+      const inspectResult = await wstInspectUrlGsc(gscPropertyUrl, w.url);
+      if (inspectResult && inspectResult.indexStatusResult) {
+        const verdict = inspectResult.indexStatusResult.verdict;
+        const finalStatus = verdict === 'PASS' ? 'Da index' : 'Chua index';
+
+        // Cập nhật vào entry mới nhất hoặc tạo mới cho ngày hôm nay
+        const tbDay = todayVN();
+        if(!site.entries) site.entries = [];
+        const entries = site.entries.slice().sort((a,b)=>b.date.localeCompare(a.date));
+        let last = entries[0];
+        if(last && last.date === tbDay) {
+          last.indexed = finalStatus;
+        } else {
+          site.entries.push({
+            id: 'wste'+Date.now(),
+            date: tbDay,
+            rank: last ? last.rank : 'Out 100',
+            backlinks: last ? last.backlinks : null,
+            indexed: finalStatus,
+            moBot: site.moBot || 'Mở',
+            note: ''
+          });
+        }
+
+        saveWsTrack(wsId);
+        wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index bằng GSC Inspection: ${finalStatus === 'Da index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
+        renderWsTrack();
+        toast(`✓ GSC Inspect: ${finalStatus === 'Da index' ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
+        return;
+      }
+    } catch (gscErr) {
+      console.warn('[GSC Inspect Single check failed, falling back to Serper]', gscErr);
+    }
+  }
+
+  // Fallback: Check qua Serper
+  if (confirm('Không có dữ liệu GSC hoặc chưa đăng nhập. Bạn có muốn dùng API Serper (tốn 1 credit) để kiểm tra trạng thái Index của domain không?')) {
+    await wstCheckIndexStatusSerper(wsId);
+  } else {
+    renderWsTrack();
+  }
+}
+
+// Kiểm tra Index dự phòng bằng Serper (site:domain)
+async function wstCheckIndexStatusSerper(wsId) {
   const w = websites.find(x => x.id === wsId);
   const site = getWstSite(wsId);
   if (!w || !site) return;
   if (!wtApiKey) {
     toast("Chưa cấu hình API Key Serper!", "#e74c3c");
+    renderWsTrack();
     return;
   }
 
-  // Hiển thị trạng thái đang check (loading)
   const td = document.getElementById(`index_td_${wsId}`);
   if (td) td.innerHTML = '⏳';
 
@@ -10867,7 +10994,6 @@ async function wstCheckIndexStatus(wsId) {
     const res = await fetch(url, { method: 'POST', headers, body });
     const data = await res.json();
     
-    // Giảm credit trong bộ nhớ tạm & cập nhật UI sử dụng API
     let cost = data.credits || 1;
     wtSerperCredits = Math.max(0, wtSerperCredits - cost);
     localStorage.setItem('wt_serper_credits_left', wtSerperCredits);
@@ -10876,7 +11002,6 @@ async function wstCheckIndexStatus(wsId) {
     const hasResults = data.organic && data.organic.length > 0;
     const finalStatus = hasResults ? 'Da index' : 'Chua index';
 
-    // Cập nhật vào entry mới nhất hoặc tạo mới cho ngày hôm nay
     const tbDay = todayVN();
     if(!site.entries) site.entries = [];
     const entries = site.entries.slice().sort((a,b)=>b.date.localeCompare(a.date));
@@ -10896,14 +11021,14 @@ async function wstCheckIndexStatus(wsId) {
     }
 
     saveWsTrack(wsId);
-    wstAddChangelog(wsId, 'manual_entry', `Tự động check Index bằng Serper: ${finalStatus === 'Da index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
+    wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index bằng Serper: ${finalStatus === 'Da index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
     
     renderWsTrack();
     toast(`✓ Check Index: ${finalStatus === 'Da index' ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
   } catch (err) {
-    console.error('Error checking index:', err);
-    if (td) renderWsTrack();
-    toast('Lỗi khi kiểm tra index!', '#e74c3c');
+    console.error('Error checking index via Serper:', err);
+    renderWsTrack();
+    toast('Lỗi khi kiểm tra index bằng Serper!', '#e74c3c');
   }
 }
 
