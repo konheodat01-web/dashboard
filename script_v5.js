@@ -2707,7 +2707,8 @@ function renderWsTrack(){
     const display301Url = latest301 ? (latest301.url||latest301.sourceUrl||'—') : (w.url||'—');
     const isSameAsSource = !latest301;
     const isSelected = _wstSelected.has(w.id);
-    const indexIcon = last?.indexed==='Đã index'?'✅':last?.indexed==='Chưa index'?'❌':(last?.indexed==='Một phần'||last?.indexed==='Cần kiểm tra')?'⚠️':'—';
+    const isChuaIndex = last?.indexed && last.indexed.startsWith('Chưa index');
+    const indexIcon = last?.indexed==='Đã index'?'✅':isChuaIndex?'❌':(last?.indexed==='Một phần'||last?.indexed==='Cần kiểm tra')?'⚠️':'—';
 
     return `<tr style="border-bottom:1px solid #f0f0f0;${isSelected?'background:#fdf2f2;':''}" onmouseover="if(!${isSelected})this.style.background='#fafafa'" onmouseout="if(!${isSelected})this.style.background=''">
       <td style="padding:6px;text-align:center">
@@ -2799,7 +2800,7 @@ function renderWsTrack(){
       <td id="rank_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600">
         ${!last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank)}
       </td>
-      <td id="index_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="Click để check index tự động bằng Serper (site:domain)">${indexIcon}</td>
+      <td id="index_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="${last?.indexed || 'Chưa kiểm tra'}\n(Click để check index tự động bằng Serper/GSC)">${indexIcon}</td>
       ${(() => {
         const cache = (typeof _gscCache !== 'undefined' ? _gscCache[w.id] : null) || {};
         const gscDate = cache.syncedAt || '';
@@ -2892,7 +2893,7 @@ function wstOpenDetail(wsId){
   const site = getWstSite(wsId);
   if(!w||!site) return;
   const entries = (site.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  const indexBadge = v=>v==='Đã index'?'<span style="font-size:10px;background:#d4edda;color:#155724;padding:1px 6px;border-radius:10px">✅ Đã index</span>':v==='Chưa index'?'<span style="font-size:10px;background:#f8d7da;color:#721c24;padding:1px 6px;border-radius:10px">❌ Chưa</span>':(v==='Một phần'||v==='Cần kiểm tra')?'<span style="font-size:10px;background:#fff3cd;color:#856404;padding:1px 6px;border-radius:10px">⚠️ Cần kiểm tra</span>':'—';
+  const indexBadge = v => wstGetIndexBadgeHTML(v, true);
   const ov = document.createElement('div');
   ov.id='wstDetailOv';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
@@ -2949,9 +2950,7 @@ function renderWstContent(wsId){
 
   const entries = (site.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
 
-  const indexBadge = v => v==='Đã index'?'<span style="font-size:11px;background:#d4edda;color:#155724;padding:2px 7px;border-radius:10px">✅ Đã index</span>':
-    v==='Chưa index'?'<span style="font-size:11px;background:#f8d7da;color:#721c24;padding:2px 7px;border-radius:10px">❌ Chưa index</span>':
-    (v==='Một phần'||v==='Cần kiểm tra')?'<span style="font-size:11px;background:#fff3cd;color:#856404;padding:2px 7px;border-radius:10px">⚠️ Cần kiểm tra</span>':'—';
+  const indexBadge = v => wstGetIndexBadgeHTML(v, false);
 
   content.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
@@ -9518,9 +9517,8 @@ async function wstSyncGscRealtime(token, force = false) {
           if (wObj && wObj.url) {
             try {
               const inspectResult = await wstInspectUrlGsc(item.siteUrl, wObj.url);
-              if (inspectResult && inspectResult.indexStatusResult) {
-                const verdict = inspectResult.indexStatusResult.verdict;
-                indexedStatus = verdict === 'PASS' ? 'Đã index' : 'Chưa index';
+              if (inspectResult) {
+                indexedStatus = wstGetFriendlyIndexReason(inspectResult);
               }
             } catch (inspectErr) {
               console.warn('[GSC Inspect Auto-Sync Failed]', wObj.url, inspectErr);
@@ -9697,6 +9695,78 @@ async function wstInspectUrlGsc(gscPropertyUrl, homepageUrl) {
   }
   return null;
 }
+
+
+// Phân tích kết quả kiểm tra URL từ GSC để trả về lý do cụ thể nếu chưa index
+function wstGetFriendlyIndexReason(inspectResult) {
+  if (!inspectResult || !inspectResult.indexStatusResult) return 'Chưa kiểm tra';
+  const res = inspectResult.indexStatusResult;
+  if (res.verdict === 'PASS') {
+    return 'Đã index';
+  }
+
+  const indexingState = res.indexingState || '';
+  const pageFetchState = res.pageFetchState || '';
+  const coverageState = res.coverageState || '';
+
+  // 1. Chặn bởi robots.txt
+  if (indexingState === 'BLOCKED_BY_ROBOTS_TXT' || pageFetchState === 'BLOCKED_ROBOTS_TXT' || coverageState.toLowerCase().includes('robots.txt') || coverageState.toLowerCase().includes('robots')) {
+    return 'Chưa index (robots.txt)';
+  }
+  // 2. Chặn bởi thẻ noindex
+  if (indexingState === 'BLOCKED_BY_META_NOINDEX' || indexingState === 'BLOCKED_BY_HTTP_HEADER_NOINDEX' || coverageState.toLowerCase().includes('noindex')) {
+    return 'Chưa index (Thẻ noindex)';
+  }
+  // 3. Lỗi 404
+  if (pageFetchState === 'NOT_FOUND' || coverageState.toLowerCase().includes('404') || coverageState.toLowerCase().includes('not found')) {
+    return 'Chưa index (Lỗi 404)';
+  }
+  // 4. Lỗi Server
+  if (pageFetchState === 'SERVER_ERROR' || coverageState.toLowerCase().includes('server error') || coverageState.toLowerCase().includes('500')) {
+    return 'Chưa index (Lỗi Server 5xx)';
+  }
+  // 5. Lỗi Redirect
+  if (pageFetchState === 'REDIRECT_ERROR' || coverageState.toLowerCase().includes('redirect')) {
+    return 'Chưa index (Lỗi redirect)';
+  }
+  // 6. Đã Crawl nhưng chưa Index
+  if (coverageState.toLowerCase().includes('crawled - currently not indexed') || coverageState.toLowerCase().includes('crawled') || coverageState.includes('Đã thu thập dữ liệu')) {
+    return 'Chưa index (Đã crawl, chưa index)';
+  }
+  // 7. Đã phát hiện nhưng chưa Crawl
+  if (coverageState.toLowerCase().includes('discovered - currently not indexed') || coverageState.toLowerCase().includes('discovered') || coverageState.includes('Đã phát hiện')) {
+    return 'Chưa index (Đã phát hiện, chưa crawl)';
+  }
+
+  // Fallback hiển thị coverageState thô nếu có
+  if (coverageState) {
+    let friendlyState = coverageState;
+    if (friendlyState.includes('Excluded')) friendlyState = friendlyState.replace('Excluded by', 'Loại trừ bởi');
+    return `Chưa index (${friendlyState})`;
+  }
+
+  return 'Chưa index';
+}
+
+// Helper sinh mã HTML cho Badge của trạng thái Index
+function wstGetIndexBadgeHTML(v, isSmall = true) {
+  if (!v) return '—';
+  if (v === 'Đã index') {
+    return `<span style="font-size:${isSmall?'10px':'11px'};background:#d4edda;color:#155724;padding:${isSmall?'1px 6px':'2px 7px'};border-radius:10px;font-weight:600">✅ Đã index</span>`;
+  }
+  if (v === 'Cần kiểm tra' || v === 'Một phần') {
+    return `<span style="font-size:${isSmall?'10px':'11px'};background:#fff3cd;color:#856404;padding:${isSmall?'1px 6px':'2px 7px'};border-radius:10px;font-weight:600">⚠️ Cần kiểm tra</span>`;
+  }
+  if (v.startsWith('Chưa index')) {
+    // Trích xuất lý do cụ thể trong ngoặc nếu có
+    const match = v.match(/\(([^)]+)\)/);
+    const reason = match ? match[1] : '';
+    const label = reason ? `Chưa (${reason})` : 'Chưa index';
+    return `<span style="font-size:${isSmall?'10px':'11px'};background:#f8d7da;color:#721c24;padding:${isSmall?'1px 6px':'2px 7px'};border-radius:10px;font-weight:600" title="${v}">❌ ${label}</span>`;
+  }
+  return v;
+}
+
 
 
 // Gọi API Search Console trực tiếp từ trình duyệt của Client
@@ -10020,9 +10090,8 @@ async function wstSyncGscNow() {
     try {
       const gscPropertyUrl = await wstGetExactGscPropertyUrl(site.url);
       const inspectResult = await wstInspectUrlGsc(gscPropertyUrl, site.url);
-      if (inspectResult && inspectResult.indexStatusResult) {
-        const verdict = inspectResult.indexStatusResult.verdict;
-        indexedStatus = verdict === 'PASS' ? 'Đã index' : 'Chưa index';
+      if (inspectResult) {
+        indexedStatus = wstGetFriendlyIndexReason(inspectResult);
       }
     } catch (gscErr) {
       console.warn('[GSC Inspect Single GSC Sync Failed]', site.url, gscErr);
@@ -10944,9 +11013,8 @@ async function wstCheckIndexStatus(wsId) {
     try {
       const gscPropertyUrl = await wstGetExactGscPropertyUrl(w.url);
       const inspectResult = await wstInspectUrlGsc(gscPropertyUrl, w.url);
-      if (inspectResult && inspectResult.indexStatusResult) {
-        const verdict = inspectResult.indexStatusResult.verdict;
-        const finalStatus = verdict === 'PASS' ? 'Đã index' : 'Chưa index';
+      if (inspectResult) {
+        const finalStatus = wstGetFriendlyIndexReason(inspectResult);
 
         // Cập nhật vào entry mới nhất hoặc tạo mới cho ngày hôm nay
         const tbDay = todayVN();
