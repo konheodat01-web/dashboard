@@ -9461,6 +9461,38 @@ async function wstSyncGscRealtime(token) {
   }
 }
 
+// Gọi API Search Console trực tiếp từ trình duyệt của Client
+async function wstFetchGscDataDirect(siteUrl, body) {
+  const token = sessionStorage.getItem('gsc_access_token');
+  if (!token) {
+    throw new Error('Chưa đăng nhập bằng Google hoặc thiếu token GSC.');
+  }
+  let targetUrl = siteUrl;
+  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('sc-domain:')) {
+    targetUrl = 'sc-domain:' + targetUrl;
+  }
+  const res = await fetch(
+    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(targetUrl)}/searchAnalytics/query`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }
+  );
+  if (res.status === 401) {
+    sessionStorage.removeItem('gsc_access_token');
+    if (typeof wstSetGscBadge === 'function') wstSetGscBadge('expired');
+    throw new Error('Phiên làm việc Google hết hạn. Vui lòng đăng nhập lại.');
+  }
+  if (!res.ok) {
+    throw new Error(`Google API returned status ${res.status}`);
+  }
+  return await res.json();
+}
+
 
 // Open GSC Detail Modal
 async function wstOpenGscModal(siteId) {
@@ -9529,7 +9561,7 @@ function wstChangeGscRange() {
   wstLoadGscDetailData();
 }
 
-// Fetch details from GSC API via Backend Proxy
+// Fetch details from GSC API directly from Client-side
 async function wstLoadGscDetailData() {
   if (!_gscActiveSiteId) return;
   const site = websites.find(w => w.id === _gscActiveSiteId);
@@ -9540,55 +9572,67 @@ async function wstLoadGscDetailData() {
   // Show loading indicator
   document.getElementById('gscChartLoading').style.display = 'flex';
   
-  const host = 'https://api.nthieucloud.shop'; // VPS API endpoint
-  try {
-    const perfRes = await fetch(`${host}/api/gsc/performance-history`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        siteId: _gscActiveSiteId,
-        websites: sanitizeWebsitesForApi(websites)
-      })
-    });
-    
-    if (perfRes.ok) {
-      const data = await perfRes.json();
-      const history = data.performanceHistory || [];
+  // 1. Tải performance history (từ cache local trước)
+  const cache = _gscCache[_gscActiveSiteId] || {};
+  let history = cache.performanceHistory || [];
+  
+  let dateLimit = new Date();
+  if (range === '7d') dateLimit.setDate(dateLimit.getDate() - 7);
+  else if (range === '28d') dateLimit.setDate(dateLimit.getDate() - 28);
+  else dateLimit.setDate(dateLimit.getDate() - 90);
+  const limitStr = dateLimit.toISOString().split('T')[0];
+  
+  // Nếu cache không có dữ liệu cho khoảng thời gian yêu cầu, tự fetch trực tiếp từ Google
+  if (history.length === 0) {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 90); // Lấy tối đa 90 ngày
+      const fmt = d => d.toISOString().split('T')[0];
       
-      // Calculate summary stats
-      let clicks = 0;
-      let imps = 0;
-      let totalPos = 0;
-      
-      let dateLimit = new Date();
-      if (range === '7d') dateLimit.setDate(dateLimit.getDate() - 7);
-      else if (range === '28d') dateLimit.setDate(dateLimit.getDate() - 28);
-      else dateLimit.setDate(dateLimit.getDate() - 90);
-      const limitStr = dateLimit.toISOString().split('T')[0];
-      
-      const filteredHist = history.filter(h => h.date >= limitStr);
-      filteredHist.forEach(h => {
-        clicks += h.clicks || 0;
-        imps += h.impressions || 0;
-        totalPos += (h.position || 0) * (h.impressions || 0);
+      const gData = await wstFetchGscDataDirect(site.gscPropertyUrl || site.url, {
+        startDate: fmt(startDate),
+        endDate: fmt(endDate),
+        dimensions: ['date'],
+        rowLimit: 90
       });
-      
-      const ctr = imps > 0 ? (clicks / imps) * 100 : 0;
-      const avgPos = imps > 0 ? (totalPos / imps) : 0;
-      
-      document.getElementById('gscSumClicks').innerText = clicks.toLocaleString();
-      document.getElementById('gscSumImpressions').innerText = imps.toLocaleString();
-      document.getElementById('gscSumCtr').innerText = ctr.toFixed(1) + '%';
-      document.getElementById('gscSumPosition').innerText = avgPos > 0 ? avgPos.toFixed(1) : '—';
-      
-      wstDrawGscChart(filteredHist);
-      document.getElementById('gscChartLoading').style.display = 'none';
+      const rows = gData.rows || [];
+      history = rows.map(r => ({
+        date:        r.keys[0],
+        clicks:      r.clicks || 0,
+        impressions: r.impressions || 0,
+        position:    r.position || 0,
+        ctr:         r.ctr || 0
+      }));
+    } catch (e) {
+      console.warn('[GSC Detail] Direct history fetch failed:', e.message);
     }
-  } catch (err) {
-    console.error('Error loading GSC performance history:', err);
   }
   
-  // Fetch Top Queries and Pages dynamically
+  // Calculate summary stats
+  let clicks = 0;
+  let imps = 0;
+  let totalPos = 0;
+  
+  const filteredHist = history.filter(h => h.date >= limitStr);
+  filteredHist.forEach(h => {
+    clicks += h.clicks || 0;
+    imps += h.impressions || 0;
+    totalPos += (h.position || 0) * (h.impressions || 0);
+  });
+  
+  const ctr = imps > 0 ? (clicks / imps) * 100 : 0;
+  const avgPos = imps > 0 ? (totalPos / imps) : 0;
+  
+  document.getElementById('gscSumClicks').innerText = clicks.toLocaleString();
+  document.getElementById('gscSumImpressions').innerText = imps.toLocaleString();
+  document.getElementById('gscSumCtr').innerText = ctr.toFixed(1) + '%';
+  document.getElementById('gscSumPosition').innerText = avgPos > 0 ? avgPos.toFixed(1) : '—';
+  
+  wstDrawGscChart(filteredHist);
+  document.getElementById('gscChartLoading').style.display = 'none';
+  
+  // 2. Fetch Top Queries and Pages dynamically directly from Google Search Console
   const queriesTbody = document.getElementById('gscQueriesTbody');
   const pagesTbody = document.getElementById('gscPagesTbody');
   
@@ -9597,108 +9641,139 @@ async function wstLoadGscDetailData() {
   
   let finalGscUrl = site.gscPropertyUrl || site.url;
   if (!finalGscUrl) {
-    if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Chưa cấu hình GSC Property URL cho web này!</td></tr>';
-    if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Chưa cấu hình GSC Property URL cho web này!</td></tr>';
+    const errText = 'Chưa cấu hình GSC Property URL cho web này!';
+    if (queriesTbody) queriesTbody.innerHTML = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">${errText}</td></tr>`;
+    if (pagesTbody) pagesTbody.innerHTML = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">${errText}</td></tr>`;
     return;
   }
   
+  const days = range === '7d' ? 7 : range === '28d' ? 28 : 90;
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  const fmt = d => d.toISOString().split('T')[0];
+  
+  // Fetch Queries
   try {
-    const qRes = await fetch(`${host}/api/gsc/queries-and-pages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        gscPropertyUrl: finalGscUrl,
-        range: range
-      })
+    const qData = await wstFetchGscDataDirect(finalGscUrl, {
+      startDate: fmt(startDate),
+      endDate: fmt(endDate),
+      dimensions: ['query'],
+      rowLimit: 100
     });
     
-    if (qRes.ok) {
-      const data = await qRes.json();
-      
-      // Queries Table
-      const queries = data.queries || [];
-      if (queries.length === 0) {
-        if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Không tìm thấy dữ liệu từ khóa.</td></tr>';
-      } else {
-        if (queriesTbody) {
-          queriesTbody.innerHTML = queries.map(q => `
-            <tr style="border-bottom: 1px solid #30363d; height: 38px;">
-              <td style="padding: 8px 16px; color: #c9d1d9; font-weight: 500;">${q.query}</td>
-              <td style="padding: 8px 16px; text-align: right; color: #58a6ff; font-weight: 600;">${q.clicks.toLocaleString()}</td>
-              <td style="padding: 8px 16px; text-align: right; color: #8b949e;">${q.impressions.toLocaleString()}</td>
-              <td style="padding: 8px 16px; text-align: right; color: #f2a154;">${(q.ctr * 100).toFixed(1)}%</td>
-              <td style="padding: 8px 16px; text-align: right; color: #bc8cff; font-weight: 600;">${q.position.toFixed(1)}</td>
-            </tr>
-          `).join('');
-        }
-      }
-      
-      // Pages Table (with home page pinned)
-      const pages = data.pages || [];
-      if (pages.length === 0) {
-        if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Không tìm thấy dữ liệu trang.</td></tr>';
-      } else {
-        if (pagesTbody) {
-          pagesTbody.innerHTML = pages.map(p => {
-            const isHome = p.page === '/';
-            return `
-              <tr style="border-bottom: 1px solid #30363d; height: 38px; ${isHome ? 'background: rgba(88,166,255,0.06); font-weight: 600;' : ''}">
-                <td style="padding: 8px 16px; color: ${isHome ? '#58a6ff' : '#c9d1d9'}; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${p.fullUrl}">
-                  ${isHome ? '🏠 ' : ''}${p.page}
-                </td>
-                <td style="padding: 8px 16px; text-align: right; color: #58a6ff;">${p.clicks.toLocaleString()}</td>
-                <td style="padding: 8px 16px; text-align: right; color: #8b949e;">${p.impressions.toLocaleString()}</td>
-                <td style="padding: 8px 16px; text-align: right; color: #f2a154;">${(p.ctr * 100).toFixed(1)}%</td>
-                <td style="padding: 8px 16px; text-align: right; color: #bc8cff;">${p.position.toFixed(1)}</td>
-              </tr>
-            `;
-          }).join('');
-        }
-      }
+    const queries = qData.rows || [];
+    if (queries.length === 0) {
+      if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Không tìm thấy dữ liệu từ khóa.</td></tr>';
     } else {
-      const errData = await qRes.json();
-      if (queriesTbody) queriesTbody.innerHTML = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi: ${errData.error}</td></tr>`;
-      if (pagesTbody) pagesTbody.innerHTML = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi: ${errData.error}</td></tr>`;
+      if (queriesTbody) {
+        queriesTbody.innerHTML = queries.map(q => `
+          <tr style="border-bottom: 1px solid #30363d; height: 38px;">
+            <td style="padding: 8px 16px; color: #c9d1d9; font-weight: 500;">${q.keys[0]}</td>
+            <td style="padding: 8px 16px; text-align: right; color: #58a6ff; font-weight: 600;">${q.clicks.toLocaleString()}</td>
+            <td style="padding: 8px 16px; text-align: right; color: #8b949e;">${q.impressions.toLocaleString()}</td>
+            <td style="padding: 8px 16px; text-align: right; color: #f2a154;">${(q.ctr * 100).toFixed(1)}%</td>
+            <td style="padding: 8px 16px; text-align: right; color: #bc8cff; font-weight: 600;">${q.position.toFixed(1)}</td>
+          </tr>
+        `).join('');
+      }
     }
   } catch (err) {
-    console.error('Error fetching queries/pages:', err);
-    if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi kết nối VPS.</td></tr>';
-    if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi kết nối VPS.</td></tr>';
+    console.error('Error fetching queries:', err);
+    if (queriesTbody) queriesTbody.innerHTML = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi: ${err.message}</td></tr>`;
+  }
+  
+  // Fetch Pages
+  try {
+    const pData = await wstFetchGscDataDirect(finalGscUrl, {
+      startDate: fmt(startDate),
+      endDate: fmt(endDate),
+      dimensions: ['page'],
+      rowLimit: 100
+    });
+    
+    const pages = pData.rows || [];
+    if (pages.length === 0) {
+      if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Không tìm thấy dữ liệu trang.</td></tr>';
+    } else {
+      if (pagesTbody) {
+        pagesTbody.innerHTML = pages.map(p => {
+          const fullUrl = p.keys[0];
+          let pagePath = '/';
+          try {
+            const urlObj = new URL(fullUrl);
+            pagePath = urlObj.pathname;
+          } catch(e) {
+            pagePath = fullUrl.replace(/^https?:\/\/[^\/]+/i, '');
+            if (!pagePath.startsWith('/')) pagePath = '/' + pagePath;
+          }
+          const isHome = pagePath === '/';
+          return `
+            <tr style="border-bottom: 1px solid #30363d; height: 38px; ${isHome ? 'background: rgba(88,166,255,0.06); font-weight: 600;' : ''}">
+              <td style="padding: 8px 16px; color: ${isHome ? '#58a6ff' : '#c9d1d9'}; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${fullUrl}">
+                ${isHome ? '🏠 ' : ''}${pagePath}
+              </td>
+              <td style="padding: 8px 16px; text-align: right; color: #58a6ff;">${p.clicks.toLocaleString()}</td>
+              <td style="padding: 8px 16px; text-align: right; color: #8b949e;">${p.impressions.toLocaleString()}</td>
+              <td style="padding: 8px 16px; text-align: right; color: #f2a154;">${(p.ctr * 100).toFixed(1)}%</td>
+              <td style="padding: 8px 16px; text-align: right; color: #bc8cff;">${p.position.toFixed(1)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching pages:', err);
+    if (pagesTbody) pagesTbody.innerHTML = `<tr><td colspan="5" style="padding: 24px; text-align: center; color: #e74c3c;">Lỗi: ${err.message}</td></tr>`;
   }
 }
 
-// Sync Now via GSC API
+// Sync Now via direct GSC API
 async function wstSyncGscNow() {
   if (!_gscActiveSiteId) return;
+  const site = websites.find(w => w.id === _gscActiveSiteId);
+  if (!site) return;
+  
   const syncBtn = document.getElementById('gscSyncBtn');
   if (syncBtn) {
     syncBtn.disabled = true;
     syncBtn.innerHTML = '<span>⏳ Đang đồng bộ...</span>';
   }
   
-  const host = 'https://api.nthieucloud.shop';
   try {
-    const res = await fetch(`${host}/api/gsc/sync-now`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        siteId: _gscActiveSiteId,
-        websites: sanitizeWebsitesForApi(websites),
-        force: true
-      })
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 28);
+    const fmt = d => d.toISOString().split('T')[0];
+    
+    const gData = await wstFetchGscDataDirect(site.gscPropertyUrl || site.url, {
+      startDate: fmt(startDate),
+      endDate: fmt(endDate),
+      dimensions: ['date'],
+      rowLimit: 28
     });
     
-    if (res.ok) {
-      toast('Đồng bộ GSC thành công!', '#27ae60');
-      await loadGscCache();
-      wstLoadGscDetailData();
-    } else {
-      const data = await res.json();
-      toast(`Lỗi đồng bộ: ${data.error || 'Unknown'}`, '#e74c3c');
-    }
+    const rows = gData.rows || [];
+    const performanceHistory = rows.map(r => ({
+      date:        r.keys[0],
+      clicks:      r.clicks || 0,
+      impressions: r.impressions || 0,
+      position:    r.position || 0,
+      ctr:         r.ctr || 0
+    }));
+    
+    const updates = {};
+    updates[_gscActiveSiteId] = { performanceHistory, syncedAt: fmt(endDate) };
+    
+    await firebase.database().ref('gsc_cache').update(updates);
+    Object.assign(_gscCache, updates);
+    renderWsTrack();
+    
+    toast('Đồng bộ dữ liệu thành công!', '#27ae60');
+    wstLoadGscDetailData();
   } catch (err) {
-    console.error('Error triggering GSC sync:', err);
-    toast('Lỗi kết nối VPS!', '#e74c3c');
+    console.error('Error in GSC direct sync now:', err);
+    toast(`Lỗi: ${err.message}`, '#e74c3c');
   } finally {
     if (syncBtn) {
       syncBtn.disabled = false;
@@ -10385,56 +10460,59 @@ async function wstLoadGscQueries() {
   const qBox = document.getElementById('wstGscQueriesBox');
   if (!site || !qBox) return;
 
-  const host = 'https://api.nthieucloud.shop';
   let finalGscUrl = site.gscPropertyUrl || site.url;
   if (!finalGscUrl) {
     qBox.innerHTML = '<span style="color:#e74c3c">Chưa cấu hình GSC Property URL.</span>';
     return;
   }
 
+  qBox.innerHTML = '⏳ Đang tải từ khóa tìm kiếm...';
+
   try {
-    const res = await fetch(`${host}/api/gsc/queries-and-pages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gscPropertyUrl: finalGscUrl, range: 28 })
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 28);
+    const fmt = d => d.toISOString().split('T')[0];
+    
+    const qData = await wstFetchGscDataDirect(finalGscUrl, {
+      startDate: fmt(startDate),
+      endDate: fmt(endDate),
+      dimensions: ['query'],
+      rowLimit: 5
     });
     
-    if (res.ok) {
-      const data = await res.json();
-      const queries = data.queries || [];
-      if (queries.length === 0) {
-        qBox.innerHTML = 'Không tìm thấy từ khóa nào.';
-      } else {
-        qBox.innerHTML = `
-          <table style="width:100%;">
-            <thead>
-              <tr style="background:#0d1117">
-                <th>Từ khóa Google</th>
-                <th class="c">Clicks</th>
-                <th class="c">Imps</th>
-                <th class="c">CTR</th>
-                <th class="c">Vị trí</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${queries.slice(0, 5).map(q => `
-                <tr>
-                  <td><span class="kw">${q.query}</span></td>
-                  <td class="c cb" style="font-weight:700">${q.clicks.toLocaleString()}</td>
-                  <td class="c cg">${q.impressions.toLocaleString()}</td>
-                  <td class="c co">${(q.ctr * 100).toFixed(1)}%</td>
-                  <td class="c"><span class="rb r1">${q.position.toFixed(1)}</span></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        `;
-      }
+    const queries = qData.rows || [];
+    if (queries.length === 0) {
+      qBox.innerHTML = 'Không tìm thấy từ khóa nào.';
     } else {
-      qBox.innerHTML = '<span style="color:#e74c3c">Không có quyền truy cập hoặc lỗi GSC.</span>';
+      qBox.innerHTML = `
+        <table style="width:100%;">
+          <thead>
+            <tr style="background:#0d1117">
+              <th>Từ khóa Google</th>
+              <th class="c">Clicks</th>
+              <th class="c">Imps</th>
+              <th class="c">CTR</th>
+              <th class="c">Vị trí</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${queries.map(q => `
+              <tr>
+                <td><span class="kw">${q.keys[0]}</span></td>
+                <td class="c cb" style="font-weight:700">${q.clicks.toLocaleString()}</td>
+                <td class="c cg">${q.impressions.toLocaleString()}</td>
+                <td class="c co">${(q.ctr * 100).toFixed(1)}%</td>
+                <td class="c"><span class="rb r1">${q.position.toFixed(1)}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
     }
   } catch (err) {
-    qBox.innerHTML = '<span style="color:#e74c3c">Không thể tải dữ liệu tự động.</span>';
+    console.error('Error in wstLoadGscQueries:', err);
+    qBox.innerHTML = `<span style="color:#e74c3c">Lỗi: ${err.message}</span>`;
   }
 }
 
