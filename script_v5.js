@@ -2686,10 +2686,10 @@ function renderWsTrack(){
       <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:130px">Website (gốc)</th>
       <th style="padding:8px 10px;text-align:left;font-size:11px">Nhóm</th>
       <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:140px">Từ khóa SEO</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Clicks (28 ngày qua)">Clicks (28d)</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Impressions (28 ngày qua)">Imps (28d)</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="CTR trung bình 28 ngày">CTR</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Vị trí trung bình 28 ngày">Vị trí</th>
+      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Clicks (24 giờ gần nhất và tăng giảm so với hôm trước)">Clicks (24h)</th>
+      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Impressions (24 giờ gần nhất và tăng giảm so với hôm trước)">Imps (24h)</th>
+      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="CTR (24 giờ gần nhất và tăng giảm so với hôm trước)">CTR (24h)</th>
+      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Vị trí trung bình (24 giờ gần nhất và tăng giảm so với hôm trước)">Vị trí (24h)</th>
       <th style="padding:8px 10px;text-align:center;font-size:11px">🏆 Rank</th>
       <th style="padding:8px 10px;text-align:center;font-size:11px">🔍 Index</th>
       <th style="padding:8px 10px;text-align:left;font-size:11px">Cập nhật</th>
@@ -2751,50 +2751,73 @@ function renderWsTrack(){
       </td>
       ${(()=>{
         const redirectChain = getWstRedirectChainBackward(w);
-        let totalClicks = 0;
-        let totalImpressions = 0;
-        let totalWeightedPosition = 0;
-        
-        const limitDate = new Date();
-        limitDate.setDate(limitDate.getDate() - 28);
-        const limitStr = limitDate.toISOString().split('T')[0];
-        
         const combinedHistory = {};
+        
         redirectChain.forEach(s => {
           const cache = (typeof _gscCache !== 'undefined' ? _gscCache[s.id] : null) || {};
           const hist = cache.performanceHistory || [];
           hist.forEach(h => {
-            if (h.date >= limitStr) {
-              if (!combinedHistory[h.date]) {
-                combinedHistory[h.date] = { clicks: 0, impressions: 0, position: 0 };
-              }
-              combinedHistory[h.date].clicks += h.clicks || 0;
-              combinedHistory[h.date].impressions += h.impressions || 0;
-              combinedHistory[h.date].position = h.position || 0;
+            if (!combinedHistory[h.date]) {
+              combinedHistory[h.date] = { clicks: 0, impressions: 0, weightedPosition: 0 };
             }
+            combinedHistory[h.date].clicks += h.clicks || 0;
+            combinedHistory[h.date].impressions += h.impressions || 0;
+            combinedHistory[h.date].weightedPosition += (h.position || 0) * (h.impressions || 0);
           });
         });
         
-        Object.keys(combinedHistory).forEach(d => {
-          const item = combinedHistory[d];
-          totalClicks += item.clicks;
-          totalImpressions += item.impressions;
-          totalWeightedPosition += (item.position * item.impressions);
+        const sortedDates = Object.keys(combinedHistory).sort((a, b) => b.localeCompare(a));
+        
+        let clicksLatest = 0, impsLatest = 0, ctrLatest = 0, posLatest = 0;
+        let clicksPrev = 0, impsPrev = 0, ctrPrev = 0, posPrev = 0;
+        
+        if (sortedDates.length > 0) {
+          const latest = combinedHistory[sortedDates[0]];
+          clicksLatest = latest.clicks;
+          impsLatest = latest.impressions;
+          posLatest = impsLatest > 0 ? (latest.weightedPosition / impsLatest) : 0;
+          ctrLatest = impsLatest > 0 ? (clicksLatest / impsLatest) * 100 : 0;
+        }
+        if (sortedDates.length > 1) {
+          const prev = combinedHistory[sortedDates[1]];
+          clicksPrev = prev.clicks;
+          impsPrev = prev.impressions;
+          posPrev = impsPrev > 0 ? (prev.weightedPosition / impsPrev) : 0;
+          ctrPrev = impsPrev > 0 ? (clicksPrev / impsPrev) * 100 : 0;
+        }
+        
+        const renderTrend = (latestVal, prevVal, isLowerBetter = false, formatFn) => {
+          if (latestVal === 0) return '—';
+          const diff = latestVal - prevVal;
+          let icon = '';
+          let color = '';
+          if (prevVal > 0 && diff !== 0) {
+            if (diff > 0) {
+              icon = '▲';
+              color = isLowerBetter ? '#e74c3c' : '#27ae60';
+            } else {
+              icon = '▼';
+              color = isLowerBetter ? '#27ae60' : '#e74c3c';
+            }
+          }
+          const changeVal = isLowerBetter ? -diff : diff;
+          const changeText = (prevVal > 0 && diff !== 0) ? ` (So với hôm trước: ${changeVal > 0 ? '+' : ''}${formatFn(changeVal)})` : '';
+          const iconHtml = icon ? `<span style="color:${color};font-size:9px;margin-left:3px;font-weight:bold" title="${changeText}">${icon}</span>` : '';
+          return `<span title="Ngày gần nhất (${sortedDates[0] || 'N/A'}): ${formatFn(latestVal)}${changeText}">${formatFn(latestVal)}${iconHtml}</span>`;
+        };
+        
+        const clicksHtml = renderTrend(clicksLatest, clicksPrev, false, (val) => val.toLocaleString());
+        const impsHtml = renderTrend(impsLatest, impsPrev, false, (val) => {
+          return val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toLocaleString();
         });
-        
-        const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
-        const avgPos = totalImpressions > 0 ? (totalWeightedPosition / totalImpressions) : 0;
-        
-        const clicksStr = totalClicks.toLocaleString();
-        const impsStr = totalImpressions >= 1000 ? (totalImpressions / 1000).toFixed(1) + 'k' : totalImpressions.toLocaleString();
-        const ctrStr = ctr.toFixed(1) + '%';
-        const posStr = avgPos > 0 ? avgPos.toFixed(1) : '—';
+        const ctrHtml = renderTrend(ctrLatest, ctrPrev, false, (val) => val.toFixed(1) + '%');
+        const posHtml = renderTrend(posLatest, posPrev, true, (val) => val > 0 ? val.toFixed(1) : '—');
         
         return `
-          <td style="padding:8px 10px;text-align:center;font-weight:600;color:#58a6ff;cursor:pointer" onclick="wstOpenGscModal(${w.id})" title="Xem chi tiết GSC">${clicksStr}</td>
-          <td style="padding:8px 10px;text-align:center;color:#88d49e;cursor:pointer" onclick="wstOpenGscModal(${w.id})" title="Xem chi tiết GSC">${impsStr}</td>
-          <td style="padding:8px 10px;text-align:center;color:#f2a154;cursor:pointer" onclick="wstOpenGscModal(${w.id})" title="Xem chi tiết GSC">${ctrStr}</td>
-          <td style="padding:8px 10px;text-align:center;color:#c5a3ff;font-weight:600;cursor:pointer" onclick="wstOpenGscModal(${w.id})" title="Xem chi tiết GSC">${posStr}</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:600;color:#58a6ff;cursor:pointer" onclick="wstOpenGscModal(${w.id})">${clicksHtml}</td>
+          <td style="padding:8px 10px;text-align:center;color:#88d49e;cursor:pointer" onclick="wstOpenGscModal(${w.id})">${impsHtml}</td>
+          <td style="padding:8px 10px;text-align:center;color:#f2a154;cursor:pointer" onclick="wstOpenGscModal(${w.id})">${ctrHtml}</td>
+          <td style="padding:8px 10px;text-align:center;color:#c5a3ff;font-weight:600;cursor:pointer" onclick="wstOpenGscModal(${w.id})">${posHtml}</td>
         `;
       })()}
       <td id="rank_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600">
