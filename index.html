@@ -204,6 +204,8 @@
   <div id="pqOverlay" style="display:none;position:fixed;inset:0;z-index:498" onclick="uniClose()"></div>
 
   <div style="display:flex;align-items:center;gap:8px">
+    <span id="wstApiBadge" style="font-size:12px;font-weight:700;color:#fff;padding:4px 8px;background:rgba(41,128,185,0.25);border-radius:6px;display:none;border:1px solid rgba(41,128,185,0.5)" title="Trạng thái kết nối Serper.dev">💎 ---</span>
+    <span id="gscSyncBadge" style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;display:none;align-items:center;justify-content:center;gap:4px;cursor:pointer;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;min-width:180px;white-space:nowrap;text-align:center;box-sizing:border-box;transition:color 0.3s,background 0.3s,border-color 0.3s" onclick="wstTriggerGscReauth()" title="Trạng thái đồng bộ Google Search Console">☁️ GSC: Sẵn sàng</span>
     <div id="syncIndicator" style="font-size:11px;opacity:0;transition:opacity .3s;color:#fff;white-space:nowrap;background:rgba(0,0,0,.2);padding:3px 8px;border-radius:4px">☁ Đã đồng bộ</div>
     <button id="navBackupBtn" onclick="openBackupModal()" style="display:none;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:500" title="Backup & khôi phục dữ liệu">🗃️ Backup</button>
     <button id="navSyncBtn" onclick="forceSyncToCloud()" style="display:none;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:500" title="Đẩy toàn bộ dữ liệu lên đám mây">☁ Sync</button>
@@ -585,8 +587,6 @@
         <button onclick="openWstApiSettings()" class="btn btn-outline btn-sm">🔑 API Rank</button>
         <button onclick="wstBulkCheckRank()" class="btn btn-sm" style="background:#e67e22;color:#fff;border:none">🔁 Tự động check Rank (All)</button>
         <button onclick="openWstPickModal()" class="btn btn-outline btn-sm">+ Thêm web</button>
-        <span id="wstApiBadge" style="font-size:13px;font-weight:700;color:#2980b9;margin-left:8px;padding:4px 8px;background:#ebf5fb;border-radius:6px;display:none;border:1px solid #d6eaf8" title="Trạng thái kết nối Serper.dev">💎 ---</span>
-        <span id="gscSyncBadge" style="font-size:12px;font-weight:600;margin-left:8px;padding:4px 10px;border-radius:6px;display:none;align-items:center;justify-content:center;gap:4px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#8b949e;min-width:180px;white-space:nowrap;text-align:center;box-sizing:border-box;transition:color 0.3s,background 0.3s,border-color 0.3s" onclick="wstTriggerGscReauth()" title="Trạng thái đồng bộ Google Search Console">☁️ GSC: Sẵn sàng</span>
       </div>
     </div>
     <!-- TABLE -->
@@ -1265,7 +1265,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260711_v6"></script>
+  <script src="script_v5.js?v=20260712_v1"></script>
 
 <!-- EDIT INDEX TASK MODAL -->
 <div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">

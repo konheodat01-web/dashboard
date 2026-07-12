@@ -2363,7 +2363,13 @@ function wstFormatRankUI(rankStr) {
     let rawNum = parseInt(rankStr.replace(/<[^>]*>?/gm, ''));
     if(isNaN(rawNum)) return rankStr; 
     
-    let deviceSuffix = rankStr.includes('MB') ? '(MB)' : rankStr.includes('PC') ? '(PC)' : '';
+    let deviceSuffix = rankStr.includes('MB') ? '(MB)' : rankStr.includes('PC') ? '(PC)' : rankStr.includes('GSC') ? '(GSC)' : '';
+    let isGsc = rankStr.includes('GSC');
+    if (isGsc) {
+      let gscVal = parseFloat(rankStr.replace(/<[^>]*>?/gm, ''));
+      let displayVal = isNaN(gscVal) ? rankStr.replace(' (GSC)', '') : gscVal.toFixed(1);
+      return `<span style="border:1px solid rgba(41, 128, 185, 0.4);color:#2980b9;background:rgba(41, 128, 185, 0.1);padding:1px 5px;border-radius:4px;font-weight:600;display:inline-block;font-size:11px" title="Thứ hạng từ GSC (không tốn token)">${displayVal} <span style="font-size:8px;font-style:italic;opacity:0.8">GSC</span></span>`;
+    }
     
     let color = "#fff";
     let bg = "#95a5a6";
@@ -9548,7 +9554,52 @@ async function wstSyncGscRealtime(token, force = false) {
             }
           }
 
-          updates[item.siteId] = { performanceHistory, syncedAt: fmt(endDate), indexedStatus };
+          // --- FETCH MAIN KEYWORD GSC POSITION ---
+          let keywordHistory = [];
+          const siteObj = getWstSite(item.siteId);
+          const mainKw = siteObj ? (siteObj.mainKeyword || '') : '';
+          if (mainKw) {
+            try {
+              const kwRes = await fetch(
+                `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(item.siteUrl)}/searchAnalytics/query`,
+                {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    startDate: fmt(startDate),
+                    endDate: fmt(endDate),
+                    dimensions: ['date'],
+                    dimensionFilterGroups: [
+                      {
+                        filters: [
+                          {
+                            dimension: 'query',
+                            operator: 'equals',
+                            expression: mainKw.trim()
+                          }
+                        ]
+                      }
+                    ],
+                    rowLimit: 28
+                  })
+                }
+              );
+              if (kwRes.ok) {
+                const kwData = await kwRes.json();
+                keywordHistory = (kwData.rows || []).map(r => ({
+                  date: r.keys[0],
+                  position: r.position || 0
+                }));
+              }
+            } catch (kwErr) {
+              console.warn('[GSC Keyword Position Sync Failed]', item.siteUrl, kwErr);
+            }
+          }
+
+          updates[item.siteId] = { performanceHistory, syncedAt: fmt(endDate), indexedStatus, keywordHistory };
         } else {
           // 403 và các lỗi khác — đếm thầm, không log từng cái
           skipped++;
@@ -9579,12 +9630,38 @@ async function wstSyncGscRealtime(token, force = false) {
             siteObj.lastUpdatedAt = nowVN();
             wstAddChangelog(siteObj.wsId, 'gsc_synced', 'Đồng bộ GSC tự động thành công');
             
-            // Cập nhật trạng thái Index chính xác từ GSC URL Inspection hoặc dùng heuristic fallback
+            if (!siteObj.entries) siteObj.entries = [];
+
+            // 1. Process keyword position history first
+            const keywordHistory = updates[siteId].keywordHistory || [];
+            keywordHistory.forEach(kh => {
+              const targetDate = kh.date;
+              const gscRank = kh.position > 0 ? kh.position.toFixed(1) : '';
+              if (gscRank) {
+                let entry = siteObj.entries.find(e => e.date === targetDate);
+                if (entry) {
+                  const hasSerper = entry.rank && (entry.rank.includes('(PC)') || entry.rank.includes('(MB)'));
+                  if (!hasSerper) {
+                    entry.rank = gscRank + ' (GSC)';
+                  }
+                } else {
+                  siteObj.entries.push({
+                    id: 'wste' + Date.now() + Math.random().toString().slice(2, 6),
+                    date: targetDate,
+                    rank: gscRank + ' (GSC)',
+                    indexed: '',
+                    moBot: siteObj.moBot || 'Mở',
+                    note: ''
+                  });
+                }
+              }
+            });
+
+            // 2. Process indexed status
             const history = updates[siteId].performanceHistory || [];
             const totalImps = history.reduce((sum, r) => sum + (r.impressions || 0), 0);
             const indexedStatus = updates[siteId].indexedStatus || (totalImps > 0 ? 'Đã index' : '');
             if (indexedStatus) {
-              if (!siteObj.entries) siteObj.entries = [];
               const todayStr = todayVN();
               const lastEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
               if (lastEntry && lastEntry.date === todayStr) {
@@ -10101,9 +10178,6 @@ async function wstSyncGscNow() {
       ctr:         r.ctr || 0
     }));
     
-    const updates = {};
-    updates[_gscActiveSiteId] = { performanceHistory, syncedAt: fmt(endDate) };
-    
     // Lấy trạng thái Index chính xác từ GSC URL Inspection hoặc dùng heuristic fallback
     const totalImps = performanceHistory.reduce((sum, r) => sum + (r.impressions || 0), 0);
     let indexedStatus = '';
@@ -10120,23 +10194,87 @@ async function wstSyncGscNow() {
       indexedStatus = 'Đã index';
     }
 
+    // --- FETCH MAIN KEYWORD GSC POSITION ---
     const siteObj = getWstSite(_gscActiveSiteId);
-    if (siteObj && indexedStatus) {
-      if (!siteObj.entries) siteObj.entries = [];
-      const todayStr = todayVN();
-      const lastEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
-      if (lastEntry && lastEntry.date === todayStr) {
-        lastEntry.indexed = indexedStatus;
-      } else {
-        siteObj.entries.push({
-          id: 'wste'+Date.now(),
-          date: todayStr,
-          rank: lastEntry ? lastEntry.rank : 'Out 100',
-          backlinks: lastEntry ? lastEntry.backlinks : null,
-          indexed: indexedStatus,
-          moBot: siteObj.moBot || 'Mở',
-          note: ''
+    const mainKw = siteObj ? (siteObj.mainKeyword || '') : '';
+    let keywordHistory = [];
+    if (mainKw) {
+      try {
+        const kwData = await wstFetchGscDataDirect(site.gscPropertyUrl || site.url, {
+          startDate: fmt(startDate),
+          endDate: fmt(endDate),
+          dimensions: ['date'],
+          dimensionFilterGroups: [
+            {
+              filters: [
+                {
+                  dimension: 'query',
+                  operator: 'equals',
+                  expression: mainKw.trim()
+                }
+              ]
+            }
+          ],
+          rowLimit: 28
         });
+        keywordHistory = (kwData.rows || []).map(r => ({
+          date: r.keys[0],
+          position: r.position || 0
+        }));
+      } catch (kwErr) {
+        console.warn('[GSC Direct keyword sync failed]', site.url, kwErr);
+      }
+    }
+
+    const updates = {};
+    updates[_gscActiveSiteId] = { performanceHistory, syncedAt: fmt(endDate), indexedStatus, keywordHistory };
+
+    if (siteObj) {
+      if (!siteObj.entries) siteObj.entries = [];
+
+      // Write keyword positions
+      if (keywordHistory.length > 0) {
+        keywordHistory.forEach(kh => {
+          const targetDate = kh.date;
+          const gscRank = kh.position > 0 ? kh.position.toFixed(1) : '';
+          if (gscRank) {
+            let entry = siteObj.entries.find(e => e.date === targetDate);
+            if (entry) {
+              const hasSerper = entry.rank && (entry.rank.includes('(PC)') || entry.rank.includes('(MB)'));
+              if (!hasSerper) {
+                entry.rank = gscRank + ' (GSC)';
+              }
+            } else {
+              siteObj.entries.push({
+                id: 'wste' + Date.now() + Math.random().toString().slice(2, 6),
+                date: targetDate,
+                rank: gscRank + ' (GSC)',
+                indexed: '',
+                moBot: siteObj.moBot || 'Mở',
+                note: ''
+              });
+            }
+          }
+        });
+      }
+
+      // Write indexed status
+      if (indexedStatus) {
+        const todayStr = todayVN();
+        const lastEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
+        if (lastEntry && lastEntry.date === todayStr) {
+          lastEntry.indexed = indexedStatus;
+        } else {
+          siteObj.entries.push({
+            id: 'wste'+Date.now(),
+            date: todayStr,
+            rank: lastEntry ? lastEntry.rank : 'Out 100',
+            backlinks: lastEntry ? lastEntry.backlinks : null,
+            indexed: indexedStatus,
+            moBot: siteObj.moBot || 'Mở',
+            note: ''
+          });
+        }
       }
     }
 
