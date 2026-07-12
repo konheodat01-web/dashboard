@@ -1253,12 +1253,6 @@ function initFirebaseListener(){
     const timeSinceLoad = Date.now() - _pageLoadTime;
     if(timeSinceLoad < 5000 && (r._ts||0) < localTs){
       console.log('Skipped stale Firebase data (within 5s of load): fb_ts=', r._ts, 'local_ts=', localTs);
-      // Still restore siteTracking - it has no local timestamp so always trust Firebase
-      if(Array.isArray(r.siteTracking) && r.siteTracking.length > 0){
-        siteTracking = r.siteTracking;
-        localStorage.setItem('wt_site_tracking', JSON.stringify(siteTracking));
-        if(document.querySelector('.page.active')?.id==='page-wstrack') renderWsTrack();
-      }
       return;
     }
 
@@ -10577,9 +10571,11 @@ function wstOpenDashboard(wsId) {
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="font-size: 11px; color: #8b949e;">Khoảng thời gian:</span>
             <select id="wstGscDateRangeDetail" onchange="wstChangeGscRangeDetail()" style="background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; outline: none;">
+              <option value="24h">24 giờ qua</option>
               <option value="7d">7 ngày qua</option>
               <option value="28d" selected>28 ngày qua</option>
               <option value="3m">3 tháng qua</option>
+              <option value="6m">6 tháng qua</option>
             </select>
           </div>
         </div>
@@ -11012,9 +11008,11 @@ async function wstLoadGscQueries(range = '28d') {
     const endDate = new Date();
     const startDate = new Date();
     let days = 28;
-    if (range === '7d') days = 7;
+    if (range === '24h') days = 1;
+    else if (range === '7d') days = 7;
     else if (range === '28d') days = 28;
-    else days = 90;
+    else if (range === '3m') days = 90;
+    else days = 180;
     startDate.setDate(startDate.getDate() - days);
     const fmt = d => d.toISOString().split('T')[0];
     
@@ -11076,15 +11074,21 @@ function wstRenderGscDetailMetrics(range = '28d') {
 
   let dateLimit = new Date();
   let rangeLabel = '28 ngày qua';
-  if (range === '7d') {
+  if (range === '24h') {
+    dateLimit.setDate(dateLimit.getDate() - 1);
+    rangeLabel = '24 giờ qua';
+  } else if (range === '7d') {
     dateLimit.setDate(dateLimit.getDate() - 7);
     rangeLabel = '7 ngày qua';
   } else if (range === '28d') {
     dateLimit.setDate(dateLimit.getDate() - 28);
     rangeLabel = '28 ngày qua';
-  } else {
+  } else if (range === '3m') {
     dateLimit.setDate(dateLimit.getDate() - 90);
     rangeLabel = '3 tháng qua';
+  } else {
+    dateLimit.setDate(dateLimit.getDate() - 180);
+    rangeLabel = '6 tháng qua';
   }
   const limitStr = dateLimit.toISOString().split('T')[0];
   const filteredHist = history.filter(h => h.date >= limitStr);
