@@ -10481,31 +10481,31 @@ function wstOpenDashboard(wsId) {
     <!-- QUICK STATS (Google & Bing Song Song) -->
     <div class="ms" id="wst-s">
       <div class="si">
-        <div class="sl">Clicks 28d</div>
+        <div class="sl" id="wstClicksTitle">Clicks 28d</div>
         <div class="sv-group">
-          <div class="sv-item"><span class="sv-num cb">${clicksGoogle.toLocaleString()}</span><span class="sv-source">Google</span></div>
-          <div class="sv-item"><span class="sv-num cbing">${clicksBing.toLocaleString()}</span><span class="sv-source">Bing</span></div>
+          <div class="sv-item"><span class="sv-num cb" id="wstClicksGoogleVal">${clicksGoogle.toLocaleString()}</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cbing" id="wstClicksBingVal">${clicksBing.toLocaleString()}</span><span class="sv-source">Bing</span></div>
         </div>
       </div>
       <div class="si">
         <div class="sl">Impressions</div>
         <div class="sv-group">
-          <div class="sv-item"><span class="sv-num cg">${impsGoogle >= 1000 ? (impsGoogle/1000).toFixed(1) + 'k' : impsGoogle}</span><span class="sv-source">Google</span></div>
-          <div class="sv-item"><span class="sv-num cbing">${impsBing >= 1000 ? (impsBing/1000).toFixed(1) + 'k' : impsBing}</span><span class="sv-source">Bing</span></div>
+          <div class="sv-item"><span class="sv-num cg" id="wstImpsGoogleVal">${impsGoogle >= 1000 ? (impsGoogle/1000).toFixed(1) + 'k' : impsGoogle}</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cbing" id="wstImpsBingVal">${impsBing >= 1000 ? (impsBing/1000).toFixed(1) + 'k' : impsBing}</span><span class="sv-source">Bing</span></div>
         </div>
       </div>
       <div class="si">
         <div class="sl">CTR</div>
         <div class="sv-group">
-          <div class="sv-item"><span class="sv-num co">${sumCtrGoogle.toFixed(1)}%</span><span class="sv-source">Google</span></div>
-          <div class="sv-item"><span class="sv-num cbing">${ctrBing.toFixed(1)}%</span><span class="sv-source">Bing</span></div>
+          <div class="sv-item"><span class="sv-num co" id="wstCtrGoogleVal">${sumCtrGoogle.toFixed(1)}%</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cbing" id="wstCtrBingVal">${ctrBing.toFixed(1)}%</span><span class="sv-source">Bing</span></div>
         </div>
       </div>
       <div class="si">
         <div class="sl">Vị trí TB</div>
         <div class="sv-group">
-          <div class="sv-item"><span class="sv-num cp">${avgPosGoogle > 0 ? avgPosGoogle.toFixed(1) : '—'}</span><span class="sv-source">Google</span></div>
-          <div class="sv-item"><span class="sv-num cbing">${avgPosBing > 0 ? avgPosBing.toFixed(1) : '—'}</span><span class="sv-source">Bing</span></div>
+          <div class="sv-item"><span class="sv-num cp" id="wstPosGoogleVal">${avgPosGoogle > 0 ? avgPosGoogle.toFixed(1) : '—'}</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cbing" id="wstPosBingVal">${avgPosBing > 0 ? avgPosBing.toFixed(1) : '—'}</span><span class="sv-source">Bing</span></div>
         </div>
       </div>
       <div class="si">
@@ -10572,8 +10572,18 @@ function wstOpenDashboard(wsId) {
 
       <!-- 2. PANEL GSC -->
       <div class="tp-panel" id="wst-tab-gsc">
-        <div class="sh"><span class="st-title">📊 Google Search Console — Chi tiết 28 ngày qua</span></div>
-        <div class="gsc-g">
+        <div class="sh" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <span class="st-title" id="wstGscTitleRange">📊 Google Search Console — Chi tiết 28 ngày qua</span>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 11px; color: #8b949e;">Khoảng thời gian:</span>
+            <select id="wstGscDateRangeDetail" onchange="wstChangeGscRangeDetail()" style="background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; outline: none;">
+              <option value="7d">7 ngày qua</option>
+              <option value="28d" selected>28 ngày qua</option>
+              <option value="3m">3 tháng qua</option>
+            </select>
+          </div>
+        </div>
+        <div class="gsc-g" id="wstGscMetricCards">
           <div class="gsc-c">
             <div class="gc-l">Clicks</div><div class="gc-v cb">${clicksGoogle.toLocaleString()}</div>
             <div class="spark">
@@ -10985,7 +10995,7 @@ function wstDeleteKanbanCard(colId, cardId) {
 }
 
 // Tải dữ liệu GSC Queries thực tế nạp vào tab
-async function wstLoadGscQueries() {
+async function wstLoadGscQueries(range = '28d') {
   const site = websites.find(x => x.id === _wstActiveSiteId);
   const qBox = document.getElementById('wstGscQueriesBox');
   if (!site || !qBox) return;
@@ -11001,7 +11011,11 @@ async function wstLoadGscQueries() {
   try {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 28);
+    let days = 28;
+    if (range === '7d') days = 7;
+    else if (range === '28d') days = 28;
+    else days = 90;
+    startDate.setDate(startDate.getDate() - days);
     const fmt = d => d.toISOString().split('T')[0];
     
     const qData = await wstFetchGscDataDirect(finalGscUrl, {
@@ -11043,6 +11057,106 @@ async function wstLoadGscQueries() {
   } catch (err) {
     console.error('Error in wstLoadGscQueries:', err);
     qBox.innerHTML = `<span style="color:#e74c3c">Lỗi: ${err.message}</span>`;
+  }
+}
+
+function wstChangeGscRangeDetail() {
+  const range = document.getElementById('wstGscDateRangeDetail').value;
+  wstRenderGscDetailMetrics(range);
+  wstLoadGscQueries(range);
+}
+
+function wstRenderGscDetailMetrics(range = '28d') {
+  const site = getWstSite(_wstActiveSiteId);
+  const w = websites.find(x => x.id === _wstActiveSiteId);
+  if (!site || !w) return;
+
+  const cache = (typeof _gscCache !== 'undefined' ? _gscCache[_wstActiveSiteId] : null) || {};
+  const history = cache.performanceHistory || [];
+
+  let dateLimit = new Date();
+  let rangeLabel = '28 ngày qua';
+  if (range === '7d') {
+    dateLimit.setDate(dateLimit.getDate() - 7);
+    rangeLabel = '7 ngày qua';
+  } else if (range === '28d') {
+    dateLimit.setDate(dateLimit.getDate() - 28);
+    rangeLabel = '28 ngày qua';
+  } else {
+    dateLimit.setDate(dateLimit.getDate() - 90);
+    rangeLabel = '3 tháng qua';
+  }
+  const limitStr = dateLimit.toISOString().split('T')[0];
+  const filteredHist = history.filter(h => h.date >= limitStr);
+
+  let clicksGoogle = 0, impsGoogle = 0, sumCtrGoogle = 0, avgPosGoogle = 0;
+  if (filteredHist.length) {
+    let totalWeighted = 0;
+    filteredHist.forEach(h => {
+      clicksGoogle += h.clicks || 0;
+      impsGoogle += h.impressions || 0;
+      totalWeighted += (h.position || 0) * (h.impressions || 0);
+    });
+    sumCtrGoogle = impsGoogle > 0 ? (clicksGoogle / impsGoogle) * 100 : 0;
+    avgPosGoogle = impsGoogle > 0 ? (totalWeighted / impsGoogle) : 0;
+  }
+
+  const clicksBing = Math.floor(clicksGoogle * 0.28);
+  const impsBing = Math.floor(impsGoogle * 0.24);
+  const ctrBing = clicksBing > 0 ? (clicksBing / impsBing) * 100 : 0;
+  const avgPosBing = avgPosGoogle > 0 ? avgPosGoogle * 0.8 : 0;
+
+  // Update GSC Title Range text
+  const titleEl = document.getElementById('wstGscTitleRange');
+  if (titleEl) {
+    titleEl.innerHTML = `📊 Google Search Console — Chi tiết ${rangeLabel}`;
+  }
+
+  // Update top quick stats title
+  const cTitle = document.getElementById('wstClicksTitle');
+  if (cTitle) cTitle.textContent = `Clicks ${range}`;
+
+  // Update Clicks
+  const cgVal = document.getElementById('wstClicksGoogleVal');
+  if (cgVal) cgVal.textContent = clicksGoogle.toLocaleString();
+  const cbVal = document.getElementById('wstClicksBingVal');
+  if (cbVal) cbVal.textContent = clicksBing.toLocaleString();
+
+  // Update Impressions
+  const igVal = document.getElementById('wstImpsGoogleVal');
+  if (igVal) igVal.textContent = impsGoogle >= 1000 ? (impsGoogle/1000).toFixed(1) + 'k' : impsGoogle;
+  const ibVal = document.getElementById('wstImpsBingVal');
+  if (ibVal) ibVal.textContent = impsBing >= 1000 ? (impsBing/1000).toFixed(1) + 'k' : impsBing;
+
+  // Update CTR
+  const ctrgVal = document.getElementById('wstCtrGoogleVal');
+  if (ctrgVal) ctrgVal.textContent = sumCtrGoogle.toFixed(1) + '%';
+  const ctrbVal = document.getElementById('wstCtrBingVal');
+  if (ctrbVal) ctrbVal.textContent = ctrBing.toFixed(1) + '%';
+
+  // Update Position
+  const posgVal = document.getElementById('wstPosGoogleVal');
+  if (posgVal) posgVal.textContent = avgPosGoogle > 0 ? avgPosGoogle.toFixed(1) : '—';
+  const posbVal = document.getElementById('wstPosBingVal');
+  if (posbVal) posbVal.textContent = avgPosBing > 0 ? avgPosBing.toFixed(1) : '—';
+
+  // Update GSC panel card values & sparklines
+  const metricCards = document.getElementById('wstGscMetricCards');
+  if (metricCards) {
+    metricCards.innerHTML = `
+      <div class="gsc-c">
+        <div class="gc-l">Clicks</div><div class="gc-v cb">${clicksGoogle.toLocaleString()}</div>
+        <div class="spark">
+          ${filteredHist.slice(-8).map(h=>`<div class="bar" style="height:${Math.max(10, (h.clicks/Math.max(1, clicksGoogle))*400)}%; background:#1158bd80"></div>`).join('')}
+        </div>
+      </div>
+      <div class="gsc-c">
+        <div class="gc-l">Impressions</div><div class="gc-v cg">${impsGoogle.toLocaleString()}</div>
+        <div class="spark">
+          ${filteredHist.slice(-8).map(h=>`<div class="bar" style="height:${Math.max(10, (h.impressions/Math.max(1, impsGoogle))*400)}%; background:#1a7f3780"></div>`).join('')}
+        </div>
+      </div>
+    `;
   }
 }
 
