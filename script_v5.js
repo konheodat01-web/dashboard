@@ -1421,6 +1421,7 @@ function loadAppData(){
     const it=localStorage.getItem('wt_index_tasks'); if(it){ indexTasks=JSON.parse(it); itNextId=Math.max(1,...indexTasks.map(t=>t._id||0))+1; }
         const ga=localStorage.getItem('wt_assignees'); if(ga) assignees=JSON.parse(ga);
     const pr=localStorage.getItem('wt_prompts'); if(pr){ prompts=JSON.parse(pr); promptNextId=Math.max(1,...prompts.map(p=>p.id||0))+1; }
+    const strk=localStorage.getItem('wt_site_tracking'); if(strk){ try{ siteTracking=JSON.parse(strk); }catch(e){} }
     const st=localStorage.getItem('wt_settings');
     if(st){
       try{
@@ -2244,7 +2245,8 @@ function wstSaveKeyword(wsId, kw) {
   let site = getWstSite(wsId);
   if(!site){ siteTracking.push({wsId,entries:[]}); site=getWstSite(wsId); }
   site.mainKeyword = kw;
-  saveWsTrack();
+  saveWsTrack(wsId);
+  renderWsTrack();
 }
 
 async function wstFetchRank(wsId) {
