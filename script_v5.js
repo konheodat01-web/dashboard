@@ -2841,9 +2841,20 @@ function renderWsTrack(){
         return `<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap" title="Bất kỳ thay đổi nào: ${finalDate}\nCheck Rank: ${rankDate || 'Chưa rõ'}\nĐồng bộ GSC: ${gscDate || 'Chưa rõ'}\nNhập thủ công/Note: ${manualDate || 'Chưa rõ'}">${finalDate}</td>`;
       })()}
       <td style="padding:8px 10px;text-align:center;white-space:nowrap">
-        <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px" title="Xem Dashboard">📊</button>
-        <button onclick="wstOpenHistoryModal(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;color:#8b949e;border-color:#30363d" title="Lịch sử thay đổi dữ liệu">🕒</button>
-        <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c" title="Bỏ theo dõi">×</button>
+        ${(() => {
+          const gscStatus = site?.gscConnectionStatus || 'not_connected';
+          const gscEmail = site?.gscEmail || '';
+          if (gscStatus === 'connected') {
+            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;cursor:help;display:inline-block;vertical-align:middle" title="Đã kết nối GSC\n(Email quản trị: ${gscEmail})">GSC</span>`;
+          } else if (gscStatus === 'disconnected') {
+            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-weight:700;margin-right:4px;cursor:help;display:inline-block;vertical-align:middle" title="Mất kết nối GSC\n(Email quản trị cũ: ${gscEmail})">GSC</span>`;
+          } else {
+            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;cursor:help;display:inline-block;vertical-align:middle" title="Chưa kết nối GSC">GSC</span>`;
+          }
+        })()}
+        <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>
+        <button onclick="wstOpenHistoryModal(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;color:#8b949e;border-color:#30363d;vertical-align:middle" title="Lịch sử thay đổi dữ liệu">🕒</button>
+        <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c;vertical-align:middle" title="Bỏ theo dõi">×</button>
       </td>
     </tr>`;
   }).join('');
@@ -9485,6 +9496,26 @@ async function wstSyncGscRealtime(token, force = false) {
       if (hit) matched.push({ siteId: d.id, siteUrl: hit.siteUrl });
     });
 
+    // Cập nhật trạng thái kết nối GSC
+    const currentEmail = sessionStorage.getItem('gsc_user_email') || '';
+    if (currentEmail) {
+      allDomains.forEach(d => {
+        const siteObj = getWstSite(d.id);
+        if (siteObj) {
+          const isMatched = matched.some(m => m.siteId === d.id);
+          if (isMatched) {
+            siteObj.gscConnectionStatus = 'connected';
+            siteObj.gscEmail = currentEmail;
+          } else {
+            if (siteObj.gscEmail === currentEmail && siteObj.gscConnectionStatus === 'connected') {
+              siteObj.gscConnectionStatus = 'disconnected';
+            }
+          }
+        }
+      });
+      saveWsTrack();
+    }
+
     if (matched.length === 0) {
       wstSetGscBadge('nomatch');
       return;
@@ -10272,6 +10303,9 @@ async function wstSyncGscNow() {
           });
         }
       }
+      // Cập nhật trạng thái kết nối GSC
+      siteObj.gscConnectionStatus = 'connected';
+      siteObj.gscEmail = sessionStorage.getItem('gsc_user_email') || '';
     }
 
     await firebase.database().ref('gsc_cache').update(updates);
@@ -10284,6 +10318,14 @@ async function wstSyncGscNow() {
   } catch (err) {
     console.error('Error in GSC direct sync now:', err);
     toast(`Lỗi: ${err.message}`, '#e74c3c');
+    
+    // Nếu có lỗi phân quyền hoặc không tìm thấy site, đánh dấu mất kết nối nếu trước đó đã từng kết nối
+    const siteObj = getWstSite(_gscActiveSiteId);
+    if (siteObj && siteObj.gscConnectionStatus === 'connected') {
+      siteObj.gscConnectionStatus = 'disconnected';
+      saveWsTrack(_gscActiveSiteId);
+      renderWsTrack();
+    }
   } finally {
     if (syncBtn) {
       syncBtn.disabled = false;
