@@ -2611,6 +2611,7 @@ function wstRenderBulkBar(){
     <button onclick="wstCopySelected('source')" class="btn btn-sm btn-outline" style="font-size:11px">🔗 Copy URL gốc</button>
     <button onclick="wstCopySelected('301')" class="btn btn-sm btn-outline" style="font-size:11px;color:#6c5ce7;border-color:#c3b1e1">🔀 Copy URL 301</button>
     <button onclick="wstCopySelected('both')" class="btn btn-sm btn-outline" style="font-size:11px">📋 Copy cả hai</button>
+    <button onclick="wstCopySelected('seo_kw')" class="btn btn-sm btn-outline" style="font-size:11px;color:#2ecc71;border-color:#27ae60">📝 Copy từ khóa SEO</button>
     <button onclick="_wstSelected.clear();renderWsTrack()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;margin-left:auto">×</button>`;
 }
 
@@ -2623,10 +2624,18 @@ function wstCopySelected(mode){
     const latest301 = kids.length?kids[kids.length-1]:null;
     if(mode==='source') lines.push(w.url||'');
     else if(mode==='301') lines.push(latest301?.url||w.url||'');
+    else if(mode==='seo_kw') {
+      const site = getWstSite(wsId);
+      lines.push(site?.mainKeyword || w.brand || '');
+    }
     else lines.push((w.url||'')+'\t'+(latest301?.url||''));
   });
   copyText(lines.join('\n'), null);
-  toast('✓ Đã copy '+lines.length+' URL','#27ae60',2000);
+  if(mode==='seo_kw') {
+    toast('✓ Đã copy '+lines.length+' từ khóa SEO','#27ae60',2000);
+  } else {
+    toast('✓ Đã copy '+lines.length+' URL','#27ae60',2000);
+  }
 }
 
 function renderWsTrack(){
@@ -2748,7 +2757,6 @@ function renderWsTrack(){
       <td style="padding:8px 10px;font-size:11px;">
         <div style="display:flex;align-items:center;gap:4px">
           <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:110px;font-size:11px;padding:3px 6px;height:24px">
-          <button onclick="copyText(this.dataset.kw, this)" data-kw="${(site?.mainKeyword || w.brand || '').replace(/"/g, '&quot;')}" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 4px;font-size:10px" title="Copy từ khóa">📋</button>
           <button onclick="var btn=this;btn.innerHTML='⏳'; wstFetchRank(${w.id}).then(r=>{btn.innerHTML='↺'; renderWsTrack(); if(r.error)toast(r.error,'#e74c3c'); else toast('Xong!','#27ae60')})" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 4px;font-size:10px" title="Kiểm tra rank ngay">↺</button>
         </div>
       </td>
