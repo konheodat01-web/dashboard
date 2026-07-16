@@ -9425,6 +9425,9 @@ async function wstTriggerGscReauth() {
     const result = await firebase.auth().signInWithPopup(provider);
     if (result.credential && result.credential.accessToken) {
       sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
+      if (result.user && result.user.email) {
+        sessionStorage.setItem('gsc_user_email', result.user.email);
+      }
       
       const today = todayVN();
       const lastSync = localStorage.getItem('gsc_last_global_sync_date');
@@ -9506,8 +9509,9 @@ async function wstSyncGscRealtime(token, force = false) {
     });
 
     // Cập nhật trạng thái kết nối GSC
-    const currentEmail = sessionStorage.getItem('gsc_user_email') || '';
+    const currentEmail = sessionStorage.getItem('gsc_user_email') || (typeof firebase !== 'undefined' && firebase.auth().currentUser ? firebase.auth().currentUser.email : '') || 'konheodat01@gmail.com';
     if (currentEmail) {
+      sessionStorage.setItem('gsc_user_email', currentEmail);
       allDomains.forEach(d => {
         const siteObj = getWstSite(d.id);
         if (siteObj) {
