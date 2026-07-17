@@ -11610,51 +11610,80 @@ async function wstGetGscHtmlCodesBulk() {
       siteUrl += '/';
     }
     
-    try {
-      // 1. Thêm website vào GSC (PUT /webmasters/v3/sites/siteUrl)
-      const addRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
+    let success = false;
+    let attempts = 0;
+    
+    while (!success && attempts < 2) {
+      try {
+        // 1. Thêm website vào GSC (PUT /webmasters/v3/sites/siteUrl)
+        const addRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (addRes.status === 401) {
+          // Token hết hạn, tự động gọi Popup đăng nhập lại
+          sessionStorage.removeItem('gsc_access_token');
+          token = await wstGetGscTokenForVerification();
+          if (!token) {
+            throw new Error('Hết phiên đăng nhập và không thể đăng nhập lại.');
+          }
+          attempts++;
+          continue; // Thử lại với token mới
         }
-      });
-      
-      if (addRes.status === 401) {
-        throw new Error('Hết phiên đăng nhập. Vui lòng bấm Lấy mã lại.');
-      }
-      
-      // 2. Lấy mã HTML xác minh (POST /siteVerification/v1/token)
-      const tokenRes = await fetch('https://www.googleapis.com/siteVerification/v1/token', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          site: {
-            type: 'SITE',
-            identifier: siteUrl
+        
+        if (!addRes.ok) {
+          const errText = await addRes.text().catch(() => '');
+          throw new Error(`Lỗi thêm site (${addRes.status}): ${errText}`);
+        }
+        
+        // 2. Lấy mã HTML xác minh (POST /siteVerification/v1/token)
+        const tokenRes = await fetch('https://www.googleapis.com/siteVerification/v1/token', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           },
-          verificationMethod: 'META'
-        })
-      });
-      
-      if (!tokenRes.ok) {
-        const errData = await tokenRes.json().catch(() => ({}));
-        const errMsg = errData.error?.message || `Lỗi API (${tokenRes.status})`;
-        throw new Error(errMsg);
+          body: JSON.stringify({
+            site: {
+              type: 'SITE',
+              identifier: siteUrl
+            },
+            verificationMethod: 'META'
+          })
+        });
+        
+        if (tokenRes.status === 401) {
+          sessionStorage.removeItem('gsc_access_token');
+          token = await wstGetGscTokenForVerification();
+          if (!token) {
+            throw new Error('Hết phiên đăng nhập và không thể đăng nhập lại.');
+          }
+          attempts++;
+          continue; // Thử lại với token mới
+        }
+        
+        if (!tokenRes.ok) {
+          const errData = await tokenRes.json().catch(() => ({}));
+          const errMsg = errData.error?.message || `Lỗi API (${tokenRes.status})`;
+          throw new Error(errMsg);
+        }
+        
+        const tokenData = await tokenRes.json();
+        if (tokenData && tokenData.token) {
+          textarea.value = tokenData.token;
+          success = true;
+        } else {
+          throw new Error('Không lấy được mã xác minh.');
+        }
+        
+      } catch (err) {
+        console.error('[Add/Verify GSC Failed]', domainText, err);
+        textarea.value = `Lỗi: ${err.message}`;
+        success = true; // Thoát vòng lặp do lỗi cứng
       }
-      
-      const tokenData = await tokenRes.json();
-      if (tokenData && tokenData.token) {
-        textarea.value = tokenData.token;
-      } else {
-        textarea.value = 'Lỗi: Không lấy được mã xác minh.';
-      }
-      
-    } catch (err) {
-      console.error('[Add/Verify GSC Failed]', domainText, err);
-      textarea.value = `Lỗi: ${err.message}`;
     }
   }
   
