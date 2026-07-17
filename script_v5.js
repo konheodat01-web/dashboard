@@ -9585,6 +9585,8 @@ async function wstSyncGscRealtime(token, force = false) {
           const wObj = websites.find(w => w.id === item.siteId);
           if (wObj && wObj.url) {
             try {
+              // Thêm độ trễ 1.2 giây giữa các lần inspect để tránh chạm hạn mức tần suất (rate limit) của Google API
+              await new Promise(r => setTimeout(r, 1200));
               const inspectResult = await wstInspectUrlGsc(item.siteUrl, wObj.url);
               if (inspectResult) {
                 indexedStatus = wstGetFriendlyIndexReason(inspectResult);
@@ -9700,10 +9702,15 @@ async function wstSyncGscRealtime(token, force = false) {
             // 2. Process indexed status
             const history = updates[siteId].performanceHistory || [];
             const totalImps = history.reduce((sum, r) => sum + (r.impressions || 0), 0);
-            const indexedStatus = updates[siteId].indexedStatus || (totalImps > 0 ? 'Đã index' : '');
+            
+            const lastEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
+            const oldIndexed = lastEntry ? lastEntry.indexed : '';
+            
+            // Ưu tiên: 1. Kết quả GSC Inspect thực tế mới -> 2. Giữ nguyên trạng thái cũ -> 3. Fallback theo traffic
+            const indexedStatus = updates[siteId].indexedStatus || oldIndexed || (totalImps > 0 ? 'Đã index' : '');
+            
             if (indexedStatus) {
               const todayStr = todayVN();
-              const lastEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
               if (lastEntry && lastEntry.date === todayStr) {
                 lastEntry.indexed = indexedStatus;
               } else {
