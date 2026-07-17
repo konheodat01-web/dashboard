@@ -2612,6 +2612,7 @@ function wstRenderBulkBar(){
     <button onclick="wstCopySelected('301')" class="btn btn-sm btn-outline" style="font-size:11px;color:#6c5ce7;border-color:#c3b1e1">🔀 Copy URL 301</button>
     <button onclick="wstCopySelected('both')" class="btn btn-sm btn-outline" style="font-size:11px">📋 Copy cả hai</button>
     <button onclick="wstCopySelected('seo_kw')" class="btn btn-sm btn-outline" style="font-size:11px;color:#2ecc71;border-color:#27ae60">📝 Copy từ khóa SEO</button>
+    <button onclick="wstTriggerAddGscBulk()" class="btn btn-sm btn-outline" style="font-size:11px;color:#f2a154;border-color:#e5893c">➕ Thêm GSC</button>
     <button onclick="_wstSelected.clear();renderWsTrack()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;margin-left:auto">×</button>`;
 }
 
@@ -11481,5 +11482,74 @@ function wstAddEntryFromDashboard(wsId) {
 function wstRemoveTrackingFromDashboard(wsId) {
   wstCloseDashboard();
   wstRemoveTracking(wsId);
+}
+
+// ==================== BẢN BUILD THÔ: TÍNH NĂNG THÊM GSC HÀNG LOẠT ====================
+function wstTriggerAddGscBulk() {
+  const modal = document.getElementById('wstAddGscChoiceModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeWstAddGscChoiceModal() {
+  const modal = document.getElementById('wstAddGscChoiceModal');
+  if (modal) modal.style.display = 'none';
+}
+
+let _wstAddGscType = 'goc'; // 'goc' hoặc '301'
+
+function wstSelectAddGscType(type) {
+  _wstAddGscType = type;
+  closeWstAddGscChoiceModal();
+  
+  const title = document.getElementById('wstAddGscFormTitle');
+  if (title) {
+    title.textContent = `Thêm GSC - Website ${type === 'goc' ? 'Gốc' : '301'}`;
+  }
+  
+  const tbody = document.getElementById('wstAddGscFormTableBody');
+  if (tbody) {
+    tbody.innerHTML = '';
+    
+    _wstSelected.forEach(wsId => {
+      const w = websites.find(x => x.id === wsId);
+      if (!w) return;
+      
+      let displayUrl = w.url || '';
+      if (type === '301') {
+        const kids = websites.filter(x => x.is301 && x.sourceUrl && ((x.sourceUrl === w.url || x.sourceUrl === (w.url || '').replace(/\/$/, '')) || (x.sourceUrl === w.brand)));
+        const latest301 = kids.length ? kids[kids.length - 1] : null;
+        displayUrl = latest301 ? latest301.url : `${w.url} (Không có 301)`;
+      }
+      
+      const tr = document.createElement('tr');
+      tr.style.cssText = 'border-bottom:1px solid #21262d;';
+      tr.innerHTML = `
+        <td style="padding:10px 8px;font-size:12px;font-weight:600;color:#e6edf3;max-width:180px;word-break:break-all">${displayUrl}</td>
+        <td style="padding:10px 8px;width:50%">
+          <textarea class="form-control" style="width:100%;height:38px;font-family:monospace;font-size:11px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px;resize:vertical;outline:none" placeholder="<meta name='google-site-verification' content='...' />"></textarea>
+        </td>
+        <td style="padding:10px 8px;">
+          <input type="text" class="form-control" style="width:100%;font-size:12px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 10px;outline:none" value="sitemap.xml" placeholder="sitemap.xml" />
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  
+  const formModal = document.getElementById('wstAddGscFormModal');
+  if (formModal) formModal.style.display = 'flex';
+}
+
+function closeWstAddGscFormModal() {
+  const modal = document.getElementById('wstAddGscFormModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function wstSubmitAddGscBulk() {
+  // Bản build thô: hiển thị thông báo
+  toast('✓ Đã ghi nhận thông tin cấu hình GSC hàng loạt (Tính năng thô)!', '#27ae60', 3000);
+  closeWstAddGscFormModal();
+  _wstSelected.clear();
+  renderWsTrack();
 }
 

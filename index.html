@@ -1269,7 +1269,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260717_v4"></script>
+  <script src="script_v5.js?v=20260717_v5"></script>
 
 <!-- EDIT INDEX TASK MODAL -->
 <div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">
@@ -2363,6 +2363,51 @@
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
       <button class="btn btn-o" onclick="wstCancelPendingDrop()" style="font-size:11px; padding:4px 10px;">Hủy</button>
       <button class="btn btn-g" onclick="wstSubmitPendingDrop()" style="font-size:11px; padding:4px 10px;">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 1: CHOOSE WEBSITES TYPE MODAL -->
+<div class="modal-overlay" id="wstAddGscChoiceModal" onclick="if(event.target===this)closeWstAddGscChoiceModal()" style="display:none">
+  <div class="modal" style="max-width:400px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>➕ Thêm GSC</h3>
+      <button class="modal-close" onclick="closeWstAddGscChoiceModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:16px;text-align:center;padding:24px 16px">
+      <p style="font-size:14px;color:var(--text-muted);margin:0">Bạn muốn thêm GSC cho Website nào từ danh sách đã chọn?</p>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:8px">
+        <button class="btn btn-primary" onclick="wstSelectAddGscType('goc')" style="padding:10px 24px;font-weight:600">Website Gốc</button>
+        <button class="btn btn-outline" onclick="wstSelectAddGscType('301')" style="padding:10px 24px;font-weight:600;color:#6c5ce7;border-color:#c3b1e1">Website 301</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 2: FORM ADD GSC MODAL -->
+<div class="modal-overlay" id="wstAddGscFormModal" onclick="if(event.target===this)closeWstAddGscFormModal()" style="display:none">
+  <div class="modal" style="max-width:850px;width:90%" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="wstAddGscFormTitle">Thêm GSC - Website Gốc</h3>
+      <button class="modal-close" onclick="closeWstAddGscFormModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:16px;overflow-x:auto">
+      <table class="table" style="width:100%;border-collapse:collapse;margin-top:10px">
+        <thead>
+          <tr style="border-bottom:2px solid #30363d">
+            <th style="padding:8px;text-align:left;font-size:12px;color:var(--text-muted)">WEBSITE</th>
+            <th style="padding:8px;text-align:left;font-size:12px;color:var(--text-muted);width:50%">MÃ HTML</th>
+            <th style="padding:8px;text-align:left;font-size:12px;color:var(--text-muted)">SITE MAP</th>
+          </tr>
+        </thead>
+        <tbody id="wstAddGscFormTableBody">
+          <!-- Dynamically populated rows -->
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-footer" style="padding:12px 16px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #30363d">
+      <button class="btn btn-outline" onclick="closeWstAddGscFormModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="wstSubmitAddGscBulk()">Xác nhận</button>
     </div>
   </div>
 </div>
