@@ -11553,3 +11553,114 @@ function wstSubmitAddGscBulk() {
   renderWsTrack();
 }
 
+async function wstGetGscTokenForVerification() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    // Thêm các quyền cần thiết: quản lý website GSC và cấu hình site verification
+    provider.addScope('https://www.googleapis.com/auth/webmasters');
+    provider.addScope('https://www.googleapis.com/auth/siteverification');
+    const result = await firebase.auth().signInWithPopup(provider);
+    if (result.credential && result.credential.accessToken) {
+      sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
+      if (result.user && result.user.email) {
+        sessionStorage.setItem('gsc_user_email', result.user.email);
+      }
+      wstSetGscBadge('done');
+      return result.credential.accessToken;
+    }
+  } catch (e) {
+    alert('Lỗi đăng nhập Google:\n' + e.message + '\n\nVui lòng kiểm tra lại quyền truy cập hoặc popup blocker.');
+  }
+  return null;
+}
+
+async function wstGetGscHtmlCodesBulk() {
+  let token = sessionStorage.getItem('gsc_access_token');
+  if (!token) {
+    token = await wstGetGscTokenForVerification();
+  }
+  if (!token) return;
+  
+  const tbody = document.getElementById('wstAddGscFormTableBody');
+  if (!tbody) return;
+  const rows = tbody.querySelectorAll('tr');
+  
+  const getBtn = document.getElementById('wstGetGscCodeBtn');
+  if (getBtn) {
+    getBtn.disabled = true;
+    getBtn.innerHTML = '<span>⏳ Đang lấy...</span>';
+  }
+  
+  for (const tr of rows) {
+    const cols = tr.querySelectorAll('td');
+    if (cols.length < 2) continue;
+    const domainText = cols[0].textContent.replace('(Không có 301)', '').trim();
+    if (!domainText || domainText.includes(' ')) continue;
+    
+    const textarea = cols[1].querySelector('textarea');
+    if (!textarea) continue;
+    
+    textarea.value = 'Đang thêm site & lấy mã...';
+    
+    let siteUrl = domainText;
+    if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+      siteUrl = 'https://' + siteUrl;
+    }
+    if (!siteUrl.endsWith('/')) {
+      siteUrl += '/';
+    }
+    
+    try {
+      // 1. Thêm website vào GSC (PUT /webmasters/v3/sites/siteUrl)
+      const addRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (addRes.status === 401) {
+        throw new Error('Hết phiên đăng nhập. Vui lòng bấm Lấy mã lại.');
+      }
+      
+      // 2. Lấy mã HTML xác minh (POST /siteVerification/v1/token)
+      const tokenRes = await fetch('https://www.googleapis.com/siteVerification/v1/token', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          site: {
+            type: 'SITE',
+            identifier: siteUrl
+          },
+          verificationMethod: 'META'
+        })
+      });
+      
+      if (!tokenRes.ok) {
+        const errData = await tokenRes.json().catch(() => ({}));
+        const errMsg = errData.error?.message || `Lỗi API (${tokenRes.status})`;
+        throw new Error(errMsg);
+      }
+      
+      const tokenData = await tokenRes.json();
+      if (tokenData && tokenData.token) {
+        textarea.value = tokenData.token;
+      } else {
+        textarea.value = 'Lỗi: Không lấy được mã xác minh.';
+      }
+      
+    } catch (err) {
+      console.error('[Add/Verify GSC Failed]', domainText, err);
+      textarea.value = `Lỗi: ${err.message}`;
+    }
+  }
+  
+  if (getBtn) {
+    getBtn.disabled = false;
+    getBtn.innerHTML = 'Lấy mã';
+  }
+}
+

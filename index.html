@@ -1269,7 +1269,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260717_v5"></script>
+  <script src="script_v5.js?v=20260717_v6"></script>
 
 <!-- EDIT INDEX TASK MODAL -->
 <div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">
@@ -2407,6 +2407,7 @@
     </div>
     <div class="modal-footer" style="padding:12px 16px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #30363d">
       <button class="btn btn-outline" onclick="closeWstAddGscFormModal()">Hủy</button>
+      <button class="btn btn-primary" id="wstGetGscCodeBtn" onclick="wstGetGscHtmlCodesBulk()" style="background:#f2a154;border-color:#e5893c;color:#0d1117;font-weight:700">Lấy mã</button>
       <button class="btn btn-primary" onclick="wstSubmitAddGscBulk()">Xác nhận</button>
     </div>
   </div>
