@@ -2862,11 +2862,11 @@ function renderWsTrack(){
           const gscStatus = site?.gscConnectionStatus || 'not_connected';
           const gscEmail = site?.gscEmail || '';
           if (gscStatus === 'connected') {
-            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;cursor:help;display:inline-block;vertical-align:middle" title="Đã kết nối GSC\n(Email quản trị: ${gscEmail})">GSC</span>`;
+            return `<span class="btn btn-sm" onclick="wstOpenGscModal(${w.id})" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;cursor:pointer;display:inline-block;vertical-align:middle" title="Đã kết nối GSC\n(Email quản trị: ${gscEmail})\nClick để xem chi tiết GSC">GSC</span>`;
           } else if (gscStatus === 'disconnected') {
-            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-weight:700;margin-right:4px;cursor:help;display:inline-block;vertical-align:middle" title="Mất kết nối GSC\n(Email quản trị cũ: ${gscEmail})">GSC</span>`;
+            return `<span class="btn btn-sm" onclick="wstOpenGscModal(${w.id})" style="font-size:9px;padding:2px 5px;background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-weight:700;margin-right:4px;cursor:pointer;display:inline-block;vertical-align:middle" title="Mất kết nối GSC\n(Email quản trị cũ: ${gscEmail})\nClick để kết nối lại">GSC</span>`;
           } else {
-            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;cursor:help;display:inline-block;vertical-align:middle" title="Chưa kết nối GSC">GSC</span>`;
+            return `<span class="btn btn-sm" onclick="wstOpenGscModal(${w.id})" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;cursor:pointer;display:inline-block;vertical-align:middle" title="Chưa kết nối GSC\nClick để kết nối">GSC</span>`;
           }
         })()}
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>
@@ -9451,6 +9451,7 @@ async function wstTriggerGscReauth() {
     }
   } catch (e) {
     console.warn('[GSC Reauth] Failed:', e.message);
+    alert('Lỗi kết nối Google GSC:\n' + e.message + '\n\nVui lòng kiểm tra xem trình duyệt có chặn cửa sổ bật lên (popup blocker) hay không.');
     wstSetGscBadge('error');
   }
 }
