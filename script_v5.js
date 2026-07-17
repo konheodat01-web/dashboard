@@ -2718,8 +2718,16 @@ function renderWsTrack(){
     const display301Url = latest301 ? (latest301.url||latest301.sourceUrl||'—') : (w.url||'—');
     const isSameAsSource = !latest301;
     const isSelected = _wstSelected.has(w.id);
-    const isChuaIndex = last?.indexed && last.indexed.startsWith('Chưa index');
-    const indexIcon = last?.indexed==='Đã index'?'✅':isChuaIndex?'❌':(last?.indexed==='Một phần'||last?.indexed==='Cần kiểm tra')?'⚠️':'—';
+    const lastIndexedEntry = entries.find(e => e.indexed);
+    const lastIndexedVal = lastIndexedEntry ? lastIndexedEntry.indexed : '';
+    const lastIndexedDate = lastIndexedEntry ? lastIndexedEntry.date : '';
+    const todayStr = todayVN();
+    const isToday = lastIndexedDate === todayStr;
+    const isChuaIndex = lastIndexedVal && lastIndexedVal.startsWith('Chưa index');
+    const baseIcon = lastIndexedVal === 'Đã index' ? '✅' : isChuaIndex ? '❌' : (lastIndexedVal === 'Một phần' || lastIndexedVal === 'Cần kiểm tra') ? '⚠️' : '—';
+    const indexIcon = (lastIndexedVal && !isToday)
+      ? `<span style="opacity:0.65;filter:grayscale(50%);display:inline-flex;align-items:center;gap:2px" title="Dữ liệu cũ ngày ${lastIndexedDate}. Click để check mới.">${baseIcon}<span style="font-size:10px;line-height:1">🕒</span></span>`
+      : baseIcon;
 
     return `<tr style="border-bottom:1px solid #f0f0f0;${isSelected?'background:#fdf2f2;':''}" onmouseover="if(!${isSelected})this.style.background='#fafafa'" onmouseout="if(!${isSelected})this.style.background=''">
       <td style="padding:6px;text-align:center">
@@ -2834,7 +2842,7 @@ function renderWsTrack(){
       <td id="rank_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600">
         ${!last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank)}
       </td>
-      <td id="index_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="${last?.indexed || 'Chưa kiểm tra'}\n(Click để check index tự động bằng Serper/GSC)">${indexIcon}</td>
+      <td id="index_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="Trạng thái: ${lastIndexedVal || 'Chưa kiểm tra'}${lastIndexedDate ? `\nNgày check: ${lastIndexedDate}` : ''}\n(Click để check index tự động bằng Serper/GSC)">${indexIcon}</td>
       ${(() => {
         const cache = (typeof _gscCache !== 'undefined' ? _gscCache[w.id] : null) || {};
         const gscDate = cache.syncedAt || '';
