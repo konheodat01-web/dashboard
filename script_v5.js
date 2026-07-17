@@ -9582,17 +9582,25 @@ async function wstSyncGscRealtime(token, force = false) {
           }));
           
           let indexedStatus = '';
-          const wObj = websites.find(w => w.id === item.siteId);
-          if (wObj && wObj.url) {
-            try {
-              // Thêm độ trễ 1.2 giây giữa các lần inspect để tránh chạm hạn mức tần suất (rate limit) của Google API
-              await new Promise(r => setTimeout(r, 1200));
-              const inspectResult = await wstInspectUrlGsc(item.siteUrl, wObj.url);
-              if (inspectResult) {
-                indexedStatus = wstGetFriendlyIndexReason(inspectResult);
+          const totalImps = performanceHistory.reduce((sum, r) => sum + (r.impressions || 0), 0);
+          
+          if (totalImps > 0) {
+            // Nếu có lượt hiển thị (impressions > 0) trong 28 ngày qua, chắc chắn URL đã được Google index.
+            // Bỏ qua gọi API Inspect để tiết kiệm quota và tránh rate limit.
+            indexedStatus = 'Đã index';
+          } else {
+            const wObj = websites.find(w => w.id === item.siteId);
+            if (wObj && wObj.url) {
+              try {
+                // Chỉ gọi API Inspect đối với các website không có traffic/mới để kiểm tra chính xác lý do chưa index
+                await new Promise(r => setTimeout(r, 1200));
+                const inspectResult = await wstInspectUrlGsc(item.siteUrl, wObj.url);
+                if (inspectResult) {
+                  indexedStatus = wstGetFriendlyIndexReason(inspectResult);
+                }
+              } catch (inspectErr) {
+                console.warn('[GSC Inspect Auto-Sync Failed]', wObj.url, inspectErr);
               }
-            } catch (inspectErr) {
-              console.warn('[GSC Inspect Auto-Sync Failed]', wObj.url, inspectErr);
             }
           }
 
