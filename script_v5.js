@@ -11574,9 +11574,46 @@ async function wstGetGscTokenForVerification() {
   return null;
 }
 
+function wstShowReauthPrompt(onSuccess) {
+  // Bỏ prompt cũ nếu có
+  const oldPrompt = document.getElementById('wstReauthPromptOverlay');
+  if (oldPrompt) oldPrompt.remove();
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'wstReauthPromptOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999999;display:flex;align-items:center;justify-content:center;';
+  
+  overlay.innerHTML = `
+    <div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+      <div style="font-size:32px;margin-bottom:12px">🔑</div>
+      <h3 style="margin:0 0 10px 0;color:#e6edf3;font-size:16px;font-weight:700">Yêu cầu quyền truy cập Google GSC</h3>
+      <p style="margin:0 0 20px 0;color:#8b949e;font-size:13px;line-height:1.5">Phiên đăng nhập GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút dưới đây để kết nối lại tài khoản Google.</p>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button id="wstCancelReauthBtn" class="btn btn-outline" style="padding:8px 16px;font-size:12px;background:none;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;cursor:pointer">Hủy</button>
+        <button id="wstConfirmReauthBtn" class="btn btn-primary" style="background:#f2a154;border-color:#e5893c;color:#0d1117;font-weight:700;padding:8px 16px;font-size:12px;border:none;border-radius:6px;cursor:pointer">Đăng nhập Google</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  overlay.querySelector('#wstCancelReauthBtn').onclick = () => {
+    overlay.remove();
+  };
+  
+  overlay.querySelector('#wstConfirmReauthBtn').onclick = async () => {
+    const token = await wstGetGscTokenForVerification();
+    if (token) {
+      overlay.remove();
+      if (typeof onSuccess === 'function') onSuccess(token);
+    }
+  };
+}
+
 async function wstGetGscHtmlCodesBulk() {
   let token = sessionStorage.getItem('gsc_access_token');
   if (!token) {
+    // Gọi đăng nhập trực tiếp từ click đầu tiên (được trình duyệt cho phép)
     token = await wstGetGscTokenForVerification();
   }
   if (!token) return;
@@ -11591,14 +11628,30 @@ async function wstGetGscHtmlCodesBulk() {
     getBtn.innerHTML = '<span>⏳ Đang lấy...</span>';
   }
   
-  for (const tr of rows) {
+  async function processRow(index) {
+    if (index >= rows.length) {
+      if (getBtn) {
+        getBtn.disabled = false;
+        getBtn.innerHTML = 'Lấy mã';
+      }
+      return;
+    }
+    
+    const tr = rows[index];
     const cols = tr.querySelectorAll('td');
-    if (cols.length < 2) continue;
+    if (cols.length < 2) {
+      return processRow(index + 1);
+    }
+    
     const domainText = cols[0].textContent.replace('(Không có 301)', '').trim();
-    if (!domainText || domainText.includes(' ')) continue;
+    if (!domainText || domainText.includes(' ')) {
+      return processRow(index + 1);
+    }
     
     const textarea = cols[1].querySelector('textarea');
-    if (!textarea) continue;
+    if (!textarea) {
+      return processRow(index + 1);
+    }
     
     textarea.value = 'Đang thêm site & lấy mã...';
     
@@ -11610,87 +11663,89 @@ async function wstGetGscHtmlCodesBulk() {
       siteUrl += '/';
     }
     
-    let success = false;
-    let attempts = 0;
-    
-    while (!success && attempts < 2) {
-      try {
-        // 1. Thêm website vào GSC (PUT /webmasters/v3/sites/siteUrl)
-        const addRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`
+    try {
+      // 1. Thêm website vào GSC (PUT /webmasters/v3/sites/siteUrl)
+      const addRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (addRes.status === 401 || addRes.status === 403) {
+        if (getBtn) {
+          getBtn.disabled = false;
+          getBtn.innerHTML = 'Lấy mã';
+        }
+        wstShowReauthPrompt(async (newToken) => {
+          token = newToken;
+          if (getBtn) {
+            getBtn.disabled = true;
+            getBtn.innerHTML = '<span>⏳ Đang lấy...</span>';
           }
+          await processRow(index); // Chạy lại dòng này với token mới
         });
-        
-        if (addRes.status === 401 || addRes.status === 403) {
-          // Token hết hạn hoặc thiếu quyền (scope), tự động gọi Popup đăng nhập lại
-          sessionStorage.removeItem('gsc_access_token');
-          token = await wstGetGscTokenForVerification();
-          if (!token) {
-            throw new Error('Hết phiên đăng nhập/thiếu quyền và không thể đăng nhập lại.');
-          }
-          attempts++;
-          continue; // Thử lại với token mới
-        }
-        
-        if (!addRes.ok) {
-          const errText = await addRes.text().catch(() => '');
-          throw new Error(`Lỗi thêm site (${addRes.status}): ${errText}`);
-        }
-        
-        // 2. Lấy mã HTML xác minh (POST /siteVerification/v1/token)
-        const tokenRes = await fetch('https://www.googleapis.com/siteVerification/v1/token', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            site: {
-              type: 'SITE',
-              identifier: siteUrl
-            },
-            verificationMethod: 'META'
-          })
-        });
-        
-        if (tokenRes.status === 401 || tokenRes.status === 403) {
-          // Token hết hạn hoặc thiếu quyền (scope), tự động gọi Popup đăng nhập lại
-          sessionStorage.removeItem('gsc_access_token');
-          token = await wstGetGscTokenForVerification();
-          if (!token) {
-            throw new Error('Hết phiên đăng nhập/thiếu quyền và không thể đăng nhập lại.');
-          }
-          attempts++;
-          continue; // Thử lại với token mới
-        }
-        
-        if (!tokenRes.ok) {
-          const errData = await tokenRes.json().catch(() => ({}));
-          const errMsg = errData.error?.message || `Lỗi API (${tokenRes.status})`;
-          throw new Error(errMsg);
-        }
-        
-        const tokenData = await tokenRes.json();
-        if (tokenData && tokenData.token) {
-          textarea.value = tokenData.token;
-          success = true;
-        } else {
-          throw new Error('Không lấy được mã xác minh.');
-        }
-        
-      } catch (err) {
-        console.error('[Add/Verify GSC Failed]', domainText, err);
-        textarea.value = `Lỗi: ${err.message}`;
-        success = true; // Thoát vòng lặp do lỗi cứng
+        return;
       }
+      
+      if (!addRes.ok) {
+        const errText = await addRes.text().catch(() => '');
+        throw new Error(`Lỗi thêm site (${addRes.status}): ${errText}`);
+      }
+      
+      // 2. Lấy mã HTML xác minh (POST /siteVerification/v1/token)
+      const tokenRes = await fetch('https://www.googleapis.com/siteVerification/v1/token', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          site: {
+            type: 'SITE',
+            identifier: siteUrl
+          },
+          verificationMethod: 'META'
+        })
+      });
+      
+      if (tokenRes.status === 401 || tokenRes.status === 403) {
+        if (getBtn) {
+          getBtn.disabled = false;
+          getBtn.innerHTML = 'Lấy mã';
+        }
+        wstShowReauthPrompt(async (newToken) => {
+          token = newToken;
+          if (getBtn) {
+            getBtn.disabled = true;
+            getBtn.innerHTML = '<span>⏳ Đang lấy...</span>';
+          }
+          await processRow(index); // Chạy lại dòng này với token mới
+        });
+        return;
+      }
+      
+      if (!tokenRes.ok) {
+        const errData = await tokenRes.json().catch(() => ({}));
+        const errMsg = errData.error?.message || `Lỗi API (${tokenRes.status})`;
+        throw new Error(errMsg);
+      }
+      
+      const tokenData = await tokenRes.json();
+      if (tokenData && tokenData.token) {
+        textarea.value = tokenData.token;
+      } else {
+        throw new Error('Không lấy được mã xác minh.');
+      }
+      
+    } catch (err) {
+      console.error('[Add/Verify GSC Failed]', domainText, err);
+      textarea.value = `Lỗi: ${err.message}`;
     }
+    
+    await processRow(index + 1);
   }
   
-  if (getBtn) {
-    getBtn.disabled = false;
-    getBtn.innerHTML = 'Lấy mã';
-  }
+  await processRow(0);
 }
 
