@@ -2827,7 +2827,7 @@ function renderWsTrack(){
       </td>
       <td style="padding:8px 10px;font-size:11px">
         ${w.team === 'Team 02'
-          ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#555;font-weight:600">M7</span>`
+          ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d6fb8;font-weight:600">M7</span>`
           : `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#fdf2f2;color:var(--red);font-weight:600">Chaewon</span>`
         }
       </td>
