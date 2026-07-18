@@ -12056,7 +12056,15 @@ async function wstVerifyIndividualGsc(btn, domain) {
     const verifyTd = btn.closest('td');
     const sitemapCell = verifyTd ? verifyTd.nextElementSibling : null;
     if (sitemapCell) {
-      wstLoadAndSubmitSitemaps(siteUrl, token, sitemapCell);
+      sitemapCell.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;color:#8b949e;font-size:11px">
+          <span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Chờ đồng bộ...
+        </div>
+      `;
+      // Delay 3 giây để Google GSC cập nhật quyền sở hữu trước khi nạp sitemap
+      setTimeout(() => {
+        wstLoadAndSubmitSitemaps(siteUrl, token, sitemapCell);
+      }, 3000);
     }
     
   } catch (err) {
@@ -12100,9 +12108,13 @@ async function wstLoadAndSubmitSitemaps(siteUrl, token, cell) {
       existingSitemaps = data.sitemap || [];
     }
     
+    // Helper sleep
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
     // 2. Kiểm tra sitemap mục tiêu. Nếu thiếu thì submit.
     let successCount = 0;
-    for (const sm of sitemapsStatus) {
+    for (let i = 0; i < sitemapsStatus.length; i++) {
+      const sm = sitemapsStatus[i];
       const fullUrl = `${siteUrl}${sm.name}`;
       const exists = existingSitemaps.some(item => {
         const itemPath = item.path || '';
@@ -12125,6 +12137,11 @@ async function wstLoadAndSubmitSitemaps(siteUrl, token, cell) {
           successCount++;
         } else {
           console.error(`Sitemap submit failed for ${fullUrl}:`, await submitRes.text().catch(() => ''));
+        }
+        
+        // Nghỉ 1.5 giây giữa các lượt nộp sitemap (tránh Google block do spam/request quá nhanh)
+        if (i < sitemapsStatus.length - 1) {
+          await sleep(1500);
         }
       }
     }
