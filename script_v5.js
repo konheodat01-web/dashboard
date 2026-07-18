@@ -11636,6 +11636,9 @@ function wstSelectAddGscType(type) {
             Xác minh
           </button>
         </td>
+        <td style="padding:10px 8px;text-align:center;min-width:160px">
+          <span style="color:#484f58;font-size:11px">—</span>
+        </td>
       `;
       tbody.appendChild(tr);
     });
@@ -11761,7 +11764,17 @@ async function wstGetGscHtmlCodesBulk() {
           `;
         }
         
-        const sitemapCell = cols[2];
+        // Đánh dấu nút xác minh là đã thành công
+        const verifyBtn = cols[2]?.querySelector('button');
+        if (verifyBtn) {
+          verifyBtn.disabled = true;
+          verifyBtn.style.background = '#1f6feb';
+          verifyBtn.style.borderColor = '#388bfd';
+          verifyBtn.innerHTML = '✓ Thành công';
+        }
+
+        // Nạp sitemap vào cột thứ 4
+        const sitemapCell = cols[3];
         if (sitemapCell) {
           wstLoadAndSubmitSitemaps(siteUrl, token, sitemapCell);
         }
@@ -12012,8 +12025,9 @@ async function wstVerifyIndividualGsc(btn, domain) {
       console.error('Failed to add site to Search Console list:', addErr);
     }
     
-    // Tự động nộp 4 sitemaps và hiển thị trạng thái lên cột 3 (sitemap cell)
-    const sitemapCell = btn.closest('td');
+    // Tự động nộp 4 sitemaps và hiển thị trạng thái lên cột sitemap (cột thứ 4)
+    const verifyTd = btn.closest('td');
+    const sitemapCell = verifyTd ? verifyTd.nextElementSibling : null;
     if (sitemapCell) {
       wstLoadAndSubmitSitemaps(siteUrl, token, sitemapCell);
     }
