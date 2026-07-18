@@ -9499,6 +9499,7 @@ async function wstTriggerGscReauth() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
+    provider.setCustomParameters({ prompt: 'consent' });
     
     const result = await firebase.auth().signInWithPopup(provider);
     if (result.credential && result.credential.accessToken) {
@@ -11627,6 +11628,7 @@ async function wstGetGscTokenForVerification() {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/webmasters');
     provider.addScope('https://www.googleapis.com/auth/siteverification');
+    provider.setCustomParameters({ prompt: 'consent' });
     
     const result = await firebase.auth().signInWithPopup(provider);
     if (result.credential && result.credential.accessToken) {
