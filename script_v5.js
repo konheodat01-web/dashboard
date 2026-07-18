@@ -2,48 +2,72 @@
 // SAFEGUARD: Automatically clear removed feature data from browser storage
 try { localStorage.removeItem('wt_giaoviec'); } catch(e) {}
 
-// Đăng ký listener xử lý Redirect Auth của Firebase khi khởi chạy trang (để fallback nếu popup bị chặn)
-if (typeof firebase !== 'undefined') {
-  const checkRedirect = () => {
-    if (!firebase.auth) {
-      setTimeout(checkRedirect, 50);
-      return;
-    }
-    firebase.auth().getRedirectResult().then(async (result) => {
-      if (result && result.credential && result.credential.accessToken) {
-        const token = result.credential.accessToken;
-        sessionStorage.setItem('gsc_access_token', token);
-        if (result.user && result.user.email) {
-          sessionStorage.setItem('gsc_user_email', result.user.email);
-        }
-        wstSetGscBadge('done');
+// HÀM KHỞI CHẠY DIRECT GOOGLE OAUTH FLOW (CHỐNG CHẶN POPUP & COOP TRÊN ADSPOWER)
+function wstInitiateDirectGoogleOAuth(scopes, pendingState) {
+  const clientId = "938057045964-r7r5osdav10sgf6rhev3c8vri2qbal4r.apps.googleusercontent.com";
+  const redirectUri = window.location.origin + window.location.pathname;
+  
+  if (pendingState) {
+    sessionStorage.setItem('wst_oauth_pending_state', JSON.stringify(pendingState));
+  }
+  
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + 
+    `client_id=${encodeURIComponent(clientId)}` + 
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` + 
+    `&response_type=token` + 
+    `&scope=${encodeURIComponent(scopes.join(' '))}` + 
+    `&prompt=consent` + 
+    `&include_granted_scopes=true`;
+    
+  window.location.href = authUrl;
+}
+
+// Xử lý bắt Access Token từ URL Hash sau khi Google Redirect về
+if (window.location.hash) {
+  const params = new URLSearchParams(window.location.hash.substring(1));
+  const accessToken = params.get('access_token');
+  if (accessToken) {
+    sessionStorage.setItem('gsc_access_token', accessToken);
+    
+    // Xóa hash để giữ URL sạch và bảo mật
+    window.history.replaceState(null, null, window.location.pathname + window.location.search);
+    
+    // Lấy email người dùng từ Google UserInfo API
+    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.email) {
+        sessionStorage.setItem('gsc_user_email', data.email);
+      }
+    })
+    .catch(err => console.error('[OAuth UserInfo Error]', err));
+    
+    // Khôi phục trạng thái làm việc trước khi chuyển hướng
+    try {
+      const pendingStr = sessionStorage.getItem('wst_oauth_pending_state');
+      if (pendingStr) {
+        sessionStorage.removeItem('wst_oauth_pending_state');
+        const state = JSON.parse(pendingStr);
         
-        // 1. Phục hồi trạng thái thêm GSC hàng loạt nếu có
-        const pendingBulk = sessionStorage.getItem('wst_pending_gsc_bulk');
-        if (pendingBulk) {
-          sessionStorage.removeItem('wst_pending_gsc_bulk');
-          const data = JSON.parse(pendingBulk);
-          _wstSelected = new Set(data.selectedIds);
+        if (state.type === 'bulk_gsc') {
+          _wstSelected = new Set(state.selectedIds);
           setTimeout(() => {
-            wstSelectAddGscType(data.type);
+            wstSelectAddGscType(state.bulkType);
           }, 800);
-        }
-        
-        // 2. Phục hồi trạng thái đồng bộ toàn cục nếu có
-        const pendingGlobal = sessionStorage.getItem('wst_pending_global_sync');
-        if (pendingGlobal) {
-          sessionStorage.removeItem('wst_pending_global_sync');
+        } else if (state.type === 'global_sync') {
           setTimeout(async () => {
-            await wstSyncGscRealtime(token);
+            await wstSyncGscRealtime(accessToken);
           }, 1000);
         }
       }
-    }).catch(err => {
-      console.error('[Firebase Redirect Auth Error]', err);
-    });
-  };
-  checkRedirect();
+    } catch (e) {
+      console.error('[OAuth Restore Error]', e);
+    }
+  }
 }
+
 
 let currentMember = 'admin'; // declared first to avoid TDZ
 let websites = [
