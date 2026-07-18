@@ -1,6 +1,50 @@
 
 // SAFEGUARD: Automatically clear removed feature data from browser storage
 try { localStorage.removeItem('wt_giaoviec'); } catch(e) {}
+
+// Đăng ký listener xử lý Redirect Auth của Firebase khi khởi chạy trang (để fallback nếu popup bị chặn)
+if (typeof firebase !== 'undefined') {
+  const checkRedirect = () => {
+    if (!firebase.auth) {
+      setTimeout(checkRedirect, 50);
+      return;
+    }
+    firebase.auth().getRedirectResult().then(async (result) => {
+      if (result && result.credential && result.credential.accessToken) {
+        const token = result.credential.accessToken;
+        sessionStorage.setItem('gsc_access_token', token);
+        if (result.user && result.user.email) {
+          sessionStorage.setItem('gsc_user_email', result.user.email);
+        }
+        wstSetGscBadge('done');
+        
+        // 1. Phục hồi trạng thái thêm GSC hàng loạt nếu có
+        const pendingBulk = sessionStorage.getItem('wst_pending_gsc_bulk');
+        if (pendingBulk) {
+          sessionStorage.removeItem('wst_pending_gsc_bulk');
+          const data = JSON.parse(pendingBulk);
+          _wstSelected = new Set(data.selectedIds);
+          setTimeout(() => {
+            wstSelectAddGscType(data.type);
+          }, 800);
+        }
+        
+        // 2. Phục hồi trạng thái đồng bộ toàn cục nếu có
+        const pendingGlobal = sessionStorage.getItem('wst_pending_global_sync');
+        if (pendingGlobal) {
+          sessionStorage.removeItem('wst_pending_global_sync');
+          setTimeout(async () => {
+            await wstSyncGscRealtime(token);
+          }, 1000);
+        }
+      }
+    }).catch(err => {
+      console.error('[Firebase Redirect Auth Error]', err);
+    });
+  };
+  checkRedirect();
+}
+
 let currentMember = 'admin'; // declared first to avoid TDZ
 let websites = [
   {id:1, brand:'Debet', url:'https://debets.sbs', admin:'wp-admin', account:'dybala5858585858@gmail.com', password:'Mktb2022@', status:'Tốt', note:''},
@@ -9431,28 +9475,36 @@ async function wstTriggerGscReauth() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
-    const result = await firebase.auth().signInWithPopup(provider);
-    if (result.credential && result.credential.accessToken) {
-      sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
-      if (result.user && result.user.email) {
-        sessionStorage.setItem('gsc_user_email', result.user.email);
-      }
-      
-      const today = todayVN();
-      const lastSync = localStorage.getItem('gsc_last_global_sync_date');
-      if (lastSync === today) {
-        if (confirm('Dữ liệu GSC hôm nay đã được đồng bộ trước đó. Bạn có muốn đồng bộ lại không?')) {
-          await wstSyncGscRealtime(result.credential.accessToken, true);
-        } else {
-          wstSetGscBadge('done');
+    
+    try {
+      const result = await firebase.auth().signInWithPopup(provider);
+      if (result.credential && result.credential.accessToken) {
+        sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
+        if (result.user && result.user.email) {
+          sessionStorage.setItem('gsc_user_email', result.user.email);
         }
-      } else {
-        await wstSyncGscRealtime(result.credential.accessToken);
+        
+        const today = todayVN();
+        const lastSync = localStorage.getItem('gsc_last_global_sync_date');
+        if (lastSync === today) {
+          if (confirm('Dữ liệu GSC hôm nay đã được đồng bộ trước đó. Bạn có muốn đồng bộ lại không?')) {
+            await wstSyncGscRealtime(result.credential.accessToken, true);
+          } else {
+            wstSetGscBadge('done');
+          }
+        } else {
+          await wstSyncGscRealtime(result.credential.accessToken);
+        }
       }
+    } catch (popupErr) {
+      console.warn('[GSC Reauth] signInWithPopup failed, trying Redirect:', popupErr);
+      // Lưu trữ trạng thái sync trước khi redirect
+      sessionStorage.setItem('wst_pending_global_sync', '1');
+      await firebase.auth().signInWithRedirect(provider);
     }
   } catch (e) {
     console.warn('[GSC Reauth] Failed:', e.message);
-    alert('Lỗi kết nối Google GSC:\n' + e.message + '\n\nVui lòng kiểm tra xem trình duyệt có chặn cửa sổ bật lên (popup blocker) hay không.');
+    alert('Lỗi kết nối Google GSC:\n' + e.message);
     wstSetGscBadge('error');
   }
 }
@@ -11556,20 +11608,31 @@ function wstSubmitAddGscBulk() {
 async function wstGetGscTokenForVerification() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Thêm các quyền cần thiết: quản lý website GSC và cấu hình site verification
     provider.addScope('https://www.googleapis.com/auth/webmasters');
     provider.addScope('https://www.googleapis.com/auth/siteverification');
-    const result = await firebase.auth().signInWithPopup(provider);
-    if (result.credential && result.credential.accessToken) {
-      sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
-      if (result.user && result.user.email) {
-        sessionStorage.setItem('gsc_user_email', result.user.email);
+    
+    try {
+      const result = await firebase.auth().signInWithPopup(provider);
+      if (result.credential && result.credential.accessToken) {
+        sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
+        if (result.user && result.user.email) {
+          sessionStorage.setItem('gsc_user_email', result.user.email);
+        }
+        wstSetGscBadge('done');
+        return result.credential.accessToken;
       }
-      wstSetGscBadge('done');
-      return result.credential.accessToken;
+    } catch (popupErr) {
+      console.warn('[GSC Verification Auth] signInWithPopup failed, trying Redirect:', popupErr);
+      // Lưu trữ trạng thái bulk trước khi redirect
+      sessionStorage.setItem('wst_pending_gsc_bulk', JSON.stringify({
+        selectedIds: Array.from(_wstSelected),
+        type: _wstAddGscType
+      }));
+      await firebase.auth().signInWithRedirect(provider);
+      return null;
     }
   } catch (e) {
-    alert('Lỗi đăng nhập Google:\n' + e.message + '\n\nVui lòng kiểm tra lại quyền truy cập hoặc popup blocker.');
+    alert('Lỗi đăng nhập Google:\n' + e.message);
   }
   return null;
 }
