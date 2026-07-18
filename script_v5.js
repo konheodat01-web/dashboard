@@ -11811,23 +11811,30 @@ function wstCopyGscCode(btn) {
   }, 1500);
 }
 
-function wstGoToAdminAndCopy(url, user, pass) {
+async function wstGoToAdminAndCopy(url, user, pass) {
   window.open(url, '_blank');
   
-  let copyStr = '';
   if (user && pass) {
-    copyStr = `${user} | ${pass}`;
+    try {
+      // 1. Copy mật khẩu trước để nó nằm phía dưới trong lịch sử clipboard (Win + V)
+      await navigator.clipboard.writeText(pass);
+      
+      // 2. Delay 100ms để OS kịp nhận diện là 2 lần copy riêng biệt
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // 3. Copy tài khoản sau để nó nằm ở đầu lịch sử clipboard (Ctrl + V ra ngay tài khoản)
+      await navigator.clipboard.writeText(user);
+      
+      toast('✓ Đã copy riêng User & Pass vào lịch sử Clipboard (Win + V)!', '#27ae60', 3000);
+    } catch (e) {
+      console.error('Lỗi sao chép clipboard:', e);
+    }
   } else if (user) {
-    copyStr = user;
+    navigator.clipboard.writeText(user);
+    toast('✓ Đã copy tài khoản!', '#27ae60', 1500);
   } else if (pass) {
-    copyStr = pass;
-  }
-  
-  if (copyStr) {
-    navigator.clipboard.writeText(copyStr);
-    toast(`✓ Đã mở Admin & copy: ${user ? 'User' : ''}${user && pass ? ' | ' : ''}${pass ? 'Pass' : ''}!`, '#27ae60', 2500);
-  } else {
-    toast(`✓ Đang chuyển hướng tới Admin!`, '#27ae60', 1500);
+    navigator.clipboard.writeText(pass);
+    toast('✓ Đã copy mật khẩu!', '#27ae60', 1500);
   }
 }
 
