@@ -9500,14 +9500,28 @@ async function wstTriggerGscReauth() {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
     
-    // Lưu trữ trạng thái sync trước khi redirect
-    sessionStorage.setItem('wst_pending_global_sync', '1');
-    
-    // Sử dụng redirect thay thế hoàn toàn popup
-    await firebase.auth().signInWithRedirect(provider);
+    const result = await firebase.auth().signInWithPopup(provider);
+    if (result.credential && result.credential.accessToken) {
+      sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
+      if (result.user && result.user.email) {
+        sessionStorage.setItem('gsc_user_email', result.user.email);
+      }
+      
+      const today = todayVN();
+      const lastSync = localStorage.getItem('gsc_last_global_sync_date');
+      if (lastSync === today) {
+        if (confirm('Dữ liệu GSC hôm nay đã được đồng bộ trước đó. Bạn có muốn đồng bộ lại không?')) {
+          await wstSyncGscRealtime(result.credential.accessToken, true);
+        } else {
+          wstSetGscBadge('done');
+        }
+      } else {
+        await wstSyncGscRealtime(result.credential.accessToken);
+      }
+    }
   } catch (e) {
     console.warn('[GSC Reauth] Failed:', e.message);
-    alert('Lỗi kết nối Google GSC:\n' + e.message);
+    alert('Lỗi kết nối Google GSC:\n' + e.message + '\n\nVui lòng kiểm tra xem trình duyệt có chặn cửa sổ bật lên (popup blocker) hay không.');
     wstSetGscBadge('error');
   }
 }
@@ -11614,61 +11628,25 @@ async function wstGetGscTokenForVerification() {
     provider.addScope('https://www.googleapis.com/auth/webmasters');
     provider.addScope('https://www.googleapis.com/auth/siteverification');
     
-    // Lưu trữ trạng thái bulk trước khi redirect
-    sessionStorage.setItem('wst_pending_gsc_bulk', JSON.stringify({
-      selectedIds: Array.from(_wstSelected),
-      type: _wstAddGscType
-    }));
-    
-    // Sử dụng redirect thay vì popup để đảm bảo chạy được trên tất cả trình duyệt và chống chặn popup hoàn toàn
-    await firebase.auth().signInWithRedirect(provider);
-    return null;
+    const result = await firebase.auth().signInWithPopup(provider);
+    if (result.credential && result.credential.accessToken) {
+      sessionStorage.setItem('gsc_write_access_token', result.credential.accessToken);
+      if (result.user && result.user.email) {
+        sessionStorage.setItem('gsc_user_email', result.user.email);
+      }
+      wstSetGscBadge('done');
+      return result.credential.accessToken;
+    }
   } catch (e) {
-    alert('Lỗi đăng nhập Google:\n' + e.message);
+    alert('Lỗi đăng nhập Google:\n' + e.message + '\n\nVui lòng kiểm tra lại quyền truy cập hoặc popup blocker.');
   }
   return null;
 }
 
-function wstShowReauthPrompt(onSuccess) {
-  // Bỏ prompt cũ nếu có
-  const oldPrompt = document.getElementById('wstReauthPromptOverlay');
-  if (oldPrompt) oldPrompt.remove();
-  
-  const overlay = document.createElement('div');
-  overlay.id = 'wstReauthPromptOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999999;display:flex;align-items:center;justify-content:center;';
-  
-  overlay.innerHTML = `
-    <div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;width:380px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-      <div style="font-size:32px;margin-bottom:12px">🔑</div>
-      <h3 style="margin:0 0 10px 0;color:#e6edf3;font-size:16px;font-weight:700">Yêu cầu quyền truy cập Google GSC</h3>
-      <p style="margin:0 0 20px 0;color:#8b949e;font-size:13px;line-height:1.5">Phiên đăng nhập GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút dưới đây để kết nối lại tài khoản Google.</p>
-      <div style="display:flex;gap:10px;justify-content:center">
-        <button id="wstCancelReauthBtn" class="btn btn-outline" style="padding:8px 16px;font-size:12px;background:none;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;cursor:pointer">Hủy</button>
-        <button id="wstConfirmReauthBtn" class="btn btn-primary" style="background:#f2a154;border-color:#e5893c;color:#0d1117;font-weight:700;padding:8px 16px;font-size:12px;border:none;border-radius:6px;cursor:pointer">Đăng nhập Google</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(overlay);
-  
-  overlay.querySelector('#wstCancelReauthBtn').onclick = () => {
-    overlay.remove();
-  };
-  
-  overlay.querySelector('#wstConfirmReauthBtn').onclick = async () => {
-    const token = await wstGetGscTokenForVerification();
-    if (token) {
-      overlay.remove();
-      if (typeof onSuccess === 'function') onSuccess(token);
-    }
-  };
-}
-
 async function wstGetGscHtmlCodesBulk() {
-  let token = sessionStorage.getItem('gsc_access_token');
+  let token = sessionStorage.getItem('gsc_write_access_token');
   if (!token) {
-    // Gọi đăng nhập trực tiếp từ click đầu tiên (được trình duyệt cho phép)
+    // Không có token có quyền ghi, mở Popup Google đăng nhập trực tiếp từ click của người dùng
     token = await wstGetGscTokenForVerification();
   }
   if (!token) return;
@@ -11683,30 +11661,14 @@ async function wstGetGscHtmlCodesBulk() {
     getBtn.innerHTML = '<span>⏳ Đang lấy...</span>';
   }
   
-  async function processRow(index) {
-    if (index >= rows.length) {
-      if (getBtn) {
-        getBtn.disabled = false;
-        getBtn.innerHTML = 'Lấy mã';
-      }
-      return;
-    }
-    
-    const tr = rows[index];
+  for (const tr of rows) {
     const cols = tr.querySelectorAll('td');
-    if (cols.length < 2) {
-      return processRow(index + 1);
-    }
-    
+    if (cols.length < 2) continue;
     const domainText = cols[0].textContent.replace('(Không có 301)', '').trim();
-    if (!domainText || domainText.includes(' ')) {
-      return processRow(index + 1);
-    }
+    if (!domainText || domainText.includes(' ')) continue;
     
     const textarea = cols[1].querySelector('textarea');
-    if (!textarea) {
-      return processRow(index + 1);
-    }
+    if (!textarea) continue;
     
     textarea.value = 'Đang thêm site & lấy mã...';
     
@@ -11728,19 +11690,13 @@ async function wstGetGscHtmlCodesBulk() {
       });
       
       if (addRes.status === 401 || addRes.status === 403) {
+        sessionStorage.removeItem('gsc_write_access_token');
+        alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
         if (getBtn) {
           getBtn.disabled = false;
           getBtn.innerHTML = 'Lấy mã';
         }
-        wstShowReauthPrompt(async (newToken) => {
-          token = newToken;
-          if (getBtn) {
-            getBtn.disabled = true;
-            getBtn.innerHTML = '<span>⏳ Đang lấy...</span>';
-          }
-          await processRow(index); // Chạy lại dòng này với token mới
-        });
-        return;
+        return; // Dừng toàn bộ để yêu cầu click đăng nhập lại từ đầu
       }
       
       if (!addRes.ok) {
@@ -11765,19 +11721,13 @@ async function wstGetGscHtmlCodesBulk() {
       });
       
       if (tokenRes.status === 401 || tokenRes.status === 403) {
+        sessionStorage.removeItem('gsc_write_access_token');
+        alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
         if (getBtn) {
           getBtn.disabled = false;
           getBtn.innerHTML = 'Lấy mã';
         }
-        wstShowReauthPrompt(async (newToken) => {
-          token = newToken;
-          if (getBtn) {
-            getBtn.disabled = true;
-            getBtn.innerHTML = '<span>⏳ Đang lấy...</span>';
-          }
-          await processRow(index); // Chạy lại dòng này với token mới
-        });
-        return;
+        return; // Dừng toàn bộ
       }
       
       if (!tokenRes.ok) {
@@ -11797,10 +11747,11 @@ async function wstGetGscHtmlCodesBulk() {
       console.error('[Add/Verify GSC Failed]', domainText, err);
       textarea.value = `Lỗi: ${err.message}`;
     }
-    
-    await processRow(index + 1);
   }
   
-  await processRow(0);
+  if (getBtn) {
+    getBtn.disabled = false;
+    getBtn.innerHTML = 'Lấy mã';
+  }
 }
 
