@@ -11597,8 +11597,13 @@ function wstSelectAddGscType(type) {
       tr.style.cssText = 'border-bottom:1px solid #21262d;';
       tr.innerHTML = `
         <td style="padding:10px 8px;font-size:12px;font-weight:600;color:#e6edf3;max-width:180px;word-break:break-all">${displayUrl}</td>
-        <td style="padding:10px 8px;width:50%">
-          <textarea class="form-control" style="width:100%;height:38px;font-family:monospace;font-size:11px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px;resize:vertical;outline:none" placeholder="<meta name='google-site-verification' content='...' />"></textarea>
+        <td style="padding:10px 8px;width:55%">
+          <div style="display:flex;align-items:center;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:4px 8px;gap:8px">
+            <input type="text" readonly class="form-control" style="flex:1;font-family:monospace;font-size:11px;background:none;border:none;color:#c9d1d9;padding:4px 0;outline:none;width:100%" placeholder="<meta name='google-site-verification' content='...' />" />
+            <button class="btn btn-copy" onclick="wstCopyGscCode(this)" style="background:none;border:none;color:#8b949e;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;transition:color 0.2s" title="Copy mã">
+              <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            </button>
+          </div>
         </td>
         <td style="padding:10px 8px;">
           <input type="text" class="form-control" style="width:100%;font-size:12px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 10px;outline:none" value="sitemap.xml" placeholder="sitemap.xml" />
@@ -11672,10 +11677,10 @@ async function wstGetGscHtmlCodesBulk() {
     const domainText = cols[0].textContent.replace('(Không có 301)', '').trim();
     if (!domainText || domainText.includes(' ')) continue;
     
-    const textarea = cols[1].querySelector('textarea');
-    if (!textarea) continue;
+    const gscInput = cols[1].querySelector('input');
+    if (!gscInput) continue;
     
-    textarea.value = 'Đang thêm site & lấy mã...';
+    gscInput.value = 'Đang thêm site & lấy mã...';
     
     let siteUrl = domainText;
     if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
@@ -11755,14 +11760,14 @@ async function wstGetGscHtmlCodesBulk() {
       
       const tokenData = await tokenRes.json();
       if (tokenData && tokenData.token) {
-        textarea.value = tokenData.token;
+        gscInput.value = tokenData.token;
       } else {
         throw new Error('Không lấy được mã xác minh.');
       }
       
     } catch (err) {
       console.error('[Add/Verify GSC Failed]', domainText, err);
-      textarea.value = `Lỗi: ${err.message}`;
+      gscInput.value = `Lỗi: ${err.message}`;
     }
   }
   
@@ -11770,5 +11775,20 @@ async function wstGetGscHtmlCodesBulk() {
     getBtn.disabled = false;
     getBtn.innerHTML = 'Lấy mã';
   }
+}
+
+function wstCopyGscCode(btn) {
+  const input = btn.previousElementSibling;
+  if (!input || !input.value || input.value.startsWith('Lỗi:') || input.value.startsWith('Đang')) {
+    return;
+  }
+  navigator.clipboard.writeText(input.value);
+  toast('✓ Đã copy mã xác minh!', '#27ae60', 1500);
+  
+  const originalSvg = btn.innerHTML;
+  btn.innerHTML = `<svg stroke="#3fb950" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+  setTimeout(() => {
+    btn.innerHTML = originalSvg;
+  }, 1500);
 }
 
