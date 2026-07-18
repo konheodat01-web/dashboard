@@ -11818,28 +11818,68 @@ function wstCopyGscCode(btn) {
 function wstGoToAdminAndCopy(url, user, pass) {
   console.log('wstGoToAdminAndCopy called:', { url, user, pass });
   if (user && pass) {
+    // 1. Tạo hoặc hiển thị overlay tiến độ vòng tròn
+    let loader = document.getElementById('wstTakeoffLoader');
+    if (!loader) {
+      loader = document.createElement('div');
+      loader.id = 'wstTakeoffLoader';
+      document.body.appendChild(loader);
+    }
+    
+    loader.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:99999;font-family:sans-serif;opacity:0;pointer-events:none;transition:opacity 0.15s ease-out;';
+    loader.innerHTML = `
+      <div style="background:#161b22;border:1px solid #30363d;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 12px 32px rgba(0,0,0,0.6);transform:scale(0.9);transition:transform 0.15s ease-out">
+        <div style="position:relative;width:64px;height:64px">
+          <svg width="64" height="64" viewBox="0 0 64 64" style="transform:rotate(-90deg)">
+            <circle cx="32" cy="32" r="28" stroke="#21262d" stroke-width="4" fill="transparent" />
+            <circle id="wstLoaderCircle" cx="32" cy="32" r="28" stroke="#2ea44f" stroke-width="4" fill="transparent" 
+                    stroke-dasharray="175.93" stroke-dashoffset="175.93" stroke-linecap="round"
+                    style="transition:stroke-dashoffset 0.4s linear" />
+          </svg>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:22px">🚀</div>
+        </div>
+        <div style="color:#e6edf3;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">Nạp Clipboard...</div>
+      </div>
+    `;
+    
+    loader.style.display = 'flex';
+    // Kích hoạt transition
+    setTimeout(() => {
+      loader.style.opacity = '1';
+      loader.style.pointerEvents = 'auto';
+      loader.querySelector('div').style.transform = 'scale(1)';
+      const circle = document.getElementById('wstLoaderCircle');
+      if (circle) circle.style.strokeDashoffset = '0';
+    }, 10);
+
     try {
-      // 1. Copy mật khẩu ngay lập tức
+      // 2. Copy mật khẩu ngay lập tức
       navigator.clipboard.writeText(pass).then(() => {
-        console.log('Password copied successfully');
-      }).catch(err => {
-        console.error('Password copy failed:', err);
-      });
+        console.log('Password copied');
+      }).catch(err => console.error(err));
       
-      // 2. Chờ 400ms (đủ lâu để hệ điều hành Windows nhận diện 2 sự kiện sao chép riêng biệt, 
-      // đồng thời vẫn nằm dưới 1000ms User Activation để window.open không bị trình duyệt chặn)
+      // 3. Chờ 400ms để vòng quay hoàn thành và copy tiếp tài khoản
       setTimeout(() => {
         navigator.clipboard.writeText(user).then(() => {
-          console.log('Username copied successfully');
-        }).catch(err => {
-          console.error('Username copy failed:', err);
-        });
+          console.log('Username copied');
+        }).catch(err => console.error(err));
+        
         window.open(url, '_blank');
+        
+        // Ẩn loader mượt mà
+        loader.style.opacity = '0';
+        loader.style.pointerEvents = 'none';
+        loader.querySelector('div').style.transform = 'scale(0.9)';
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 150);
+        
         toast('✓ Đã copy riêng User & Pass (Win + V) và mở Admin!', '#27ae60', 2000);
       }, 400);
     } catch (e) {
-      console.error('Lỗi quy trình copy:', e);
+      console.error(e);
       window.open(url, '_blank');
+      loader.style.display = 'none';
     }
   } else {
     const text = user || pass || '';
