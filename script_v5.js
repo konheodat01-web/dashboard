@@ -11603,21 +11603,15 @@ function wstSelectAddGscType(type) {
       tr.style.cssText = 'border-bottom:1px solid #21262d;';
       tr.innerHTML = `
         <td style="padding:10px 8px;font-size:12px;color:#e6edf3;max-width:200px;word-break:break-all">
-          <div style="font-weight:600;margin-bottom:6px">${displayUrl}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-weight:600">${displayUrl}</span>
             ${targetWs.admin ? `
-              <a href="${joinAdminUrl(targetWs.url, targetWs.admin)}" target="_blank" class="btn" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;font-size:10px;padding:2px 6px;border-radius:4px;text-decoration:none;display:inline-flex;align-items:center;gap:3px;font-weight:500" title="Mở trang quản trị">
-                🔑 Admin
-              </a>
-            ` : ''}
-            ${targetWs.account ? `
-              <button onclick="wstCopyText('${targetWs.account.replace(/'/g, "\\'")}', 'tài khoản')" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;font-size:10px;padding:2px 6px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:500" title="Copy tài khoản: ${targetWs.account}">
-                👤 Copy U
-              </button>
-            ` : ''}
-            ${targetWs.password ? `
-              <button onclick="wstCopyText('${targetWs.password.replace(/'/g, "\\'")}', 'mật khẩu')" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;font-size:10px;padding:2px 6px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:500" title="Copy mật khẩu">
-                🔒 Copy P
+              <button onclick="wstGoToAdminAndCopy('${joinAdminUrl(targetWs.url, targetWs.admin).replace(/'/g, "\\'")}', '${(targetWs.account || '').replace(/'/g, "\\'")}', '${(targetWs.password || '').replace(/'/g, "\\'")}')" 
+                      style="background:none;border:none;color:#58a6ff;cursor:pointer;padding:2px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.2s" 
+                      onmouseover="this.style.background='rgba(56,139,253,0.15)'" 
+                      onmouseout="this.style.background='none'" 
+                      title="Mở Admin & Copy tài khoản/mật khẩu">
+                <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
               </button>
             ` : ''}
           </div>
@@ -11817,9 +11811,23 @@ function wstCopyGscCode(btn) {
   }, 1500);
 }
 
-function wstCopyText(text, label) {
-  if (!text) return;
-  navigator.clipboard.writeText(text);
-  toast(`✓ Đã copy ${label}!`, '#27ae60', 1500);
+function wstGoToAdminAndCopy(url, user, pass) {
+  window.open(url, '_blank');
+  
+  let copyStr = '';
+  if (user && pass) {
+    copyStr = `${user} | ${pass}`;
+  } else if (user) {
+    copyStr = user;
+  } else if (pass) {
+    copyStr = pass;
+  }
+  
+  if (copyStr) {
+    navigator.clipboard.writeText(copyStr);
+    toast(`✓ Đã mở Admin & copy: ${user ? 'User' : ''}${user && pass ? ' | ' : ''}${pass ? 'Pass' : ''}!`, '#27ae60', 2500);
+  } else {
+    toast(`✓ Đang chuyển hướng tới Admin!`, '#27ae60', 1500);
+  }
 }
 
