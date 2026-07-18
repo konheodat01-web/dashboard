@@ -11722,6 +11722,35 @@ async function wstGetGscHtmlCodesBulk() {
     }
     
     try {
+      // 0. Kiểm tra xem website đã được xác minh sẵn trên email này chưa (GET /siteVerification/v1/webResource/siteUrl)
+      const checkRes = await fetch(`https://www.googleapis.com/siteVerification/v1/webResource/${encodeURIComponent(siteUrl)}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (checkRes.ok) {
+        // Website đã xác minh thành công từ trước
+        const htmlTd = cols[1];
+        if (htmlTd) {
+          htmlTd.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;background:rgba(46,164,79,0.15);border:1px solid rgba(46,164,79,0.4);border-radius:6px;padding:6px 12px;color:#2ecc71;font-size:11px;font-weight:600;gap:6px">
+              <span>🎉 Đã xác minh trên Email này!</span>
+            </div>
+          `;
+        }
+        
+        const verifyBtn = cols[2].querySelector('button');
+        if (verifyBtn) {
+          verifyBtn.disabled = true;
+          verifyBtn.style.background = '#1f6feb';
+          verifyBtn.style.borderColor = '#388bfd';
+          verifyBtn.innerHTML = 'Thành công';
+        }
+        continue;
+      }
+
       // 1. Thêm website vào GSC (PUT /webmasters/v3/sites/siteUrl)
       const addRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`, {
         method: 'PUT',
