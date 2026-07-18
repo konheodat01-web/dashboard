@@ -10696,6 +10696,7 @@ function wstOpenDashboard(wsId) {
       <button class="tb-btn" onclick="wstSwitchTab(this,'gsc')">📊 GSC Data</button>
       <button class="tb-btn" onclick="wstSwitchTab(this,'bing')">🔍 Bing Data</button>
       <button class="tb-btn" onclick="wstSwitchTab(this,'dichvu')">🛠️ Dịch vụ</button>
+      <button class="tb-btn" onclick="wstSwitchTab(this,'anphat')">⚠️ Án phạt GSC</button>
       <button class="tb-btn" onclick="wstSwitchTab(this,'plan')">📝 Kế hoạch & Strategy</button>
     </div>
 
@@ -10831,6 +10832,16 @@ function wstOpenDashboard(wsId) {
         </div>
       </div>
 
+      <!-- 4.5. PANEL ÁN PHẠT GSC -->
+      <div class="tp-panel" id="wst-tab-anphat">
+        <div class="sh">
+          <span class="st-title">⚠️ Google Manual Actions (Án phạt thủ công)</span>
+        </div>
+        <div id="wstAnPhatBox" style="color:#8b949e; font-size:12px; padding:16px; border-radius:8px; background:#161b22; border:1px solid #30363d; min-height:80px;">
+          ⏳ Đang tải dữ liệu án phạt từ Google Search Console...
+        </div>
+      </div>
+
       <!-- 5. PANEL PLAN & KANBAN -->
       <div class="tp-panel" id="wst-tab-plan">
         <div class="plan-container">
@@ -10892,6 +10903,10 @@ function wstSwitchTab(btn, tabId) {
   
   btn.classList.add('on');
   document.getElementById('wst-tab-' + tabId).classList.add('on');
+
+  if (tabId === 'anphat') {
+    wstLoadManualActions();
+  }
 }
 
 // --- RENDER DỊCH VỤ NHẬP TAY ---
@@ -11240,6 +11255,130 @@ async function wstLoadGscQueries(range = '28d') {
   } catch (err) {
     console.error('Error in wstLoadGscQueries:', err);
     qBox.innerHTML = `<span style="color:#e74c3c">Lỗi: ${err.message}</span>`;
+  }
+}
+
+}
+
+// Hàm tải dữ liệu án phạt thủ công (Google Manual Actions) từ GSC API
+async function wstLoadManualActions() {
+  const site = websites.find(x => x.id === _wstActiveSiteId);
+  const apBox = document.getElementById('wstAnPhatBox');
+  if (!site || !apBox) return;
+
+  const token = sessionStorage.getItem('gsc_access_token');
+  if (!token) {
+    apBox.innerHTML = `
+      <div style="text-align:center; padding:16px;">
+        <span style="color:#e74c3c; display:block; margin-bottom:10px;">Chưa đăng nhập bằng Google hoặc thiếu token GSC.</span>
+        <button class="btn-a" onclick="wstLoginGscBtn()" style="padding:6px 12px; font-size:11px;">Đăng nhập Google</button>
+      </div>
+    `;
+    return;
+  }
+
+  apBox.innerHTML = '⏳ Đang kiểm tra án phạt từ Google Search Console...';
+
+  // Lấy URL 301 mới nhất
+  const kids = websites.filter(x => x.is301 && x.sourceUrl &&
+    (x.sourceUrl === site.url || x.sourceUrl === (site.url || '').replace(/\/$/, '')));
+  const latest301 = kids.length ? kids[kids.length - 1] : null;
+  const matchUrl = latest301 ? (latest301.url || latest301.sourceUrl || site.url) : (site.url || '');
+  let finalGscUrl = site.gscPropertyUrl || matchUrl;
+
+  try {
+    // Lấy định dạng chuẩn của GSC Property
+    const targetUrl = await wstGetExactGscPropertyUrl(finalGscUrl);
+    
+    const res = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(targetUrl)}/manualActions`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      // Nếu là lỗi 403, báo không có quyền quản trị tài sản này
+      if (res.status === 403) {
+        apBox.innerHTML = `
+          <div style="border-left: 4px solid #f59e0b; padding: 12px; background: rgba(245, 158, 11, 0.1);">
+            <strong style="color:#f59e0b; display:block; margin-bottom:4px;">⚠️ Lỗi phân quyền (403)</strong>
+            <span style="color:#c9d1d9;">Tài khoản Google hiện tại không có quyền quản trị tài sản này trên Google Search Console: <code style="background:#21262d; padding:2px 6px; border-radius:4px;">${targetUrl}</code></span>
+          </div>
+        `;
+      } else {
+        apBox.innerHTML = `<span style="color:#e74c3c">Lỗi gọi API Google (${res.status}): ${errText || 'Không xác định'}</span>`;
+      }
+      return;
+    }
+
+    const data = await res.json();
+    const actions = data.actions || [];
+
+    if (actions.length === 0) {
+      apBox.innerHTML = `
+        <div style="display:flex; align-items:center; gap:12px; border-left: 4px solid #2ecc71; padding: 12px; background: rgba(46, 204, 113, 0.1);">
+          <span style="font-size:24px;">✅</span>
+          <div>
+            <strong style="color:#2ecc71; display:block; margin-bottom:2px; font-size:13px;">Không phát hiện án phạt thủ công nào</strong>
+            <span style="color:#8b949e;">Google không áp dụng bất kỳ tác vụ thủ công nào đối với website của bạn.</span>
+          </div>
+        </div>
+      `;
+    } else {
+      // Bản dịch một số loại án phạt phổ biến
+      const typeTranslations = {
+        'USER_GENERATED_SPAM': 'Spam do người dùng tạo',
+        'SPAMMY_FREE_HOST': 'Dịch vụ lưu trữ miễn phí có chứa spam',
+        'STRUCTURED_DATA_ISSUE': 'Vấn đề về dữ liệu có cấu trúc',
+        'UNNATURAL_LINKS_TO_SITE': 'Liên kết bất thường trỏ đến trang web của bạn (Backlink bẩn)',
+        'UNNATURAL_LINKS_FROM_SITE': 'Liên kết bất thường từ trang web của bạn ra ngoài (Bán link)',
+        'THIN_CONTENT': 'Nội dung mỏng, ít hoặc không có giá trị gia tăng',
+        'CLOAKING_OR_SNEAKY_REDIRECTS': 'Che giấu nội dung hoặc chuyển hướng lén lút',
+        'PURE_SPAM': 'Spam thuần túy (Nội dung tự động, copy, cào hàng loạt)',
+        'CLOAKED_IMAGES': 'Che giấu hình ảnh',
+        'HIDDEN_TEXT_OR_KEYWORD_STUFFING': 'Chữ ẩn hoặc nhồi nhét từ khóa',
+        'AMP_CONTENT_MISMATCH': 'Nội dung AMP không khớp',
+        'SNEAKY_MOBILE_REDIRECTS': 'Chuyển hướng lén lút trên thiết bị di động',
+        'NEWS_AND_DISCOVER_POLICY_VIOLATION': 'Vi phạm chính sách nội dung của Google News & Discover'
+      };
+
+      let html = `
+        <div style="border-left: 4px solid #e74c3c; padding: 12px; background: rgba(231, 76, 60, 0.1); margin-bottom:12px;">
+          <strong style="color:#e74c3c; font-size:13px; display:block;">⚠️ Website của bạn đang dính ${actions.length} án phạt thủ công từ Google!</strong>
+        </div>
+      `;
+
+      actions.forEach((act, idx) => {
+        const transType = typeTranslations[act.type] || act.type;
+        html += `
+          <div style="background:#21262d; border: 1px solid #30363d; border-radius:6px; padding:12px; margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong style="color:#f59e0b; font-size:13px;">#${idx+1} ${transType}</strong>
+              <span style="font-size:10px; color:#8b949e; background:#30363d; padding:2px 6px; border-radius:4px;">${act.type}</span>
+            </div>
+            <div style="color:#c9d1d9; line-height:1.4; margin-bottom:8px; font-size:11px;">${act.description || 'Không có mô tả chi tiết từ Google.'}</div>
+        `;
+
+        if (act.targets && act.targets.length > 0) {
+          html += `<div style="font-size:10px; color:#8b949e; border-top: 1px dashed #30363d; padding-top:6px; margin-top:6px;">
+            <strong>URL bị ảnh hưởng:</strong>
+            <ul style="margin:4px 0 0 0; padding-left:16px;">
+              ${act.targets.map(t => `<li style="word-break:break-all;"><code style="background:#161b22; color:#58a6ff;">${t.url || 'Toàn bộ website'}</code></li>`).join('')}
+            </ul>
+          </div>`;
+        }
+        
+        html += `</div>`;
+      });
+
+      apBox.innerHTML = html;
+    }
+
+  } catch (err) {
+    console.error('Error in wstLoadManualActions:', err);
+    apBox.innerHTML = `<span style="color:#e74c3c">Lỗi kiểm tra án phạt: ${err.message}</span>`;
   }
 }
 
