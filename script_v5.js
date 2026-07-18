@@ -11972,6 +11972,19 @@ async function wstVerifyIndividualGsc(btn, domain) {
     btn.style.borderColor = '#388bfd';
     btn.innerHTML = 'Thành công';
     
+    // Thay thế ô nhập mã HTML thành nhãn xác minh thành công
+    const tr = btn.closest('tr');
+    if (tr) {
+      const htmlTd = tr.querySelectorAll('td')[1]; // Cột Mã HTML (index 1)
+      if (htmlTd) {
+        htmlTd.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;background:rgba(46,164,79,0.15);border:1px solid rgba(46,164,79,0.4);border-radius:6px;padding:6px 12px;color:#2ecc71;font-size:11px;font-weight:600;gap:6px">
+            <span>🎉 Xác minh thành công!</span>
+          </div>
+        `;
+      }
+    }
+    
     // Tự động nộp sitemap sau khi xác minh thành công!
     const td = btn.closest('td');
     const sitemapInput = td.querySelector('input[type="text"]');
