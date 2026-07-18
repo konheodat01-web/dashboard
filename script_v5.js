@@ -11695,13 +11695,19 @@ async function wstGetGscHtmlCodesBulk() {
       });
       
       if (addRes.status === 401 || addRes.status === 403) {
-        sessionStorage.removeItem('gsc_access_token');
-        alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
-        if (getBtn) {
-          getBtn.disabled = false;
-          getBtn.innerHTML = 'Lấy mã';
+        const errText = await addRes.text().catch(() => '');
+        console.error('[GSC Add Error 401/403]', errText);
+        if (errText.includes('insufficientPermissions') || errText.includes('authError') || addRes.status === 401) {
+          sessionStorage.removeItem('gsc_access_token');
+          alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
+          if (getBtn) {
+            getBtn.disabled = false;
+            getBtn.innerHTML = 'Lấy mã';
+          }
+          return;
+        } else {
+          throw new Error(`Lỗi Google API (${addRes.status}): ${errText}`);
         }
-        return; // Dừng toàn bộ
       }
       
       if (!addRes.ok) {
@@ -11726,13 +11732,19 @@ async function wstGetGscHtmlCodesBulk() {
       });
       
       if (tokenRes.status === 401 || tokenRes.status === 403) {
-        sessionStorage.removeItem('gsc_access_token');
-        alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
-        if (getBtn) {
-          getBtn.disabled = false;
-          getBtn.innerHTML = 'Lấy mã';
+        const errText = await tokenRes.text().catch(() => '');
+        console.error('[GSC Token Error 401/403]', errText);
+        if (errText.includes('insufficientPermissions') || errText.includes('authError') || tokenRes.status === 401) {
+          sessionStorage.removeItem('gsc_access_token');
+          alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
+          if (getBtn) {
+            getBtn.disabled = false;
+            getBtn.innerHTML = 'Lấy mã';
+          }
+          return;
+        } else {
+          throw new Error(`Lỗi Google API (${tokenRes.status}): ${errText}`);
         }
-        return; // Dừng toàn bộ
       }
       
       if (!tokenRes.ok) {
