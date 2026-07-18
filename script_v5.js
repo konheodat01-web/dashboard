@@ -11687,7 +11687,6 @@ async function wstGetGscTokenForVerification() {
 async function wstGetGscHtmlCodesBulk() {
   let token = sessionStorage.getItem('gsc_access_token');
   if (!token) {
-    // Không có token có sẵn, mở Popup Google đăng nhập và yêu cầu toàn bộ quyền ngay từ đầu
     token = await wstGetGscTokenForVerification();
   }
   if (!token) return;
@@ -11700,6 +11699,31 @@ async function wstGetGscHtmlCodesBulk() {
   if (getBtn) {
     getBtn.disabled = true;
     getBtn.innerHTML = '<span>⏳ Đang lấy...</span>';
+  }
+
+  // 0. Lấy danh sách website đã xác minh sẵn của tài khoản này (chỉ cần gọi 1 lần duy nhất để tránh spam 403)
+  let verifiedSites = [];
+  try {
+    const listRes = await fetch('https://www.googleapis.com/siteVerification/v1/webResource', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (listRes.ok) {
+      const listData = await listRes.json();
+      verifiedSites = listData.items || [];
+    } else if (listRes.status === 401 || listRes.status === 403) {
+      sessionStorage.removeItem('gsc_access_token');
+      alert('Phiên làm việc Google GSC đã hết hạn. Vui lòng bấm nút "Lấy mã" lần nữa để đăng nhập lại.');
+      if (getBtn) {
+        getBtn.disabled = false;
+        getBtn.innerHTML = 'Lấy mã';
+      }
+      return;
+    }
+  } catch (err) {
+    console.error('Error fetching verified sites list:', err);
   }
   
   for (const tr of rows) {
@@ -11722,16 +11746,15 @@ async function wstGetGscHtmlCodesBulk() {
     }
     
     try {
-      // 0. Kiểm tra xem website đã được xác minh sẵn trên email này chưa (GET /siteVerification/v1/webResource/siteUrl)
-      const checkRes = await fetch(`https://www.googleapis.com/siteVerification/v1/webResource/${encodeURIComponent(siteUrl)}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      // Kiểm tra xem site có nằm trong danh sách đã xác minh hay chưa
+      const isAlreadyVerified = verifiedSites.some(item => {
+        const ident = item.site?.identifier;
+        if (!ident) return false;
+        return ident.replace(/\/$/, '').toLowerCase() === siteUrl.replace(/\/$/, '').toLowerCase();
       });
-      
-      if (checkRes.ok) {
-        // Website đã xác minh thành công từ trước
+
+      if (isAlreadyVerified) {
+        // Cập nhật giao diện thành công luôn
         const htmlTd = cols[1];
         if (htmlTd) {
           htmlTd.innerHTML = `
@@ -11751,36 +11774,8 @@ async function wstGetGscHtmlCodesBulk() {
         continue;
       }
 
-      // 1. Thêm website vào GSC (PUT /webmasters/v3/sites/siteUrl)
-      const addRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (addRes.status === 401 || addRes.status === 403) {
-        const errText = await addRes.text().catch(() => '');
-        console.error('[GSC Add Error 401/403]', errText);
-        if (errText.includes('insufficientPermissions') || errText.includes('authError') || addRes.status === 401) {
-          sessionStorage.removeItem('gsc_access_token');
-          alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
-          if (getBtn) {
-            getBtn.disabled = false;
-            getBtn.innerHTML = 'Lấy mã';
-          }
-          return;
-        } else {
-          throw new Error(`Lỗi Google API (${addRes.status}): ${errText}`);
-        }
-      }
-      
-      if (!addRes.ok) {
-        const errText = await addRes.text().catch(() => '');
-        throw new Error(`Lỗi thêm site (${addRes.status}): ${errText}`);
-      }
-      
-      // 2. Lấy mã HTML xác minh (POST /siteVerification/v1/token)
+      // Không cần gọi PUT /webmasters/v3/sites/ trước khi xác minh (tránh lỗi 403 đỏ lòm console)
+      // 1. Gọi trực tiếp API lấy mã HTML xác minh (POST /siteVerification/v1/token)
       const tokenRes = await fetch('https://www.googleapis.com/siteVerification/v1/token', {
         method: 'POST',
         headers: {
@@ -11799,17 +11794,13 @@ async function wstGetGscHtmlCodesBulk() {
       if (tokenRes.status === 401 || tokenRes.status === 403) {
         const errText = await tokenRes.text().catch(() => '');
         console.error('[GSC Token Error 401/403]', errText);
-        if (errText.includes('insufficientPermissions') || errText.includes('authError') || tokenRes.status === 401) {
-          sessionStorage.removeItem('gsc_access_token');
-          alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
-          if (getBtn) {
-            getBtn.disabled = false;
-            getBtn.innerHTML = 'Lấy mã';
-          }
-          return;
-        } else {
-          throw new Error(`Lỗi Google API (${tokenRes.status}): ${errText}`);
+        sessionStorage.removeItem('gsc_access_token');
+        alert('Phiên làm việc Google GSC đã hết hạn. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
+        if (getBtn) {
+          getBtn.disabled = false;
+          getBtn.innerHTML = 'Lấy mã';
         }
+        return;
       }
       
       if (!tokenRes.ok) {
@@ -12012,6 +12003,19 @@ async function wstVerifyIndividualGsc(btn, domain) {
           </div>
         `;
       }
+    }
+    
+    // Thêm website vào danh sách Search Console của người dùng (sau khi đã xác minh thành công)
+    try {
+      await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      console.log('Site added to Search Console list successfully');
+    } catch (addErr) {
+      console.error('Failed to add site to Search Console list:', addErr);
     }
     
     // Tự động nộp sitemap sau khi xác minh thành công!
