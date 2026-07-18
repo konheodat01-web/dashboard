@@ -11811,31 +11811,39 @@ function wstCopyGscCode(btn) {
   }, 1500);
 }
 
-async function wstGoToAdminAndCopy(url, user, pass) {
-  if (user && pass) {
-    try {
-      // 1. Copy mật khẩu trước (nằm dưới trong lịch sử Win + V)
-      await navigator.clipboard.writeText(pass);
-      
-      // 2. Delay cực ngắn 50ms (0.05 giây) để hệ điều hành tách biệt 2 lần copy
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // 3. Copy tài khoản sau (nằm trên cùng lịch sử, Ctrl + V ra ngay tài khoản)
-      await navigator.clipboard.writeText(user);
-      
-      toast('✓ Đã copy riêng User & Pass vào Clipboard (Win + V)!', '#27ae60', 2500);
-    } catch (e) {
-      console.error('Lỗi sao chép clipboard:', e);
+let _wstClipboardLock = Promise.resolve();
+
+function wstGoToAdminAndCopy(url, user, pass) {
+  // Chạy tuần tự qua hàng đợi Promise (Queue) để tránh người dùng click quá nhanh làm đè hoặc đan xen lịch sử clipboard
+  _wstClipboardLock = _wstClipboardLock.then(async () => {
+    if (user && pass) {
+      try {
+        // 1. Copy mật khẩu trước (nằm dưới trong lịch sử Win + V)
+        await navigator.clipboard.writeText(pass);
+        
+        // 2. Delay cực ngắn 60ms để hệ điều hành tách biệt 2 lần copy
+        await new Promise(resolve => setTimeout(resolve, 60));
+        
+        // 3. Copy tài khoản sau (nằm trên cùng lịch sử, Ctrl + V ra ngay tài khoản)
+        await navigator.clipboard.writeText(user);
+        
+        toast(`✓ Đã copy User/Pass của ${user}!`, '#27ae60', 2000);
+      } catch (e) {
+        console.error('Lỗi sao chép clipboard:', e);
+      }
+    } else if (user) {
+      await navigator.clipboard.writeText(user).catch(console.error);
+      toast('✓ Đã copy tài khoản!', '#27ae60', 1500);
+    } else if (pass) {
+      await navigator.clipboard.writeText(pass).catch(console.error);
+      toast('✓ Đã copy mật khẩu!', '#27ae60', 1500);
     }
-  } else if (user) {
-    await navigator.clipboard.writeText(user).catch(console.error);
-    toast('✓ Đã copy tài khoản!', '#27ae60', 1500);
-  } else if (pass) {
-    await navigator.clipboard.writeText(pass).catch(console.error);
-    toast('✓ Đã copy mật khẩu!', '#27ae60', 1500);
-  }
-  
-  // 4. Mở trang quản trị cuối cùng khi tab cũ vẫn đang giữ focus (tránh bị trình duyệt chặn API copy)
-  window.open(url, '_blank');
+    
+    // 4. Mở trang quản trị cuối cùng khi tab cũ vẫn đang giữ focus (tránh bị trình duyệt chặn API copy)
+    window.open(url, '_blank');
+    
+    // Chờ thêm 50ms sau khi mở window để đảm bảo tác vụ này hoàn thành hẳn trước khi click tiếp theo chen vào
+    await new Promise(resolve => setTimeout(resolve, 50));
+  });
 }
 
