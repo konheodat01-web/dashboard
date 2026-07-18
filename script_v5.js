@@ -11599,14 +11599,18 @@ function wstSelectAddGscType(type) {
         }
       }
       
+      const finalAdmin = targetWs.admin || w.admin || '';
+      const finalAccount = targetWs.account || w.account || '';
+      const finalPassword = targetWs.password || w.password || '';
+      
       const tr = document.createElement('tr');
       tr.style.cssText = 'border-bottom:1px solid #21262d;';
       tr.innerHTML = `
         <td style="padding:10px 8px;font-size:12px;color:#e6edf3;max-width:200px;word-break:break-all">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-weight:600">${displayUrl}</span>
-            ${targetWs.admin ? `
-              <button onclick="wstGoToAdminAndCopy('${joinAdminUrl(targetWs.url, targetWs.admin).replace(/'/g, "\\'")}', '${(targetWs.account || '').replace(/'/g, "\\'")}', '${(targetWs.password || '').replace(/'/g, "\\'")}')" 
+            ${finalAdmin ? `
+              <button onclick="wstGoToAdminAndCopy('${joinAdminUrl(targetWs.url, finalAdmin).replace(/'/g, "\\'")}', '${finalAccount.replace(/'/g, "\\'")}', '${finalPassword.replace(/'/g, "\\'")}')" 
                       style="background:none;border:none;color:#58a6ff;cursor:pointer;padding:2px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.2s" 
                       onmouseover="this.style.background='rgba(56,139,253,0.15)'" 
                       onmouseout="this.style.background='none'" 
@@ -11821,8 +11825,8 @@ function wstGoToAdminAndCopy(url, user, pass) {
         // 1. Copy mật khẩu trước (nằm dưới trong lịch sử Win + V)
         await navigator.clipboard.writeText(pass);
         
-        // 2. Delay cực ngắn 60ms để hệ điều hành tách biệt 2 lần copy
-        await new Promise(resolve => setTimeout(resolve, 60));
+        // 2. Delay cực ngắn 120ms để hệ điều hành tách biệt 2 lần copy
+        await new Promise(resolve => setTimeout(resolve, 120));
         
         // 3. Copy tài khoản sau (nằm trên cùng lịch sử, Ctrl + V ra ngay tài khoản)
         await navigator.clipboard.writeText(user);
