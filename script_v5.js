@@ -11629,7 +11629,15 @@ function wstSelectAddGscType(type) {
           </div>
         </td>
         <td style="padding:10px 8px;">
-          <input type="text" class="form-control" style="width:100%;font-size:12px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 10px;outline:none" value="sitemap.xml" placeholder="sitemap.xml" />
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="text" class="form-control" style="flex:1;font-size:12px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 10px;outline:none" value="sitemap.xml" placeholder="sitemap.xml" />
+            <button onclick="wstVerifyIndividualGsc(this, '${displayUrl.replace(/'/g, "\\'")}')" 
+                    style="background:#238636;border:1px solid #2ea44f;color:#fff;font-size:11px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all 0.2s;display:inline-flex;align-items:center"
+                    onmouseover="this.style.background='#2ea44f'"
+                    onmouseout="this.style.background='#238636'">
+              Xác minh
+            </button>
+          </div>
         </td>
       `;
       tbody.appendChild(tr);
@@ -11888,6 +11896,108 @@ function wstGoToAdminAndCopy(url, user, pass) {
       toast(`✓ Đã copy: ${user ? 'Tài khoản' : 'Mật khẩu'}!`, '#27ae60', 1500);
     }
     window.open(url, '_blank');
+  }
+}
+
+async function wstVerifyIndividualGsc(btn, domain) {
+  let token = sessionStorage.getItem('gsc_access_token');
+  if (!token) {
+    // Nếu hết phiên / chưa đăng nhập, kích hoạt đăng nhập
+    token = await wstGetGscTokenForVerification();
+  }
+  if (!token) {
+    toast('❌ Vui lòng đăng nhập Google GSC trước!', '#e74c3c', 2500);
+    return;
+  }
+  
+  // Trạng thái loading trên button
+  const originalHtml = btn.innerHTML;
+  const originalBg = btn.style.background;
+  btn.disabled = true;
+  btn.style.background = '#21262d';
+  btn.style.borderColor = '#30363d';
+  btn.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite;margin-right:4px">⏳</span> Check...';
+  
+  let siteUrl = domain.replace('(Không có 301)', '').trim();
+  if (!siteUrl.startsWith('http://') && !siteUrl.startsWith('https://')) {
+    siteUrl = 'https://' + siteUrl;
+  }
+  if (!siteUrl.endsWith('/')) {
+    siteUrl += '/';
+  }
+  
+  try {
+    const res = await fetch(`https://www.googleapis.com/siteVerification/v1/webResource?verificationMethod=META`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        site: {
+          type: 'SITE',
+          identifier: siteUrl
+        }
+      })
+    });
+    
+    // Case 3: Hết phiên đăng nhập (401 hoặc 403)
+    if (res.status === 401 || res.status === 403) {
+      sessionStorage.removeItem('gsc_access_token');
+      toast('❌ Hết phiên đăng nhập Google GSC! Vui lòng đăng nhập lại.', '#e74c3c', 3000);
+      btn.disabled = false;
+      btn.style.background = originalBg;
+      btn.style.borderColor = '#2ea44f';
+      btn.innerHTML = originalHtml;
+      return;
+    }
+    
+    // Case 2: Xác minh thất bại do mã html chưa tồn tại trên website
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      const errMsg = errData.error?.message || 'Không tìm thấy thẻ Meta trên website!';
+      toast(`❌ Xác minh thất bại: ${errMsg}`, '#e74c3c', 4000);
+      btn.disabled = false;
+      btn.style.background = '#d90429';
+      btn.style.borderColor = '#ef233c';
+      btn.innerHTML = 'Thử lại';
+      return;
+    }
+    
+    // Case 1: Xác minh thành công
+    const data = await res.json();
+    toast('✅ Xác minh thành công! Đã thêm tài sản vào GSC.', '#27ae60', 3000);
+    btn.disabled = true;
+    btn.style.background = '#1f6feb';
+    btn.style.borderColor = '#388bfd';
+    btn.innerHTML = 'Thành công';
+    
+    // Tự động nộp sitemap sau khi xác minh thành công!
+    const td = btn.closest('td');
+    const sitemapInput = td.querySelector('input[type="text"]');
+    const sitemapVal = sitemapInput ? sitemapInput.value.trim() : 'sitemap.xml';
+    if (sitemapVal) {
+      const sitemapUrl = `${siteUrl}${sitemapVal}`;
+      const smRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps/${encodeURIComponent(sitemapUrl)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (smRes.ok) {
+        console.log('Sitemap submitted successfully:', sitemapUrl);
+      } else {
+        console.error('Failed to submit sitemap:', await smRes.text().catch(() => ''));
+      }
+    }
+    
+  } catch (err) {
+    console.error(err);
+    toast(`❌ Lỗi kết nối: ${err.message}`, '#e74c3c', 3000);
+    btn.disabled = false;
+    btn.style.background = originalBg;
+    btn.style.borderColor = '#2ea44f';
+    btn.innerHTML = originalHtml;
   }
 }
 
