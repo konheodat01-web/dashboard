@@ -11816,20 +11816,29 @@ function wstCopyGscCode(btn) {
 }
 
 function wstGoToAdminAndCopy(url, user, pass) {
+  console.log('wstGoToAdminAndCopy called:', { url, user, pass });
   if (user && pass) {
     try {
-      // 1. Copy mật khẩu ngay lập tức để tận dụng focus ban đầu
-      navigator.clipboard.writeText(pass);
+      // 1. Copy mật khẩu ngay lập tức
+      navigator.clipboard.writeText(pass).then(() => {
+        console.log('Password copied successfully');
+      }).catch(err => {
+        console.error('Password copy failed:', err);
+      });
       
-      // 2. Chờ 120ms (vẫn nằm trong khoảng 1000ms User Activation của trình duyệt để không bị chặn popup)
-      // thực hiện copy tài khoản lên trên và mở tab mới tự động hoàn toàn
+      // 2. Chờ 400ms (đủ lâu để hệ điều hành Windows nhận diện 2 sự kiện sao chép riêng biệt, 
+      // đồng thời vẫn nằm dưới 1000ms User Activation để window.open không bị trình duyệt chặn)
       setTimeout(() => {
-        navigator.clipboard.writeText(user);
+        navigator.clipboard.writeText(user).then(() => {
+          console.log('Username copied successfully');
+        }).catch(err => {
+          console.error('Username copy failed:', err);
+        });
         window.open(url, '_blank');
         toast('✓ Đã copy riêng User & Pass (Win + V) và mở Admin!', '#27ae60', 2000);
-      }, 120);
+      }, 400);
     } catch (e) {
-      console.error(e);
+      console.error('Lỗi quy trình copy:', e);
       window.open(url, '_blank');
     }
   } else {
