@@ -11816,96 +11816,29 @@ function wstCopyGscCode(btn) {
 }
 
 function wstGoToAdminAndCopy(url, user, pass) {
-  let modal = document.getElementById('wstTakeoffModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'wstTakeoffModal';
-    document.body.appendChild(modal);
-  }
-  
-  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:99999;backdrop-filter:blur(3px);animation: fadeIn 0.2s ease-out;';
-  modal.innerHTML = `
-    <div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 24px rgba(0,0,0,0.5);color:#c9d1d9;font-family:sans-serif;transform:scale(0.95);animation:scaleUp 0.15s ease-out forwards">
-      <div style="font-weight:600;font-size:13px;margin-bottom:15px;display:flex;align-items:center;justify-content:center;gap:8px;color:#58a6ff;border-bottom:1px solid #21262d;padding-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">
-        <span>🚀 Check List Cất Cánh</span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
-        <div id="wst_chk_pass" style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8b949e;transition:all 0.2s">
-          <span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> <span>Đang nạp mật khẩu vào clipboard...</span>
-        </div>
-        <div id="wst_chk_user" style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8b949e;transition:all 0.2s">
-          <span style="color:#8b949e">⚪</span> <span>Chờ nạp tài khoản vào clipboard...</span>
-        </div>
-      </div>
-      <button id="wst_btn_takeoff" disabled style="width:100%;padding:10px;background:#21262d;border:1px solid #30363d;color:#8b949e;border-radius:6px;font-weight:600;cursor:not-allowed;transition:all 0.2s;text-align:center;font-size:12px">
-        CHƯA ĐỦ ĐIỀU KIỆN BAY
-      </button>
-      <div style="text-align:center;margin-top:10px">
-        <span onclick="document.getElementById('wstTakeoffModal').style.display='none'" style="font-size:11px;color:#8b949e;cursor:pointer;text-decoration:underline" onmouseover="this.style.color='#c9d1d9'" onmouseout="this.style.color='#8b949e'">Hủy bỏ</span>
-      </div>
-    </div>
-    <style>
-      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-      @keyframes scaleUp { from { transform: scale(0.95); } to { transform: scale(1); } }
-      @keyframes spin { 100% { transform: rotate(360deg); } }
-    </style>
-  `;
-  modal.style.display = 'flex';
-
-  setTimeout(async () => {
+  if (user && pass) {
     try {
-      // 1. Copy mật khẩu trước
-      if (pass) {
-        await navigator.clipboard.writeText(pass);
-        document.getElementById('wst_chk_pass').innerHTML = '<span style="color:#2ecc71">✅</span> <span style="color:#e6edf3;font-weight:600">Đã nạp Mật khẩu thành công</span>';
-      } else {
-        document.getElementById('wst_chk_pass').innerHTML = '<span style="color:#e74c3c">❌</span> <span style="color:#8b949e">Không tìm thấy mật khẩu</span>';
-      }
+      // 1. Copy mật khẩu ngay lập tức để tận dụng focus ban đầu
+      navigator.clipboard.writeText(pass);
       
-      // Chờ 250ms để OS nhận diện
-      await new Promise(r => setTimeout(r, 250));
-      
-      // Chuyển sang copy tài khoản
-      document.getElementById('wst_chk_user').innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> <span>Đang nạp tài khoản vào clipboard...</span>';
-      await new Promise(r => setTimeout(r, 80));
-      
-      // 2. Copy tài khoản
-      if (user) {
-        await navigator.clipboard.writeText(user);
-        document.getElementById('wst_chk_user').innerHTML = '<span style="color:#2ecc71">✅</span> <span style="color:#e6edf3;font-weight:600">Đã nạp Tài khoản thành công</span>';
-      } else {
-        document.getElementById('wst_chk_user').innerHTML = '<span style="color:#e74c3c">❌</span> <span style="color:#8b949e">Không tìm thấy tài khoản</span>';
-      }
-      
-      // 3. Kích hoạt nút cất cánh
-      const btn = document.getElementById('wst_btn_takeoff');
-      btn.disabled = false;
-      btn.style.background = '#238636';
-      btn.style.borderColor = '#2ea44f';
-      btn.style.color = '#fff';
-      btn.style.cursor = 'pointer';
-      btn.style.boxShadow = '0 0 12px rgba(46,164,79,0.5)';
-      btn.innerText = '🚀 CẤT CÁNH (MỞ ADMIN)';
-      btn.onclick = () => {
+      // 2. Chờ 120ms (vẫn nằm trong khoảng 1000ms User Activation của trình duyệt để không bị chặn popup)
+      // thực hiện copy tài khoản lên trên và mở tab mới tự động hoàn toàn
+      setTimeout(() => {
+        navigator.clipboard.writeText(user);
         window.open(url, '_blank');
-        modal.style.display = 'none';
-      };
-      
+        toast('✓ Đã copy riêng User & Pass (Win + V) và mở Admin!', '#27ae60', 2000);
+      }, 120);
     } catch (e) {
       console.error(e);
-      // Fallback nếu trình duyệt chặn
-      const btn = document.getElementById('wst_btn_takeoff');
-      btn.disabled = false;
-      btn.style.background = '#d90429';
-      btn.style.borderColor = '#ef233c';
-      btn.style.color = '#fff';
-      btn.style.cursor = 'pointer';
-      btn.innerText = '⚠️ MỞ ADMIN TRỰC TIẾP';
-      btn.onclick = () => {
-        window.open(url, '_blank');
-        modal.style.display = 'none';
-      };
+      window.open(url, '_blank');
     }
-  }, 100);
+  } else {
+    const text = user || pass || '';
+    if (text) {
+      navigator.clipboard.writeText(text).catch(console.error);
+      toast(`✓ Đã copy: ${user ? 'Tài khoản' : 'Mật khẩu'}!`, '#27ae60', 1500);
+    }
+    window.open(url, '_blank');
+  }
 }
 
