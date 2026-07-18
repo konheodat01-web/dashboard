@@ -11587,16 +11587,41 @@ function wstSelectAddGscType(type) {
       if (!w) return;
       
       let displayUrl = w.url || '';
+      let targetWs = w;
       if (type === '301') {
         const kids = websites.filter(x => x.is301 && x.sourceUrl && ((x.sourceUrl === w.url || x.sourceUrl === (w.url || '').replace(/\/$/, '')) || (x.sourceUrl === w.brand)));
         const latest301 = kids.length ? kids[kids.length - 1] : null;
-        displayUrl = latest301 ? latest301.url : `${w.url} (Không có 301)`;
+        if (latest301) {
+          displayUrl = latest301.url;
+          targetWs = latest301;
+        } else {
+          displayUrl = `${w.url} (Không có 301)`;
+        }
       }
       
       const tr = document.createElement('tr');
       tr.style.cssText = 'border-bottom:1px solid #21262d;';
       tr.innerHTML = `
-        <td style="padding:10px 8px;font-size:12px;font-weight:600;color:#e6edf3;max-width:180px;word-break:break-all">${displayUrl}</td>
+        <td style="padding:10px 8px;font-size:12px;color:#e6edf3;max-width:200px;word-break:break-all">
+          <div style="font-weight:600;margin-bottom:6px">${displayUrl}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+            ${targetWs.admin ? `
+              <a href="${joinAdminUrl(targetWs.url, targetWs.admin)}" target="_blank" class="btn" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;font-size:10px;padding:2px 6px;border-radius:4px;text-decoration:none;display:inline-flex;align-items:center;gap:3px;font-weight:500" title="Mở trang quản trị">
+                🔑 Admin
+              </a>
+            ` : ''}
+            ${targetWs.account ? `
+              <button onclick="wstCopyText('${targetWs.account.replace(/'/g, "\\'")}', 'tài khoản')" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;font-size:10px;padding:2px 6px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:500" title="Copy tài khoản: ${targetWs.account}">
+                👤 Copy U
+              </button>
+            ` : ''}
+            ${targetWs.password ? `
+              <button onclick="wstCopyText('${targetWs.password.replace(/'/g, "\\'")}', 'mật khẩu')" style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;font-size:10px;padding:2px 6px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:500" title="Copy mật khẩu">
+                🔒 Copy P
+              </button>
+            ` : ''}
+          </div>
+        </td>
         <td style="padding:10px 8px;width:55%">
           <div style="display:flex;align-items:center;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:4px 8px;gap:8px">
             <input type="text" readonly class="form-control" style="flex:1;font-family:monospace;font-size:11px;background:none;border:none;color:#c9d1d9;padding:4px 0;outline:none;width:100%" placeholder="<meta name='google-site-verification' content='...' />" />
@@ -11790,5 +11815,11 @@ function wstCopyGscCode(btn) {
   setTimeout(() => {
     btn.innerHTML = originalSvg;
   }, 1500);
+}
+
+function wstCopyText(text, label) {
+  if (!text) return;
+  navigator.clipboard.writeText(text);
+  toast(`✓ Đã copy ${label}!`, '#27ae60', 1500);
 }
 
