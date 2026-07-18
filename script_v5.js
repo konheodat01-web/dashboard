@@ -11818,36 +11818,47 @@ function wstCopyGscCode(btn) {
 let _wstClipboardLock = Promise.resolve();
 
 function wstGoToAdminAndCopy(url, user, pass) {
-  // Chạy tuần tự qua hàng đợi Promise (Queue) để tránh người dùng click quá nhanh làm đè hoặc đan xen lịch sử clipboard
+  // Hàng đợi Promise tuần tự
   _wstClipboardLock = _wstClipboardLock.then(async () => {
     if (user && pass) {
       try {
-        // 1. Copy mật khẩu trước (nằm dưới trong lịch sử Win + V)
+        // Bước 1: Copy Mật khẩu trước
         await navigator.clipboard.writeText(pass);
+        toast('🔑 1. Đã copy Mật khẩu...', '#3498db', 800);
         
-        // 2. Delay cực ngắn 120ms để hệ điều hành tách biệt 2 lần copy
-        await new Promise(resolve => setTimeout(resolve, 120));
+        // Chờ 250ms để OS và Clipboard History ghi nhận xong phần tử thứ nhất
+        await new Promise(resolve => setTimeout(resolve, 250));
         
-        // 3. Copy tài khoản sau (nằm trên cùng lịch sử, Ctrl + V ra ngay tài khoản)
+        // Bước 2: Copy Tài khoản
         await navigator.clipboard.writeText(user);
+        toast('👤 2. Đã copy Tài khoản...', '#3498db', 800);
         
-        toast(`✓ Đã copy User/Pass của ${user}!`, '#27ae60', 2000);
+        // Chờ thêm 150ms để hệ thống lưu chắc chắn phần tử thứ hai
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        // Bước 3: Sẵn sàng cất cánh
+        toast('🚀 3. Đang cất cánh mở Admin...', '#27ae60', 1200);
+        
+        // Bước 4: Mở trang
+        window.open(url, '_blank');
       } catch (e) {
         console.error('Lỗi sao chép clipboard:', e);
+        toast('❌ Lỗi copy: Vui lòng click lại!', '#e74c3c', 2000);
+        // Fallback mở trang nếu copy lỗi
+        window.open(url, '_blank');
       }
-    } else if (user) {
-      await navigator.clipboard.writeText(user).catch(console.error);
-      toast('✓ Đã copy tài khoản!', '#27ae60', 1500);
-    } else if (pass) {
-      await navigator.clipboard.writeText(pass).catch(console.error);
-      toast('✓ Đã copy mật khẩu!', '#27ae60', 1500);
+    } else {
+      // Nếu chỉ có 1 trong 2 hoặc không có
+      const targetText = user || pass || '';
+      if (targetText) {
+        await navigator.clipboard.writeText(targetText).catch(console.error);
+        toast(`✓ Đã copy: ${user ? 'Tài khoản' : 'Mật khẩu'}!`, '#27ae60', 1500);
+      }
+      window.open(url, '_blank');
     }
     
-    // 4. Mở trang quản trị cuối cùng khi tab cũ vẫn đang giữ focus (tránh bị trình duyệt chặn API copy)
-    window.open(url, '_blank');
-    
-    // Chờ thêm 50ms sau khi mở window để đảm bảo tác vụ này hoàn thành hẳn trước khi click tiếp theo chen vào
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Khóa đuôi 100ms trước khi cho phép click tiếp theo
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 }
 
