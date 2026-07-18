@@ -11623,12 +11623,12 @@ async function wstGetGscHtmlCodesBulk() {
           }
         });
         
-        if (addRes.status === 401) {
-          // Token hết hạn, tự động gọi Popup đăng nhập lại
+        if (addRes.status === 401 || addRes.status === 403) {
+          // Token hết hạn hoặc thiếu quyền (scope), tự động gọi Popup đăng nhập lại
           sessionStorage.removeItem('gsc_access_token');
           token = await wstGetGscTokenForVerification();
           if (!token) {
-            throw new Error('Hết phiên đăng nhập và không thể đăng nhập lại.');
+            throw new Error('Hết phiên đăng nhập/thiếu quyền và không thể đăng nhập lại.');
           }
           attempts++;
           continue; // Thử lại với token mới
@@ -11655,11 +11655,12 @@ async function wstGetGscHtmlCodesBulk() {
           })
         });
         
-        if (tokenRes.status === 401) {
+        if (tokenRes.status === 401 || tokenRes.status === 403) {
+          // Token hết hạn hoặc thiếu quyền (scope), tự động gọi Popup đăng nhập lại
           sessionStorage.removeItem('gsc_access_token');
           token = await wstGetGscTokenForVerification();
           if (!token) {
-            throw new Error('Hết phiên đăng nhập và không thể đăng nhập lại.');
+            throw new Error('Hết phiên đăng nhập/thiếu quyền và không thể đăng nhập lại.');
           }
           attempts++;
           continue; // Thử lại với token mới
