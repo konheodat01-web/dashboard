@@ -11628,16 +11628,13 @@ function wstSelectAddGscType(type) {
             </button>
           </div>
         </td>
-        <td style="padding:10px 8px;">
-          <div style="display:flex;align-items:center;gap:8px">
-            <input type="text" class="form-control" style="flex:1;font-size:12px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 10px;outline:none" value="sitemap.xml" placeholder="sitemap.xml" />
-            <button onclick="wstVerifyIndividualGsc(this, '${displayUrl.replace(/'/g, "\\'")}')" 
-                    style="background:#238636;border:1px solid #2ea44f;color:#fff;font-size:11px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all 0.2s;display:inline-flex;align-items:center"
-                    onmouseover="this.style.background='#2ea44f'"
-                    onmouseout="this.style.background='#238636'">
-              Xác minh
-            </button>
-          </div>
+        <td style="padding:10px 8px;text-align:center">
+          <button onclick="wstVerifyIndividualGsc(this, '${displayUrl.replace(/'/g, "\\'")}')" 
+                  style="background:#238636;border:1px solid #2ea44f;color:#fff;font-size:11px;font-weight:600;padding:6px 16px;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all 0.2s;display:inline-flex;align-items:center"
+                  onmouseover="this.style.background='#2ea44f'"
+                  onmouseout="this.style.background='#238636'">
+            Xác minh
+          </button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -11764,12 +11761,9 @@ async function wstGetGscHtmlCodesBulk() {
           `;
         }
         
-        const verifyBtn = cols[2].querySelector('button');
-        if (verifyBtn) {
-          verifyBtn.disabled = true;
-          verifyBtn.style.background = '#1f6feb';
-          verifyBtn.style.borderColor = '#388bfd';
-          verifyBtn.innerHTML = 'Thành công';
+        const sitemapCell = cols[2];
+        if (sitemapCell) {
+          wstLoadAndSubmitSitemaps(siteUrl, token, sitemapCell);
         }
         continue;
       }
@@ -12018,23 +12012,10 @@ async function wstVerifyIndividualGsc(btn, domain) {
       console.error('Failed to add site to Search Console list:', addErr);
     }
     
-    // Tự động nộp sitemap sau khi xác minh thành công!
-    const td = btn.closest('td');
-    const sitemapInput = td.querySelector('input[type="text"]');
-    const sitemapVal = sitemapInput ? sitemapInput.value.trim() : 'sitemap.xml';
-    if (sitemapVal) {
-      const sitemapUrl = `${siteUrl}${sitemapVal}`;
-      const smRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps/${encodeURIComponent(sitemapUrl)}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (smRes.ok) {
-        console.log('Sitemap submitted successfully:', sitemapUrl);
-      } else {
-        console.error('Failed to submit sitemap:', await smRes.text().catch(() => ''));
-      }
+    // Tự động nộp 4 sitemaps và hiển thị trạng thái lên cột 3 (sitemap cell)
+    const sitemapCell = btn.closest('td');
+    if (sitemapCell) {
+      wstLoadAndSubmitSitemaps(siteUrl, token, sitemapCell);
     }
     
   } catch (err) {
@@ -12044,6 +12025,101 @@ async function wstVerifyIndividualGsc(btn, domain) {
     btn.style.background = originalBg;
     btn.style.borderColor = '#2ea44f';
     btn.innerHTML = originalHtml;
+  }
+}
+
+async function wstLoadAndSubmitSitemaps(siteUrl, token, cell) {
+  cell.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;gap:6px;color:#8b949e;font-size:11px">
+      <span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Đang nạp...
+    </div>
+  `;
+  
+  const targetSitemaps = [
+    'sitemap_index.xml',
+    'category-sitemap.xml',
+    'page-sitemap.xml',
+    'post-sitemap.xml'
+  ];
+  
+  let sitemapsStatus = targetSitemaps.map(name => ({ name, submitted: false }));
+  
+  try {
+    // 1. Lấy danh sách sitemap đã nạp từ GSC
+    let existingSitemaps = [];
+    const listRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (listRes.ok) {
+      const data = await listRes.json();
+      existingSitemaps = data.sitemap || [];
+    }
+    
+    // 2. Kiểm tra sitemap mục tiêu. Nếu thiếu thì submit.
+    let successCount = 0;
+    for (const sm of sitemapsStatus) {
+      const fullUrl = `${siteUrl}${sm.name}`;
+      const exists = existingSitemaps.some(item => {
+        const itemPath = item.path || '';
+        return itemPath.toLowerCase() === fullUrl.toLowerCase();
+      });
+      
+      if (exists) {
+        sm.submitted = true;
+        successCount++;
+      } else {
+        // Nạp sitemap
+        const submitRes = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps/${encodeURIComponent(fullUrl)}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (submitRes.ok) {
+          sm.submitted = true;
+          successCount++;
+        } else {
+          console.error(`Sitemap submit failed for ${fullUrl}:`, await submitRes.text().catch(() => ''));
+        }
+      }
+    }
+    
+    // 3. Hiển thị kết quả lên UI
+    const isFull = successCount === 4;
+    const badgeBg = isFull ? 'rgba(46,164,79,0.15)' : 'rgba(217,119,6,0.15)';
+    const badgeBorder = isFull ? 'rgba(46,164,79,0.4)' : 'rgba(217,119,6,0.4)';
+    const badgeColor = isFull ? '#2ecc71' : '#f59e0b';
+    
+    cell.innerHTML = `
+      <div class="sitemap-badge" 
+           onmouseover="const t=this.querySelector('.sitemap-tooltip'); if(t){t.style.visibility='visible';t.style.opacity='1'}"
+           onmouseout="const t=this.querySelector('.sitemap-tooltip'); if(t){t.style.visibility='hidden';t.style.opacity='0'}"
+           style="position:relative;display:inline-flex;align-items:center;justify-content:center;background:${badgeBg};border:1px solid ${badgeBorder};border-radius:6px;padding:6px 12px;color:${badgeColor};font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;user-select:none">
+        Đã nạp ${successCount}/4 sitemap
+        
+        <div class="sitemap-tooltip" style="visibility:hidden;width:230px;background:#161b22;border:1px solid #30363d;box-shadow:0 8px 24px rgba(0,0,0,0.5);color:#c9d1d9;text-align:left;border-radius:8px;padding:12px;position:absolute;z-index:9999;bottom:125%;left:50%;transform:translateX(-50%);opacity:0;transition:opacity 0.2s;font-weight:normal;font-family:sans-serif;pointer-events:none">
+          <div style="font-weight:600;margin-bottom:8px;color:#e6edf3;font-size:11px;border-bottom:1px solid #30363d;padding-bottom:6px">Chi tiết sitemap:</div>
+          <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;font-size:11px">
+            ${sitemapsStatus.map(item => `
+              <li style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span style="font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${item.name}">${item.name}</span>
+                <span style="color:${item.submitted ? '#2ecc71' : '#e74c3c'}">${item.submitted ? '✅ Đã nạp' : '❌ Lỗi'}</span>
+              </li>
+            `).join('')}
+          </ul>
+          <!-- Arrow -->
+          <div style="position:absolute;top:100%;left:50%;margin-left:-5px;border-width:5px;border-style:solid;border-color:#30363d transparent transparent transparent"></div>
+        </div>
+      </div>
+    `;
+    
+  } catch (err) {
+    console.error(err);
+    cell.innerHTML = `<span style="color:#e74c3c;font-size:11px">Lỗi nạp sitemap</span>`;
   }
 }
 
