@@ -11812,29 +11812,30 @@ function wstCopyGscCode(btn) {
 }
 
 async function wstGoToAdminAndCopy(url, user, pass) {
-  window.open(url, '_blank');
-  
   if (user && pass) {
     try {
-      // 1. Copy mật khẩu trước để nó nằm phía dưới trong lịch sử clipboard (Win + V)
+      // 1. Copy mật khẩu trước (nằm dưới trong lịch sử Win + V)
       await navigator.clipboard.writeText(pass);
       
-      // 2. Delay 100ms để OS kịp nhận diện là 2 lần copy riêng biệt
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // 2. Delay cực ngắn 50ms (0.05 giây) để hệ điều hành tách biệt 2 lần copy
+      await new Promise(resolve => setTimeout(resolve, 50));
       
-      // 3. Copy tài khoản sau để nó nằm ở đầu lịch sử clipboard (Ctrl + V ra ngay tài khoản)
+      // 3. Copy tài khoản sau (nằm trên cùng lịch sử, Ctrl + V ra ngay tài khoản)
       await navigator.clipboard.writeText(user);
       
-      toast('✓ Đã copy riêng User & Pass vào lịch sử Clipboard (Win + V)!', '#27ae60', 3000);
+      toast('✓ Đã copy riêng User & Pass vào Clipboard (Win + V)!', '#27ae60', 2500);
     } catch (e) {
       console.error('Lỗi sao chép clipboard:', e);
     }
   } else if (user) {
-    navigator.clipboard.writeText(user);
+    await navigator.clipboard.writeText(user).catch(console.error);
     toast('✓ Đã copy tài khoản!', '#27ae60', 1500);
   } else if (pass) {
-    navigator.clipboard.writeText(pass);
+    await navigator.clipboard.writeText(pass).catch(console.error);
     toast('✓ Đã copy mật khẩu!', '#27ae60', 1500);
   }
+  
+  // 4. Mở trang quản trị cuối cùng khi tab cũ vẫn đang giữ focus (tránh bị trình duyệt chặn API copy)
+  window.open(url, '_blank');
 }
 
