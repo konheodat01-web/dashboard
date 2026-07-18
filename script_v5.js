@@ -11175,7 +11175,13 @@ async function wstLoadGscQueries(range = '28d') {
   const qBox = document.getElementById('wstGscQueriesBox');
   if (!site || !qBox) return;
 
-  let finalGscUrl = site.gscPropertyUrl || site.url;
+  // Tìm URL 301 mới nhất (con 301 cuối cùng), nếu không có thì dùng URL gốc
+  const kids = websites.filter(x => x.is301 && x.sourceUrl &&
+    (x.sourceUrl === site.url || x.sourceUrl === (site.url || '').replace(/\/$/, '')));
+  const latest301 = kids.length ? kids[kids.length - 1] : null;
+  const matchUrl = latest301 ? (latest301.url || latest301.sourceUrl || site.url) : (site.url || '');
+
+  let finalGscUrl = site.gscPropertyUrl || matchUrl;
   if (!finalGscUrl) {
     qBox.innerHTML = '<span style="color:#e74c3c">Chưa cấu hình GSC Property URL.</span>';
     return;
