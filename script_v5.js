@@ -9499,6 +9499,8 @@ async function wstTriggerGscReauth() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
+    provider.addScope('https://www.googleapis.com/auth/webmasters');
+    provider.addScope('https://www.googleapis.com/auth/siteverification');
     provider.setCustomParameters({ prompt: 'consent' });
     
     const result = await firebase.auth().signInWithPopup(provider);
@@ -11626,13 +11628,14 @@ function wstSubmitAddGscBulk() {
 async function wstGetGscTokenForVerification() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
     provider.addScope('https://www.googleapis.com/auth/webmasters');
     provider.addScope('https://www.googleapis.com/auth/siteverification');
     provider.setCustomParameters({ prompt: 'consent' });
     
     const result = await firebase.auth().signInWithPopup(provider);
     if (result.credential && result.credential.accessToken) {
-      sessionStorage.setItem('gsc_write_access_token', result.credential.accessToken);
+      sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
       if (result.user && result.user.email) {
         sessionStorage.setItem('gsc_user_email', result.user.email);
       }
@@ -11646,9 +11649,9 @@ async function wstGetGscTokenForVerification() {
 }
 
 async function wstGetGscHtmlCodesBulk() {
-  let token = sessionStorage.getItem('gsc_write_access_token');
+  let token = sessionStorage.getItem('gsc_access_token');
   if (!token) {
-    // Không có token có quyền ghi, mở Popup Google đăng nhập trực tiếp từ click của người dùng
+    // Không có token có sẵn, mở Popup Google đăng nhập và yêu cầu toàn bộ quyền ngay từ đầu
     token = await wstGetGscTokenForVerification();
   }
   if (!token) return;
@@ -11692,13 +11695,13 @@ async function wstGetGscHtmlCodesBulk() {
       });
       
       if (addRes.status === 401 || addRes.status === 403) {
-        sessionStorage.removeItem('gsc_write_access_token');
+        sessionStorage.removeItem('gsc_access_token');
         alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
         if (getBtn) {
           getBtn.disabled = false;
           getBtn.innerHTML = 'Lấy mã';
         }
-        return; // Dừng toàn bộ để yêu cầu click đăng nhập lại từ đầu
+        return; // Dừng toàn bộ
       }
       
       if (!addRes.ok) {
@@ -11723,7 +11726,7 @@ async function wstGetGscHtmlCodesBulk() {
       });
       
       if (tokenRes.status === 401 || tokenRes.status === 403) {
-        sessionStorage.removeItem('gsc_write_access_token');
+        sessionStorage.removeItem('gsc_access_token');
         alert('Phiên làm việc Google GSC đã hết hạn hoặc thiếu quyền ghi. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
         if (getBtn) {
           getBtn.disabled = false;
