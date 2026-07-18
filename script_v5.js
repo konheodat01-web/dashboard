@@ -2931,11 +2931,11 @@ function renderWsTrack(){
           const gscStatus = site?.gscConnectionStatus || 'not_connected';
           const gscEmail = site?.gscEmail || '';
           if (gscStatus === 'connected') {
-            return `<span class="btn btn-sm" onclick="wstOpenGscModal(${w.id})" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;cursor:pointer;display:inline-block;vertical-align:middle" title="Đã kết nối GSC\n(Email quản trị: ${gscEmail})\nClick để xem chi tiết GSC">GSC</span>`;
+            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="website thuộc tài sản gsc email: ${gscEmail}">GSC</span>`;
           } else if (gscStatus === 'disconnected') {
-            return `<span class="btn btn-sm" onclick="wstOpenGscModal(${w.id})" style="font-size:9px;padding:2px 5px;background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-weight:700;margin-right:4px;cursor:pointer;display:inline-block;vertical-align:middle" title="Mất kết nối GSC\n(Email quản trị cũ: ${gscEmail})\nClick để kết nối lại">GSC</span>`;
+            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="mất kết nối tài khoản gsc email: ${gscEmail}">GSC</span>`;
           } else {
-            return `<span class="btn btn-sm" onclick="wstOpenGscModal(${w.id})" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;cursor:pointer;display:inline-block;vertical-align:middle" title="Chưa kết nối GSC\nClick để kết nối">GSC</span>`;
+            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;display:inline-block;vertical-align:middle" title="chưa ghi nhận email sở hữu">GSC</span>`;
           }
         })()}
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>
@@ -9575,13 +9575,22 @@ async function wstSyncGscRealtime(token, force = false) {
       return;
     }
 
-    // Bước 2: Lấy tất cả domain 301 đang theo dõi trong database
-    const tracked = (typeof websites !== 'undefined' ? websites : []);
-    const allDomains = tracked.map(w => ({
-      id: w.id,
-      normalized: wstNormalizeUrl(w.url),
-      original: w.url
-    }));
+    // Bước 2: Lấy tất cả website đang tracking, dùng URL 301 hiện tại để match
+    const trackedWs = siteTracking.map(s => websites.find(w => w.id === s.wsId)).filter(Boolean);
+
+    const allDomains = trackedWs.map(w => {
+      // Tìm URL 301 mới nhất (con 301 cuối cùng), nếu không có thì dùng URL gốc
+      const kids = websites.filter(x => x.is301 && x.sourceUrl &&
+        (x.sourceUrl === w.url || x.sourceUrl === (w.url || '').replace(/\/$/, '')));
+      const latest301 = kids.length ? kids[kids.length - 1] : null;
+      const matchUrl = latest301 ? (latest301.url || latest301.sourceUrl || w.url) : (w.url || '');
+      return {
+        id: w.id,
+        normalized: wstNormalizeUrl(matchUrl),
+        original: matchUrl,
+        current301Url: latest301 ? matchUrl : null
+      };
+    }).filter(d => d.normalized);
 
     // Bước 3: Đối chiếu (match) domain
     const matched = [];
@@ -9599,8 +9608,16 @@ async function wstSyncGscRealtime(token, force = false) {
         if (siteObj) {
           const isMatched = matched.some(m => m.siteId === d.id);
           if (isMatched) {
-            siteObj.gscConnectionStatus = 'connected';
-            siteObj.gscEmail = currentEmail;
+            // Nếu URL 301 thay đổi so với lần ghi nhận trước → reset (xám)
+            if (siteObj.gscMatchedUrl && siteObj.gscMatchedUrl !== d.original) {
+              siteObj.gscConnectionStatus = '';
+              siteObj.gscEmail = '';
+              siteObj.gscMatchedUrl = '';
+            } else {
+              siteObj.gscConnectionStatus = 'connected';
+              siteObj.gscEmail = currentEmail;
+              siteObj.gscMatchedUrl = d.original;
+            }
           } else {
             if (siteObj.gscEmail === currentEmail && siteObj.gscConnectionStatus === 'connected') {
               siteObj.gscConnectionStatus = 'disconnected';
@@ -9610,6 +9627,7 @@ async function wstSyncGscRealtime(token, force = false) {
       });
       saveWsTrack();
     }
+
 
     if (matched.length === 0) {
       wstSetGscBadge('nomatch');
@@ -10414,8 +10432,17 @@ async function wstSyncGscNow() {
         }
       }
       // Cập nhật trạng thái kết nối GSC
+      const currentSyncEmail = sessionStorage.getItem('gsc_user_email') || '';
       siteObj.gscConnectionStatus = 'connected';
-      siteObj.gscEmail = sessionStorage.getItem('gsc_user_email') || '';
+      siteObj.gscEmail = currentSyncEmail;
+      // Lưu URL 301 đã match để phát hiện khi 301 URL thay đổi
+      const wOrigin = websites.find(w => w.id === siteObj.wsId);
+      if (wOrigin) {
+        const kids301 = websites.filter(x => x.is301 && x.sourceUrl &&
+          (x.sourceUrl === wOrigin.url || x.sourceUrl === (wOrigin.url || '').replace(/\/$/, '')));
+        const latest301 = kids301.length ? kids301[kids301.length - 1] : null;
+        siteObj.gscMatchedUrl = latest301 ? (latest301.url || wOrigin.url) : (wOrigin.url || '');
+      }
     }
 
     await firebase.database().ref('gsc_cache').update(updates);
