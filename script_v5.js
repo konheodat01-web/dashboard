@@ -9476,32 +9476,11 @@ async function wstTriggerGscReauth() {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
     
-    try {
-      const result = await firebase.auth().signInWithPopup(provider);
-      if (result.credential && result.credential.accessToken) {
-        sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
-        if (result.user && result.user.email) {
-          sessionStorage.setItem('gsc_user_email', result.user.email);
-        }
-        
-        const today = todayVN();
-        const lastSync = localStorage.getItem('gsc_last_global_sync_date');
-        if (lastSync === today) {
-          if (confirm('Dữ liệu GSC hôm nay đã được đồng bộ trước đó. Bạn có muốn đồng bộ lại không?')) {
-            await wstSyncGscRealtime(result.credential.accessToken, true);
-          } else {
-            wstSetGscBadge('done');
-          }
-        } else {
-          await wstSyncGscRealtime(result.credential.accessToken);
-        }
-      }
-    } catch (popupErr) {
-      console.warn('[GSC Reauth] signInWithPopup failed, trying Redirect:', popupErr);
-      // Lưu trữ trạng thái sync trước khi redirect
-      sessionStorage.setItem('wst_pending_global_sync', '1');
-      await firebase.auth().signInWithRedirect(provider);
-    }
+    // Lưu trữ trạng thái sync trước khi redirect
+    sessionStorage.setItem('wst_pending_global_sync', '1');
+    
+    // Sử dụng redirect thay thế hoàn toàn popup
+    await firebase.auth().signInWithRedirect(provider);
   } catch (e) {
     console.warn('[GSC Reauth] Failed:', e.message);
     alert('Lỗi kết nối Google GSC:\n' + e.message);
@@ -11611,26 +11590,15 @@ async function wstGetGscTokenForVerification() {
     provider.addScope('https://www.googleapis.com/auth/webmasters');
     provider.addScope('https://www.googleapis.com/auth/siteverification');
     
-    try {
-      const result = await firebase.auth().signInWithPopup(provider);
-      if (result.credential && result.credential.accessToken) {
-        sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
-        if (result.user && result.user.email) {
-          sessionStorage.setItem('gsc_user_email', result.user.email);
-        }
-        wstSetGscBadge('done');
-        return result.credential.accessToken;
-      }
-    } catch (popupErr) {
-      console.warn('[GSC Verification Auth] signInWithPopup failed, trying Redirect:', popupErr);
-      // Lưu trữ trạng thái bulk trước khi redirect
-      sessionStorage.setItem('wst_pending_gsc_bulk', JSON.stringify({
-        selectedIds: Array.from(_wstSelected),
-        type: _wstAddGscType
-      }));
-      await firebase.auth().signInWithRedirect(provider);
-      return null;
-    }
+    // Lưu trữ trạng thái bulk trước khi redirect
+    sessionStorage.setItem('wst_pending_gsc_bulk', JSON.stringify({
+      selectedIds: Array.from(_wstSelected),
+      type: _wstAddGscType
+    }));
+    
+    // Sử dụng redirect thay vì popup để đảm bảo chạy được trên tất cả trình duyệt và chống chặn popup hoàn toàn
+    await firebase.auth().signInWithRedirect(provider);
+    return null;
   } catch (e) {
     alert('Lỗi đăng nhập Google:\n' + e.message);
   }
