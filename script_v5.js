@@ -9673,7 +9673,7 @@ async function wstSyncGscRealtime(token, force = false) {
     }
 
     if (skipped > 0) {
-      console.log(`[GSC Sync] ${Object.keys(updates).length} site thành công, ${skipped} site bị giới hạn quyền GSC (bỏ qua).`);
+      console.log(`[GSC Sync] ${Object.keys(updates).length} site thành công, ${skipped} site không có quyền truy cập trong tài khoản Google này (bỏ qua).`);
     }
 
     // Bước 5: Cập nhật vào Firebase gsc_cache và bộ nhớ cục bộ
@@ -9735,8 +9735,8 @@ async function wstSyncGscRealtime(token, force = false) {
                 siteObj.entries.push({
                   id: 'wste'+Date.now(),
                   date: todayStr,
-                  rank: lastEntry ? lastEntry.rank : 'Out 100',
-                  backlinks: lastEntry ? lastEntry.backlinks : null,
+                  rank: (lastEntry && lastEntry.rank !== undefined) ? lastEntry.rank : 'Out 100',
+                  backlinks: (lastEntry && lastEntry.backlinks !== undefined) ? lastEntry.backlinks : null,
                   indexed: indexedStatus,
                   moBot: siteObj.moBot || 'Mở',
                   note: ''
@@ -10333,8 +10333,8 @@ async function wstSyncGscNow() {
           siteObj.entries.push({
             id: 'wste'+Date.now(),
             date: todayStr,
-            rank: lastEntry ? lastEntry.rank : 'Out 100',
-            backlinks: lastEntry ? lastEntry.backlinks : null,
+            rank: (lastEntry && lastEntry.rank !== undefined) ? lastEntry.rank : 'Out 100',
+            backlinks: (lastEntry && lastEntry.backlinks !== undefined) ? lastEntry.backlinks : null,
             indexed: indexedStatus,
             moBot: siteObj.moBot || 'Mở',
             note: ''
