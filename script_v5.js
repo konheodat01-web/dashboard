@@ -2720,16 +2720,11 @@ function renderWsTrack(){
       wstUpdateAPIUsage();
   }
 
-  // Populate filters
-  const gSel = document.getElementById('wst_filter_group');
-  if(gSel){ const cur=gSel.value; const groups=[...new Set(allTrackedWs.map(w=>w.group||'').filter(Boolean))].sort(); gSel.innerHTML='<option value="">Tất cả nhóm</option>'+groups.map(g=>`<option value="${g}" ${g===cur?'selected':''}>${g}</option>`).join(''); }
-
-
   const q=(document.getElementById('wst_search')?.value||'').toLowerCase();
-  const fGroup=gSel?.value||'';
+  const fTeam = document.getElementById('wst_filter_team')?.value || '';
   let list = allTrackedWs.filter(w=>{
     if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
-    if(fGroup && (w.group||'')!==fGroup) return false;
+    if(fTeam && w.team !== fTeam) return false;
     return true;
   });
 
@@ -2764,7 +2759,7 @@ function renderWsTrack(){
       <th style="padding:8px 6px;text-align:center;width:30px"><input type="checkbox" id="wstSelectAll" onchange="wstToggleSelectAll(this)" style="cursor:pointer;accent-color:var(--red)"></th>
       <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:130px">URL hiện tại (301)</th>
       <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:130px">Website (gốc)</th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px">Nhóm</th>
+      <th style="padding:8px 10px;text-align:left;font-size:11px">Team</th>
       <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:140px">Từ khóa SEO</th>
       <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Clicks (24 giờ gần nhất và tăng giảm so với hôm trước)">Clicks (24h)</th>
       <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Impressions (24 giờ gần nhất và tăng giảm so với hôm trước)">Imps (24h)</th>
@@ -2830,7 +2825,12 @@ function renderWsTrack(){
           </div>`;
         })()}
       </td>
-      <td style="padding:8px 10px;font-size:11px;color:var(--text-muted)">${w.group||'—'}</td>
+      <td style="padding:8px 10px;font-size:11px">
+        ${w.team === 'Team 02'
+          ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#555;font-weight:600">M7</span>`
+          : `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#fdf2f2;color:var(--red);font-weight:600">Chaewon</span>`
+        }
+      </td>
       <td style="padding:8px 10px;font-size:11px;">
         <div style="display:flex;align-items:center;gap:4px">
           <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:110px;font-size:11px;padding:3px 6px;height:24px">

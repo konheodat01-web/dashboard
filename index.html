@@ -575,8 +575,10 @@
       <div class="panel-title">📈 Theo dõi web</div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
         <input type="text" id="wst_search" placeholder="🔍 Tìm website..." oninput="renderWsTrack()" style="width:160px;height:32px;font-size:12px">
-        <select id="wst_filter_group" onchange="renderWsTrack()" style="height:32px;font-size:12px">
-          <option value="">Tất cả nhóm</option>
+        <select id="wst_filter_team" onchange="renderWsTrack()" style="height:32px;font-size:12px">
+          <option value="">Tất cả team</option>
+          <option value="Team 01">Chaewon</option>
+          <option value="Team 02">M7</option>
         </select>
         <select id="wst_filter_index" onchange="renderWsTrack()" style="height:32px;font-size:12px">
           <option value="">Tất cả index</option>
@@ -1269,7 +1271,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260718_v27"></script>
+  <script src="script_v5.js?v=20260718_v28"></script>
 
 <!-- EDIT INDEX TASK MODAL -->
 <div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">
