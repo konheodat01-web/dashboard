@@ -11258,8 +11258,6 @@ async function wstLoadGscQueries(range = '28d') {
   }
 }
 
-}
-
 // Hàm tải dữ liệu án phạt thủ công (Google Manual Actions) từ GSC API
 async function wstLoadManualActions() {
   const site = websites.find(x => x.id === _wstActiveSiteId);
