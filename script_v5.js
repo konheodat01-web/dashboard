@@ -2446,11 +2446,10 @@ function wstFormatRankUI(rankStr) {
 }
 
 async function wstBulkCheckRank() {
-  const visibleRowCheckboxes = document.querySelectorAll('.wst-chk');
-  if(!visibleRowCheckboxes.length) { toast("Không có web nào đang hiển thị trên bảng!"); return; }
+  if(!_wstSelected || !_wstSelected.size) { toast("Vui lòng tick chọn website cần check rank!", "#e67e22"); return; }
   
-  const visibleWsIds = Array.from(visibleRowCheckboxes).map(c => parseInt(c.dataset.id));
-  const allTrackedWs = visibleWsIds.map(id => websites.find(w => w.id === id)).filter(Boolean);
+  const selectedWsIds = Array.from(_wstSelected);
+  const allTrackedWs = selectedWsIds.map(id => websites.find(w => w.id === id)).filter(Boolean);
   
   if(!wtApiKey) { toast("Vui lòng thiết lập ValueSERP API Key trước!", "#e74c3c"); openWstApiSettings(); return; }
 
