@@ -2722,23 +2722,83 @@ function renderWsTrack(){
 
   const q=(document.getElementById('wst_search')?.value||'').toLowerCase();
   const fTeam = document.getElementById('wst_filter_team')?.value || '';
-  let list = allTrackedWs.filter(w=>{
-    if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
-    if(fTeam && w.team !== fTeam) return false;
-    return true;
-  });
-
-  if(!list.length){ 
-    tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block'; 
-    if(typeof _debug_shown === 'undefined'){ window._debug_shown=true; setTimeout(()=>toast('Debug: Tracked='+allTrackedWs.length+', siteTrk='+siteTracking.length+', webs='+websites.length, '#e74c3c', 10000), 1000); }
-    return; 
-  }
-  empty.style.display='none';
+  const fStatus = document.getElementById('wst_filter_status')?.value || '';
+  const fGsc = document.getElementById('wst_filter_gsc')?.value || '';
+  const fClicks = document.getElementById('wst_filter_clicks')?.value || '';
+  const fImps = document.getElementById('wst_filter_imps')?.value || '';
+  const fPos = document.getElementById('wst_filter_pos')?.value || '';
 
   // Get 301 children helper
   function getW301Children(w){
     return websites.filter(x=>x.is301&&x.sourceUrl&&(x.sourceUrl===w.url||x.sourceUrl===(w.url||'').replace(/\/$/,'')));
   }
+
+  let list = allTrackedWs.filter(w=>{
+    if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
+    if(fTeam && w.team !== fTeam) return false;
+    
+    // Advanced Filter: Status of web
+    if(fStatus && w.status !== fStatus) return false;
+
+    // Advanced Filter: GSC Connection Status
+    const site = getWstSite(w.id);
+    if(fGsc) {
+      const gscStatus = site?.gscConnectionStatus || 'not_connected';
+      if(gscStatus !== fGsc) return false;
+    }
+
+    // Advanced Filters: Performance metrics (need history calculation)
+    if(fClicks || fImps || fPos) {
+      const redirectChain = getWstRedirectChainBackward(w);
+      const combinedHistory = {};
+      
+      redirectChain.forEach(s => {
+        const cache = (typeof _gscCache !== 'undefined' ? _gscCache[s.id] : null) || {};
+        const hist = cache.performanceHistory || [];
+        hist.forEach(h => {
+          if (!combinedHistory[h.date]) {
+            combinedHistory[h.date] = { clicks: 0, impressions: 0, weightedPosition: 0 };
+          }
+          combinedHistory[h.date].clicks += h.clicks || 0;
+          combinedHistory[h.date].impressions += h.impressions || 0;
+          combinedHistory[h.date].weightedPosition += (h.position || 0) * (h.impressions || 0);
+        });
+      });
+      
+      const sortedDates = Object.keys(combinedHistory).sort((a, b) => b.localeCompare(a));
+      let clicksLatest = 0, impsLatest = 0, posLatest = 0;
+      if (sortedDates.length > 0) {
+        const latest = combinedHistory[sortedDates[0]];
+        clicksLatest = latest.clicks;
+        impsLatest = latest.impressions;
+        posLatest = impsLatest > 0 ? (latest.weightedPosition / impsLatest) : 0;
+      }
+
+      if(fClicks === 'has_clicks' && clicksLatest <= 0) return false;
+      if(fClicks === 'no_clicks' && clicksLatest > 0) return false;
+
+      if(fImps === 'has_imps' && impsLatest <= 0) return false;
+      if(fImps === 'no_imps' && impsLatest > 0) return false;
+
+      if(fPos) {
+        if(fPos === 'top10') {
+          if(posLatest <= 0 || posLatest > 10) return false;
+        } else if(fPos === 'top11_50') {
+          if(posLatest <= 10 || posLatest > 50) return false;
+        } else if(fPos === 'low') {
+          if(posLatest > 0 && posLatest <= 50) return false; // N/A (posLatest is 0) or > 50 is allowed
+        }
+      }
+    }
+
+    return true;
+  });
+
+  if(!list.length){ 
+    tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block'; 
+    return; 
+  }
+  empty.style.display='none';
 
   // Filter: index
   const fIndex = document.getElementById('wst_filter_index')?.value||'';
@@ -2947,6 +3007,30 @@ function renderWsTrack(){
 
   // Render bulk bar
   wstRenderBulkBar();
+}
+
+function wstToggleAdvancedFilters() {
+  const panel = document.getElementById('wstAdvancedFilters');
+  if (!panel) return;
+  if (panel.style.display === 'none') {
+    panel.style.display = 'flex';
+  } else {
+    // Reset all advanced filter values when closing
+    const fStatus = document.getElementById('wst_filter_status');
+    const fGsc = document.getElementById('wst_filter_gsc');
+    const fClicks = document.getElementById('wst_filter_clicks');
+    const fImps = document.getElementById('wst_filter_imps');
+    const fPos = document.getElementById('wst_filter_pos');
+    
+    if(fStatus) fStatus.value = '';
+    if(fGsc) fGsc.value = '';
+    if(fClicks) fClicks.value = '';
+    if(fImps) fImps.value = '';
+    if(fPos) fPos.value = '';
+    
+    panel.style.display = 'none';
+    renderWsTrack();
+  }
 }
 
 

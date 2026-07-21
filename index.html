@@ -593,9 +593,63 @@
         </select>
         <button onclick="openWstApiSettings()" class="btn btn-outline btn-sm">🔑 API Rank</button>
         <button onclick="wstBulkCheckRank()" class="btn btn-sm" style="background:#e67e22;color:#fff;border:none">🔁 Tự động check Rank (All)</button>
+        <button onclick="wstToggleAdvancedFilters()" class="btn btn-outline btn-sm">⚙️ Lọc nâng cao</button>
         <button onclick="openWstPickModal()" class="btn btn-outline btn-sm">+ Thêm web</button>
       </div>
     </div>
+    
+    <!-- ADVANCED FILTERS PANEL -->
+    <div id="wstAdvancedFilters" style="display:none; padding:10px 16px; background:#161b22; border-bottom:1px solid var(--gray-border); flex-wrap:wrap; gap:10px; flex-shrink:0;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:11px; color:#8b949e;">Trạng thái web:</span>
+        <select id="wst_filter_status" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+          <option value="">Tất cả</option>
+          <option value="Tốt">🌐 Tốt</option>
+          <option value="Lỗi">⚠️ Lỗi</option>
+          <option value="Chết">❌ Chết</option>
+          <option value="Bị phạt">⚠️ Bị phạt</option>
+        </select>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:11px; color:#8b949e;">Kết nối GSC:</span>
+        <select id="wst_filter_gsc" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+          <option value="">Tất cả</option>
+          <option value="connected">✅ Đã kết nối</option>
+          <option value="disconnected">❌ Mất kết nối</option>
+          <option value="not_connected">⬜ Chưa kết nối</option>
+        </select>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:11px; color:#8b949e;">Clicks (24h):</span>
+        <select id="wst_filter_clicks" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+          <option value="">Tất cả</option>
+          <option value="has_clicks">Có clicks (> 0)</option>
+          <option value="no_clicks">Không clicks (= 0)</option>
+        </select>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:11px; color:#8b949e;">Imps (24h):</span>
+        <select id="wst_filter_imps" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+          <option value="">Tất cả</option>
+          <option value="has_imps">Có imps (> 0)</option>
+          <option value="no_imps">Không imps (= 0)</option>
+        </select>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:11px; color:#8b949e;">Vị trí (24h):</span>
+        <select id="wst_filter_pos" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+          <option value="">Tất cả</option>
+          <option value="top10">Top 1 - 10</option>
+          <option value="top11_50">Top 11 - 50</option>
+          <option value="low">Vị trí thấp (> 50 hoặc N/A)</option>
+        </select>
+      </div>
+    </div>
+
     <!-- TABLE -->
     <div style="flex:1;overflow:auto;min-height:0">
       <table id="wstTable" style="width:100%;border-collapse:collapse;font-size:12px;min-width:900px">
@@ -1276,7 +1330,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260718_v36"></script>
+  <script src="script_v5.js?v=20260721_v37"></script>
 
 <!-- EDIT INDEX TASK MODAL -->
 <div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">
