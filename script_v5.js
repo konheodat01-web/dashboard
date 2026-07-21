@@ -2706,6 +2706,28 @@ function wstCopySelected(mode){
   }
 }
 
+let _wstSortCol = null;
+let _wstSortDir = 'none'; // 'asc' | 'desc' | 'none'
+
+function wstGetSortIndicator(colName) {
+  if (_wstSortCol !== colName || _wstSortDir === 'none') {
+    return `<span style="font-size:9px;color:#8b949e;margin-left:4px">⇅</span>`;
+  }
+  return `<span style="font-size:9px;color:#58a6ff;margin-left:4px">${_wstSortDir === 'asc' ? '▲' : '▼'}</span>`;
+}
+
+function wstHandleSort(colName) {
+  if (_wstSortCol !== colName) {
+    _wstSortCol = colName;
+    _wstSortDir = 'asc';
+  } else {
+    if (_wstSortDir === 'asc') _wstSortDir = 'desc';
+    else if (_wstSortDir === 'desc') _wstSortDir = 'none';
+    else _wstSortDir = 'asc';
+  }
+  renderWsTrack();
+}
+
 function renderWsTrack(){
   const tbody = document.getElementById('wstTbody');
   const thead = document.getElementById('wstThead');
@@ -2812,21 +2834,110 @@ function renderWsTrack(){
   if(!list.length){ tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
 
+  // Sort logic
+  if (_wstSortCol && _wstSortDir !== 'none') {
+    list.sort((a, b) => {
+      let valA, valB;
+      const siteA = getWstSite(a.id);
+      const siteB = getWstSite(b.id);
+      const entriesA = (siteA?.entries || []).slice().sort((x, y) => y.date.localeCompare(x.date));
+      const entriesB = (siteB?.entries || []).slice().sort((x, y) => y.date.localeCompare(x.date));
+      
+      if (_wstSortCol === 'url301') {
+        const kidsA = getW301Children(a);
+        const latest301A = kidsA.length ? kidsA[kidsA.length-1] : null;
+        valA = latest301A ? (latest301A.url || latest301A.sourceUrl || '') : (a.url || '');
+        
+        const kidsB = getW301Children(b);
+        const latest301B = kidsB.length ? kidsB[kidsB.length-1] : null;
+        valB = latest301B ? (latest301B.url || latest301B.sourceUrl || '') : (b.url || '');
+      } 
+      else if (_wstSortCol === 'brand') {
+        valA = a.brand || '';
+        valB = b.brand || '';
+      } 
+      else if (_wstSortCol === 'team') {
+        valA = a.team || '';
+        valB = b.team || '';
+      } 
+      else if (_wstSortCol === 'keyword') {
+        valA = siteA?.mainKeyword || a.brand || '';
+        valB = siteB?.mainKeyword || b.brand || '';
+      } 
+      else if (_wstSortCol === 'clicks' || _wstSortCol === 'imps' || _wstSortCol === 'ctr' || _wstSortCol === 'pos') {
+        const getGscLatest = (siteId) => {
+          const redirectChain = getWstRedirectChainBackward(websites.find(w => w.id === siteId));
+          const combinedHistory = {};
+          redirectChain.forEach(s => {
+            const cache = (typeof _gscCache !== 'undefined' ? _gscCache[s.id] : null) || {};
+            const hist = cache.performanceHistory || [];
+            hist.forEach(h => {
+              if (!combinedHistory[h.date]) combinedHistory[h.date] = { clicks: 0, impressions: 0, weightedPosition: 0 };
+              combinedHistory[h.date].clicks += h.clicks || 0;
+              combinedHistory[h.date].impressions += h.impressions || 0;
+              combinedHistory[h.date].weightedPosition += (h.position || 0) * (h.impressions || 0);
+            });
+          });
+          const sorted = Object.keys(combinedHistory).sort((x, y) => y.localeCompare(x));
+          if (sorted.length > 0) {
+            const latest = combinedHistory[sorted[0]];
+            const pos = latest.impressions > 0 ? (latest.weightedPosition / latest.impressions) : 0;
+            return { clicks: latest.clicks, imps: latest.impressions, ctr: latest.impressions > 0 ? (latest.clicks / latest.impressions) : 0, pos };
+          }
+          return { clicks: 0, imps: 0, ctr: 0, pos: 0 };
+        };
+        
+        const gscA = getGscLatest(a.id);
+        const gscB = getGscLatest(b.id);
+        if (_wstSortCol === 'clicks') { valA = gscA.clicks; valB = gscB.clicks; }
+        else if (_wstSortCol === 'imps') { valA = gscA.imps; valB = gscB.imps; }
+        else if (_wstSortCol === 'ctr') { valA = gscA.ctr; valB = gscB.ctr; }
+        else { valA = gscA.pos || 999; valB = gscB.pos || 999; }
+      } 
+      else if (_wstSortCol === 'rank') {
+        const parseRank = (rankStr) => {
+          if (!rankStr) return 999;
+          if (rankStr.includes('Out 100') || rankStr.includes('Lỗi') || rankStr.includes('API')) return 999;
+          const rawNum = parseInt(rankStr.replace(/<[^>]*>?/gm, ''));
+          return isNaN(rawNum) ? 999 : rawNum;
+        };
+        valA = parseRank(entriesA[0]?.rank);
+        valB = parseRank(entriesB[0]?.rank);
+      } 
+      else if (_wstSortCol === 'index') {
+        valA = entriesA.find(e => e.indexed)?.indexed || '';
+        valB = entriesB.find(e => e.indexed)?.indexed || '';
+      } 
+      else if (_wstSortCol === 'updated') {
+        valA = a.lastUpdatedAt || '';
+        valB = b.lastUpdatedAt || '';
+      }
+
+      let comp = 0;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        comp = valA - valB;
+      } else {
+        comp = String(valA).localeCompare(String(valB), 'vi', { sensitivity: 'base' });
+      }
+      return _wstSortDir === 'asc' ? comp : -comp;
+    });
+  }
+
   // Build table header
   if(thead){
     thead.innerHTML = `<tr style="background:#f8f9fa;border-bottom:2px solid var(--gray-border)">
       <th style="padding:8px 6px;text-align:center;width:30px"><input type="checkbox" id="wstSelectAll" onchange="wstToggleSelectAll(this)" style="cursor:pointer;accent-color:var(--red)"></th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:130px">URL hiện tại (301)</th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:130px">Website (gốc)</th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px">Team</th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px;min-width:140px">Từ khóa SEO</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Clicks (24 giờ gần nhất và tăng giảm so với hôm trước)">Clicks (24h)</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Impressions (24 giờ gần nhất và tăng giảm so với hôm trước)">Imps (24h)</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="CTR (24 giờ gần nhất và tăng giảm so với hôm trước)">CTR (24h)</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap" title="Vị trí trung bình (24 giờ gần nhất và tăng giảm so với hôm trước)">Vị trí (24h)</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px">🏆 Rank</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px">🔍 Index</th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px">Cập nhật</th>
+      <th onclick="wstHandleSort('url301')" style="padding:8px 10px;text-align:left;font-size:11px;min-width:130px;cursor:pointer;user-select:none">URL hiện tại (301) ${wstGetSortIndicator('url301')}</th>
+      <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;min-width:130px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
+      <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
+      <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;min-width:140px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
+      <th onclick="wstHandleSort('clicks')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Clicks (24 giờ gần nhất và tăng giảm so với hôm trước)">Clicks (24h) ${wstGetSortIndicator('clicks')}</th>
+      <th onclick="wstHandleSort('imps')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Impressions (24 giờ gần nhất và tăng giảm so với hôm trước)">Imps (24h) ${wstGetSortIndicator('imps')}</th>
+      <th onclick="wstHandleSort('ctr')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="CTR (24 giờ gần nhất và tăng giảm so với hôm trước)">CTR (24h) ${wstGetSortIndicator('ctr')}</th>
+      <th onclick="wstHandleSort('pos')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Vị trí trung bình (24 giờ gần nhất và tăng giảm so với hôm trước)">Vị trí (24h) ${wstGetSortIndicator('pos')}</th>
+      <th onclick="wstHandleSort('rank')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🏆 Rank ${wstGetSortIndicator('rank')}</th>
+      <th onclick="wstHandleSort('index')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🔍 Index ${wstGetSortIndicator('index')}</th>
+      <th onclick="wstHandleSort('updated')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Cập nhật ${wstGetSortIndicator('updated')}</th>
       <th style="padding:8px 10px;text-align:center;font-size:11px">Thao tác</th>
     </tr>`;
   }
