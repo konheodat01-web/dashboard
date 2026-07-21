@@ -593,6 +593,12 @@
         </select>
         <button onclick="openWstApiSettings()" class="btn btn-outline btn-sm">🔑 API Rank</button>
         <button onclick="wstBulkCheckRank()" class="btn btn-sm" style="background:#e67e22;color:#fff;border:none">Check Rank</button>
+        <select id="wst_gsc_period" onchange="wstChangeGscPeriod(this.value)" style="height:32px;font-size:12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
+          <option value="24h" selected>📅 GSC: 24 giờ qua</option>
+          <option value="7d">📅 GSC: 7 ngày qua</option>
+          <option value="28d">📅 GSC: 28 ngày qua</option>
+          <option value="3m">📅 GSC: 3 tháng qua</option>
+        </select>
         <button onclick="wstToggleAdvancedFilters()" class="btn btn-outline btn-sm">⚙️ Lọc nâng cao</button>
         <button onclick="openWstPickModal()" class="btn btn-outline btn-sm">+ Thêm web</button>
       </div>
@@ -1330,7 +1336,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260721_v38"></script>
+  <script src="script_v5.js?v=20260721_v39"></script>
 
 <!-- EDIT INDEX TASK MODAL -->
 <div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">
