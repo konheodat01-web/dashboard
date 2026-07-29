@@ -12699,12 +12699,45 @@ function renderBilling(silent = false) {
 
   // 1. NHÓM 1: TRỪ THEO THỜI LƯỢNG (Prepaid / Usage-based)
   const prepaidList = billings.filter(b => b.billingType === 'prepaid');
+  
+  // Tính tổng chi phí định kỳ hàng tháng từ cả prepaid (nếu có monthlyCostVnd)
+  let totalCostVND = 0;
+  prepaidList.forEach(b => {
+    if (b.monthlyCostVnd > 0) {
+      totalCostVND += b.monthlyCostVnd;
+    }
+  });
+
   prepaidTbody.innerHTML = prepaidList.map(b => {
     let warning = false;
+    let expired = false;
+    
+    // Kiểm tra cảnh báo số dư thấp
     if (b.balance < (b.warningThreshold || 0)) warning = true;
+    if (b.balance === 0) expired = true;
     
     let timeRemainingText = "—";
-    if (b.burnRate > 0 && b.balance > 0) {
+    
+    // Nếu có Ngày nạp và Thời hạn sử dụng (số tháng) -> Ưu tiên tính hạn sử dụng theo thời gian trước
+    if (b.refillDate && b.durationMonths > 0) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const refill = new Date(b.refillDate);
+      refill.setMonth(refill.getMonth() + b.durationMonths);
+      refill.setHours(0,0,0,0);
+      
+      const diff = refill - today;
+      const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      
+      if (daysLeft < 0) {
+        expired = true;
+        timeRemainingText = `Hết hạn dùng (${Math.abs(daysLeft)} ngày trước)`;
+      } else {
+        timeRemainingText = `Hạn: ${refill.toISOString().split('T')[0]} (Còn ${daysLeft} ngày)`;
+        if (daysLeft <= 7) warning = true;
+      }
+    } else if (b.burnRate > 0 && b.balance > 0) {
+      // Tính theo tốc độ tiêu thụ/giờ nếu không có hạn dùng cố định
       const hoursLeft = b.balance / b.burnRate;
       const days = Math.floor(hoursLeft / 24);
       const hours = Math.floor(hoursLeft % 24);
@@ -12713,22 +12746,30 @@ function renderBilling(silent = false) {
       timeRemainingText = `~ ${b.balance.toLocaleString()} lượt dùng`;
     }
 
-    const statusBadge = b.balance === 0 
+    const statusBadge = expired 
       ? `<span class="badge badge-red">Hết hạn / Cần nạp</span>` 
       : warning 
-        ? `<span class="badge badge-yellow">Sắp hết tiền</span>` 
+        ? `<span class="badge badge-yellow">Sắp hết hạn/tiền</span>` 
         : `<span class="badge badge-green">Đang hoạt động</span>`;
 
     const formattedBalance = b.balanceUnit === 'VND' 
       ? fmt(Math.round(b.balance)) 
-      : `${Math.round(b.balance).toLocaleString()} credits`;
+      : `${Math.round(b.balance).toLocaleString()} ${b.balanceUnit || 'credits'}`;
 
     const burnRateText = b.burnRate > 0 ? `${b.burnRate}đ/giờ` : "Trực tiếp qua API";
+    
+    // Hiển thị thêm chi phí cố định/tháng nếu có cấu hình
+    const noteCostText = b.monthlyCostVnd > 0 ? ` | Chi phí: ${fmt(b.monthlyCostVnd)}/tháng` : "";
 
     return `<tr style="border-bottom:1px solid #30363d">
-      <td style="padding:10px;font-weight:600">${b.name} <div style="font-size:10px;color:#8b949e;font-weight:normal">${b.note || ''}</div></td>
+      <td style="padding:10px;font-weight:600">
+        ${b.name} 
+        <div style="font-size:10px;color:#8b949e;font-weight:normal">
+          ${b.note || ''}${noteCostText}
+        </div>
+      </td>
       <td style="padding:10px">${burnRateText}</td>
-      <td style="padding:10px;text-align:center;font-weight:bold;color:${b.balance === 0 ? 'var(--red)' : warning ? '#f2a154' : '#58a6ff'}">${formattedBalance}</td>
+      <td style="padding:10px;text-align:center;font-weight:bold;color:${expired ? 'var(--red)' : warning ? '#f2a154' : '#58a6ff'}">${formattedBalance}</td>
       <td style="padding:10px;text-align:center;color:#8b949e">${timeRemainingText}</td>
       <td style="padding:10px;text-align:center">${statusBadge}</td>
       <td style="padding:10px;text-align:center">
@@ -12743,7 +12784,6 @@ function renderBilling(silent = false) {
 
   // 2. NHÓM 2: GIA HẠN ĐỊNH KỲ (Recurring)
   const recurringList = billings.filter(b => b.billingType === 'recurring');
-  let totalCostVND = 0;
   recurringTbody.innerHTML = recurringList.map(b => {
     if (b.currency === 'VND') totalCostVND += (b.price || 0);
 
@@ -12852,6 +12892,9 @@ function openAddBillingModal() {
   document.getElementById("bm_balanceUnit").value = "VND";
   document.getElementById("bm_burnRate").value = "";
   document.getElementById("bm_warningThreshold").value = "";
+  document.getElementById("bm_refillDate").value = "";
+  document.getElementById("bm_durationMonths").value = "";
+  document.getElementById("bm_monthlyCostVnd").value = "";
   document.getElementById("bm_note").value = "";
   
   toggleBillingTypeForm("recurring");
@@ -12878,6 +12921,9 @@ function openEditBillingModal(id) {
     document.getElementById("bm_balanceUnit").value = b.balanceUnit || "VND";
     document.getElementById("bm_burnRate").value = b.burnRate || "";
     document.getElementById("bm_warningThreshold").value = b.warningThreshold || "";
+    document.getElementById("bm_refillDate").value = b.refillDate || "";
+    document.getElementById("bm_durationMonths").value = b.durationMonths || "";
+    document.getElementById("bm_monthlyCostVnd").value = b.monthlyCostVnd || "";
   }
   
   toggleBillingTypeForm(b.billingType);
@@ -12933,11 +12979,17 @@ function saveBilling() {
     delete item.balanceUnit;
     delete item.burnRate;
     delete item.warningThreshold;
+    delete item.refillDate;
+    delete item.durationMonths;
+    delete item.monthlyCostVnd;
   } else {
     item.balance = parseFloat(document.getElementById("bm_balance").value) || 0;
     item.balanceUnit = document.getElementById("bm_balanceUnit").value.trim() || "VND";
     item.burnRate = parseFloat(document.getElementById("bm_burnRate").value) || 0;
     item.warningThreshold = parseFloat(document.getElementById("bm_warningThreshold").value) || 0;
+    item.refillDate = document.getElementById("bm_refillDate").value;
+    item.durationMonths = parseInt(document.getElementById("bm_durationMonths").value) || 0;
+    item.monthlyCostVnd = parseFloat(document.getElementById("bm_monthlyCostVnd").value) || 0;
 
     delete item.price;
     delete item.currency;
