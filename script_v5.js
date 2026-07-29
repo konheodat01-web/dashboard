@@ -5167,7 +5167,10 @@ function renderWebsites(){
   grid.innerHTML=list.map(w=>{
     _copyMap['ws_acc_'+w.id]=w.account||'';
     _copyMap['ws_pwd_'+w.id]=w.password||'';
-    const _isTracked = siteTracking.some(s=>s.wsId===w.id);
+    const _isDirectTracked = siteTracking.some(s=>s.wsId===w.id);
+    const _isAutoTracked = w.is301 ? getWstRedirectChainBackward(w).some(parent => parent.id !== w.id && siteTracking.some(s=>s.wsId===parent.id)) : false;
+    const _isTracked = _isDirectTracked || _isAutoTracked;
+    
     return `<div data-wsid="${w.id}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid ${_isTracked?'var(--red)':'var(--gray-border)'};border-left:${_isTracked?'4px solid var(--red)':'1px solid var(--gray-border)'};margin-bottom:6px;transition:box-shadow .15s;background:${_isTracked?'#fdf9f9':'#fff'}" onmouseover="this.style.boxShadow='0 2px 10px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow=''">
       <input type="checkbox" class="ws-chk" onclick="event.stopPropagation()" onchange="wsToggleSelect(${w.id},this)" style="width:15px;height:15px;cursor:pointer;accent-color:var(--red);flex-shrink:0">
       <div style="flex:1;display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0" onclick="openWebsiteForm(${w.id})">
@@ -5192,7 +5195,7 @@ function renderWebsites(){
         <button onclick="event.stopPropagation();copyText(this.dataset.url,this)" data-url="${(w.url||'').replace(/"/g,'&quot;')}" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 8px;color:var(--blue);border-color:#b8d4ea" title="Copy URL">🔗</button>
         <button onclick="event.stopPropagation();wsCopyAccount(${w.id},this)" class="btn btn-sm" style="font-size:11px;padding:2px 10px;background:#27ae60;color:#fff;border:none;font-weight:600" title="Copy tài khoản">👤 TK</button>
         <button onclick="event.stopPropagation();wsCopyPassword(${w.id},this)" class="btn btn-sm" style="font-size:11px;padding:2px 10px;background:#2980b9;color:#fff;border:none;font-weight:600" title="Copy mật khẩu">🔑 MK</button>
-        <button onclick="event.stopPropagation();wsQuickAddTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 7px;${siteTracking.some(s=>s.wsId===w.id)?(w.is301?'color:#ffffff;background:#8e24aa;border-color:#ab47bc;box-shadow:0 0 8px rgba(142,36,170,0.4)':'color:#ffffff;background:#238636;border-color:#2ea043;box-shadow:0 0 8px rgba(35,134,54,0.4)'):'color:var(--text-muted)'}" title="${siteTracking.some(s=>s.wsId===w.id)?'Đang theo dõi':'Thêm vào theo dõi'}">📈</button>
+        <button onclick="event.stopPropagation();wsQuickAddTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 7px;${_isTracked?(w.is301?'color:#ffffff;background:#8e24aa;border-color:#ab47bc;box-shadow:0 0 8px rgba(142,36,170,0.4)':'color:#ffffff;background:#238636;border-color:#2ea043;box-shadow:0 0 8px rgba(35,134,54,0.4)'):'color:var(--text-muted)'}" title="${_isTracked?'Đang theo dõi':'Thêm vào theo dõi'}">📈</button>
         <button onclick="event.stopPropagation();openWebsiteForm(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:3px 7px" title="Sửa website">✏️</button>
         <button onclick="event.stopPropagation();wsVidcoCopy(${w.id},this)" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 8px;color:var(--text-muted)" title="Copy VIDCO">📋</button>
       </div>
