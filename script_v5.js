@@ -3191,13 +3191,18 @@ function wsQuickAddTracking(wsId){
   const w = websites.find(x=>x.id===wsId);
   if(!w) return;
   if(w.is301){
-    toast('Web 301 không thể theo dõi trực tiếp — hãy thêm web gốc','#e67e22',3000);
+    toast('Web 301 tự động theo dõi theo web gốc','#e67e22',3000);
     return;
   }
   if(siteTracking.some(s=>s.wsId===wsId)){
-    toast(w.brand+' đã có trong theo dõi','#e67e22',2000);
+    // Đã có trong danh sách -> Xóa bỏ (Bỏ theo dõi)
+    siteTracking = siteTracking.filter(s=>s.wsId!==wsId);
+    saveWsTrack();
+    renderWebsites();
+    toast('📉 Đã bỏ theo dõi '+w.brand,'#e74c3c',2500);
     return;
   }
+  // Chưa có -> Thêm mới
   siteTracking.push({wsId,entries:[]});
   saveWsTrack();
   renderWebsites();
