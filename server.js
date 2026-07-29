@@ -17,6 +17,7 @@
 const http = require("http");
 const fs   = require("fs");
 const path = require("path");
+const https = require("https");
 
 const PORT        = process.env.PORT || 3050;
 const CONFIG_FILE = path.join(__dirname, "config.json");
@@ -89,6 +90,64 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(data);
     });
+    return;
+  }
+
+  // ── GET /api/vps-balance ──────────────────────────────────────────────────
+  if (req.method === "GET" && url === "/api/vps-balance") {
+    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    const token = urlObj.searchParams.get("token");
+    if (!token) {
+      res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Thiếu token CloudFly" }));
+      return;
+    }
+
+    const options = {
+      hostname: "api.cloudfly.vn",
+      path: "/backend/api/users",
+      method: "GET",
+      headers: {
+        "Authorization": `Token ${token}`,
+        "User-Agent": "Mozilla/5.0 Node.js HTTP Client"
+      }
+    };
+
+    const clientReq = https.request(options, (clientRes) => {
+      let body = "";
+      clientRes.on("data", (chunk) => {
+        body += chunk;
+      });
+      clientRes.on("end", () => {
+        try {
+          if (clientRes.statusCode === 200) {
+            const data = JSON.parse(body);
+            res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({
+              ok: true,
+              balance: data.clients?.[0]?.wallet?.main_balance || 0,
+              total_balance: data.clients?.[0]?.wallet?.total_balance || 0,
+              bonus_point: data.clients?.[0]?.wallet?.bonus_point || 0,
+              name: data.name,
+              email: data.email
+            }));
+          } else {
+            res.writeHead(clientRes.statusCode, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ error: "Lỗi từ phía CloudFly", details: body }));
+          }
+        } catch (err) {
+          res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: "Lỗi xử lý JSON phản hồi" }));
+        }
+      });
+    });
+
+    clientReq.on("error", (err) => {
+      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Không thể kết nối đến CloudFly", details: err.message }));
+    });
+
+    clientReq.end();
     return;
   }
 

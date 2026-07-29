@@ -152,6 +152,9 @@ function loaiBadge(loai){
   return `<span class="badge ${cls}" style="font-size:11px">${loai}</span>`;
 }
 
+let billings = [];
+let wtCloudflyToken = "";
+
 let data = { hai: [], hieu: [] };
 
 let reportData = { hai: [], hieu: [] };
@@ -1152,6 +1155,10 @@ function showPage(name) {
   if (name === 'tasks' && typeof renderTasksOverview === 'function') renderTasksOverview();
   if (name === 'recurring' && typeof renderRecurringTasks === 'function') renderRecurringTasks();
   if (name === 'wstrack' && typeof renderWsTrack === 'function') renderWsTrack();
+  if (name === 'billing' && typeof renderBilling === 'function') {
+    renderBilling();
+    wstSyncBillingAll(); // Tự động sync khi người dùng click vào tab hóa đơn
+  }
   if (name === 'links' && typeof renderLinks === 'function') { renderLinks(); renderWebsites(); }
   if (name === 'prompts' && typeof renderPrompts === 'function') renderPrompts();
   localStorage.setItem('wt_activePage', name);
@@ -1228,9 +1235,10 @@ function fbPayload(ts){
     tasks, taskOrder: tasks.map(t=>t.id),
     deletedTasks, links, linkCategories,
     websites, wsGroups,
-     assignees, prompts, recurringTasks, khoId: khoIdList,
+    assignees, prompts, recurringTasks, khoId: khoIdList,
     recurDoneToday: getRecurDoneToday(),
     siteTracking,
+    billings, wtCloudflyToken,
     passwords: (typeof getProfilePasswords === 'function') ? getProfilePasswords() : {},
     settings: _settings,
     _trash_ts: parseInt(localStorage.getItem('wt_trash_ts')||'0'),
@@ -1252,13 +1260,14 @@ function saveToLocalStorage(){
     localStorage.setItem('wt_link_categories', JSON.stringify(linkCategories));
     localStorage.setItem('wt_websites',        JSON.stringify(websites));
     localStorage.setItem('wt_ws_groups',       JSON.stringify(wsGroups));
-        localStorage.setItem('wt_assignees',       JSON.stringify(assignees));
+    localStorage.setItem('wt_assignees',       JSON.stringify(assignees));
     localStorage.setItem('wt_prompts',         JSON.stringify(prompts));
     localStorage.setItem('wt_recurring',       JSON.stringify(recurringTasks));
     localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
-    // recurDoneToday saved via setRecurDoneToday()
     localStorage.setItem('wt_passwords',       JSON.stringify((typeof getProfilePasswords === 'function') ? getProfilePasswords() : {}));
     localStorage.setItem('wt_settings', JSON.stringify(_settings));
+    localStorage.setItem('wt_billings',        JSON.stringify(billings));
+    localStorage.setItem('wt_cloudfly_token',  wtCloudflyToken);
     localStorage.setItem('wt_ts',              String(ts));
   }catch(e){}
   return ts;
@@ -1366,6 +1375,11 @@ function initFirebaseListener(){
 
       if(r.wtApiKey !== undefined){ wtApiKey = r.wtApiKey; localStorage.setItem('wt_valueserp_api_key', wtApiKey); }
       if(r.wtSerperCredits !== undefined){ wtSerperCredits = r.wtSerperCredits; localStorage.setItem('wt_serper_credits_left', wtSerperCredits); }
+      if(r.wtCloudflyToken !== undefined){ wtCloudflyToken = r.wtCloudflyToken; localStorage.setItem('wt_cloudfly_token', wtCloudflyToken); }
+      if(Array.isArray(r.billings)) { billings = r.billings; }
+      else if(r.billings === null) { billings = []; }
+      initDefaultBillingsIfNeeded();
+
       if(r.teleTokenRank !== undefined) localStorage.setItem('tele_token_rank', r.teleTokenRank);
       if(r.teleChatIdRank !== undefined) localStorage.setItem('tele_chat_id_rank', r.teleChatIdRank);
 
@@ -1400,19 +1414,20 @@ if(!_settings.avatars) _settings.avatars = {}; // local fills gaps, fb overrides
       localStorage.setItem('wt_tasks',           JSON.stringify(tasks));
       if(r.recurringTasks && Array.isArray(r.recurringTasks)){ recurringTasks=r.recurringTasks; recurNextId=Math.max(1,...recurringTasks.map(x=>x.id||0))+1; localStorage.setItem('wt_recurring',JSON.stringify(recurringTasks)); if(document.querySelector('.page.active')?.id==='page-recurring') renderRecurringTasks(); }
       localStorage.setItem('wt_recurring',       JSON.stringify(recurringTasks));
-    localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
-    // recurDoneToday saved via setRecurDoneToday()
+      localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
       localStorage.setItem('wt_deleted_tasks',   JSON.stringify(deletedTasks));
       localStorage.setItem('wt_links',           JSON.stringify(links));
       localStorage.setItem('wt_link_categories', JSON.stringify(linkCategories));
       localStorage.setItem('wt_websites',        JSON.stringify(websites));
       localStorage.setItem('wt_ws_groups',       JSON.stringify(wsGroups));
       localStorage.setItem('wt_index_tasks',     JSON.stringify(indexTasks));
-            localStorage.setItem('wt_assignees',       JSON.stringify(assignees));
+      localStorage.setItem('wt_assignees',       JSON.stringify(assignees));
       localStorage.setItem('wt_prompts',         JSON.stringify(prompts));
-    localStorage.setItem('wt_recurring',       JSON.stringify(recurringTasks));
-    localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
-    // recurDoneToday saved via setRecurDoneToday()
+      localStorage.setItem('wt_recurring',       JSON.stringify(recurringTasks));
+      localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
+      localStorage.setItem('wt_billings',        JSON.stringify(billings));
+      localStorage.setItem('wt_cloudfly_token',  wtCloudflyToken);
+      if(document.querySelector('.page.active')?.id==='page-billing') renderBilling();
       if(r._ts) localStorage.setItem('wt_ts',    String(r._ts));
 
       if (isAdminLoggedIn()) {
@@ -1493,6 +1508,9 @@ function loadAppData(){
         applyAllAvatars();
       }catch(e){}
     }
+    const b = localStorage.getItem('wt_billings'); if(b) billings = JSON.parse(b);
+    const tok = localStorage.getItem('wt_cloudfly_token'); if(tok) wtCloudflyToken = tok;
+    initDefaultBillingsIfNeeded();
   }catch(e){ console.warn('localStorage load failed', e); }
 }
 
@@ -12539,6 +12557,470 @@ async function wstLoadAndSubmitSitemaps(siteUrl, token, cell) {
   } catch (err) {
     console.error(err);
     cell.innerHTML = `<span style="color:#e74c3c;font-size:11px">Lỗi nạp sitemap</span>`;
+  }
+}
+
+
+// ==========================================
+// 💳 QUẢN LÝ HÓA ĐƠN PHẦN MỀM (BILLING)
+// ==========================================
+
+// Khởi tạo hóa đơn mặc định
+function initDefaultBillingsIfNeeded() {
+  if (!Array.isArray(billings) || billings.length === 0) {
+    billings = [
+      {
+        id: 1,
+        name: "VPS CloudFly (nthieucloud.shop)",
+        category: "VPS",
+        billingType: "prepaid",
+        balance: 99797,
+        balanceUnit: "VND",
+        burnRate: 151, // 151đ/giờ
+        warningThreshold: 11000, // Đủ dùng dưới 3 ngày
+        lastUpdated: Date.now(),
+        note: "Đơn giá 151đ/giờ. Tự động đồng bộ số dư từ tài khoản CloudFly."
+      },
+      {
+        id: 2,
+        name: "Serper API",
+        category: "API",
+        billingType: "prepaid",
+        balance: wtSerperCredits || 0,
+        balanceUnit: "Token",
+        burnRate: 0, // Trừ theo lượt check
+        warningThreshold: 5000,
+        lastUpdated: Date.now(),
+        note: "API check rank từ khóa chính. Tự động đồng bộ qua Serper API Key."
+      },
+      {
+        id: 3,
+        name: "Antigravity AI",
+        category: "AI Tool",
+        billingType: "recurring",
+        price: 200000,
+        currency: "VND",
+        cycle: "monthly",
+        nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        note: "Gia hạn hàng tháng cho AI Code Assistant."
+      }
+    ];
+    saveAppData();
+  }
+}
+
+// Xử lý tự động trừ tiền VPS theo thời gian thực (realtime)
+function autoBurnPrepaidBillings() {
+  let changed = false;
+  const now = Date.now();
+  billings.forEach(b => {
+    if (b.billingType === 'prepaid' && b.burnRate > 0 && b.lastUpdated) {
+      const elapsedMs = now - b.lastUpdated;
+      if (elapsedMs >= 60000) { // Cứ mỗi phút trôi qua thì cập nhật trừ tiền
+        const hours = elapsedMs / (1000 * 60 * 60);
+        const cost = hours * b.burnRate;
+        b.balance = Math.max(0, b.balance - cost);
+        b.lastUpdated = now;
+        changed = true;
+      }
+    }
+  });
+  if (changed) {
+    localStorage.setItem('wt_billings', JSON.stringify(billings));
+  }
+}
+
+// Chạy vòng lặp kiểm tra trừ tiền realtime mỗi 10 giây
+setInterval(() => {
+  if (document.querySelector('.page.active')?.id === 'page-billing') {
+    autoBurnPrepaidBillings();
+    renderBilling(true);
+  } else {
+    autoBurnPrepaidBillings();
+  }
+}, 10000);
+
+// Đồng bộ số dư từ tất cả API ngoại vi (CloudFly & Serper)
+async function wstSyncBillingAll() {
+  const btn = document.querySelector("#page-billing button[onclick='wstSyncBillingAll()']");
+  if(btn) btn.innerHTML = '⏳ Đang đồng bộ...';
+  
+  try {
+    // 1. Đồng bộ Serper
+    if (typeof wstUpdateAPIUsage === 'function') {
+      await wstUpdateAPIUsage();
+      const serperBill = billings.find(b => b.name.includes("Serper"));
+      if (serperBill) {
+        serperBill.balance = wtSerperCredits || 0;
+        serperBill.lastUpdated = Date.now();
+      }
+    }
+
+    // 2. Đồng bộ CloudFly qua Backend Proxy của VPS
+    const token = wtCloudflyToken || localStorage.getItem('wt_cloudfly_token') || "";
+    if (token) {
+      const res = await fetch(`/api/vps-balance?token=${encodeURIComponent(token)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) {
+          const vpsBill = billings.find(b => b.name.includes("CloudFly") || b.category === "VPS");
+          if (vpsBill) {
+            vpsBill.balance = data.balance || 0;
+            vpsBill.lastUpdated = Date.now();
+          }
+        }
+      } else {
+        console.error("CloudFly API sync failed:", await res.text());
+      }
+    }
+    
+    saveAppData();
+    renderBilling();
+    toast("✓ Đồng bộ API thành công!", "#27ae60");
+  } catch (e) {
+    console.error(e);
+    toast("❌ Lỗi khi đồng bộ API", "#e74c3c");
+  } finally {
+    if(btn) btn.innerHTML = '🔄 Đồng bộ API';
+  }
+}
+
+// Render trang Hóa đơn
+function renderBilling(silent = false) {
+  const prepaidTbody = document.getElementById("billing-prepaid-tbody");
+  const recurringTbody = document.getElementById("billing-recurring-tbody");
+  if (!prepaidTbody || !recurringTbody) return;
+
+  const serperBill = billings.find(b => b.name.includes("Serper"));
+  if (serperBill) {
+    serperBill.balance = wtSerperCredits || 0;
+  }
+
+  // 1. NHÓM 1: TRỪ THEO THỜI LƯỢNG (Prepaid / Usage-based)
+  const prepaidList = billings.filter(b => b.billingType === 'prepaid');
+  prepaidTbody.innerHTML = prepaidList.map(b => {
+    let warning = false;
+    if (b.balance < (b.warningThreshold || 0)) warning = true;
+    
+    let timeRemainingText = "—";
+    if (b.burnRate > 0 && b.balance > 0) {
+      const hoursLeft = b.balance / b.burnRate;
+      const days = Math.floor(hoursLeft / 24);
+      const hours = Math.floor(hoursLeft % 24);
+      timeRemainingText = days > 0 ? `~ ${days} ngày ${hours} giờ` : `~ ${hours} giờ`;
+    } else if (b.burnRate === 0) {
+      timeRemainingText = `~ ${b.balance.toLocaleString()} lượt dùng`;
+    }
+
+    const statusBadge = b.balance === 0 
+      ? `<span class="badge badge-red">Hết hạn / Cần nạp</span>` 
+      : warning 
+        ? `<span class="badge badge-yellow">Sắp hết tiền</span>` 
+        : `<span class="badge badge-green">Đang hoạt động</span>`;
+
+    const formattedBalance = b.balanceUnit === 'VND' 
+      ? fmt(Math.round(b.balance)) 
+      : `${Math.round(b.balance).toLocaleString()} credits`;
+
+    const burnRateText = b.burnRate > 0 ? `${b.burnRate}đ/giờ` : "Trực tiếp qua API";
+
+    return `<tr style="border-bottom:1px solid #30363d">
+      <td style="padding:10px;font-weight:600">${b.name} <div style="font-size:10px;color:#8b949e;font-weight:normal">${b.note || ''}</div></td>
+      <td style="padding:10px">${burnRateText}</td>
+      <td style="padding:10px;text-align:center;font-weight:bold;color:${b.balance === 0 ? 'var(--red)' : warning ? '#f2a154' : '#58a6ff'}">${formattedBalance}</td>
+      <td style="padding:10px;text-align:center;color:#8b949e">${timeRemainingText}</td>
+      <td style="padding:10px;text-align:center">${statusBadge}</td>
+      <td style="padding:10px;text-align:center">
+        <button onclick="openEditBillingModal(${b.id})" class="btn btn-sm btn-outline">✏️ Sửa</button>
+        <button onclick="quickRefillBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#27ae60;border-color:#27ae60">➕ Nạp tiền</button>
+        <button onclick="deleteBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#e74c3c;border-color:#e74c3c">×</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // 2. NHÓM 2: GIA HẠN ĐỊNH KỲ (Recurring)
+  const recurringList = billings.filter(b => b.billingType === 'recurring');
+  let totalCostVND = 0;
+  recurringTbody.innerHTML = recurringList.map(b => {
+    if (b.currency === 'VND') totalCostVND += (b.price || 0);
+
+    const nextDate = b.nextBillingDate ? new Date(b.nextBillingDate) : null;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    let daysLeft = null;
+    let timeRemainingText = "—";
+    let warning = false;
+    let expired = false;
+
+    if (nextDate) {
+      nextDate.setHours(0,0,0,0);
+      const diffTime = nextDate - today;
+      daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (daysLeft < 0) {
+        expired = true;
+        timeRemainingText = `Quá hạn ${Math.abs(daysLeft)} ngày`;
+      } else {
+        timeRemainingText = `Còn ${daysLeft} ngày`;
+        if (daysLeft <= 7) warning = true;
+      }
+    }
+
+    const statusBadge = expired 
+      ? `<span class="badge badge-red">Quá hạn</span>` 
+      : warning 
+        ? `<span class="badge badge-yellow">Sắp đến hạn</span>` 
+        : `<span class="badge badge-green">Đang hoạt động</span>`;
+
+    const cycleText = b.cycle === 'monthly' ? "Hàng tháng" : b.cycle === 'yearly' ? "Hàng năm" : "Một lần";
+    const formattedPrice = b.currency === 'VND' ? fmt(b.price) : `$${b.price}`;
+
+    return `<tr style="border-bottom:1px solid #30363d">
+      <td style="padding:10px;font-weight:600">${b.name} <div style="font-size:10px;color:#8b949e;font-weight:normal">${b.note || ''}</div></td>
+      <td style="padding:10px;font-weight:bold">${formattedPrice}</td>
+      <td style="padding:10px;text-align:center">${cycleText}</td>
+      <td style="padding:10px;text-align:center;color:${expired ? 'var(--red)' : warning ? '#f2a154' : '#c9d1d9'}">${b.nextBillingDate || '—'}</td>
+      <td style="padding:10px;text-align:center;color:#8b949e">${timeRemainingText}</td>
+      <td style="padding:10px;text-align:center">${statusBadge}</td>
+      <td style="padding:10px;text-align:center">
+        <button onclick="openEditBillingModal(${b.id})" class="btn btn-sm btn-outline">✏️ Sửa</button>
+        <button onclick="quickRenewBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#2ecc71;border-color:#2ecc71" title="Gia hạn thêm 1 chu kỳ">🔄 Đã Đóng tiền</button>
+        <button onclick="deleteBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#e74c3c;border-color:#e74c3c">×</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // 3. CẬP NHẬT METRIC CARDS
+  const vps = billings.find(b => b.name.includes("CloudFly") || b.category === "VPS");
+  const metricVpsBal = document.getElementById("metric-vps-balance");
+  const metricVpsTime = document.getElementById("metric-vps-time");
+  if (vps && metricVpsBal && metricVpsTime) {
+    metricVpsBal.innerText = fmt(Math.round(vps.balance));
+    if (vps.burnRate > 0 && vps.balance > 0) {
+      const hoursLeft = vps.balance / vps.burnRate;
+      const days = Math.floor(hoursLeft / 24);
+      const hours = Math.floor(hoursLeft % 24);
+      metricVpsTime.innerText = `Ước tính dùng: ${days} ngày ${hours} giờ`;
+      if (vps.balance < vps.warningThreshold) {
+        metricVpsBal.style.color = '#f59e0b';
+      } else {
+        metricVpsBal.style.color = '#58a6ff';
+      }
+    } else {
+      metricVpsTime.innerText = `Ước tính dùng: 0 ngày`;
+      metricVpsBal.style.color = 'var(--red)';
+    }
+  }
+
+  const serper = billings.find(b => b.name.includes("Serper"));
+  const metricSerperBal = document.getElementById("metric-serper-balance");
+  const metricSerperTime = document.getElementById("metric-serper-time");
+  if (serper && metricSerperBal && metricSerperTime) {
+    metricSerperBal.innerText = `${Math.round(serper.balance).toLocaleString()} credits`;
+    metricSerperTime.innerText = `Ước tính: ~ ${Math.round(serper.balance).toLocaleString()} lượt check`;
+    if (serper.balance < serper.warningThreshold) {
+      metricSerperBal.style.color = '#f59e0b';
+    } else {
+      metricSerperBal.style.color = '#fbbf24';
+    }
+  }
+
+  const metricRecurCost = document.getElementById("metric-recurring-cost");
+  const metricRecurCount = document.getElementById("metric-recurring-count");
+  if (metricRecurCost && metricRecurCount) {
+    metricRecurCost.innerText = fmt(totalCostVND);
+    metricRecurCount.innerText = `${recurringList.length} dịch vụ đang hoạt động`;
+  }
+}
+
+// Thao tác với Modal Hóa đơn
+function openAddBillingModal() {
+  document.getElementById("billingModalTitle").innerText = "➕ Thêm hóa đơn mới";
+  document.getElementById("bm_id").value = "";
+  document.getElementById("bm_name").value = "";
+  document.getElementById("bm_billingType").value = "recurring";
+  document.getElementById("bm_price").value = "";
+  document.getElementById("bm_currency").value = "VND";
+  document.getElementById("bm_cycle").value = "monthly";
+  document.getElementById("bm_nextBillingDate").value = "";
+  document.getElementById("bm_balance").value = "";
+  document.getElementById("bm_balanceUnit").value = "VND";
+  document.getElementById("bm_burnRate").value = "";
+  document.getElementById("bm_warningThreshold").value = "";
+  document.getElementById("bm_note").value = "";
+  
+  toggleBillingTypeForm("recurring");
+  document.getElementById("billingModal").classList.add("open");
+}
+
+function openEditBillingModal(id) {
+  const b = billings.find(x => x.id === id);
+  if (!b) return;
+  
+  document.getElementById("billingModalTitle").innerText = "✏️ Sửa hóa đơn";
+  document.getElementById("bm_id").value = b.id;
+  document.getElementById("bm_name").value = b.name;
+  document.getElementById("bm_billingType").value = b.billingType;
+  document.getElementById("bm_note").value = b.note || "";
+  
+  if (b.billingType === 'recurring') {
+    document.getElementById("bm_price").value = b.price || "";
+    document.getElementById("bm_currency").value = b.currency || "VND";
+    document.getElementById("bm_cycle").value = b.cycle || "monthly";
+    document.getElementById("bm_nextBillingDate").value = b.nextBillingDate || "";
+  } else {
+    document.getElementById("bm_balance").value = b.balance || "";
+    document.getElementById("bm_balanceUnit").value = b.balanceUnit || "VND";
+    document.getElementById("bm_burnRate").value = b.burnRate || "";
+    document.getElementById("bm_warningThreshold").value = b.warningThreshold || "";
+  }
+  
+  toggleBillingTypeForm(b.billingType);
+  document.getElementById("billingModal").classList.add("open");
+}
+
+function closeBillingModal() {
+  document.getElementById("billingModal").classList.remove("open");
+}
+
+function toggleBillingTypeForm(type) {
+  if (type === 'recurring') {
+    document.getElementById("bm_group_recurring").style.display = "flex";
+    document.getElementById("bm_group_prepaid").style.display = "none";
+  } else {
+    document.getElementById("bm_group_recurring").style.display = "none";
+    document.getElementById("bm_group_prepaid").style.display = "flex";
+  }
+}
+
+// Lưu dữ liệu Hóa đơn
+function saveBilling() {
+  const idVal = document.getElementById("bm_id").value;
+  const name = document.getElementById("bm_name").value.trim();
+  const billingType = document.getElementById("bm_billingType").value;
+  const note = document.getElementById("bm_note").value.trim();
+  
+  if (!name) {
+    toast("⚠️ Vui lòng điền tên dịch vụ!", "#e74c3c");
+    return;
+  }
+
+  let item = {};
+  if (idVal) {
+    item = billings.find(x => x.id === parseInt(idVal));
+  } else {
+    item.id = Date.now();
+    billings.push(item);
+  }
+
+  item.name = name;
+  item.billingType = billingType;
+  item.note = note;
+  item.lastUpdated = Date.now();
+
+  if (billingType === 'recurring') {
+    item.price = parseFloat(document.getElementById("bm_price").value) || 0;
+    item.currency = document.getElementById("bm_currency").value;
+    item.cycle = document.getElementById("bm_cycle").value;
+    item.nextBillingDate = document.getElementById("bm_nextBillingDate").value;
+    
+    delete item.balance;
+    delete item.balanceUnit;
+    delete item.burnRate;
+    delete item.warningThreshold;
+  } else {
+    item.balance = parseFloat(document.getElementById("bm_balance").value) || 0;
+    item.balanceUnit = document.getElementById("bm_balanceUnit").value.trim() || "VND";
+    item.burnRate = parseFloat(document.getElementById("bm_burnRate").value) || 0;
+    item.warningThreshold = parseFloat(document.getElementById("bm_warningThreshold").value) || 0;
+
+    delete item.price;
+    delete item.currency;
+    delete item.cycle;
+    delete item.nextBillingDate;
+  }
+
+  saveAppData();
+  closeBillingModal();
+  renderBilling();
+  toast("✓ Đã lưu hóa đơn thành công!");
+}
+
+// Xóa hóa đơn
+function deleteBilling(id) {
+  if (confirm("Bạn có chắc chắn muốn xóa hóa đơn này không?")) {
+    billings = billings.filter(b => b.id !== id);
+    saveAppData();
+    renderBilling();
+    toast("✓ Đã xóa hóa đơn!");
+  }
+}
+
+// Nạp tiền nhanh cho dịch vụ Prepaid
+function quickRefillBilling(id) {
+  const b = billings.find(x => x.id === id);
+  if (!b) return;
+  const amountStr = prompt(`Nhập số tiền/tokens nạp thêm cho ${b.name}:`, "100000");
+  if (amountStr === null) return;
+  const amount = parseFloat(amountStr);
+  if (isNaN(amount) || amount <= 0) {
+    alert("Số tiền nạp không hợp lệ!");
+    return;
+  }
+  b.balance = (b.balance || 0) + amount;
+  b.lastUpdated = Date.now();
+  saveAppData();
+  renderBilling();
+  toast(`✓ Đã nạp thành công ${amount.toLocaleString()} into ${b.name}!`);
+}
+
+// Gia hạn nhanh 1 chu kỳ cho dịch vụ Định kỳ (Đã đóng tiền)
+function quickRenewBilling(id) {
+  const b = billings.find(x => x.id === id);
+  if (!b) return;
+  if (!b.nextBillingDate) {
+    alert("Dịch vụ không có ngày gia hạn để cộng dồn!");
+    return;
+  }
+
+  const d = new Date(b.nextBillingDate);
+  if (b.cycle === 'monthly') {
+    d.setMonth(d.getMonth() + 1);
+  } else if (b.cycle === 'yearly') {
+    d.setFullYear(d.getFullYear() + 1);
+  }
+  
+  b.nextBillingDate = d.toISOString().split('T')[0];
+  b.lastUpdated = Date.now();
+  saveAppData();
+  renderBilling();
+  toast(`✓ Đã gia hạn thành công! Ngày đóng tiếp theo: ${b.nextBillingDate}`);
+}
+
+// Mở cài đặt hệ thống & điền Token CloudFly
+function openSettings() {
+  const tokInput = document.getElementById("sett_cloudflyToken");
+  if (tokInput) {
+    tokInput.value = wtCloudflyToken || localStorage.getItem('wt_cloudfly_token') || "";
+  }
+  document.getElementById("settingsModal").classList.add("open");
+}
+
+function closeSettings() {
+  document.getElementById("settingsModal").classList.remove("open");
+}
+
+// Lưu cài đặt Token CloudFly
+function saveSystemSettings() {
+  const tokVal = document.getElementById("sett_cloudflyToken").value.trim();
+  wtCloudflyToken = tokVal;
+  localStorage.setItem('wt_cloudfly_token', wtCloudflyToken);
+  saveAppData();
+  closeSettings();
+  toast("✓ Cài đặt hệ thống đã được lưu!");
+  
+  if (document.querySelector('.page.active')?.id === 'page-billing') {
+    wstSyncBillingAll();
   }
 }
 

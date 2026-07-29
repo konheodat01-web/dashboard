@@ -230,6 +230,7 @@
       <button type="button" class="sidebar-sub-item" onclick="showPage('prompts')"><i class="fa fa-code"></i> Prompt</button>
       <button type="button" class="sidebar-sub-item" onclick="showPage('links')"><i class="fa fa-link"></i> Link quan trọng</button>
       <button type="button" class="sidebar-sub-item" onclick="showPage('wstrack')"><i class="fa fa-desktop"></i> Theo dõi web</button>
+      <button type="button" class="sidebar-sub-item" onclick="showPage('billing')"><i class="fa fa-usd"></i> Quản lý hóa đơn</button>
     </div>
 
     <!-- Tab Mẹ 2: Tài chính -->
@@ -1336,7 +1337,179 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260721_v39"></script>
+  <script src="script_v5.js?v=20260729_v40"></script>
+
+<!-- QUẢN LÝ HÓA ĐƠN -->
+<div id="page-billing" class="page is-hidden">
+  <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden">
+    <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px">
+      <div class="panel-title">💳 Quản lý hóa đơn phần mềm</div>
+      <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+        <button onclick="wstSyncBillingAll()" class="btn btn-sm" style="background:#3498db;color:#fff;border:none">🔄 Đồng bộ API</button>
+        <button onclick="openAddBillingModal()" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none">+ Thêm hóa đơn</button>
+      </div>
+    </div>
+    
+    <div style="flex:1;overflow-y:auto;padding:16px" class="billing-container">
+      
+      <!-- METRIC OVERVIEW CARDS -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;margin-bottom:20px">
+        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
+          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Số dư VPS CloudFly</div>
+          <div id="metric-vps-balance" style="font-size:24px;font-weight:700;margin-top:6px;color:#58a6ff">—</div>
+          <div id="metric-vps-time" style="font-size:11px;color:#8b949e;margin-top:4px">Ước tính dùng: —</div>
+        </div>
+        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
+          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Tokens Serper API</div>
+          <div id="metric-serper-balance" style="font-size:24px;font-weight:700;margin-top:6px;color:#f2a154">—</div>
+          <div id="metric-serper-time" style="font-size:11px;color:#8b949e;margin-top:4px">Ước tính: — lượt check</div>
+        </div>
+        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
+          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Tổng chi phí định kỳ/tháng</div>
+          <div id="metric-recurring-cost" style="font-size:24px;font-weight:700;margin-top:6px;color:#3fb950">0 ₫</div>
+          <div id="metric-recurring-count" style="font-size:11px;color:#8b949e;margin-top:4px">0 dịch vụ đang hoạt động</div>
+        </div>
+      </div>
+
+      <!-- NHÓM 1: DỊCH VỤ TRỪ THEO THỜI LƯỢNG / TIÊU THỤ -->
+      <div class="panel" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:20px">
+        <h3 style="margin-top:0;font-size:14px;color:#c9d1d9;border-bottom:1px solid #30363d;padding-bottom:8px">⏱️ Dịch vụ trả trước & Trừ theo sử dụng (Usage-based)</h3>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px" class="billing-table">
+            <thead>
+              <tr style="border-bottom:1px solid #30363d;color:#8b949e;text-align:left">
+                <th style="padding:8px">Dịch vụ</th>
+                <th style="padding:8px">Phương thức tiêu thụ</th>
+                <th style="padding:8px;text-align:center">Số dư hiện tại</th>
+                <th style="padding:8px;text-align:center">Thời gian / Lượt dùng còn lại</th>
+                <th style="padding:8px;text-align:center">Trạng thái</th>
+                <th style="padding:8px;text-align:center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="billing-prepaid-tbody">
+              <!-- Nạp động qua JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- NHÓM 2: DỊCH VỤ GIA HẠN ĐỊNH KỲ -->
+      <div class="panel" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px">
+        <h3 style="margin-top:0;font-size:14px;color:#c9d1d9;border-bottom:1px solid #30363d;padding-bottom:8px">📅 Hóa đơn gia hạn định kỳ (Date-based Recurring)</h3>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px" class="billing-table">
+            <thead>
+              <tr style="border-bottom:1px solid #30363d;color:#8b949e;text-align:left">
+                <th style="padding:8px">Dịch vụ</th>
+                <th style="padding:8px">Chi phí</th>
+                <th style="padding:8px;text-align:center">Chu kỳ</th>
+                <th style="padding:8px;text-align:center">Ngày gia hạn tiếp theo</th>
+                <th style="padding:8px;text-align:center">Thời gian còn lại</th>
+                <th style="padding:8px;text-align:center">Trạng thái</th>
+                <th style="padding:8px;text-align:center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="billing-recurring-tbody">
+              <!-- Nạp động qua JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- BILLING ADD/EDIT MODAL -->
+<div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">
+  <div class="modal" style="max-width:480px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="billingModalTitle">✏️ Thêm hóa đơn mới</h3>
+      <button class="modal-close" onclick="closeBillingModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <input type="hidden" id="bm_id">
+      
+      <div class="form-group" style="width:100%">
+        <label>Tên dịch vụ / Phần mềm *</label>
+        <input type="text" id="bm_name" placeholder="Ví dụ: Antigravity AI, Domain nthieucloud..." required style="width:100%">
+      </div>
+
+      <div class="form-group" style="width:100%">
+        <label>Phân loại *</label>
+        <select id="bm_billingType" onchange="toggleBillingTypeForm(this.value)" style="width:100%">
+          <option value="recurring">📅 Gia hạn theo ngày (Định kỳ)</option>
+          <option value="prepaid">⏱️ Tiêu thụ / Trả trước (Usage-based)</option>
+        </select>
+      </div>
+
+      <!-- FIELDS FOR RECURRING -->
+      <div id="bm_group_recurring" style="width:100%;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:12px;width:100%">
+          <div class="form-group" style="flex:1">
+            <label>Chi phí định kỳ *</label>
+            <input type="number" id="bm_price" placeholder="Vd: 200000" style="width:100%">
+          </div>
+          <div class="form-group" style="width:100px">
+            <label>Đơn vị *</label>
+            <select id="bm_currency" style="width:100%">
+              <option value="VND">VND (₫)</option>
+              <option value="USD">USD ($)</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;width:100%">
+          <div class="form-group" style="flex:1">
+            <label>Chu kỳ gia hạn *</label>
+            <select id="bm_cycle" style="width:100%">
+              <option value="monthly">Hàng tháng</option>
+              <option value="yearly">Hàng năm</option>
+              <option value="one-time">Một lần</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>Ngày gia hạn tiếp theo *</label>
+            <input type="date" id="bm_nextBillingDate" style="width:100%">
+          </div>
+        </div>
+      </div>
+
+      <!-- FIELDS FOR PREPAID -->
+      <div id="bm_group_prepaid" style="width:100%;display:flex;flex-direction:column;gap:12px;display:none">
+        <div style="display:flex;gap:12px;width:100%">
+          <div class="form-group" style="flex:1">
+            <label>Số dư hiện tại *</label>
+            <input type="number" id="bm_balance" placeholder="Vd: 99000" style="width:100%">
+          </div>
+          <div class="form-group" style="width:110px">
+            <label>Đơn vị số dư *</label>
+            <input type="text" id="bm_balanceUnit" placeholder="VND, Token..." style="width:100%">
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;width:100%">
+          <div class="form-group" style="flex:1">
+            <label>Tốc độ tiêu thụ / giờ *</label>
+            <input type="number" id="bm_burnRate" step="any" placeholder="151đ/giờ, hoặc 0 nếu trừ thủ công" style="width:100%">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>Ngưỡng cảnh báo thấp *</label>
+            <input type="number" id="bm_warningThreshold" placeholder="Vd: 15000" style="width:100%">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" style="width:100%">
+        <label>Ghi chú / Note</label>
+        <textarea id="bm_note" placeholder="Tài khoản đăng nhập, link nạp tiền, v.v." style="width:100%;height:60px"></textarea>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;width:100%">
+        <button onclick="closeBillingModal()" class="btn btn-outline">Hủy</button>
+        <button onclick="saveBilling()" class="btn" style="background:#27ae60;color:#fff;border:none">Lưu lại</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- EDIT INDEX TASK MODAL -->
 <div class="modal-overlay" id="editIndexModal" onclick="if(event.target===this)closeEditIndexModal()">
@@ -1633,14 +1806,19 @@
 <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
   <div class="modal" style="max-width:420px" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <h3>⚙ Cài đặt giao diện</h3>
+      <h3>⚙ Cài đặt hệ thống</h3>
       <button class="modal-close" onclick="closeSettings()">&times;</button>
     </div>
-    <div class="modal-body" style="gap:16px;text-align:center;padding:30px 20px;color:var(--text-muted)">
-      Giao diện Portal được thiết lập mặc định tối giản và sang trọng.
+    <div class="modal-body" style="gap:14px;padding:20px;color:var(--text-muted)">
+      <div class="form-group" style="width:100%;text-align:left">
+        <label>CloudFly API Access Token</label>
+        <input type="password" id="sett_cloudflyToken" placeholder="Nhập API Access Token..." style="width:100%;font-size:12px;padding:6px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">
+        <small style="font-size:10px;color:#8b949e;margin-top:4px;display:block">Dùng để tự động đồng bộ số dư VPS CloudFly. Nhớ cấp phép IP của VPS trên trang CloudFly.</small>
+      </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="padding:15px;display:flex;justify-content:flex-end;gap:8px">
       <button class="btn btn-outline" onclick="closeSettings()">Đóng</button>
+      <button class="btn" style="background:#27ae60;color:#fff;border:none" onclick="saveSystemSettings()">Lưu lại</button>
     </div>
   </div>
 </div>
