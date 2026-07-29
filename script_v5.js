@@ -154,6 +154,8 @@ function loaiBadge(loai){
 
 let billings = [];
 let wtCloudflyToken = "";
+let wtApiKey = localStorage.getItem('wt_valueserp_api_key') || '';
+let wtSerperCredits = parseInt(localStorage.getItem('wt_serper_credits_left')) || 0;
 
 let data = { hai: [], hieu: [] };
 
@@ -2213,8 +2215,7 @@ function saveTaskTypeManager(){
 let siteTracking = []; // [{wsId, entries:[{id,date,rank,backlinks,indexed,note}]}]
 let _wstSelectedWsId = null;
 
-let wtApiKey = localStorage.getItem('wt_valueserp_api_key') || '';
-let wtSerperCredits = parseInt(localStorage.getItem('wt_serper_credits_left')) || 0;
+// wtApiKey and wtSerperCredits declared at the top of the file
 function openWstApiSettings() {
   const overlay = document.createElement('div');
   overlay.id = 'wstApiModal';
