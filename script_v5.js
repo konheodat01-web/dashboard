@@ -12675,7 +12675,7 @@ async function wstSyncBillingAll() {
       }
     }
     
-    saveAppData();
+    saveToLocalStorage();
     renderBilling();
     toast("✓ Đồng bộ API thành công!", "#27ae60");
   } catch (e) {
