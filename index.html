@@ -268,6 +268,87 @@
   </div>
 </div>
 
+<!-- QUẢN LÝ HÓA ĐƠN -->
+<div id="page-billing" class="page is-hidden">
+  <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden">
+    <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px">
+      <div class="panel-title">💳 Quản lý hóa đơn phần mềm</div>
+      <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+        <button onclick="wstSyncBillingAll()" class="btn btn-sm" style="background:#3498db;color:#fff;border:none">🔄 Đồng bộ API</button>
+        <button onclick="openAddBillingModal()" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none">+ Thêm hóa đơn</button>
+      </div>
+    </div>
+    
+    <div style="flex:1;overflow-y:auto;padding:16px" class="billing-container">
+      
+      <!-- METRIC OVERVIEW CARDS -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;margin-bottom:20px">
+        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
+          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Số dư VPS CloudFly</div>
+          <div id="metric-vps-balance" style="font-size:24px;font-weight:700;margin-top:6px;color:#58a6ff">—</div>
+          <div id="metric-vps-time" style="font-size:11px;color:#8b949e;margin-top:4px">Ước tính dùng: —</div>
+        </div>
+        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
+          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Tokens Serper API</div>
+          <div id="metric-serper-balance" style="font-size:24px;font-weight:700;margin-top:6px;color:#f2a154">—</div>
+          <div id="metric-serper-time" style="font-size:11px;color:#8b949e;margin-top:4px">Ước tính: — lượt check</div>
+        </div>
+        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
+          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Tổng chi phí định kỳ/tháng</div>
+          <div id="metric-recurring-cost" style="font-size:24px;font-weight:700;margin-top:6px;color:#3fb950">0 ₫</div>
+          <div id="metric-recurring-count" style="font-size:11px;color:#8b949e;margin-top:4px">0 dịch vụ đang hoạt động</div>
+        </div>
+      </div>
+
+      <!-- NHÓM 1: DỊCH VỤ TRỪ THEO THỜI LƯỢNG / TIÊU THỤ -->
+      <div class="panel" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:20px">
+        <h3 style="margin-top:0;font-size:14px;color:#c9d1d9;border-bottom:1px solid #30363d;padding-bottom:8px">⏱️ Dịch vụ trả trước & Trừ theo sử dụng (Usage-based)</h3>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px" class="billing-table">
+            <thead>
+              <tr style="border-bottom:1px solid #30363d;color:#8b949e;text-align:left">
+                <th style="padding:8px">Dịch vụ</th>
+                <th style="padding:8px">Phương thức tiêu thụ</th>
+                <th style="padding:8px;text-align:center">Số dư hiện tại</th>
+                <th style="padding:8px;text-align:center">Thời gian / Lượt dùng còn lại</th>
+                <th style="padding:8px;text-align:center">Trạng thái</th>
+                <th style="padding:8px;text-align:center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="billing-prepaid-tbody">
+              <!-- Nạp động qua JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- NHÓM 2: DỊCH VỤ GIA HẠN ĐỊNH KỲ -->
+      <div class="panel" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px">
+        <h3 style="margin-top:0;font-size:14px;color:#c9d1d9;border-bottom:1px solid #30363d;padding-bottom:8px">📅 Hóa đơn gia hạn định kỳ (Date-based Recurring)</h3>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px" class="billing-table">
+            <thead>
+              <tr style="border-bottom:1px solid #30363d;color:#8b949e;text-align:left">
+                <th style="padding:8px">Dịch vụ</th>
+                <th style="padding:8px">Chi phí</th>
+                <th style="padding:8px;text-align:center">Chu kỳ</th>
+                <th style="padding:8px;text-align:center">Ngày gia hạn tiếp theo</th>
+                <th style="padding:8px;text-align:center">Thời gian còn lại</th>
+                <th style="padding:8px;text-align:center">Trạng thái</th>
+                <th style="padding:8px;text-align:center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="billing-recurring-tbody">
+              <!-- Nạp động qua JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- CÔNG VIỆC KHÁC -->
 <div id="page-recurring" class="page">
   <div class="panel">
@@ -959,87 +1040,6 @@
       </div>
     </div>
   </div>
-
-<!-- QUẢN LÝ HÓA ĐƠN -->
-<div id="page-billing" class="page is-hidden">
-  <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden">
-    <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px">
-      <div class="panel-title">💳 Quản lý hóa đơn phần mềm</div>
-      <div class="toolbar" style="flex-wrap:wrap;gap:6px">
-        <button onclick="wstSyncBillingAll()" class="btn btn-sm" style="background:#3498db;color:#fff;border:none">🔄 Đồng bộ API</button>
-        <button onclick="openAddBillingModal()" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none">+ Thêm hóa đơn</button>
-      </div>
-    </div>
-    
-    <div style="flex:1;overflow-y:auto;padding:16px" class="billing-container">
-      
-      <!-- METRIC OVERVIEW CARDS -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;margin-bottom:20px">
-        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
-          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Số dư VPS CloudFly</div>
-          <div id="metric-vps-balance" style="font-size:24px;font-weight:700;margin-top:6px;color:#58a6ff">—</div>
-          <div id="metric-vps-time" style="font-size:11px;color:#8b949e;margin-top:4px">Ước tính dùng: —</div>
-        </div>
-        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
-          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Tokens Serper API</div>
-          <div id="metric-serper-balance" style="font-size:24px;font-weight:700;margin-top:6px;color:#f2a154">—</div>
-          <div id="metric-serper-time" style="font-size:11px;color:#8b949e;margin-top:4px">Ước tính: — lượt check</div>
-        </div>
-        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
-          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Tổng chi phí định kỳ/tháng</div>
-          <div id="metric-recurring-cost" style="font-size:24px;font-weight:700;margin-top:6px;color:#3fb950">0 ₫</div>
-          <div id="metric-recurring-count" style="font-size:11px;color:#8b949e;margin-top:4px">0 dịch vụ đang hoạt động</div>
-        </div>
-      </div>
-
-      <!-- NHÓM 1: DỊCH VỤ TRỪ THEO THỜI LƯỢNG / TIÊU THỤ -->
-      <div class="panel" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:20px">
-        <h3 style="margin-top:0;font-size:14px;color:#c9d1d9;border-bottom:1px solid #30363d;padding-bottom:8px">⏱️ Dịch vụ trả trước & Trừ theo sử dụng (Usage-based)</h3>
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px" class="billing-table">
-            <thead>
-              <tr style="border-bottom:1px solid #30363d;color:#8b949e;text-align:left">
-                <th style="padding:8px">Dịch vụ</th>
-                <th style="padding:8px">Phương thức tiêu thụ</th>
-                <th style="padding:8px;text-align:center">Số dư hiện tại</th>
-                <th style="padding:8px;text-align:center">Thời gian / Lượt dùng còn lại</th>
-                <th style="padding:8px;text-align:center">Trạng thái</th>
-                <th style="padding:8px;text-align:center">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody id="billing-prepaid-tbody">
-              <!-- Nạp động qua JS -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- NHÓM 2: DỊCH VỤ GIA HẠN ĐỊNH KỲ -->
-      <div class="panel" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px">
-        <h3 style="margin-top:0;font-size:14px;color:#c9d1d9;border-bottom:1px solid #30363d;padding-bottom:8px">📅 Hóa đơn gia hạn định kỳ (Date-based Recurring)</h3>
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px" class="billing-table">
-            <thead>
-              <tr style="border-bottom:1px solid #30363d;color:#8b949e;text-align:left">
-                <th style="padding:8px">Dịch vụ</th>
-                <th style="padding:8px">Chi phí</th>
-                <th style="padding:8px;text-align:center">Chu kỳ</th>
-                <th style="padding:8px;text-align:center">Ngày gia hạn tiếp theo</th>
-                <th style="padding:8px;text-align:center">Thời gian còn lại</th>
-                <th style="padding:8px;text-align:center">Trạng thái</th>
-                <th style="padding:8px;text-align:center">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody id="billing-recurring-tbody">
-              <!-- Nạp động qua JS -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
 
   </div> <!-- end panel-workspace-job -->
 
