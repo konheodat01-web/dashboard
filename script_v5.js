@@ -12732,9 +12732,11 @@ function renderBilling(silent = false) {
       <td style="padding:10px;text-align:center;color:#8b949e">${timeRemainingText}</td>
       <td style="padding:10px;text-align:center">${statusBadge}</td>
       <td style="padding:10px;text-align:center">
-        <button onclick="openEditBillingModal(${b.id})" class="btn btn-sm btn-outline">✏️ Sửa</button>
-        <button onclick="quickRefillBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#27ae60;border-color:#27ae60">➕ Nạp tiền</button>
-        <button onclick="deleteBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#e74c3c;border-color:#e74c3c">×</button>
+        <div style="display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:nowrap">
+          <button onclick="openEditBillingModal(${b.id})" class="btn btn-sm btn-outline" style="padding:4px 8px;font-size:11px;white-space:nowrap">✏️ Sửa</button>
+          <button onclick="quickRefillBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#27ae60;border-color:#27ae60;padding:4px 8px;font-size:11px;white-space:nowrap">➕ Nạp</button>
+          <button onclick="deleteBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#e74c3c;border-color:#e74c3c;padding:4px 6px;font-size:11px;line-height:1" title="Xóa">🗑️</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -12784,9 +12786,11 @@ function renderBilling(silent = false) {
       <td style="padding:10px;text-align:center;color:#8b949e">${timeRemainingText}</td>
       <td style="padding:10px;text-align:center">${statusBadge}</td>
       <td style="padding:10px;text-align:center">
-        <button onclick="openEditBillingModal(${b.id})" class="btn btn-sm btn-outline">✏️ Sửa</button>
-        <button onclick="quickRenewBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#2ecc71;border-color:#2ecc71" title="Gia hạn thêm 1 chu kỳ">🔄 Đã Đóng tiền</button>
-        <button onclick="deleteBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#e74c3c;border-color:#e74c3c">×</button>
+        <div style="display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:nowrap">
+          <button onclick="openEditBillingModal(${b.id})" class="btn btn-sm btn-outline" style="padding:4px 8px;font-size:11px;white-space:nowrap">✏️ Sửa</button>
+          <button onclick="quickRenewBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#2ecc71;border-color:#2ecc71;padding:4px 8px;font-size:11px;white-space:nowrap" title="Gia hạn thêm 1 chu kỳ">🔄 Đã đóng</button>
+          <button onclick="deleteBilling(${b.id})" class="btn btn-sm btn-outline" style="color:#e74c3c;border-color:#e74c3c;padding:4px 6px;font-size:11px;line-height:1" title="Xóa">🗑️</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
