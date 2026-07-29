@@ -10158,15 +10158,14 @@ async function wstInspectUrlGsc(gscPropertyUrl, homepageUrl) {
     inspectionUrl += '/';
   }
 
-  const url = 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect';
+  const url = '/api/gsc-inspect';
   const headers = {
-    'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
   };
   const body = JSON.stringify({
+    token: token,
     inspectionUrl: inspectionUrl,
-    siteUrl: gscPropertyUrl,
-    languageCode: 'vi'
+    siteUrl: gscPropertyUrl
   });
 
   try {
@@ -10178,9 +10177,9 @@ async function wstInspectUrlGsc(gscPropertyUrl, homepageUrl) {
       // Nếu lỗi do dùng https:// thì thử lại với http://
       if (inspectionUrl.startsWith('https://')) {
         const fallbackBody = JSON.stringify({
+          token: token,
           inspectionUrl: inspectionUrl.replace('https://', 'http://'),
-          siteUrl: gscPropertyUrl,
-          languageCode: 'vi'
+          siteUrl: gscPropertyUrl
         });
         const fallbackRes = await fetch(url, { method: 'POST', headers, body: fallbackBody });
         if (fallbackRes.ok) {

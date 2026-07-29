@@ -151,6 +151,60 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── POST /api/gsc-inspect ────────────────────────────────────────────────
+  if (req.method === "POST" && url === "/api/gsc-inspect") {
+    try {
+      const body = await readBody(req);
+      const parsed = JSON.parse(body);
+      
+      const { token, siteUrl, inspectionUrl } = parsed;
+      if (!token || !siteUrl || !inspectionUrl) {
+        res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Thiếu token, siteUrl hoặc inspectionUrl" }));
+        return;
+      }
+
+      const postData = JSON.stringify({
+        inspectionUrl: inspectionUrl,
+        siteUrl: siteUrl
+      });
+
+      const options = {
+        hostname: "searchconsole.googleapis.com",
+        path: "/v1/urlInspection/index:inspect",
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Length": Buffer.byteLength(postData)
+        }
+      };
+
+      const clientReq = https.request(options, (clientRes) => {
+        let resBody = "";
+        clientRes.on("data", (chunk) => {
+          resBody += chunk;
+        });
+        clientRes.on("end", () => {
+          res.writeHead(clientRes.statusCode, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(resBody);
+        });
+      });
+
+      clientReq.on("error", (err) => {
+        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Không thể kết nối đến Google API", details: err.message }));
+      });
+
+      clientReq.write(postData);
+      clientReq.end();
+    } catch (err) {
+      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Lỗi xử lý yêu cầu", details: err.message }));
+    }
+    return;
+  }
+
   // ── POST /api/config ─────────────────────────────────────────────────────
   if (req.method === "POST" && url === "/api/config") {
     try {
