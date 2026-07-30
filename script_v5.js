@@ -6169,10 +6169,10 @@ function showWebsiteInfo(w, found, url=''){
         <span style="flex:1;user-select:all;font-family:monospace;letter-spacing:1px">${w.password}</span>
         <button onclick="_cp('wi_pwd',this)" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 7px;font-size:12px;color:var(--text-muted)" title="Copy">📋</button>
       </div>` : '—'],
-      w.appwppass ? ['MK ứng dụng WP', `<div style="display:flex;align-items:center;gap:6px">
+      ['MK ứng dụng WP', w.appwppass ? `<div style="display:flex;align-items:center;gap:6px">
         <span style="flex:1;user-select:all;font-family:monospace;font-size:12px">${w.appwppass}</span>
         <button onclick="_cp('wi_appwp',this)" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 7px;font-size:12px;color:var(--text-muted)" title="Copy">📋</button>
-      </div>`] : null,
+      </div>` : '—'],
       ['Trạng thái', `<span style="color:${WS_STATUS_COLOR[w.status]||'#999'};font-weight:600">${WS_STATUS_ICON[w.status]||''} ${w.status}</span>`],
       w.note?['Ghi chú', w.note]:null,
     ].filter(Boolean);
