@@ -59,6 +59,23 @@ function serveFile(res, filePath) {
   });
 }
 
+// Lay credential "bao mat cap 1" (HTTP Basic Auth) tu config.json.
+// Ho tro: level1_auth = {user, pass}  HOAC  level1_auth_by_domain = {"domain": {user,pass}}
+// Tra ve chuoi "Basic base64(user:pass)" hoac null neu khong cau hinh.
+function getLevel1Auth(domain) {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
+    let cred = null;
+    if (cfg.level1_auth_by_domain && cfg.level1_auth_by_domain[domain]) {
+      cred = cfg.level1_auth_by_domain[domain];
+    } else if (cfg.level1_auth && cfg.level1_auth.user) {
+      cred = cfg.level1_auth;           // dung chung cho moi site
+    }
+    if (!cred || !cred.user) return null;
+    return "Basic " + Buffer.from(cred.user + ":" + (cred.pass || "")).toString("base64");
+  } catch (e) { return null; }
+}
+
 function safeJson(txt) {
   try { return JSON.parse(txt); } catch (e) { return []; }
 }
@@ -178,12 +195,15 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "Qua nhieu redirect" }));
         return;
       }
+      const reqHeaders = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+        "Accept": "application/json"
+      };
+      const lvl1 = getLevel1Auth(host) || getLevel1Auth(domain);   // vuot bao mat cap 1
+      if (lvl1) reqHeaders["Authorization"] = lvl1;
       const cr = https.request({
         hostname: host, path: pth, method: "GET",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
-          "Accept": "application/json"
-        }
+        headers: reqHeaders
       }, (cres) => {
         // 301/302/307/308 -> di theo Location
         if ([301, 302, 307, 308].indexOf(cres.statusCode) >= 0 && cres.headers.location) {
