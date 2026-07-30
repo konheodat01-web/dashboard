@@ -2369,19 +2369,14 @@ async function wstLoadMissingImg(force){
   } catch(e){ _wstMissingImg = []; }
 }
 function _wstNorm(x){ return (x==null?'':String(x)).toLowerCase().replace(/\s+/g,''); }
-// Khớp bài với 1 site dashboard: brand (Từ khóa SEO/brand) hoặc host/domain gốc
+// Khớp bài với site theo HỒ SƠ dashboard: brand / Từ khóa SEO (bỏ hoa + khoảng trắng). Chỉ vậy.
 function wstMissingForSite(w){
   if (!_wstMissingImg.length) return [];
-  var mk = _wstNorm((typeof getWstSite === 'function' && getWstSite(w.id) || {}).mainKeyword);
-  var bk = _wstNorm(w.brand);
-  var curHost = wstCurrentUrl(w);
-  var gocHost = (w.url||'').replace(/^https?:\/\//,'').replace(/\/$/,'').toLowerCase();
-  return _wstMissingImg.filter(function(it){
-    if (it.brand_key && (it.brand_key === mk || it.brand_key === bk)) return true;
-    if (it.host && (it.host === curHost || it.host === gocHost)) return true;
-    if (it.domain && (it.domain === gocHost || it.domain === curHost)) return true;
-    return false;
-  });
+  var keys = [
+    _wstNorm((typeof getWstSite === 'function' && getWstSite(w.id) || {}).mainKeyword),
+    _wstNorm(w.brand)
+  ].filter(Boolean);
+  return _wstMissingImg.filter(function(it){ return it.brand_key && keys.indexOf(it.brand_key) >= 0; });
 }
 
 
