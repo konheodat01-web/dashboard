@@ -9555,37 +9555,51 @@ function wsImportParseLines(){
   const owner = ownerEl ? ownerEl.value : 'Công ty';
   const status = statusEl ? statusEl.value : 'Tốt';
   
-  return lines.map(line=>{
+  const results = [];
+  
+  lines.forEach(line=>{
     const sep = line.includes('|') ? '|' : ',';
     const parts = line.split(sep).map(p=>p.trim());
-    if(parts.length >= 2){
-      const brandRaw = parts[0] || '';
-      const urlRaw = parts[1] || '';
-      const urlFull = normalizeUrl(urlRaw || brandRaw);
-      const url = urlFull.split('/')[0];
-      const brand = brandRaw || url.split('.')[0];
+    
+    if(parts.length > 1){
+      // Định dạng nhiều cột: brand, url, admin, account, password, status, team, appwppass
+      // Yêu cầu tối thiểu 7 cột (index từ 0 đến 6)
+      if(parts.length < 7) return; 
       
-      let teamRaw = parts[7] || team;
+      const brand = parts[0];
+      const url = normalizeUrl(parts[1]);
+      const admin = normalizeAdmin(parts[2]);
+      const account = parts[3];
+      const password = parts[4];
+      const statusVal = parts[5];
+      let teamRaw = parts[6];
+      
+      // Các trường bắt buộc phải đầy đủ (không được rỗng)
+      if(!brand || !url || !admin || !account || !password || !statusVal || !teamRaw) return;
+      
       if (teamRaw === 'Chaewon' || teamRaw === 'Team 01') teamRaw = 'Team 01';
       if (teamRaw === 'M7' || teamRaw === 'Team 02') teamRaw = 'Team 02';
       
-      const ownerRaw = owner;
+      const appwppass = parts[7] || ''; // Tuỳ chọn, nếu không có để trống
       
-      return {
+      results.push({
         brand,
         url,
-        admin: normalizeAdmin(parts[2] || ''),
-        account: parts[3] || '',
-        password: parts[4] || '',
-        appwppass: parts[5] || '',
-        status: parts[6] || status,
+        admin,
+        account,
+        password,
+        appwppass,
+        status: statusVal,
         team: teamRaw,
-        owner: ownerRaw,
+        owner: owner,
         group: '',
-        note: parts[8] || ''
-      };
+        note: ''
+      });
     } else {
+      // Định dạng 1 cột: Chỉ chứa URL
       const urlRaw = parts[0];
+      if(!urlRaw) return;
+      
       const url = normalizeUrl(urlRaw);
       const domain = url.split('/')[0];
       let brand = domain.replace(/^www\./, '').split('.')[0];
@@ -9595,11 +9609,23 @@ function wsImportParseLines(){
       if (teamRaw === 'Chaewon' || teamRaw === 'Team 01') teamRaw = 'Team 01';
       if (teamRaw === 'M7' || teamRaw === 'Team 02') teamRaw = 'Team 02';
       
-      const ownerRaw = owner;
-      
-      return { brand, url, admin:'', account:'', password:'', appwppass:'', status, team: teamRaw, owner: ownerRaw, group:'', note:'' };
+      results.push({
+        brand,
+        url,
+        admin: '',
+        account: '',
+        password: '',
+        appwppass: '',
+        status,
+        team: teamRaw,
+        owner: owner,
+        group: '',
+        note: ''
+      });
     }
   });
+  
+  return results;
 }
 
 function wsImportPreview(){
