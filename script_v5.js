@@ -5487,7 +5487,28 @@ function clearWebsiteForm(){
 
 function normalizeAdmin(v){ return (v||'').trim().replace(/^\/+|\/+$/g,''); }
 function normalizeUrl(v){ return (v||'').trim().replace(/^https?:\/\//i,'').replace(/\/+$/,''); }
-function joinAdminUrl(url, admin){ let u=(url||'').replace(/\/$/,''); if(u&&!/^https?:\/\//i.test(u)) u='https://'+u; const a=normalizeAdmin(admin); return a ? u+'/'+a : u; }
+function joinAdminUrl(url, admin){
+  let u = (url || '').trim();
+  const normalizedInput = normalizeUrl(u);
+  if (normalizedInput) {
+    const matchedWs = websites.find(x => x.url && normalizeUrl(x.url) === normalizedInput);
+    if (matchedWs && matchedWs.is301) {
+      const chain = getWstRedirectChainBackward(matchedWs);
+      const parent = chain.find(x => !x.is301) || chain[chain.length - 1];
+      if (parent && parent.id !== matchedWs.id) {
+        let parentUrl = (parent.url || '').replace(/\/$/, '');
+        if (parentUrl && !/^https?:\/\//i.test(parentUrl)) parentUrl = 'https://' + parentUrl;
+        const parentAdmin = normalizeAdmin(parent.admin || admin);
+        return parentAdmin ? parentUrl + '/' + parentAdmin : parentUrl;
+      }
+    }
+  }
+
+  let uClean = u.replace(/\/$/, '');
+  if (uClean && !/^https?:\/\//i.test(uClean)) uClean = 'https://' + uClean;
+  const a = normalizeAdmin(admin);
+  return a ? uClean + '/' + a : uClean;
+}
 function ensureHttps(url){ let u=(url||'').trim().replace(/\/$/,''); if(u&&!/^https?:\/\//i.test(u)) u='https://'+u; return u; }
 
 function saveWebsite(){
