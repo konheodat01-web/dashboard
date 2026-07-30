@@ -171,31 +171,58 @@ const server = http.createServer(async (req, res) => {
     domain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
     const path = `/wp-json/wp/v2/${type}?per_page=${perPage}&orderby=date&order=desc`
       + `&_fields=id,title,link,date,modified,status,categories`;
-    const opts = {
-      hostname: domain, path, method: "GET",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
-        "Accept": "application/json"
+    // Theo redirect (Cloudflare hay chuyen www / doi host) — toi da 4 lan
+    const fetchJson = (host, pth, hops) => {
+      if (hops > 4) {
+        res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Qua nhieu redirect" }));
+        return;
       }
-    };
-    const cr = https.request(opts, (cres) => {
-      let body = "";
-      cres.on("data", (c) => { body += c; });
-      cres.on("end", () => {
-        res.writeHead(cres.statusCode === 200 ? 200 : 502,
-                      { "Content-Type": "application/json; charset=utf-8" });
-        if (cres.statusCode === 200) {
-          res.end(JSON.stringify({ ok: true, total: cres.headers["x-wp-total"] || null, items: safeJson(body) }));
-        } else {
-          res.end(JSON.stringify({ error: `WordPress tra ve ${cres.statusCode}`, detail: body.slice(0, 200) }));
+      const cr = https.request({
+        hostname: host, path: pth, method: "GET",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+          "Accept": "application/json"
         }
+      }, (cres) => {
+        // 301/302/307/308 -> di theo Location
+        if ([301, 302, 307, 308].indexOf(cres.statusCode) >= 0 && cres.headers.location) {
+          cres.resume();
+          let loc = cres.headers.location;
+          let nHost = host, nPath = loc;
+          if (/^https?:\/\//i.test(loc)) {
+            const u = new URL(loc);
+            nHost = u.hostname;
+            nPath = u.pathname + (u.search || "");
+          }
+          // Neu bi chuyen ve trang chu thi giu lai duong dan REST
+          if (nPath === "/" || nPath === "") nPath = pth;
+          fetchJson(nHost, nPath, hops + 1);
+          return;
+        }
+        let body = "";
+        cres.on("data", (c) => { body += c; });
+        cres.on("end", () => {
+          res.writeHead(cres.statusCode === 200 ? 200 : 502,
+                        { "Content-Type": "application/json; charset=utf-8" });
+          if (cres.statusCode === 200) {
+            res.end(JSON.stringify({
+              ok: true, host: host,
+              total: cres.headers["x-wp-total"] || null,
+              items: safeJson(body)
+            }));
+          } else {
+            res.end(JSON.stringify({ error: `WordPress tra ve ${cres.statusCode}`, detail: body.slice(0, 200) }));
+          }
+        });
       });
-    });
-    cr.on("error", (e) => {
-      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: "Khong ket noi duoc " + domain, detail: e.message }));
-    });
-    cr.end();
+      cr.on("error", (e) => {
+        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Khong ket noi duoc " + host, detail: e.message }));
+      });
+      cr.end();
+    };
+    fetchJson(domain, path, 0);
     return;
   }
 
