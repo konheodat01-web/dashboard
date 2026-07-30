@@ -6408,47 +6408,37 @@ function goEditWebsite(){
   if(!websiteInfoTarget) return;
   const w=websiteInfoTarget;
   const body=document.getElementById('websiteInfoBody');
-  const groupOpts = ['<option value="">-- Không có --</option>', ...wsGroups.map(g=>`<option value="${g}" ${w.group===g?'selected':''}>${g}</option>`)].join('');
-  const isTeam2 = w.team==='Team 02';
   body.innerHTML=`
     <div style="padding:10px 16px;background:#f8f9fa;border-bottom:1px solid var(--gray-border);font-weight:600;font-size:13px">✎ Sửa: ${w.brand}</div>
     <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
       <div class="form-group"><label>Tên brand *</label><input type="text" id="we_brand" value="${w.brand.replace(/"/g,'&quot;')}" style="width:100%"></div>
-      <div class="form-group"><label>URL</label><input type="text" id="we_url" value="${(w.url||'').replace(/"/g,'&quot;')}" style="width:100%"></div>
+      <div class="form-group"><label>URL *</label><input type="text" id="we_url" value="${(w.url||'').replace(/"/g,'&quot;')}" style="width:100%"></div>
       <div class="form-group"><label>Đuôi quản trị</label><input type="text" id="we_admin" value="${(w.admin||'').replace(/"/g,'&quot;')}" style="width:100%"></div>
-      <div class="form-group"><label>Tài khoản</label><input type="text" id="we_account" value="${(w.account||'').replace(/"/g,'&quot;')}" style="width:100%"></div>
+      
+      <div class="form-group">
+        <label>Tài khoản</label>
+        <div style="display:flex;gap:4px">
+          <input type="text" id="we_account" value="${(w.account||'').replace(/"/g,'&quot;')}" style="flex:1">
+          <button onclick="copyText(document.getElementById('we_account').value, this)" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px" title="Copy">📋</button>
+        </div>
+      </div>
+      
       <div class="form-group">
         <label>Mật khẩu</label>
         <div style="display:flex;gap:4px">
-          <input type="password" id="we_password" value="${(w.password||'').replace(/"/g,'&quot;')}" style="flex:1">
-          <button onclick="const i=document.getElementById('we_password');i.type=i.type==='password'?'text':'password'" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer">👁</button>
+          <input type="text" id="we_password" value="${(w.password||'').replace(/"/g,'&quot;')}" style="flex:1">
+          <button onclick="copyText(document.getElementById('we_password').value, this)" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px" title="Copy">📋</button>
         </div>
       </div>
+      
       <div class="form-group">
         <label>Mật khẩu ứng dụng WP (appwppass)</label>
-        <input type="text" id="we_appwppass" value="${(w.appwppass||'').replace(/"/g,'&quot;')}" style="width:100%" placeholder="vd: xxxx xxxx xxxx xxxx">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="form-group">
-          <label>Team</label>
-          <select id="we_team" style="width:100%" onchange="weOnTeamChange()" ${currentMember==='hai'?'disabled':''}>
-            <option value="Team 01" ${w.team!=='Team 02'?'selected':''}>Team 01</option>
-            <option value="Team 02" ${w.team==='Team 02'?'selected':''}>Team 02</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Người quản lý</label>
-          <select id="we_owner" style="width:100%">
-            <option value="Công ty" ${w.owner==='Công ty'||!w.owner?'selected':''}>Công ty</option>
-            <option value="Hải" ${w.owner==='Hải'?'selected':''}>Hải</option>
-            <option value="Hiếu" ${w.owner==='Hiếu'?'selected':''}>Hiếu</option>
-          </select>
+        <div style="display:flex;gap:4px">
+          <input type="text" id="we_appwppass" value="${(w.appwppass||'').replace(/"/g,'&quot;')}" style="flex:1" placeholder="vd: xxxx xxxx xxxx xxxx">
+          <button onclick="copyText(document.getElementById('we_appwppass').value, this)" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px" title="Copy">📋</button>
         </div>
       </div>
-      <div class="form-group" id="we_group_row" style="${isTeam2?'display:none':''}">
-        <label>Nhóm con <span style="font-size:11px;color:var(--text-muted)">(Team 01)</span></label>
-        <select id="we_group" style="width:100%">${groupOpts}</select>
-      </div>
+
       <div class="form-group"><label>Trạng thái</label>
         <select id="we_status" style="width:100%">
           <option value="Tốt" ${w.status==='Tốt'?'selected':''}>✅ Tốt</option>
@@ -6456,6 +6446,14 @@ function goEditWebsite(){
           <option value="Lỗi web" ${w.status==='Lỗi web'?'selected':''}>⚠️ Lỗi web</option>
         </select>
       </div>
+
+      <div class="form-group"><label>Team</label>
+        <select id="we_team" style="width:100%" ${currentMember==='hai'?'disabled':''}>
+          <option value="Team 01" ${w.team!=='Team 02'?'selected':''}>Chaewon</option>
+          <option value="Team 02" ${w.team==='Team 02'?'selected':''}>M7</option>
+        </select>
+      </div>
+
       <div class="form-group"><label>Ghi chú</label><textarea id="we_note" rows="2" style="width:100%">${w.note||''}</textarea></div>
       <div style="display:flex;gap:6px">
         <button class="btn btn-primary" onclick="saveWebsiteFromModal(${w.id})" style="flex:1">✓ Lưu</button>
@@ -6463,20 +6461,6 @@ function goEditWebsite(){
       </div>
     </div>`;
   document.getElementById('wiBtnEdit').style.display='none';
-}
-
-function weOnTeamChange(){
-  const t = document.getElementById('we_team')?.value;
-  const gr = document.getElementById('we_group_row');
-  const ow = document.getElementById('we_owner');
-  if(gr) gr.style.display = t==='Team 02'?'none':'';
-  if(ow){
-    const cur=ow.value;
-    ow.innerHTML = t==='Team 02'
-      ? '<option value="Công ty">Công ty</option><option value="Hiếu">Hiếu</option>'
-      : '<option value="Công ty">Công ty</option><option value="Hải">Hải</option><option value="Hiếu">Hiếu</option>';
-    if([...ow.options].find(o=>o.value===cur)) ow.value=cur; else ow.value='Công ty';
-  }
 }
 
 function saveWebsiteFromModal(id){
@@ -6492,8 +6476,8 @@ function saveWebsiteFromModal(id){
       password:document.getElementById('we_password')?.value||'',
       appwppass:(document.getElementById('we_appwppass')?.value||'').trim(),
       team:document.getElementById('we_team')?.value||websites[idx].team||'Team 01',
-      owner:document.getElementById('we_owner')?.value||'Công ty',
-      group:document.getElementById('we_group')?.value||'',
+      owner:websites[idx].owner||'Công ty',
+      group:websites[idx].group||'',
       status:document.getElementById('we_status')?.value||'Tốt',
       note:document.getElementById('we_note')?.value||'',
     };
