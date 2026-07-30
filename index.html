@@ -710,6 +710,20 @@
   </div>
 </div>
 
+<!-- MODAL: SEO Writer nhúng iframe (thay vì mở tab mới) -->
+<div class="modal-overlay" id="wstWriterOverlay" onclick="if(event.target===this)wstCloseWriterModal()">
+  <div class="modal" style="max-width:98vw;width:98vw;height:94vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div class="modal-header" style="flex-shrink:0">
+      <h3 style="margin:0">✍️ Viết bài — <span id="wstWriterSite" style="color:#7c5cff"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a id="wstWriterNewTab" href="#" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="font-size:11px" title="Mở SEO Writer ở tab riêng">↗ Tab mới</a>
+        <button class="modal-close" onclick="wstCloseWriterModal()">&times;</button>
+      </div>
+    </div>
+    <iframe id="wstWriterFrame" src="about:blank" style="flex:1;width:100%;border:none;background:#0d1117" allow="clipboard-read; clipboard-write"></iframe>
+  </div>
+</div>
+
 <div id="page-wstrack" class="page">
   <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden">
     <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px">

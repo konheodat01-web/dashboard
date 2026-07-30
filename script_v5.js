@@ -2831,9 +2831,9 @@ function wstWriteForSite(wsId){
   if (s301 && s301.account)   frag.push('wpu=' + encodeURIComponent(s301.account));
   if (s301 && s301.appwppass) frag.push('wpp=' + encodeURIComponent(s301.appwppass));
   if (!(s301 && s301.appwppass) && typeof toast === 'function')
-    toast('⚠️ Site ' + w.brand + ' chưa có WP App Password (appwppass) — mở SEO Writer nhưng phải nhập tay để đăng', '#e67e22');
+    toast('⚠️ Site ' + w.brand + ' chưa có WP App Password (appwppass) — mở nhưng phải nhập tay để đăng', '#e67e22');
   var full = base + (qs.length ? ('/?' + qs.join('&')) : '/') + (frag.length ? ('#' + frag.join('&')) : '');
-  window.open(full, '_blank');
+  wstOpenWriterModal(full, w.brand + ' (' + url + ')');
 }
 
 function wstOpenWriter(domain, brand){
@@ -2841,7 +2841,22 @@ function wstOpenWriter(domain, brand){
   var qs = [];
   if (domain) qs.push('site=' + encodeURIComponent(domain));
   if (brand)  qs.push('brand=' + encodeURIComponent(brand));
-  window.open(qs.length ? (base + '/?' + qs.join('&')) : base, '_blank');
+  wstOpenWriterModal(qs.length ? (base + '/?' + qs.join('&')) : base, brand || 'SEO Writer');
+}
+
+// SEO Writer nhúng ngay trong dashboard (iframe popup) — không mở tab riêng nữa.
+function wstOpenWriterModal(src, label){
+  var ov = document.getElementById('wstWriterOverlay');
+  if (!ov) { window.open(src, '_blank'); return; }   // fallback nếu chưa có modal
+  var fr = document.getElementById('wstWriterFrame');
+  if (fr && fr.src !== src) fr.src = src;
+  var nt = document.getElementById('wstWriterNewTab'); if (nt) nt.href = src;
+  var lb = document.getElementById('wstWriterSite'); if (lb) lb.textContent = label || 'SEO Writer';
+  ov.classList.add('open');
+}
+function wstCloseWriterModal(){
+  var ov = document.getElementById('wstWriterOverlay'); if (ov) ov.classList.remove('open');
+  var fr = document.getElementById('wstWriterFrame'); if (fr) fr.src = 'about:blank';   // dừng iframe khi đóng
 }
 
 function wstOpenContentConfig(wsId){
