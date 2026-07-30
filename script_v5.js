@@ -13227,3 +13227,320 @@ function saveSystemSettings() {
   }
 }
 
+// ==========================================
+// MODULE: LỊCH SỬ PHIÊN BẢN & AUTO-BACKUP
+// ==========================================
+
+let _backupDb = null;
+
+// Khởi tạo IndexedDB lưu trữ backup cục bộ
+function dbInitBackup() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("DashboardBackupDB", 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("versions")) {
+        db.createObjectStore("versions", { keyPath: "ts" });
+      }
+    };
+    request.onsuccess = (e) => {
+      _backupDb = e.target.result;
+      resolve(_backupDb);
+    };
+    request.onerror = (e) => {
+      console.error("IndexedDB error:", e);
+      reject(e);
+    };
+  });
+}
+
+// Lưu backup cục bộ (Giới hạn 10 bản ghi)
+function dbSaveBackup(payload) {
+  if (!_backupDb) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const tx = _backupDb.transaction("versions", "readwrite");
+    const store = tx.objectStore("versions");
+    
+    // Lưu bản ghi hiện tại
+    store.put({ ts: payload._ts || Date.now(), payload });
+    
+    tx.oncomplete = () => {
+      // Giới hạn 10 bản ghi gần nhất: Đọc và xoá bản ghi cũ
+      const cleanTx = _backupDb.transaction("versions", "readwrite");
+      const cleanStore = cleanTx.objectStore("versions");
+      const req = cleanStore.getAllKeys();
+      req.onsuccess = () => {
+        const keys = req.result.sort((a, b) => b - a); // Sort giảm dần (mới nhất lên đầu)
+        if (keys.length > 10) {
+          const keysToDelete = keys.slice(10);
+          keysToDelete.forEach(k => cleanStore.delete(k));
+        }
+        resolve();
+      };
+    };
+    tx.onerror = (e) => reject(e);
+  });
+}
+
+// Lấy tất cả backups cục bộ
+function dbGetBackups() {
+  if (!_backupDb) return Promise.resolve([]);
+  return new Promise((resolve, reject) => {
+    const tx = _backupDb.transaction("versions", "readonly");
+    const store = tx.objectStore("versions");
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = (e) => reject(e);
+  });
+}
+
+// Đẩy bản sao lưu lên Cloud Firebase (Giới hạn 20 bản ghi trên Cloud)
+function cloudSaveBackup(payload) {
+  if (!window._fbReady || !window._fbDb) return Promise.resolve();
+  const ts = payload._ts || Date.now();
+  
+  // 1. Ghi bản sao lưu mới
+  return window._fbDb.ref(`backups/${ts}`).set(payload).then(() => {
+    // 2. Dọn dẹp Cloud: Chỉ giữ lại 20 bản gần nhất
+    return window._fbDb.ref("backups").once("value").then(snap => {
+      const allBackups = snap.val();
+      if (!allBackups) return;
+      const keys = Object.keys(allBackups).map(Number).sort((a, b) => b - a); // Mới nhất lên đầu
+      if (keys.length > 20) {
+        const keysToDelete = keys.slice(20);
+        const updates = {};
+        keysToDelete.forEach(k => {
+          updates[k] = null; // Set null để xoá trên Firebase
+        });
+        return window._fbDb.ref("backups").update(updates);
+      }
+    });
+  }).catch(err => {
+    console.error("Cloud backup auto-cleanup failed:", err);
+  });
+}
+
+// Tự động sao lưu tích hợp vào hàm saveAppData gốc
+// Đè/Ghi đè hàm saveAppData hiện tại để gọi backup tự động
+const _originalSaveAppData = saveAppData;
+saveAppData = function() {
+  return _originalSaveAppData().then(() => {
+    // Tạo payload và lưu backup bất đồng bộ
+    const ts = Date.now();
+    const payload = fbPayload(ts);
+    
+    // Đảm bảo DB được init
+    if (!_backupDb) {
+      dbInitBackup().then(() => {
+        dbSaveBackup(payload);
+        cloudSaveBackup(payload);
+      });
+    } else {
+      dbSaveBackup(payload);
+      cloudSaveBackup(payload);
+    }
+  });
+};
+
+// Mở modal Lịch sử phiên bản và tải dữ liệu
+async function openBackupModal() {
+  document.getElementById("backupModal").style.display = "flex";
+  const tbody = document.getElementById("backupListTbody");
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:#8b949e"><i class="fa fa-spinner fa-spin"></i> Đang tải dữ liệu lịch sử sao lưu...</td></tr>`;
+  }
+  
+  try {
+    // Init IndexedDB nếu chưa
+    if (!_backupDb) await dbInitBackup();
+    
+    // Lấy backups từ Local
+    const localBackups = await dbGetBackups();
+    
+    // Lấy backups từ Cloud (Firebase)
+    let cloudBackups = [];
+    if (window._fbReady && window._fbDb) {
+      const snap = await window._fbDb.ref("backups").once("value");
+      const val = snap.val();
+      if (val && typeof val === "object") {
+        cloudBackups = Object.keys(val).map(k => ({
+          ts: Number(k),
+          payload: val[k]
+        }));
+      }
+    }
+    
+    // Gộp và sắp xếp (Mới nhất lên đầu)
+    const map = new Map();
+    // Ưu tiên nạp Local trước
+    localBackups.forEach(b => {
+      map.set(b.ts, { ts: b.ts, source: "Local", payload: b.payload });
+    });
+    // Cloud nạp đè/thêm mới
+    cloudBackups.forEach(b => {
+      const exist = map.get(b.ts);
+      if (exist) {
+        exist.source = "Local + Cloud";
+      } else {
+        map.set(b.ts, { ts: b.ts, source: "Cloud", payload: b.payload });
+      }
+    });
+    
+    const sorted = Array.from(map.values()).sort((a, b) => b.ts - a.ts);
+    
+    renderBackupList(sorted);
+  } catch (err) {
+    console.error("Failed to load backups:", err);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:#f85149">❌ Không thể tải danh sách sao lưu. Chi tiết: ${err.message}</td></tr>`;
+    }
+  }
+}
+
+function closeBackupModal() {
+  document.getElementById("backupModal").style.display = "none";
+}
+
+// Render danh sách backups
+function renderBackupList(list) {
+  const tbody = document.getElementById("backupListTbody");
+  if (!tbody) return;
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:#8b949e">Chưa có phiên bản sao lưu nào được tạo</td></tr>`;
+    return;
+  }
+  
+  tbody.innerHTML = list.map(b => {
+    const d = new Date(b.ts);
+    const timeStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    
+    const p = b.payload || {};
+    const wCount = Array.isArray(p.websites) ? p.websites.length : 0;
+    const tCount = Array.isArray(p.tasks) ? p.tasks.length : 0;
+    const bCount = Array.isArray(p.billings) ? p.billings.length : 0;
+    
+    let badgeColor = "#58a6ff"; // Cloud (Blue)
+    if (b.source === "Local") badgeColor = "#8b949e"; // Local (Gray)
+    else if (b.source === "Local + Cloud") badgeColor = "#238636"; // Cả hai (Green)
+    
+    const badgeHtml = `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${badgeColor}22;color:${badgeColor};border:1px solid ${badgeColor}44;font-weight:600">${b.source}</span>`;
+    
+    return `<tr style="border-bottom:1px solid #30363d;transition:background .15s" onmouseover="this.style.background='#21262d'" onmouseout="this.style.background='transparent'">
+      <td style="padding:10px 12px;font-weight:600;color:#f0f6fc">${timeStr}</td>
+      <td style="padding:10px 12px;text-align:center">${badgeHtml}</td>
+      <td style="padding:10px 12px;text-align:center;color:#58a6ff;font-weight:bold">${wCount}</td>
+      <td style="padding:10px 12px;text-align:center;color:#f2a154">${bCount}</td>
+      <td style="padding:10px 12px;text-align:center;color:#8b949e">${tCount}</td>
+      <td style="padding:10px 12px;text-align:center">
+        <button class="btn btn-sm" style="background:#1f6feb;border:none;color:#fff;font-size:11px;padding:3px 8px" onclick="restoreBackupVersion('${b.source}', ${b.ts})">🔄 Khôi phục</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// Tạo điểm sao lưu thủ công
+function createManualBackup() {
+  const ind = document.getElementById("syncIndicator");
+  if (ind) {
+    ind.textContent = "⚡ Đang tạo sao lưu...";
+    ind.style.opacity = "1";
+    ind.style.color = "#ffaa00";
+  }
+  
+  const ts = Date.now();
+  const payload = fbPayload(ts);
+  
+  // Khởi chạy đồng thời cả hai loại backup
+  const p1 = dbInitBackup().then(() => dbSaveBackup(payload));
+  const p2 = cloudSaveBackup(payload);
+  
+  Promise.all([p1, p2]).then(() => {
+    toast("✓ Đã tạo điểm sao lưu thủ công thành công!", "#27ae60");
+    openBackupModal(); // Refresh list
+  }).catch(err => {
+    toast("❌ Lỗi tạo sao lưu: " + err.message, "#e74c3c");
+  });
+}
+
+// Khôi phục dữ liệu từ mốc cụ thể
+async function restoreBackupVersion(source, timestamp) {
+  const confirmMsg = `CẢNH BÁO!\n\nBạn đang khôi phục dữ liệu về phiên bản ngày [${new Date(timestamp).toLocaleString()}] từ [${source}].\n\nToàn bộ dữ liệu hiện tại trên Dashboard sẽ bị ghi đè hoàn toàn bởi phiên bản này.\n\nBạn có chắc chắn muốn khôi phục không?`;
+  if (!confirm(confirmMsg)) return;
+  
+  try {
+    let payload = null;
+    
+    // 1. Tải payload dựa trên nguồn
+    if (source === "Local" || source === "Local + Cloud") {
+      if (!_backupDb) await dbInitBackup();
+      const tx = _backupDb.transaction("versions", "readonly");
+      const store = tx.objectStore("versions");
+      const res = await new Promise((resolve, reject) => {
+        const req = store.get(timestamp);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      if (res) payload = res.payload;
+    } 
+    
+    // Fallback sang Cloud nếu Local bị lỗi hoặc chỉ có Cloud
+    if (!payload && (source === "Cloud" || source === "Local + Cloud")) {
+      if (window._fbReady && window._fbDb) {
+        const snap = await window._fbDb.ref(`backups/${timestamp}`).once("value");
+        payload = snap.val();
+      }
+    }
+    
+    if (!payload) {
+      toast("❌ Không thể tải dữ liệu phiên bản sao lưu này!", "#e74c3c");
+      return;
+    }
+    
+    // 2. Ghi đè các biến toàn cục trong hệ thống
+    if (Array.isArray(payload.websites)) websites = payload.websites;
+    if (Array.isArray(payload.wsGroups)) wsGroups = payload.wsGroups;
+    if (Array.isArray(payload.tasks)) tasks = payload.tasks;
+    if (Array.isArray(payload.deletedTasks)) deletedTasks = payload.deletedTasks;
+    if (Array.isArray(payload.links)) links = payload.links;
+    if (Array.isArray(payload.linkCategories)) linkCategories = payload.linkCategories;
+    if (Array.isArray(payload.assignees)) assignees = payload.assignees;
+    if (Array.isArray(payload.prompts)) prompts = payload.prompts;
+    if (Array.isArray(payload.recurringTasks)) recurringTasks = payload.recurringTasks;
+    if (Array.isArray(payload.khoId)) khoIdList = payload.khoId;
+    if (Array.isArray(payload.siteTracking)) siteTracking = payload.siteTracking;
+    if (Array.isArray(payload.billings)) billings = payload.billings;
+    if (payload.wtCloudflyToken !== undefined) wtCloudflyToken = payload.wtCloudflyToken;
+    if (payload.wtApiKey !== undefined) wtApiKey = payload.wtApiKey;
+    if (payload.wtSerperCredits !== undefined) wtSerperCredits = payload.wtSerperCredits;
+    if (payload.settings && typeof payload.settings === "object") _settings = payload.settings;
+    
+    // 3. Lưu vào LocalStorage
+    saveToLocalStorage();
+    
+    // 4. Đồng bộ đè lên nhánh chính Firebase /appData
+    if (window._fbReady && window._fbDb) {
+      const cleanTs = Date.now();
+      await window._fbDb.ref("appData").set(fbPayload(cleanTs));
+    }
+    
+    // 5. Đóng modal và render lại toàn bộ giao diện của tab hiện tại
+    closeBackupModal();
+    toast("✓ Khôi phục phiên bản thành công!", "#27ae60");
+    
+    // Reload lại trang hiện tại để áp dụng dữ liệu
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+    
+  } catch (err) {
+    console.error("Restore failed:", err);
+    toast("❌ Lỗi khôi phục: " + err.message, "#e74c3c");
+  }
+}
+
+// Khởi chạy IndexedDB lúc khởi động trang
+document.addEventListener("DOMContentLoaded", () => {
+  dbInitBackup().catch(err => console.warn("Failed to auto-init backup DB:", err));
+});
+
+

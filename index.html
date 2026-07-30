@@ -253,6 +253,7 @@
   <div class="sidebar-footer" id="navBottomMenu">
     <button type="button" onclick="openChangePassword()"><i class="fa fa-key"></i> Đổi mật khẩu</button>
     <button type="button" onclick="openSettings()"><i class="fa fa-cog"></i> Cài đặt</button>
+    <button type="button" onclick="openBackupModal()"><i class="fa fa-history"></i> Lịch sử dữ liệu</button>
     <button type="button" onclick="logout()" class="text-danger"><i class="fa fa-sign-out"></i> Đăng xuất</button>
   </div>
 </nav>
@@ -2670,6 +2671,49 @@
       <button class="btn btn-outline" onclick="closeWstAddGscFormModal()">Hủy</button>
       <button class="btn btn-primary" id="wstGetGscCodeBtn" onclick="wstGetGscHtmlCodesBulk()" style="background:#f2a154;border-color:#e5893c;color:#0d1117;font-weight:700">Lấy mã</button>
       <button class="btn btn-primary" onclick="wstSubmitAddGscBulk()">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<!-- BACKUP & RESTORE MODAL -->
+<div class="modal-overlay" id="backupModal" onclick="if(event.target===this)closeBackupModal()" style="display:none">
+  <div class="modal" style="max-width:750px;width:95%;background:#0d1117;border:1px solid #30363d;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:85vh" onclick="event.stopPropagation()">
+    <div class="modal-header" style="border-bottom:1px solid #30363d;padding:16px">
+      <h3 style="color:#f0f6fc;display:flex;align-items:center;gap:8px;margin:0">🕒 Lịch sử phiên bản & Sao lưu</h3>
+      <button class="modal-close" onclick="closeBackupModal()" style="color:#8b949e;background:none;border:none;font-size:20px;cursor:pointer">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:16px;padding:20px;color:#c9d1d9;overflow-y:auto;display:flex;flex-direction:column;min-height:0">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.3);border-radius:8px;padding:12px;margin-bottom:4px;gap:12px">
+        <div style="font-size:12px;color:#58a6ff;line-height:1.6">
+          Hệ thống tự động chụp và lưu trữ các mốc phiên dữ liệu cục bộ (IndexedDB) và đám mây khi có thay đổi lớn. 
+          Bạn có thể khôi phục dữ liệu hoặc chủ động tạo điểm sao lưu thủ công.
+        </div>
+        <button class="btn btn-primary" onclick="createManualBackup()" style="white-space:nowrap;background:#238636;border-color:#2ea043;color:#fff;font-weight:600;padding:8px 14px">⚡ Tạo sao lưu</button>
+      </div>
+
+      <div style="font-weight:600;font-size:13px;color:#f0f6fc;margin-top:4px">Danh sách phiên bản sao lưu (Tối đa 20 bản ghi)</div>
+      <div style="border:1px solid #30363d;border-radius:8px;background:#161b22;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
+          <thead>
+            <tr style="border-bottom:1px solid #30363d;background:#21262d;color:#8b949e">
+              <th style="padding:10px 12px">Thời gian</th>
+              <th style="padding:10px 12px;text-align:center">Nguồn</th>
+              <th style="padding:10px 12px;text-align:center">Websites</th>
+              <th style="padding:10px 12px;text-align:center">Hóa đơn</th>
+              <th style="padding:10px 12px;text-align:center">Công việc</th>
+              <th style="padding:10px 12px;text-align:center;width:100px">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="backupListTbody">
+            <tr>
+              <td colspan="6" style="padding:24px;text-align:center;color:#8b949e">Đang tải danh sách...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer" style="border-top:1px solid #30363d;padding:16px;display:flex;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeBackupModal()">Đóng</button>
     </div>
   </div>
 </div>
