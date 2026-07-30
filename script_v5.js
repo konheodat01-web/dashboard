@@ -5280,6 +5280,9 @@ function renderWebsites(){
     return true;
   });
 
+  // Sắp xếp web mới thêm lên trên cùng (giảm dần theo ID)
+  list.sort((a, b) => b.id - a.id);
+
   const grid=document.getElementById('websitesGrid');
   const empty=document.getElementById('emptyWebsites');
   if(!list.length){if(grid)grid.innerHTML='';if(empty)empty.style.display='block';return;}

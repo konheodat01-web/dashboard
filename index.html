@@ -873,10 +873,8 @@
             <option value="Team 01">Chaewon</option>
             <option value="Team 02">M7</option>
           </select>
-          <select id="websiteFilterGroup" onchange="renderWebsites()" style="height:32px;font-size:12px;min-width:120px">
-            <option value="">Tất cả nhóm</option>
-          </select>
-          <select id="websiteFilterOwner" onchange="resetPillToAll();renderWebsites()" style="height:32px;font-size:12px"><option value="">Tất cả người</option><option value="Chung">Chung</option></select>
+          <input type="hidden" id="websiteFilterGroup" value="">
+          <input type="hidden" id="websiteFilterOwner" value="">
           <input type="hidden" id="websiteFilterStatus" value="">
           <select id="websiteFilterTracked" onchange="renderWebsites()" style="height:32px;font-size:12px">
             <option value="">📊 Tất cả</option>
@@ -903,14 +901,6 @@
         <button id="wsPillLoi" onclick="wsSetStatusFilter('Lỗi web')" style="height:28px;padding:0 12px;border-radius:20px;border:1px solid #f5c6c6;background:#fdf2f2;font-size:12px;cursor:pointer;transition:all .15s">
           ⚠️ Lỗi web <span id="wsCntLoi" style="background:#f5c6c6;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px;color:#e74c3c;font-weight:600">0</span>
         </button>
-      </div>
-      <!-- BỘ LỌC ĐỘNG HYBRID V94 - CHÈN TRONG #WEBSITESPANEL -->
-      <div class="job-filter-bar">
-        <button type="button" class="filter-pills active" data-filter="all" onclick="executeHybridFilter('all', this)">Tất cả (<span id="cnt-all">0</span>)</button>
-        <button type="button" class="filter-pills" data-filter="Team 01-Admin" onclick="executeHybridFilter('Team 01-Admin', this)">Chaewon - Admin (<span id="cnt-cwn-adm">0</span>)</button>
-        <button type="button" class="filter-pills" data-filter="Team 01-Company" onclick="executeHybridFilter('Team 01-Company', this)">Chaewon - Công ty (<span id="cnt-cwn-com">0</span>)</button>
-        <button type="button" class="filter-pills" data-filter="Team 02-Admin" onclick="executeHybridFilter('Team 02-Admin', this)">M7 - Admin (<span id="cnt-m7-adm">0</span>)</button>
-        <button type="button" class="filter-pills" data-filter="Team 02-Company" onclick="executeHybridFilter('Team 02-Company', this)">M7 - Công ty (<span id="cnt-m7-com">0</span>)</button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 320px;gap:0;align-items:stretch;flex:1;overflow:hidden">
