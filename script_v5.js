@@ -10268,7 +10268,7 @@ function wsImport301Run(){
   let owner = ownerSelectVal;
   if (owner === 'Hải' || owner === 'Hiếu') owner = 'admin';
 
-  let added = 0, skipped = 0, notFound = [];
+  let added = 0, updated = 0, skipped = 0, notFound = [];
   
   for(let i = 0; i < sourceLines.length; i++){
     const sourceUrlRaw = normalizeUrl(sourceLines[i]);
@@ -10276,13 +10276,34 @@ function wsImport301Run(){
     const sourceDomain = sourceUrlRaw.split('/')[0];
     const newDomain = newUrlRaw.split('/')[0];
 
-    const dupCheck = websites.find(x=> x.url && x.url.replace(/\/$/,'') === newDomain.replace(/\/$/,''));
-    if(dupCheck){ skipped++; continue; }
-
     const source = websites.find(x=> x.url && (
       x.url.replace(/\/$/,'') === sourceDomain.replace(/\/$/,'') ||
       x.url.replace(/\/$/,'') === sourceUrlRaw.replace(/\/$/,'')
     ));
+
+    const dupCheck = websites.find(x=> x.url && x.url.replace(/\/$/,'') === newDomain.replace(/\/$/,''));
+
+    if(dupCheck){
+      // Nếu đã tồn tại nhưng chưa phải 301 -> cập nhật thành 301
+      if(!dupCheck.is301){
+        dupCheck.is301 = true;
+        dupCheck.sourceUrl = sourceDomain;
+        if(source){
+          dupCheck.brand = source.brand;
+          dupCheck.admin = source.admin || '';
+          dupCheck.account = source.account || '';
+          dupCheck.password = source.password || '';
+          dupCheck.status = source.status || status;
+          dupCheck.team = source.team || team;
+          dupCheck.owner = source.owner || owner;
+        }
+        updated++;
+      } else {
+        // Đã là 301 rồi -> bỏ qua
+        skipped++;
+      }
+      continue;
+    }
 
     let newBrand = newDomain.replace(/^www\./, '').split('.')[0];
     newBrand = newBrand.charAt(0).toUpperCase() + newBrand.slice(1);
@@ -10314,8 +10335,9 @@ function wsImport301Run(){
   updateWsIcons();
   closeWsImportModal();
 
-  let msg = '✓ Nhập 301 hoàn tất: ' + added + ' website 301 được thêm';
-  if(skipped) msg += ', ' + skipped + ' bỏ qua (đã tồn tại)';
+  let msg = '✓ Nhập 301 hoàn tất: ' + added + ' thêm mới';
+  if(updated) msg += ', ' + updated + ' cập nhật thành 301';
+  if(skipped) msg += ', ' + skipped + ' bỏ qua (đã là 301)';
   if(notFound.length) msg += '. ⚠ ' + notFound.length + ' website gốc không khớp dữ liệu trong kho';
   toast(msg);
 }
