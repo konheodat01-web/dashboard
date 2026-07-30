@@ -172,6 +172,33 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── /api/sw-processes (GET) + /api/sw-processes-seen (POST) ──────────────
+  // Proxy sang SEO Writer (localhost:8501) — theo dõi tiến trình viết hàng loạt (chuông + vòng tròn).
+  if (url === "/api/sw-processes" || url === "/api/sw-processes-seen") {
+    let swKey = "";
+    try { swKey = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
+    const isSeen = url === "/api/sw-processes-seen";
+    const pr = http.request({
+      hostname: "127.0.0.1", port: 8501,
+      path: isSeen ? "/api/processes/seen" : "/api/processes",
+      method: isSeen ? "POST" : "GET",
+      headers: { "x-access-key": swKey, "Content-Type": "application/json" },
+    }, (pres) => {
+      let body = "";
+      pres.on("data", (c) => { body += c; });
+      pres.on("end", () => {
+        res.writeHead(pres.statusCode === 200 ? 200 : 502, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(pres.statusCode === 200 ? body : JSON.stringify({ processes: [], running: 0, unseen: 0 }));
+      });
+    });
+    pr.on("error", () => {
+      res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ processes: [], running: 0, unseen: 0 }));
+    });
+    if (isSeen) pr.end("{}"); else pr.end();
+    return;
+  }
+
   // ── GET /api/wp-posts?domain=&type=&per_page= ────────────────────────────
   // Proxy lay danh sach bai viet tu WordPress REST. Fetch tu VPS nen qua duoc
   // lop bao mat chan IP la cua cac site .fashion/.io/.health.

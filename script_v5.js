@@ -2862,6 +2862,58 @@ function wstCloseWriterModal(){
   var fr = document.getElementById('wstWriterFrame'); if (fr) fr.src = 'about:blank';   // dừng iframe khi đóng
 }
 
+// ══ Tiến trình viết hàng loạt (SEO Writer): 🔄 đang chạy · 🔔 xong ══
+var _swProc = { processes: [], running: 0, unseen: 0 };
+var _procPopupMode = null;
+async function wstPollProcesses(){
+  try {
+    var r = await fetch('/api/sw-processes');
+    _swProc = (await r.json()) || { processes: [], running: 0, unseen: 0 };
+  } catch(e){ return; }
+  // Vòng tròn: số tiến trình đang chạy
+  var cw = document.getElementById('procCircleWrap'), cb = document.getElementById('procCircleBadge');
+  if (cw){ if ((_swProc.running||0) > 0){ cw.style.display='inline-block'; cb.textContent=_swProc.running; } else cw.style.display='none'; }
+  // Chuông: hiện khi có tiến trình đã xong; badge = số chưa xem
+  var hasDone = (_swProc.processes||[]).some(function(p){ return p.status==='done'; });
+  var bw = document.getElementById('procBellWrap'), bb = document.getElementById('procBellBadge');
+  if (bw){
+    bw.style.display = hasDone ? 'inline-block' : 'none';
+    if ((_swProc.unseen||0) > 0){ bb.style.display='inline-block'; bb.textContent=_swProc.unseen; } else bb.style.display='none';
+  }
+  if (_procPopupMode) wstRenderProcPopup();
+}
+function wstToggleProcPopup(mode){
+  var pop = document.getElementById('procPopup');
+  if (_procPopupMode === mode){ pop.style.display='none'; _procPopupMode=null; return; }
+  _procPopupMode = mode;
+  wstRenderProcPopup();
+  pop.style.display = 'block';
+  if (mode === 'bell'){   // xem chuông = đánh dấu đã xem -> xóa badge
+    fetch('/api/sw-processes-seen', { method:'POST' }).then(function(){ setTimeout(wstPollProcesses, 300); }).catch(function(){});
+  }
+}
+function wstRenderProcPopup(){
+  var pop = document.getElementById('procPopup'); if (!pop || !_procPopupMode) return;
+  var running = _procPopupMode === 'running';
+  var list = (_swProc.processes||[]).filter(function(p){ return running ? p.status==='running' : p.status==='done'; });
+  var head = running ? ('🔄 Đang chạy ngầm (' + list.length + ')') : ('🔔 Tiến trình đã xong (' + list.length + ')');
+  var rows = list.length ? list.map(function(p){
+    var prog = (p.done||0) + '/' + (p.total||0) + ' bài';
+    if (running)
+      return '<div style="padding:9px 12px;border-top:1px solid #21262d"><div style="font-weight:600">' + (p.label||'') + '</div><div style="font-size:11px;color:#8b949e">⏳ ' + prog + ' · bắt đầu ' + (p.created_at||'').slice(5,16) + '</div></div>';
+    return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;"><div style="font-weight:600">✅ ' + (p.label||'') + '</div><div style="font-size:11px;color:#7c5cff">' + prog + ' xong · bấm mở Lịch sử thêm ảnh →</div></div>';
+  }).join('') : '<div style="padding:16px;text-align:center;color:#8b949e">Không có</div>';
+  pop.innerHTML = '<div style="padding:10px 12px;font-weight:700;border-bottom:1px solid #30363d;display:flex;justify-content:space-between">'
+    + '<span>' + head + '</span><span onclick="wstToggleProcPopup(&quot;' + _procPopupMode + '&quot;)" style="cursor:pointer;color:#8b949e">✕</span></div>' + rows;
+}
+function wstOpenBatchHistory(){
+  var pop = document.getElementById('procPopup'); if (pop) pop.style.display='none';
+  _procPopupMode = null;
+  wstOpenWriterModal('https://seo-writer-tool.nthieucloud.shop/?history=1', 'Lịch sử bài viết');
+}
+setInterval(wstPollProcesses, 7000);
+setTimeout(wstPollProcesses, 1500);
+
 function wstOpenContentConfig(wsId){
   var w = websites.find(function(x){ return x.id === wsId; });
   if (typeof toast === 'function') toast('Cau hinh noi dung cho ' + (w ? w.brand : '') + ' — mo o buoc tich hop WP key', '#e67e22');
