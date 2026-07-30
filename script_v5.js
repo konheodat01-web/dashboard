@@ -2425,18 +2425,39 @@ function wstRecomputeSiteStats(w, posts){
   return _wstContentStats[w.id];
 }
 
-// Quét index cho MỘT site: lấy bài (/api/wp-posts) -> check TẤT CẢ link bằng Serper.
+// Lấy danh sách bài: ƯU TIÊN trình duyệt fetch THẲNG (IP user thường được whitelist +
+// CORS site cho phép origin nthieucloud.shop) → fallback proxy VPS nếu trình duyệt fail
+// (vd site chặn IP user) hoặc ngược lại (site chặn IP VPS như diamondair.uk.com).
+async function wstFetchPosts(host, type, perPage){
+  type = (type === 'pages') ? 'pages' : 'posts';
+  perPage = perPage || 100;
+  var restPath = '/wp-json/wp/v2/' + type + '?per_page=' + perPage
+    + '&orderby=date&order=desc&_fields=id,title,link,date,modified,status,categories';
+  // 1) Trình duyệt fetch thẳng
+  try {
+    var r = await fetch('https://' + host + restPath, { headers: { 'Accept': 'application/json' } });
+    if (r.ok) {
+      var items = await r.json();
+      if (Array.isArray(items)) return { ok: true, items: items, total: r.headers.get('x-wp-total') || items.length, via: 'browser' };
+    }
+  } catch(e){ /* CORS / IP user bị chặn -> thử VPS */ }
+  // 2) Fallback proxy VPS
+  try {
+    var r2 = await fetch('/api/wp-posts?domain=' + encodeURIComponent(host) + '&type=' + type + '&per_page=' + perPage);
+    var d = await r2.json();
+    if (d.ok && Array.isArray(d.items)) return { ok: true, items: d.items, total: d.total || d.items.length, via: 'vps' };
+    return { ok: false, error: (d.error || 'Không lấy được bài') + ' — cả trình duyệt lẫn VPS đều không vào được ' + host + ' (IP có thể bị chặn ở bảo mật site)' };
+  } catch(e){ return { ok: false, error: 'Không kết nối được ' + host + ': ' + e.message }; }
+}
+
+// Quét index cho MỘT site: lấy bài -> check TẤT CẢ link bằng Serper.
 async function wstScanSiteIndex(w, opts){
   opts = opts || {};
   var host = wstCurrentUrl(w);
   if (!host) return null;
-  var posts = [];
-  try {
-    var r = await fetch('/api/wp-posts?domain=' + encodeURIComponent(host) + '&type=posts&per_page=100');
-    var d = await r.json();
-    if (d.ok && Array.isArray(d.items)) posts = d.items;
-    else { if (opts.onError) opts.onError(w, d.error || 'Không lấy được bài'); return null; }
-  } catch(e){ if (opts.onError) opts.onError(w, e.message); return null; }
+  var res = await wstFetchPosts(host, 'posts', 100);
+  if (!res.ok){ if (opts.onError) opts.onError(w, res.error); return null; }
+  var posts = res.items;
 
   var links = posts.map(function(p){ return p.link; });
   await wstCheckLinksIndex(links, {
@@ -2444,6 +2465,33 @@ async function wstScanSiteIndex(w, opts){
     onError: function(m){ if (opts.onError) opts.onError(w, m); }
   });
   return wstRecomputeSiteStats(w, posts);
+}
+
+// Check index cho các site ĐÃ TICK ở bảng (thanh chọn) bằng Serper -> điền cột ngoài.
+async function wstCheckSelectedSites(){
+  if (!wtApiKey){ if(typeof toast==='function') toast('Chưa có Serper API Key — thiết lập trước','#e74c3c'); return; }
+  var ids = Array.from(_wstSelected || []);
+  var sites = ids.map(function(id){ return websites.find(function(w){ return w.id === id; }); })
+                 .filter(function(w){ return w && !w.is301; });
+  if (!sites.length){ if(typeof toast==='function') toast('Chưa tick site nào','#e74c3c'); return; }
+  if (!confirm('Check index cho ' + sites.length + ' site đã chọn bằng Serper?\nMỗi bài ~1 credit. Còn ' + wtSerperCredits + ' credit. Kết quả cache 24h.')) return;
+
+  _wstScanAbort = false;
+  var bar = wstShowScanProgress();
+  var done = 0;
+  for (var i = 0; i < sites.length; i++){
+    if (_wstScanAbort) break;
+    var w = sites[i];
+    bar.set('Đang check ' + w.brand + ' (' + (i+1) + '/' + sites.length + ')...', done/sites.length*100);
+    await wstScanSiteIndex(w, {
+      onProgress: function(cur, tot, ww){ bar.set('Check ' + ww.brand + ': bài ' + cur + '/' + tot + ' · còn ' + wtSerperCredits + ' credit', (done + cur/Math.max(tot,1))/sites.length*100); },
+      onError: function(ww, msg){ console.warn('[Check index]', ww.brand, msg); }
+    });
+    done++;
+    if (typeof renderWsTrack === 'function') renderWsTrack();
+  }
+  bar.done(_wstScanAbort ? ('Đã dừng — xong ' + done + '/' + sites.length + ' site') : ('Xong! Đã check ' + done + ' site đã chọn'));
+  if (typeof renderWsTrack === 'function') renderWsTrack();
 }
 
 // Quét TẤT CẢ site đang theo dõi (nút "🚫 Quét bài chưa index"). Tốn credit Serper.
@@ -2668,12 +2716,11 @@ async function wstLoadPosts(){
   info.textContent = '⏳ Đang tải danh sách ' + (type === 'pages' ? 'trang' : 'bài viết') + ' từ ' + _wstPosts.domain + '...';
   body.innerHTML = '';
   try {
-    var r = await fetch('/api/wp-posts?domain=' + encodeURIComponent(_wstPosts.domain) + '&type=' + type + '&per_page=100');
-    var d = await r.json();
-    if (d.error) { info.innerHTML = '❌ ' + d.error + (d.detail ? ' — <span style="color:#8b949e">' + d.detail + '</span>' : ''); return; }
-    _wstPosts.items = Array.isArray(d.items) ? d.items : [];
-    info.textContent = 'Tổng ' + (d.total || _wstPosts.items.length) + ' ' + (type === 'pages' ? 'trang' : 'bài viết')
-      + ' · hiển thị ' + _wstPosts.items.length + ' bản ghi mới nhất';
+    var res = await wstFetchPosts(_wstPosts.domain, type, 100);
+    if (!res.ok) { info.innerHTML = '❌ ' + res.error; return; }
+    _wstPosts.items = Array.isArray(res.items) ? res.items : [];
+    info.textContent = 'Tổng ' + (res.total || _wstPosts.items.length) + ' ' + (type === 'pages' ? 'trang' : 'bài viết')
+      + ' · hiển thị ' + _wstPosts.items.length + ' bản ghi' + (res.via === 'browser' ? ' (trực tiếp)' : ' (qua VPS)');
     wstRenderPosts();
   } catch(e) {
     info.textContent = '❌ Lỗi: ' + e.message;
@@ -3234,6 +3281,7 @@ function wstRenderBulkBar(){
     <button onclick="wstCopySelected('both')" class="btn btn-sm btn-outline" style="font-size:11px">📋 Copy cả hai</button>
     <button onclick="wstCopySelected('seo_kw')" class="btn btn-sm btn-outline" style="font-size:11px;color:#2ecc71;border-color:#27ae60">📝 Copy từ khóa SEO</button>
     <button onclick="wstTriggerAddGscBulk()" class="btn btn-sm btn-outline" style="font-size:11px;color:#f2a154;border-color:#e5893c">➕ Thêm GSC</button>
+    ${_wstMode==='content' ? '<button onclick="wstCheckSelectedSites()" class="btn btn-sm" style="font-size:11px;background:#3fb950;color:#fff;border:none">🔎 Check index (Serper)</button>' : ''}
     <button onclick="_wstSelected.clear();renderWsTrack()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;margin-left:auto">×</button>`;
 }
 
