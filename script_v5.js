@@ -5288,6 +5288,7 @@ function renderWebsites(){
   if(wfTeam&&groupRow) groupRow.style.display=wfTeam.value==='Team 02'?'none':'block';
 
   const ftr=(document.getElementById('websiteFilterTracked')||{}).value||'';
+  const ftype=(document.getElementById('websiteFilterType')||{}).value||'';
   let list=getFilteredWebsites().filter(w=>{
     if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
     if(fs && w.status!==fs) return false;
@@ -5297,6 +5298,8 @@ function renderWebsites(){
     if(w.team==='Team 02' && currentMember==='hai') return false;
     if(ftr==='tracked' && !siteTracking.some(s=>s.wsId===w.id)) return false;
     if(ftr==='untracked' && siteTracking.some(s=>s.wsId===w.id)) return false;
+    if(ftype==='goc' && w.is301) return false;
+    if(ftype==='301' && !w.is301) return false;
     return true;
   });
 

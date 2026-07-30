@@ -881,6 +881,11 @@
             <option value="tracked">📈 Đang theo dõi</option>
             <option value="untracked">⬜ Chưa theo dõi</option>
           </select>
+          <select id="websiteFilterType" onchange="renderWebsites()" style="height:32px;font-size:12px">
+            <option value="">🔗 Tất cả loại</option>
+            <option value="goc">🌐 Website gốc</option>
+            <option value="301">🔀 Website 301</option>
+          </select>
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn btn-outline btn-sm" onclick="openWsImportModal()" style="font-size:12px">⬆ Import</button>
