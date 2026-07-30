@@ -2213,6 +2213,114 @@ function saveTaskTypeManager(){
 
 // ===== WEBSITE TRACKING =====
 let siteTracking = []; // [{wsId, entries:[{id,date,rank,backlinks,indexed,note}]}]
+
+// ══ CHẾ ĐỘ HIỂN THỊ tab Theo dõi web: 'seo' (mặc định) | 'content' (quản lý nội dung) ══
+// Chỉ đổi TOOLBAR PHẢI + CÁC CỘT PHẢI của bảng; phần trái (URL/Website/Team/Từ khóa) giữ nguyên.
+let _wstMode = localStorage.getItem('wst_mode') || 'seo';
+
+function wstApplyModeUI(){
+  var isC = _wstMode === 'content';
+  var tSeo = document.getElementById('wstToolsSeo');
+  var tCon = document.getElementById('wstToolsContent');
+  if (tSeo) tSeo.style.display = isC ? 'none' : 'flex';
+  if (tCon) tCon.style.display = isC ? 'flex' : 'none';
+  ['seo','content'].forEach(function(k){
+    var b = document.getElementById('wstModeBtn_'+k);
+    if(!b) return;
+    var on = (k === _wstMode);
+    b.style.background = on ? '#e74c3c' : 'transparent';
+    b.style.color = on ? '#fff' : '#8b949e';
+    b.style.fontWeight = on ? '700' : '500';
+  });
+  var adv = document.getElementById('wstAdvancedFilters');
+  if (adv && isC) adv.style.display = 'none';
+}
+
+function wstSetMode(m){
+  _wstMode = (m === 'content') ? 'content' : 'seo';
+  localStorage.setItem('wst_mode', _wstMode);
+  wstApplyModeUI();
+  renderWsTrack();
+}
+
+// Đẩy danh sách website (đang theo dõi) sang SEO Writer để khỏi tạo hồ sơ site thủ công
+async function wstSyncSitesToWriter(){
+  var tracked = siteTracking.map(function(st){
+    return websites.find(function(w){ return w.id === st.wsId; });
+  }).filter(Boolean);
+  if (!tracked.length) { if(typeof toast==='function') toast('Chưa theo dõi website nào','#e74c3c'); return; }
+  if (!confirm('Đẩy ' + tracked.length + ' website sang SEO Writer làm hồ sơ site?\n(WP Key sẽ tích hợp ở bước sau)')) return;
+  if(typeof toast==='function') toast('Sẽ nối API ở bước tích hợp — hiện tại chỉ là khung', '#e67e22');
+  console.log('[wstSyncSitesToWriter] payload du kien:', tracked.map(function(w){
+    return { brand: w.brand, domain: (w.url||'').replace(/^https?:\/\//,'').replace(/\/$/,''), team: w.team };
+  }));
+}
+
+// Quét các bài đã đăng nhưng Google chưa index (dùng /api/gsc-inspect đã có)
+function wstScanNotIndexed(){
+  if(typeof toast==='function') toast('Quét bài chưa index — mở ở bước tích hợp GSC + SEO Writer', '#e67e22');
+}
+
+// Tiêu đề các cột PHẢI theo chế độ
+function wstHeadRight(){
+  var th = function(label, title){
+    return '<th style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap"'
+      + (title ? ' title="'+title+'"' : '') + '>' + label + '</th>';
+  };
+  if (_wstMode === 'content') {
+    return th('🔑 WP Key','Application Password de tool tu dang bai')
+      + th('📝 Bài đã đăng','So bai SEO Writer da dang len site nay')
+      + th('🚫 Chưa index','So bai da dang nhung Google chua index')
+      + th('📁 Danh mục','Danh muc mac dinh khi dang Post')
+      + '<th onclick="wstHandleSort(\'updated\')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Cập nhật ' + wstGetSortIndicator('updated') + '</th>'
+      + th('Thao tác');
+  }
+  return '<th onclick="wstHandleSort(\'clicks\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Clicks (Giai doan va tang giam so voi giai doan truoc)">Clicks (' + _wstGscPeriod + ') ' + wstGetSortIndicator('clicks') + '</th>'
+    + '<th onclick="wstHandleSort(\'imps\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Impressions (Giai doan va tang giam so voi giai doan truoc)">Imps (' + _wstGscPeriod + ') ' + wstGetSortIndicator('imps') + '</th>'
+    + '<th onclick="wstHandleSort(\'ctr\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="CTR (Giai doan va tang giam so voi giai doan truoc)">CTR (' + _wstGscPeriod + ') ' + wstGetSortIndicator('ctr') + '</th>'
+    + '<th onclick="wstHandleSort(\'pos\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Vi tri trung binh (Giai doan va tang giam so voi giai doan truoc)">Vị trí (' + _wstGscPeriod + ') ' + wstGetSortIndicator('pos') + '</th>'
+    + '<th onclick="wstHandleSort(\'rank\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🏆 Rank ' + wstGetSortIndicator('rank') + '</th>'
+    + '<th onclick="wstHandleSort(\'index\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🔍 Index ' + wstGetSortIndicator('index') + '</th>'
+    + '<th onclick="wstHandleSort(\'updated\')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Cập nhật ' + wstGetSortIndicator('updated') + '</th>'
+    + '<th style="padding:8px 10px;text-align:center;font-size:11px">Thao tác</th>';
+}
+
+// Các ô PHẢI cho 1 dòng ở chế độ QUẢN LÝ NỘI DUNG
+function wstRowRightContent(w, site){
+  var c = (site && site.content) || {};   // cau hinh noi dung cua site (WP key tich hop sau)
+  var badge = function(txt, color, bg, title){
+    return '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:'+bg+';color:'+color+';font-weight:600"'
+      + (title ? ' title="'+title+'"' : '') + '>' + txt + '</span>';
+  };
+  var wpCell = (c.wpUser && c.wpPassSaved)
+    ? badge('✅ có', '#3fb950', 'rgba(46,160,67,.15)', 'User: ' + c.wpUser)
+    : badge('⬜ chưa', '#8b949e', '#21262d', 'Chua luu Application Password cho site nay');
+  var num = function(v){ return (v === 0 || v > 0) ? String(v) : '—'; };
+  var notIdx = (c.notIndexed === 0 || c.notIndexed > 0) ? c.notIndexed : null;
+  var dom = (w.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  return ''
+    + '<td style="padding:8px 10px;text-align:center">' + wpCell + '</td>'
+    + '<td style="padding:8px 10px;text-align:center;font-weight:600;color:#58a6ff">' + num(c.postCount) + '</td>'
+    + '<td style="padding:8px 10px;text-align:center;font-weight:600;color:' + (notIdx ? '#f85149' : '#8b949e') + '">' + (notIdx ? '❌ ' + notIdx : num(c.notIndexed)) + '</td>'
+    + '<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap">' + (c.defaultCategory || '—') + '</td>'
+    + '<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap">' + ((site && site.lastUpdatedAt) || '—') + '</td>'
+    + '<td style="padding:8px 10px;text-align:center;white-space:nowrap">'
+      + '<button onclick="wstOpenWriter(\'' + dom + '\')" class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Mo SEO Writer de viet bai cho ' + w.brand + '">✍️ Viết bài</button> '
+      + '<button onclick="wstOpenContentConfig(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Cau hinh noi dung (WP key, danh muc, link brand)">⚙️</button> '
+      + '<button onclick="wstOpenDashboard(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>'
+    + '</td>';
+}
+
+function wstOpenWriter(domain){
+  var base = 'https://seo-writer-tool.nthieucloud.shop';
+  window.open(domain ? (base + '/?site=' + encodeURIComponent(domain)) : base, '_blank');
+}
+
+function wstOpenContentConfig(wsId){
+  var w = websites.find(function(x){ return x.id === wsId; });
+  if (typeof toast === 'function') toast('Cau hinh noi dung cho ' + (w ? w.brand : '') + ' — mo o buoc tich hop WP key', '#e67e22');
+}
+
 let _wstSelectedWsId = null;
 
 // wtApiKey and wtSerperCredits declared at the top of the file
@@ -2832,6 +2940,7 @@ function renderWsTrack(){
   const thead = document.getElementById('wstThead');
   const empty = document.getElementById('wstEmpty');
   if(!tbody) return;
+  if (typeof wstApplyModeUI === 'function') wstApplyModeUI();
 
   const allTrackedWs = siteTracking.map(s=>websites.find(w=>w.id===s.wsId)).filter(Boolean);
 
@@ -2853,9 +2962,19 @@ function renderWsTrack(){
     return websites.filter(x=>x.is301&&x.sourceUrl&&(x.sourceUrl===w.url||x.sourceUrl===(w.url||'').replace(/\/$/,'')));
   }
 
+  const fWpKey = document.getElementById('wst_filter_wpkey')?.value || '';
+
   let list = allTrackedWs.filter(w=>{
     if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
     if(fTeam && w.team !== fTeam) return false;
+
+    // Chế độ nội dung: lọc theo tình trạng WP Key
+    if(_wstMode === 'content' && fWpKey){
+      const cfg = (getWstSite(w.id)?.content) || {};
+      const has = !!(cfg.wpUser && cfg.wpPassSaved);
+      if(fWpKey === 'has' && !has) return false;
+      if(fWpKey === 'none' && has) return false;
+    }
     
     // Advanced Filter: Status of web
     if(fStatus && w.status !== fStatus) return false;
@@ -3008,14 +3127,7 @@ function renderWsTrack(){
       <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;min-width:130px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
       <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
       <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;min-width:140px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
-      <th onclick="wstHandleSort('clicks')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Clicks (Giai đoạn và tăng giảm so với giai đoạn trước)">Clicks (${_wstGscPeriod}) ${wstGetSortIndicator('clicks')}</th>
-      <th onclick="wstHandleSort('imps')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Impressions (Giai đoạn và tăng giảm so với giai đoạn trước)">Imps (${_wstGscPeriod}) ${wstGetSortIndicator('imps')}</th>
-      <th onclick="wstHandleSort('ctr')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="CTR (Giai đoạn và tăng giảm so với giai đoạn trước)">CTR (${_wstGscPeriod}) ${wstGetSortIndicator('ctr')}</th>
-      <th onclick="wstHandleSort('pos')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Vị trí trung bình (Giai đoạn và tăng giảm so với giai đoạn trước)">Vị trí (${_wstGscPeriod}) ${wstGetSortIndicator('pos')}</th>
-      <th onclick="wstHandleSort('rank')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🏆 Rank ${wstGetSortIndicator('rank')}</th>
-      <th onclick="wstHandleSort('index')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🔍 Index ${wstGetSortIndicator('index')}</th>
-      <th onclick="wstHandleSort('updated')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Cập nhật ${wstGetSortIndicator('updated')}</th>
-      <th style="padding:8px 10px;text-align:center;font-size:11px">Thao tác</th>
+      ${wstHeadRight()}
     </tr>`;
   }
 
@@ -3084,6 +3196,7 @@ function renderWsTrack(){
           <button onclick="var btn=this;btn.innerHTML='⏳'; wstFetchRank(${w.id}).then(r=>{btn.innerHTML='↺'; renderWsTrack(); if(r.error)toast(r.error,'#e74c3c'); else toast('Xong!','#27ae60')})" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 4px;font-size:10px" title="Kiểm tra rank ngay">↺</button>
         </div>
       </td>
+      ${_wstMode==='content' ? wstRowRightContent(w, site) : `
       ${(()=>{
         const gscData = wstGetGscPeriodData(w.id, _wstGscPeriod);
         
@@ -3154,7 +3267,7 @@ function renderWsTrack(){
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>
         <button onclick="wstOpenHistoryModal(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;color:#8b949e;border-color:#30363d;vertical-align:middle" title="Lịch sử thay đổi dữ liệu">🕒</button>
         <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c;vertical-align:middle" title="Bỏ theo dõi">×</button>
-      </td>
+      </td>`}
     </tr>`;
   }).join('');
 

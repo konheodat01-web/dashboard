@@ -661,12 +661,17 @@
     <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px">
       <div class="panel-title">📈 Theo dõi web</div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+        <div style="display:inline-flex;border:1px solid #30363d;border-radius:6px;overflow:hidden;height:32px">
+          <button type="button" id="wstModeBtn_seo" onclick="wstSetMode('seo')" style="border:none;background:#e74c3c;color:#fff;font-weight:700;font-size:11px;padding:0 10px;cursor:pointer">📈 Theo dõi SEO</button>
+          <button type="button" id="wstModeBtn_content" onclick="wstSetMode('content')" style="border:none;background:transparent;color:#8b949e;font-weight:500;font-size:11px;padding:0 10px;cursor:pointer">✍️ Quản lý nội dung</button>
+        </div>
         <input type="text" id="wst_search" placeholder="🔍 Tìm website..." oninput="renderWsTrack()" style="width:160px;height:32px;font-size:12px">
         <select id="wst_filter_team" onchange="renderWsTrack()" style="height:32px;font-size:12px">
           <option value="">Tất cả team</option>
           <option value="Team 01">Chaewon</option>
           <option value="Team 02">M7</option>
         </select>
+        <span id="wstToolsSeo" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
         <select id="wst_filter_index" onchange="renderWsTrack()" style="height:32px;font-size:12px">
           <option value="">Tất cả index</option>
           <option value="Đã index">✅ Đã index</option>
@@ -682,6 +687,17 @@
           <option value="3m">📅 GSC: 3 tháng qua</option>
         </select>
         <button onclick="wstToggleAdvancedFilters()" class="btn btn-outline btn-sm">⚙️ Lọc nâng cao</button>
+        </span>
+        <span id="wstToolsContent" style="display:none;flex-wrap:wrap;gap:6px;align-items:center">
+          <select id="wst_filter_wpkey" onchange="renderWsTrack()" style="height:32px;font-size:12px">
+            <option value="">Tất cả WP Key</option>
+            <option value="has">✅ Đã có WP Key</option>
+            <option value="none">⬜ Chưa có WP Key</option>
+          </select>
+          <button onclick="wstOpenWriter('')" class="btn btn-sm" style="background:#7c5cff;color:#fff;border:none">✍️ Mở SEO Writer</button>
+          <button onclick="wstSyncSitesToWriter()" class="btn btn-outline btn-sm" title="Đẩy danh sách website sang SEO Writer để khỏi tạo hồ sơ thủ công">🔄 Đồng bộ site</button>
+          <button onclick="wstScanNotIndexed()" class="btn btn-outline btn-sm" title="Quét các bài đã đăng chưa được Google index">🚫 Quét bài chưa index</button>
+        </span>
         <button onclick="openWstPickModal()" class="btn btn-outline btn-sm">+ Thêm web</button>
       </div>
     </div>
