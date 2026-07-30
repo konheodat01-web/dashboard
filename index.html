@@ -666,9 +666,9 @@
           <button type="button" id="wstModeBtn_seo" onclick="wstSetMode('seo')" style="border:none;border-right:1px solid #30363d;background:#e74c3c;color:#fff;font-weight:700;font-size:11px;padding:0 12px;cursor:default;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25);white-space:nowrap">📈 Theo dõi SEO</button>
           <button type="button" id="wstModeBtn_content" onclick="wstSetMode('content')" style="border:none;background:#161b22;color:#8b949e;font-weight:500;font-size:11px;padding:0 12px;cursor:pointer;opacity:.75;white-space:nowrap">✍️ Quản lý nội dung</button>
         </div>
+        <input type="text" id="wst_search" placeholder="🔍 Tìm website..." oninput="renderWsTrack()" style="width:170px;height:32px;font-size:12px;flex-shrink:0">
       </div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
-        <input type="text" id="wst_search" placeholder="🔍 Tìm website..." oninput="renderWsTrack()" style="width:160px;height:32px;font-size:12px">
         <select id="wst_filter_team" onchange="renderWsTrack()" style="height:32px;font-size:12px">
           <option value="">Tất cả team</option>
           <option value="Team 01">Chaewon</option>

@@ -2292,7 +2292,7 @@ function wstApplyColgroup(){
   if (!tbl) return;
   var LEFT = [2.5, 12.5, 12.5, 5, 12.5];                    // checkbox, URL, Website, Team, Từ khóa  = 45%
   var RIGHT = (_wstMode === 'content')
-    ? [10, 10, 14, 9, 12]                                    // bài đã đăng, chưa index, danh mục, cập nhật, thao tác = 55%
+    ? [9, 9, 9, 9, 7, 12]                                    // tổng bài, đã index, chưa index, tỷ lệ, cập nhật, thao tác = 55%
     : [6.5, 6.5, 6.5, 6.5, 5.5, 4.5, 7, 12];                 // clicks, imps, ctr, vị trí, rank, index, cập nhật, thao tác = 55%
   var cg = tbl.querySelector('colgroup');
   if (!cg) { cg = document.createElement('colgroup'); tbl.insertBefore(cg, tbl.firstChild); }
@@ -2307,12 +2307,13 @@ function wstHeadRight(){
       + (title ? ' title="'+title+'"' : '') + '>' + label + '</th>';
   };
   if (_wstMode === 'content') {
-    // Không hiển thị trạng thái WP Key ở đây — thiếu key thì báo lúc đăng bài
-    return th('📝 Bài đã đăng', 150, 'So bai SEO Writer da dang len site nay')
-      + th('🚫 Chưa index', 150, 'So bai da dang nhung Google chua index')
-      + th('📁 Danh mục', 230, 'Danh muc mac dinh khi dang Post')
-      + '<th onclick="wstHandleSort(\'updated\')" style="padding:8px 6px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Cập nhật ' + wstGetSortIndicator('updated') + '</th>'
-      + th('Thao tác', 180);
+    // Chỉ số NỘI DUNG — không dùng chung cơ chế với chế độ theo dõi website
+    return th('📝 Tổng bài', 0, 'Tong so bai viet da dang len site nay')
+      + th('✅ Đã index', 0, 'So bai da duoc Google index')
+      + th('🚫 Chưa index', 0, 'So bai chua duoc Google index')
+      + th('📊 Tỷ lệ index', 0, 'Da index / Tong so bai')
+      + th('🕒 Cập nhật', 0, 'Lan cap nhat NOI DUNG gan nhat (dang/sua bai)')
+      + th('Thao tác', 0);
   }
   return '<th onclick="wstHandleSort(\'clicks\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Clicks (Giai doan va tang giam so voi giai doan truoc)">Clicks (' + _wstGscPeriod + ') ' + wstGetSortIndicator('clicks') + '</th>'
     + '<th onclick="wstHandleSort(\'imps\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Impressions (Giai doan va tang giam so voi giai doan truoc)">Imps (' + _wstGscPeriod + ') ' + wstGetSortIndicator('imps') + '</th>'
@@ -2326,18 +2327,29 @@ function wstHeadRight(){
 
 // Các ô PHẢI cho 1 dòng ở chế độ QUẢN LÝ NỘI DUNG
 function wstRowRightContent(w, site){
-  var c = (site && site.content) || {};   // cau hinh noi dung cua site (WP key tich hop sau)
+  var c = (site && site.content) || {};   // chỉ số nội dung (nối SEO Writer ở bước sau)
   var num = function(v){ return (v === 0 || v > 0) ? String(v) : '—'; };
-  var notIdx = (c.notIndexed === 0 || c.notIndexed > 0) ? c.notIndexed : null;
+  var total = (c.postCount === 0 || c.postCount > 0) ? c.postCount : null;
+  var idx   = (c.indexed === 0 || c.indexed > 0) ? c.indexed : null;
+  var noIdx = (c.notIndexed === 0 || c.notIndexed > 0) ? c.notIndexed
+              : ((total !== null && idx !== null) ? Math.max(0, total - idx) : null);
+  // Tỷ lệ index + màu theo mức
+  var rateCell = '—';
+  if (total && idx !== null) {
+    var pct = Math.round(idx / total * 100);
+    var col = pct >= 80 ? '#3fb950' : (pct >= 50 ? '#d29922' : '#f85149');
+    rateCell = '<span style="font-weight:700;color:' + col + '">' + pct + '%</span>';
+  }
   var dom = (w.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
   return ''
-    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:#58a6ff">' + num(c.postCount) + '</td>'
-    + '<td style="padding:8px 10px;text-align:center;font-weight:600;color:' + (notIdx ? '#f85149' : '#8b949e') + '">' + (notIdx ? '❌ ' + notIdx : num(c.notIndexed)) + '</td>'
-    + '<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap">' + (c.defaultCategory || '—') + '</td>'
-    + '<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap">' + ((site && site.lastUpdatedAt) || '—') + '</td>'
-    + '<td style="padding:8px 10px;text-align:center;white-space:nowrap">'
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:#58a6ff">' + num(total) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (idx ? '#3fb950' : '#8b949e') + '">' + num(idx) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (noIdx ? '#f85149' : '#8b949e') + '">' + num(noIdx) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center">' + rateCell + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-size:11px;color:var(--text-muted);white-space:nowrap">' + (c.lastContentUpdate || '—') + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;white-space:nowrap">'
       + '<button onclick="wstOpenWriter(\'' + dom + '\',\'' + (w.brand||'').replace(/'/g,"") + '\')" class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Mo SEO Writer de viet bai cho ' + w.brand + '">✍️ Viết bài</button> '
-      + '<button onclick="wstOpenContentConfig(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Cau hinh noi dung (WP key, danh muc, link brand)">⚙️</button> '
+      + '<button onclick="wstOpenContentConfig(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Cau hinh noi dung">⚙️</button> '
       + '<button onclick="wstOpenDashboard(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>'
     + '</td>';
 }
