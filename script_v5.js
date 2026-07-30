@@ -2285,11 +2285,25 @@ function wstScanNotIndexed(){
   if(typeof toast==='function') toast('Quét bài chưa index — mở ở bước tích hợp GSC + SEO Writer', '#e67e22');
 }
 
+// Cố định bề rộng cột bằng <colgroup> (%). Cột TRÁI luôn 45% ở CẢ HAI chế độ
+// => chuyển chế độ bảng không xê dịch. Tổng luôn = 100%.
+function wstApplyColgroup(){
+  var tbl = document.getElementById('wstTable');
+  if (!tbl) return;
+  var LEFT = [2.5, 12.5, 12.5, 5, 12.5];                    // checkbox, URL, Website, Team, Từ khóa  = 45%
+  var RIGHT = (_wstMode === 'content')
+    ? [10, 10, 14, 9, 12]                                    // bài đã đăng, chưa index, danh mục, cập nhật, thao tác = 55%
+    : [6.5, 6.5, 6.5, 6.5, 5.5, 4.5, 7, 12];                 // clicks, imps, ctr, vị trí, rank, index, cập nhật, thao tác = 55%
+  var cg = tbl.querySelector('colgroup');
+  if (!cg) { cg = document.createElement('colgroup'); tbl.insertBefore(cg, tbl.firstChild); }
+  cg.innerHTML = LEFT.concat(RIGHT).map(function(w){ return '<col style="width:' + w + '%">'; }).join('');
+}
+
 // Tiêu đề các cột PHẢI theo chế độ
 function wstHeadRight(){
   // Bề rộng CỐ ĐỊNH cho từng cột phải -> đổi chế độ bảng không thò thụt
-  var th = function(label, w, title){
-    return '<th style="padding:8px 6px;text-align:center;font-size:11px;white-space:nowrap;width:' + w + 'px"'
+  var th = function(label, w, title){   // w giữ lại cho dễ đọc, bề rộng thật do colgroup quyết định
+    return '<th style="padding:8px 6px;text-align:center;font-size:11px;white-space:nowrap"'
       + (title ? ' title="'+title+'"' : '') + '>' + label + '</th>';
   };
   if (_wstMode === 'content') {
@@ -2297,16 +2311,16 @@ function wstHeadRight(){
     return th('📝 Bài đã đăng', 150, 'So bai SEO Writer da dang len site nay')
       + th('🚫 Chưa index', 150, 'So bai da dang nhung Google chua index')
       + th('📁 Danh mục', 230, 'Danh muc mac dinh khi dang Post')
-      + '<th onclick="wstHandleSort(\'updated\')" style="padding:8px 6px;text-align:left;font-size:11px;cursor:pointer;user-select:none;width:110px">Cập nhật ' + wstGetSortIndicator('updated') + '</th>'
+      + '<th onclick="wstHandleSort(\'updated\')" style="padding:8px 6px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Cập nhật ' + wstGetSortIndicator('updated') + '</th>'
       + th('Thao tác', 180);
   }
-  return '<th onclick="wstHandleSort(\'clicks\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none;width:95px" title="Clicks (Giai doan va tang giam so voi giai doan truoc)">Clicks (' + _wstGscPeriod + ') ' + wstGetSortIndicator('clicks') + '</th>'
-    + '<th onclick="wstHandleSort(\'imps\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none;width:95px" title="Impressions (Giai doan va tang giam so voi giai doan truoc)">Imps (' + _wstGscPeriod + ') ' + wstGetSortIndicator('imps') + '</th>'
-    + '<th onclick="wstHandleSort(\'ctr\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none;width:95px" title="CTR (Giai doan va tang giam so voi giai doan truoc)">CTR (' + _wstGscPeriod + ') ' + wstGetSortIndicator('ctr') + '</th>'
-    + '<th onclick="wstHandleSort(\'pos\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none;width:95px" title="Vi tri trung binh (Giai doan va tang giam so voi giai doan truoc)">Vị trí (' + _wstGscPeriod + ') ' + wstGetSortIndicator('pos') + '</th>'
-    + '<th onclick="wstHandleSort(\'rank\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none;width:80px">🏆 Rank ' + wstGetSortIndicator('rank') + '</th>'
-    + '<th onclick="wstHandleSort(\'index\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none;width:70px">🔍 Index ' + wstGetSortIndicator('index') + '</th>'
-    + '<th onclick="wstHandleSort(\'updated\')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none;width:110px">Cập nhật ' + wstGetSortIndicator('updated') + '</th>'
+  return '<th onclick="wstHandleSort(\'clicks\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Clicks (Giai doan va tang giam so voi giai doan truoc)">Clicks (' + _wstGscPeriod + ') ' + wstGetSortIndicator('clicks') + '</th>'
+    + '<th onclick="wstHandleSort(\'imps\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Impressions (Giai doan va tang giam so voi giai doan truoc)">Imps (' + _wstGscPeriod + ') ' + wstGetSortIndicator('imps') + '</th>'
+    + '<th onclick="wstHandleSort(\'ctr\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="CTR (Giai doan va tang giam so voi giai doan truoc)">CTR (' + _wstGscPeriod + ') ' + wstGetSortIndicator('ctr') + '</th>'
+    + '<th onclick="wstHandleSort(\'pos\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Vi tri trung binh (Giai doan va tang giam so voi giai doan truoc)">Vị trí (' + _wstGscPeriod + ') ' + wstGetSortIndicator('pos') + '</th>'
+    + '<th onclick="wstHandleSort(\'rank\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🏆 Rank ' + wstGetSortIndicator('rank') + '</th>'
+    + '<th onclick="wstHandleSort(\'index\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🔍 Index ' + wstGetSortIndicator('index') + '</th>'
+    + '<th onclick="wstHandleSort(\'updated\')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Cập nhật ' + wstGetSortIndicator('updated') + '</th>'
     + '<th style="padding:8px 10px;text-align:center;font-size:11px">Thao tác</th>';
 }
 
@@ -2961,6 +2975,7 @@ function renderWsTrack(){
   const empty = document.getElementById('wstEmpty');
   if(!tbody) return;
   if (typeof wstApplyModeUI === 'function') wstApplyModeUI();
+  if (typeof wstApplyColgroup === 'function') wstApplyColgroup();
 
   const allTrackedWs = siteTracking.map(s=>websites.find(w=>w.id===s.wsId)).filter(Boolean);
 
@@ -3134,11 +3149,11 @@ function renderWsTrack(){
   // Build table header
   if(thead){
     thead.innerHTML = `<tr style="background:#f8f9fa;border-bottom:2px solid var(--gray-border)">
-      <th style="padding:8px 6px;text-align:center;width:34px"><input type="checkbox" id="wstSelectAll" onchange="wstToggleSelectAll(this)" style="cursor:pointer;accent-color:var(--red)"></th>
-      <th onclick="wstHandleSort('url301')" style="padding:8px 10px;text-align:left;font-size:11px;width:172px;cursor:pointer;user-select:none">URL hiện tại (301) ${wstGetSortIndicator('url301')}</th>
-      <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;width:172px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
-      <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;width:72px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
-      <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;width:170px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
+      <th style="padding:8px 6px;text-align:center"><input type="checkbox" id="wstSelectAll" onchange="wstToggleSelectAll(this)" style="cursor:pointer;accent-color:var(--red)"></th>
+      <th onclick="wstHandleSort('url301')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">URL hiện tại (301) ${wstGetSortIndicator('url301')}</th>
+      <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
+      <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
+      <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
       ${wstHeadRight()}
     </tr>`;
   }
@@ -3168,7 +3183,7 @@ function renderWsTrack(){
       <td style="padding:6px;text-align:center">
         <input type="checkbox" class="wst-chk" data-id="${w.id}" onchange="wstToggleSelect(${w.id},this)" ${isSelected?'checked':''} style="cursor:pointer;accent-color:var(--red)">
       </td>
-      <td style="padding:8px 10px;min-width:160px">
+      <td style="padding:8px 6px;overflow:hidden">
         ${(()=>{
           const dW = isSameAsSource ? w : latest301;
           const dColor = isSameAsSource ? 'var(--blue)' : '#6c5ce7';
@@ -3183,7 +3198,7 @@ function renderWsTrack(){
           </div>`;
         })()}
       </td>
-      <td style="padding:8px 10px;min-width:160px">
+      <td style="padding:8px 6px;overflow:hidden">
         ${(()=>{
           const sc = WS_STATUS_COLOR[w.status]||'#999';
           return `<div style="display:flex;align-items:center;gap:6px">
