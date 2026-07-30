@@ -2340,7 +2340,7 @@ function wstRowRightContent(w, site){
     var col = pct >= 80 ? '#3fb950' : (pct >= 50 ? '#d29922' : '#f85149');
     rateCell = '<span style="font-weight:700;color:' + col + '">' + pct + '%</span>';
   }
-  var dom = (w.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  var dom = wstCurrentUrl(w);   // site WordPress thật để viết/đăng bài
   return ''
     + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:#58a6ff">' + num(total) + '</td>'
     + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (idx ? '#3fb950' : '#8b949e') + '">' + num(idx) + '</td>'
@@ -2354,6 +2354,18 @@ function wstRowRightContent(w, site){
     + '</td>';
 }
 
+// Lấy URL HIỆN TẠI (site WordPress thật) = child 301 mới nhất, không phải domain gốc.
+// Giống hệt cách cột "URL hiện tại (301)" tính display301Url trong renderWsTrack.
+function wstCurrentUrl(w){
+  var kids = websites.filter(function(x){
+    return x.is301 && x.sourceUrl &&
+      (x.sourceUrl === w.url || x.sourceUrl === (w.url||'').replace(/\/$/, ''));
+  });
+  var latest301 = kids.length ? kids[kids.length - 1] : null;
+  var u = latest301 ? (latest301.url || latest301.sourceUrl || w.url) : w.url;
+  return (u || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
 // ══ POPUP: danh sách tất cả bài viết trên website ══
 var _wstPosts = { wsId: null, domain: '', items: [] };
 
@@ -2361,7 +2373,7 @@ function wstOpenPostsModal(wsId){
   var w = websites.find(function(x){ return x.id === wsId; });
   if (!w) return;
   _wstPosts.wsId = wsId;
-  _wstPosts.domain = (w.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  _wstPosts.domain = wstCurrentUrl(w);   // site WordPress thật, không phải domain gốc
   _wstPosts.items = [];
   document.getElementById('wstPostsSite').textContent = w.brand + ' (' + _wstPosts.domain + ')';
   document.getElementById('wstPostsSearch').value = '';
