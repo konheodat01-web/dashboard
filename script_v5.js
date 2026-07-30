@@ -1205,6 +1205,22 @@ function saveAppData(){
   }
   if(window._fbReady && window._fbDb){
     console.log('Pushing to Firebase, ts=', ts);
+    // ══ CHỐT AN TOÀN (thêm 30/7/2026 sau sự cố mất dữ liệu) ══
+    // Không cho ghi khi dữ liệu trong bộ nhớ rỗng/ít bất thường so với server.
+    // Nguyên nhân sự cố: mở trang khi CHƯA ĐĂNG NHẬP -> biến websites = seed mặc định
+    // (1 bản ghi) -> tự đẩy lên Firebase -> xóa sạch 469 website + toàn bộ nhánh khác.
+    try {
+      var _guardLocal = (Array.isArray(websites) ? websites.length : 0)
+                      + (Array.isArray(tasks) ? tasks.length : 0)
+                      + (Array.isArray(links) ? links.length : 0);
+      if (_guardLocal <= 3 && window._fbLastServerCount > 10) {
+        console.error('[GUARD] CHAN GHI: local chi co', _guardLocal,
+          'ban ghi nhung server dang co', window._fbLastServerCount, '- bo qua de tranh xoa du lieu.');
+        if (typeof toast === 'function') toast('⛔ Đã chặn ghi dữ liệu rỗng lên Firebase (bảo vệ dữ liệu)', '#e74c3c');
+        return Promise.resolve();
+      }
+    } catch(e) { /* guard khong duoc lam vo luong chinh */ }
+
     return window._fbDb.ref('appData').set(fbPayload(ts)).then(()=>{
       console.log('Firebase push OK');
       if(ind){
@@ -1297,6 +1313,10 @@ function initFirebaseListener(){
   window._fbDb.ref('appData').on('value', (snapshot)=>{
     const r = snapshot.val();
     if(!r) return;
+    // mốc so sánh cho CHỐT AN TOÀN ở hàm ghi
+    window._fbLastServerCount = (Array.isArray(r.websites) ? r.websites.length : 0)
+                              + (Array.isArray(r.tasks) ? r.tasks.length : 0)
+                              + (Array.isArray(r.links) ? r.links.length : 0);
     if (!data) data = { hai: [], hieu: [] };
     if (!data.hai) data.hai = [];
     if (!data.hieu) data.hieu = [];
