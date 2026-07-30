@@ -2276,7 +2276,6 @@ function wstApplyModeUI(){
 }
 
 function wstSetMode(m){
-  if (m === 'content' && typeof wstLoadMissingImg === 'function') wstLoadMissingImg();
   _wstMode = (m === 'content') ? 'content' : 'seo';
   localStorage.setItem('wst_mode', _wstMode);
   wstApplyModeUI();
@@ -2354,41 +2353,6 @@ function wstInitContentIndexSync(){
   } catch(e){}
 }
 function _wstUrlKey(u){ return (u||'').replace(/^https?:\/\//,'').replace(/\/$/,'').toLowerCase(); }
-
-// ══ Bài THIẾU ẢNH (từ SEO Writer, step 6) ══
-var _wstMissingImg = [];
-var _wstMissImgLoaded = false;
-async function wstLoadMissingImg(force){
-  if (_wstMissImgLoaded && !force) return;
-  try {
-    var r = await fetch('/api/sw-missing-images');
-    var d = await r.json();
-    _wstMissingImg = Array.isArray(d.items) ? d.items : [];
-    _wstMissImgLoaded = true;
-    if (_wstMode === 'content' && typeof renderWsTrack === 'function') renderWsTrack();
-  } catch(e){ _wstMissingImg = []; }
-}
-function _wstNorm(x){ return (x==null?'':String(x)).toLowerCase().replace(/\s+/g,''); }
-// Khớp bài với site theo URL WEBSITE (không phải brand — cùng brand có nhiều site).
-// Tập URL của 1 website = URL gốc (w.url) + TẤT CẢ URL 301 con -> unique cho từng site.
-function _wstSiteUrlSet(w){
-  var set = {};
-  var add = function(u){ u = (u||'').replace(/^https?:\/\//,'').replace(/\/$/,'').toLowerCase(); if (u) set[u] = 1; };
-  add(w.url);
-  websites.forEach(function(x){
-    if (x.is301 && x.sourceUrl && (x.sourceUrl === w.url || x.sourceUrl === (w.url||'').replace(/\/$/,''))) {
-      add(x.url); add(x.sourceUrl);
-    }
-  });
-  return set;
-}
-function wstMissingForSite(w){
-  if (!_wstMissingImg.length) return [];
-  var urls = _wstSiteUrlSet(w);
-  return _wstMissingImg.filter(function(it){
-    return (it.host && urls[it.host]) || (it.domain && urls[it.domain]);
-  });
-}
 
 
 var _wstScanAbort = false;
@@ -2606,7 +2570,7 @@ function wstApplyColgroup(){
   if (!tbl) return;
   var LEFT = [2.5, 12.5, 12.5, 5, 12.5];                    // checkbox, URL, Website, Team, Từ khóa  = 45%
   var RIGHT = (_wstMode === 'content')
-    ? [8, 8, 8, 8, 8, 7, 8]                                 // tổng, đã index, chưa index, tỷ lệ, THIẾU ẢNH, cập nhật, thao tác = 55%
+    ? [9, 9, 9, 9, 7, 12]                                    // tổng bài, đã index, chưa index, tỷ lệ, cập nhật, thao tác = 55%
     : [6.5, 6.5, 6.5, 6.5, 5.5, 4.5, 7, 12];                 // clicks, imps, ctr, vị trí, rank, index, cập nhật, thao tác = 55%
   var cg = tbl.querySelector('colgroup');
   if (!cg) { cg = document.createElement('colgroup'); tbl.insertBefore(cg, tbl.firstChild); }
@@ -2630,7 +2594,6 @@ function wstHeadRight(){
       + cth('cindexed',    '✅ Đã index',    'So bai da index')
       + cth('cnotindexed', '🚫 Chưa index',  'Tong - da index (gom ca chua kiem tra)')
       + cth('crate',       '📊 Tỷ lệ index', 'Da index / Tong')
-      + cth('cmissimg',    '🖼️ Thiếu ảnh',   'So bai da tao chua them anh (Buoc 7)')
       + cth('cupdated',    '🕒 Cập nhật',    'Lan cap nhat noi dung gan nhat')
       + th('Thao tác', 0);
   }
@@ -2666,7 +2629,6 @@ function wstRowRightContent(w, site){
     + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (idx ? '#3fb950' : '#8b949e') + '">' + num(idx) + '</td>'
     + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (noIdx ? '#f85149' : '#8b949e') + '" title="Gồm cả bài chưa kiểm tra (Tổng − Đã index)">' + num(noIdx) + '</td>'
     + '<td style="padding:8px 6px;text-align:center">' + rateCell + '</td>'
-    + '<td style="padding:8px 6px;text-align:center">' + (function(){ var m = wstMissingForSite(w); return m.length ? '<button onclick="wstOpenMissingImg(' + w.id + ')" style="background:none;border:none;cursor:pointer;color:#e67e22;font-weight:700;font-size:12px" title="Xem ' + m.length + ' bài thiếu ảnh">🖼️ ' + m.length + '</button>' : '<span style="color:#8b949e">—</span>'; })() + '</td>'
     + '<td style="padding:8px 6px;text-align:center;font-size:11px;color:var(--text-muted);white-space:nowrap">' + (c.lastContentUpdate || '—') + '</td>'
     + '<td style="padding:8px 6px;text-align:center;white-space:nowrap">'
       + '<button onclick="wstWriteForSite(' + w.id + ')" class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Mo SEO Writer: site 301 (' + dom + ') + WP key de dang bai cho ' + w.brand + '">✍️ Viết bài</button> '
@@ -2692,30 +2654,6 @@ function wstCurrentUrl(w){
   var site = wstCurrent301Site(w);
   var u = (site && site.url) || (w && w.url) || '';
   return u.replace(/^https?:\/\//, '').replace(/\/$/, '');
-}
-
-// ══ POPUP: bài thiếu ảnh của 1 site -> click mở SEO Writer Bước 7 ══
-function wstOpenMissingImg(wsId){
-  var w = websites.find(function(x){ return x.id === wsId; });
-  if (!w) return;
-  var list = wstMissingForSite(w);
-  document.getElementById('wstMissImgSite').textContent = (w.brand||'') + ' — ' + list.length + ' bài thiếu ảnh';
-  var body = document.getElementById('wstMissImgBody');
-  if (!list.length){ body.innerHTML = '<div style="padding:18px;text-align:center;color:#8b949e">Không có bài nào thiếu ảnh</div>'; }
-  else body.innerHTML = list.map(function(it, i){
-    return '<div onclick="wstOpenArticleStep7(&quot;' + it.id + '&quot;)" style="display:flex;gap:10px;align-items:center;padding:9px 10px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">'
-      + '<span style="color:#8b949e;font-size:11px;width:20px">' + (i+1) + '</span>'
-      + '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:12px">' + (it.title||'(chưa có tiêu đề)') + '</div>'
-      + '<div style="font-size:10px;color:#8b949e">' + (it.host||it.domain||'') + ' · ' + (it.updated_at||'').slice(0,10) + '</div></div>'
-      + '<span style="font-size:11px;color:#7c5cff;white-space:nowrap">✍️ Thêm ảnh →</span></div>';
-  }).join('');
-  document.getElementById('wstMissImgOverlay').classList.add('open');
-}
-function wstCloseMissImg(){ document.getElementById('wstMissImgOverlay').classList.remove('open'); }
-// Mở SEO Writer ở Bước 7 cho đúng bài (iframe popup)
-function wstOpenArticleStep7(articleId){
-  wstCloseMissImg();
-  wstOpenWriterModal('https://seo-writer-tool.nthieucloud.shop/?article=' + encodeURIComponent(articleId), 'Thêm ảnh — Bước 7');
 }
 
 // ══ POPUP: danh sách tất cả bài viết trên website ══
@@ -3721,9 +3659,6 @@ function renderWsTrack(){
         else if (_wstSortCol === 'cnotindexed'){ valA = (totA==null?-1:Math.max(0,totA-idxA)); valB = (totB==null?-1:Math.max(0,totB-idxB)); }
         else if (_wstSortCol === 'crate')     { valA = (totA?idxA/totA:-1);    valB = (totB?idxB/totB:-1); }
         else if (_wstSortCol === 'cupdated')  { valA = csA.lastContentUpdate || ''; valB = csB.lastContentUpdate || ''; }
-      }
-      else if (_wstSortCol === 'cmissimg') {
-        valA = wstMissingForSite(a).length; valB = wstMissingForSite(b).length;
       }
 
       let comp = 0;

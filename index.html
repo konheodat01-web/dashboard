@@ -710,20 +710,6 @@
   </div>
 </div>
 
-<!-- MODAL: bài thiếu ảnh của 1 site -->
-<div class="modal-overlay" id="wstMissImgOverlay" onclick="if(event.target===this)wstCloseMissImg()">
-  <div class="modal" style="max-width:560px;width:94%" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h3 style="margin:0">🖼️ Bài thiếu ảnh · <span id="wstMissImgSite" style="color:#e67e22"></span></h3>
-      <button class="modal-close" onclick="wstCloseMissImg()">&times;</button>
-    </div>
-    <div class="modal-body" style="padding:0;max-height:64vh;overflow:auto">
-      <div id="wstMissImgBody"></div>
-    </div>
-    <div class="modal-footer"><button class="btn sec" onclick="wstCloseMissImg()">Đóng</button></div>
-  </div>
-</div>
-
 <!-- MODAL: SEO Writer nhúng iframe (thay vì mở tab mới) -->
 <div class="modal-overlay" id="wstWriterOverlay" onclick="if(event.target===this)wstCloseWriterModal()">
   <div class="modal" style="max-width:98vw;width:98vw;height:94vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
