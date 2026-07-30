@@ -5349,8 +5349,20 @@ function renderWebsites(){
 }
 
 function openWebsiteForm(id=null){
+  let w=id?websites.find(x=>x.id===id):null;
+  
+  // Nếu website được chọn là 301, tự động chuyển hướng form sửa sang website gốc
+  if (w && w.is301) {
+    const chain = getWstRedirectChainBackward(w);
+    const parent = chain.find(x => !x.is301) || chain[chain.length - 1];
+    if (parent && parent.id !== w.id) {
+      toast(`🔔 Web 301 tự động đồng bộ. Đang mở sửa trên web gốc: ${parent.brand}`, '#6c5ce7', 3500);
+      id = parent.id;
+      w = parent;
+    }
+  }
+
   editingWsId=id;
-  const w=id?websites.find(x=>x.id===id):null;
   document.getElementById('wfTitle').textContent=w?'✎ Sửa website':'+ Thêm website';
   document.getElementById('wf_id').value=id||'';
   document.getElementById('wf_brand').value=w?.brand||'';
@@ -5553,6 +5565,22 @@ function saveWebsite(){
       }
     }
   }
+
+  // Tự động đồng bộ tài khoản, mật khẩu, admin, team, status từ web gốc xuống các web 301 con liên kết với nó
+  if (!obj.is301 && obj.url) {
+    const parentUrlNorm = wstNormalizeUrl(obj.url);
+    websites.forEach(w => {
+      if (w.is301 && w.sourceUrl && wstNormalizeUrl(w.sourceUrl) === parentUrlNorm) {
+        w.account = obj.account;
+        w.password = obj.password;
+        w.appwppass = obj.appwppass;
+        w.admin = obj.admin;
+        w.team = obj.team;
+        w.status = obj.status;
+      }
+    });
+  }
+
   editingWsId=null;
   clearWebsiteForm();
   saveAppData();
