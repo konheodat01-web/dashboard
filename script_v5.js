@@ -1310,6 +1310,9 @@ function initFirebaseListener(){
     }
   }).catch(()=>{});
 
+  // Đồng bộ trạng thái check index từ nhánh riêng contentIndex (tách khỏi appData)
+  wstInitContentIndexSync();
+
   window._fbDb.ref('appData').on('value', (snapshot)=>{
     const r = snapshot.val();
     if(!r) return;
@@ -2288,9 +2291,66 @@ var _wstIndexCache   = {};   // "host/slug" -> {indexed:bool, reason, checkedAt}
   try { _wstContentStats = JSON.parse(localStorage.getItem('wt_content_stats') || '{}'); } catch(e){ _wstContentStats = {}; }
   try { _wstIndexCache   = JSON.parse(localStorage.getItem('wt_index_cache')   || '{}'); } catch(e){ _wstIndexCache   = {}; }
 })();
+var _wstFbSyncTimer = null;
 function wstSaveContentStats(){
   try { localStorage.setItem('wt_content_stats', JSON.stringify(_wstContentStats)); } catch(e){}
   try { localStorage.setItem('wt_index_cache',   JSON.stringify(_wstIndexCache));   } catch(e){}
+  // Đẩy lên Firebase nhánh RIÊNG, debounce 3s (tránh ghi liên tục khi đang check).
+  if (_wstFbRef()){
+    if (_wstFbSyncTimer) clearTimeout(_wstFbSyncTimer);
+    _wstFbSyncTimer = setTimeout(wstPushContentIndexToFirebase, 3000);
+  }
+}
+
+// Ref tới nhánh contentIndex (KHÔNG phải appData — tách biệt hoàn toàn, không đụng dữ liệu website).
+function _wstFbRef(){
+  if (window._fbDb && window._fbDb.ref) return window._fbDb.ref('contentIndex');
+  if (typeof firebase !== 'undefined' && firebase.database) return firebase.database().ref('contentIndex');
+  return null;
+}
+
+// Ghi toàn bộ cache+stats dạng JSON blob (key URL có ./ nên không làm key Firebase được).
+function wstPushContentIndexToFirebase(){
+  var ref = _wstFbRef(); if (!ref) return;
+  // Không ghi đè remote bằng dữ liệu rỗng.
+  if (!Object.keys(_wstIndexCache).length && !Object.keys(_wstContentStats).length) return;
+  try {
+    ref.set({
+      cacheJson: JSON.stringify(_wstIndexCache),
+      statsJson: JSON.stringify(_wstContentStats),
+      updatedAt: Date.now()
+    }).catch(function(){});
+  } catch(e){}
+}
+
+// Đọc 1 lần lúc khởi động, MERGE vào local (ưu tiên bản checkedAt mới hơn) — đồng bộ qua thiết bị.
+function wstInitContentIndexSync(){
+  var ref = _wstFbRef(); if (!ref) return;
+  try {
+    ref.once('value').then(function(snap){
+      var r = snap.val(); if (!r) return;
+      var remoteCache = {}, remoteStats = {};
+      try { remoteCache = r.cacheJson ? JSON.parse(r.cacheJson) : {}; } catch(e){}
+      try { remoteStats = r.statsJson ? JSON.parse(r.statsJson) : {}; } catch(e){}
+      var changed = false;
+      Object.keys(remoteCache).forEach(function(k){
+        var lo = _wstIndexCache[k], ro = remoteCache[k];
+        if (!lo || (ro.checkedAt||0) > (lo.checkedAt||0)){ _wstIndexCache[k] = ro; changed = true; }
+      });
+      Object.keys(remoteStats).forEach(function(k){
+        var lo = _wstContentStats[k], ro = remoteStats[k];
+        if (!lo || (ro.checkedAt||0) > (lo.checkedAt||0)){ _wstContentStats[k] = ro; changed = true; }
+      });
+      if (changed){
+        try { localStorage.setItem('wt_content_stats', JSON.stringify(_wstContentStats)); } catch(e){}
+        try { localStorage.setItem('wt_index_cache',   JSON.stringify(_wstIndexCache));   } catch(e){}
+        if (typeof renderWsTrack === 'function' && _wstMode === 'content') renderWsTrack();
+        // nếu đang mở modal thì cập nhật luôn
+        if (typeof wstRenderPosts === 'function' && document.getElementById('wstPostsOverlay') &&
+            document.getElementById('wstPostsOverlay').classList.contains('open')) wstRenderPosts();
+      }
+    }).catch(function(){});
+  } catch(e){}
 }
 function _wstUrlKey(u){ return (u||'').replace(/^https?:\/\//,'').replace(/\/$/,'').toLowerCase(); }
 
