@@ -2730,6 +2730,10 @@ async function wstLoadPosts(){
     if (!res.ok) { info.innerHTML = '❌ ' + res.error; return; }
     _wstPosts.items = Array.isArray(res.items) ? res.items : [];
     wstFillCatFilter();
+    // Tính lại thống kê NGAY từ danh sách hiện tại ∩ cache -> gộp bài mới + bài đã check trước đó,
+    // báo cáo ngoài đúng tổng thực tế dù chưa bấm check lại.
+    var _w = websites.find(function(x){ return x.id === _wstPosts.wsId; });
+    if (_w){ wstRecomputeSiteStats(_w, _wstPosts.items); if (typeof renderWsTrack === 'function') renderWsTrack(); }
     var nPost = _wstPosts.items.filter(function(x){ return x._type === 'post'; }).length;
     var nPage = _wstPosts.items.length - nPost;
     info.textContent = 'Tổng ' + _wstPosts.items.length + ' (' + nPost + ' bài viết · ' + nPage + ' trang)' + (res.via === 'browser' ? ' · trực tiếp' : ' · qua VPS');
