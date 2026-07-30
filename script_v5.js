@@ -2608,20 +2608,21 @@ function wstRowRightContent(w, site){
   var num = function(v){ return (v === 0 || v > 0) ? String(v) : '—'; };
   var total = (c.postCount === 0 || c.postCount > 0) ? c.postCount : null;
   var idx   = (c.indexed === 0 || c.indexed > 0) ? c.indexed : null;
-  var noIdx = (c.notIndexed === 0 || c.notIndexed > 0) ? c.notIndexed
-              : ((total !== null && idx !== null) ? Math.max(0, total - idx) : null);
-  // Tỷ lệ index + màu theo mức
+  // Chưa index = Tổng − Đã index (gồm cả bài chưa kiểm tra) -> luôn cộng khớp Tổng.
+  var noIdx = (total !== null && idx !== null) ? Math.max(0, total - idx) : null;
+  var checked = (c.checked === 0 || c.checked > 0) ? c.checked : ((idx||0) + ((c.notIndexed)||0));
+  // Tỷ lệ index = Đã index / Tổng, màu theo mức
   var rateCell = '—';
   if (total && idx !== null) {
     var pct = Math.round(idx / total * 100);
     var col = pct >= 80 ? '#3fb950' : (pct >= 50 ? '#d29922' : '#f85149');
-    rateCell = '<span style="font-weight:700;color:' + col + '">' + pct + '%</span>';
+    rateCell = '<span style="font-weight:700;color:' + col + '" title="Đã kiểm tra ' + checked + '/' + total + ' bài">' + pct + '%</span>';
   }
   var dom = wstCurrentUrl(w);   // site WordPress thật để viết/đăng bài
   return ''
     + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:#58a6ff">' + num(total) + '</td>'
     + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (idx ? '#3fb950' : '#8b949e') + '">' + num(idx) + '</td>'
-    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (noIdx ? '#f85149' : '#8b949e') + '">' + num(noIdx) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (noIdx ? '#f85149' : '#8b949e') + '" title="Gồm cả bài chưa kiểm tra (Tổng − Đã index)">' + num(noIdx) + '</td>'
     + '<td style="padding:8px 6px;text-align:center">' + rateCell + '</td>'
     + '<td style="padding:8px 6px;text-align:center;font-size:11px;color:var(--text-muted);white-space:nowrap">' + (c.lastContentUpdate || '—') + '</td>'
     + '<td style="padding:8px 6px;text-align:center;white-space:nowrap">'
@@ -2660,6 +2661,7 @@ function wstOpenPostsModal(wsId){
   _wstPosts.domain = wstCurrentUrl(w);   // site WordPress thật, không phải domain gốc
   _wstPosts.items = [];
   _wstPosts.sel = {};
+  ['wstFltType','wstFltIndex','wstFltCat'].forEach(function(id){ var e=document.getElementById(id); if(e) e.value=''; });
   document.getElementById('wstPostsSite').textContent = w.brand + ' (' + _wstPosts.domain + ')';
   document.getElementById('wstPostsSearch').value = '';
   document.getElementById('wstPostsOverlay').classList.add('open');
@@ -2668,11 +2670,7 @@ function wstOpenPostsModal(wsId){
 
 function wstTogglePostSel(key, on){ if (on) _wstPosts.sel[key] = true; else delete _wstPosts.sel[key]; wstUpdateSelInfo(); }
 function wstToggleAllPosts(on){
-  var q = (document.getElementById('wstPostsSearch').value || '').toLowerCase();
-  _wstPosts.items.forEach(function(p){
-    var t = ((p.title && p.title.rendered) || '').toLowerCase();
-    if (!q || t.indexOf(q) >= 0){ var k = _wstUrlKey(p.link); if (on) _wstPosts.sel[k] = true; else delete _wstPosts.sel[k]; }
-  });
+  wstFilteredPosts().forEach(function(p){ var k = _wstUrlKey(p.link); if (on) _wstPosts.sel[k] = true; else delete _wstPosts.sel[k]; });
   wstRenderPosts();
 }
 function wstUpdateSelInfo(){
@@ -2687,10 +2685,7 @@ async function wstCheckSelectedIndex(){
   var w = websites.find(function(x){ return x.id === _wstPosts.wsId; });
   if (!w) return;
 
-  var q = (document.getElementById('wstPostsSearch').value || '').toLowerCase();
-  var visible = _wstPosts.items.filter(function(p){
-    var t = ((p.title && p.title.rendered) || '').toLowerCase(); return !q || t.indexOf(q) >= 0;
-  });
+  var visible = wstFilteredPosts();
   var selKeys = Object.keys(_wstPosts.sel);
   var targets = selKeys.length
     ? visible.filter(function(p){ return _wstPosts.sel[_wstUrlKey(p.link)]; })
@@ -2734,6 +2729,7 @@ async function wstLoadPosts(){
     var res = await wstFetchAllContent(_wstPosts.domain);
     if (!res.ok) { info.innerHTML = '❌ ' + res.error; return; }
     _wstPosts.items = Array.isArray(res.items) ? res.items : [];
+    wstFillCatFilter();
     var nPost = _wstPosts.items.filter(function(x){ return x._type === 'post'; }).length;
     var nPage = _wstPosts.items.length - nPost;
     info.textContent = 'Tổng ' + _wstPosts.items.length + ' (' + nPost + ' bài viết · ' + nPage + ' trang)' + (res.via === 'browser' ? ' · trực tiếp' : ' · qua VPS');
@@ -2743,15 +2739,44 @@ async function wstLoadPosts(){
   }
 }
 
+// Đổ danh sách danh mục (unique) vào select lọc, giữ lựa chọn hiện tại nếu còn.
+function wstFillCatFilter(){
+  var sel = document.getElementById('wstFltCat'); if (!sel) return;
+  var cur = sel.value;
+  var set = {};
+  _wstPosts.items.forEach(function(p){ (p._cats||[]).forEach(function(c){ set[c] = true; }); });
+  var cats = Object.keys(set).sort();
+  sel.innerHTML = '<option value="">Tất cả danh mục</option>' + cats.map(function(c){ return '<option value="' + c.replace(/"/g,'&quot;') + '">' + c + '</option>'; }).join('');
+  if (cats.indexOf(cur) >= 0) sel.value = cur;
+}
+
+// Lọc danh sách bài theo tất cả điều khiển trong popup (tiêu đề + loại + index + danh mục).
+function wstFilteredPosts(){
+  var q  = (document.getElementById('wstPostsSearch').value || '').toLowerCase();
+  var ft = (document.getElementById('wstFltType')  || {}).value || '';
+  var fi = (document.getElementById('wstFltIndex') || {}).value || '';
+  var fc = (document.getElementById('wstFltCat')   || {}).value || '';
+  return _wstPosts.items.filter(function(p){
+    var t = ((p.title && p.title.rendered) || '').toLowerCase();
+    if (q && t.indexOf(q) < 0) return false;
+    if (ft && (p._type || 'post') !== ft) return false;
+    if (fc && !((p._cats || []).indexOf(fc) >= 0)) return false;
+    if (fi){
+      var ic = _wstIndexCache[_wstUrlKey(p.link)];
+      if (fi === 'unchecked'  && ic) return false;
+      if (fi === 'indexed'    && !(ic && ic.indexed)) return false;
+      if (fi === 'notindexed' && !(ic && !ic.indexed)) return false;
+    }
+    return true;
+  });
+}
+
 function wstRenderPosts(){
   var body = document.getElementById('wstPostsBody');
-  var q = (document.getElementById('wstPostsSearch').value || '').toLowerCase();
-  var list = _wstPosts.items.filter(function(p){
-    var t = ((p.title && p.title.rendered) || '').toLowerCase();
-    return !q || t.indexOf(q) >= 0;
-  });
+  var list = wstFilteredPosts();
   if (!list.length) { body.innerHTML = '<tr><td colspan="9" style="padding:18px;text-align:center;color:#8b949e">Không có bài/trang nào</td></tr>'; return; }
   var selHdr = document.getElementById('wstPostsSelAll'); if (selHdr) selHdr.checked = list.length>0 && list.every(function(p){ return _wstPosts.sel[_wstUrlKey(p.link)]; });
+  var fInfo = document.getElementById('wstPostsFilterInfo'); if (fInfo) fInfo.textContent = 'Hiện ' + list.length + '/' + _wstPosts.items.length;
   var d10 = function(s){ return s ? String(s).slice(0, 10) : '—'; };
   body.innerHTML = list.map(function(p, i){
     var title = (p.title && p.title.rendered) || '(không tiêu đề)';

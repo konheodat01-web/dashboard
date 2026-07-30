@@ -666,7 +666,21 @@
     </div>
     <div class="modal-body" style="gap:10px">
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <input type="text" id="wstPostsSearch" placeholder="🔍 Lọc theo tiêu đề..." oninput="wstRenderPosts()" style="height:30px;font-size:12px;width:190px">
+        <input type="text" id="wstPostsSearch" placeholder="🔍 Lọc tiêu đề..." oninput="wstRenderPosts()" style="height:30px;font-size:12px;width:150px">
+        <select id="wstFltType" onchange="wstRenderPosts()" style="height:30px;font-size:12px">
+          <option value="">Tất cả loại</option>
+          <option value="post">Bài viết</option>
+          <option value="page">Trang (Page)</option>
+        </select>
+        <select id="wstFltIndex" onchange="wstRenderPosts()" style="height:30px;font-size:12px">
+          <option value="">Tất cả index</option>
+          <option value="indexed">✅ Đã index</option>
+          <option value="notindexed">🚫 Chưa index</option>
+          <option value="unchecked">— Chưa quét</option>
+        </select>
+        <select id="wstFltCat" onchange="wstRenderPosts()" style="height:30px;font-size:12px">
+          <option value="">Tất cả danh mục</option>
+        </select>
         <button class="btn btn-outline btn-sm" onclick="wstLoadPosts()">🔄 Tải lại</button>
         <button id="wstPostsScanBtn" class="btn btn-sm" style="background:#3fb950;color:#fff;border:none" onclick="wstCheckSelectedIndex()" title="Check index link đã chọn bằng Serper (site: query)">✅ Check index (Serper)</button>
         <span id="wstPostsInfo" class="sub" style="margin-left:auto">—</span>
