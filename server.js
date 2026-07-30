@@ -172,6 +172,32 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── GET /api/sw-missing-images ───────────────────────────────────────────
+  // Proxy sang SEO Writer (localhost:8501) lấy danh sách bài THIẾU ẢNH (step 6).
+  // access key SEO Writer đọc từ config.json (sw_access_key) — không lộ ra frontend.
+  if (req.method === "GET" && url === "/api/sw-missing-images") {
+    let swKey = "";
+    try { swKey = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
+    const pr = http.request({
+      hostname: "127.0.0.1", port: 8501, path: "/api/missing-images", method: "GET",
+      headers: { "x-access-key": swKey },
+    }, (pres) => {
+      let body = "";
+      pres.on("data", (c) => { body += c; });
+      pres.on("end", () => {
+        res.writeHead(pres.statusCode === 200 ? 200 : 502,
+                      { "Content-Type": "application/json; charset=utf-8" });
+        res.end(pres.statusCode === 200 ? body : JSON.stringify({ items: [], error: "SEO Writer " + pres.statusCode }));
+      });
+    });
+    pr.on("error", (e) => {
+      res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ items: [], error: "Không gọi được SEO Writer: " + e.message }));
+    });
+    pr.end();
+    return;
+  }
+
   // ── GET /api/wp-posts?domain=&type=&per_page= ────────────────────────────
   // Proxy lay danh sach bai viet tu WordPress REST. Fetch tu VPS nen qua duoc
   // lop bao mat chan IP la cua cac site .fashion/.io/.health.
