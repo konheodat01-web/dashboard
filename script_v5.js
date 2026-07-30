@@ -3189,8 +3189,8 @@ function renderWsTrack(){
           const dColor = isSameAsSource ? 'var(--blue)' : '#6c5ce7';
           const sc = WS_STATUS_COLOR[dW.status]||'#999';
           return `<div style="display:flex;align-items:center;gap:6px">
-            <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
-            <div style="min-width:0">
+            <button onclick="event.stopPropagation();wstGoToAdminAndCopy('${joinAdminUrl(dW.url, dW.admin).replace(/'/g, "\\'")}', '${(dW.account||'').replace(/'/g, "\\'")}', '${(dW.password||'').replace(/'/g, "\\'")}')" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Mở quản trị ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
+            <div style="min-width:0;cursor:pointer" onclick="wstShowWebInfo(${dW.id})">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dW.brand}</div>
               <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${dW.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
@@ -3202,8 +3202,8 @@ function renderWsTrack(){
         ${(()=>{
           const sc = WS_STATUS_COLOR[w.status]||'#999';
           return `<div style="display:flex;align-items:center;gap:6px">
-            <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
-            <div style="min-width:0">
+            <button onclick="event.stopPropagation();wstGoToAdminAndCopy('${joinAdminUrl(w.url, w.admin).replace(/'/g, "\\'")}', '${(w.account||'').replace(/'/g, "\\'")}', '${(w.password||'').replace(/'/g, "\\'")}')" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Mở quản trị ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
+            <div style="min-width:0;cursor:pointer" onclick="wstShowWebInfo(${w.id})">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.brand}</div>
               <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${w.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
