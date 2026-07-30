@@ -2823,17 +2823,19 @@ function wstWriteForSite(wsId){
   if (!w) return;
   var s301 = wstCurrent301Site(w);           // bản ghi 301: nguồn duy nhất cho url + WP key
   var url = wstCurrentUrl(w);
+  var st = (typeof getWstSite === 'function') ? getWstSite(wsId) : null;
+  var brand = (st && st.mainKeyword) ? st.mainKeyword : w.brand;   // Từ khóa SEO = thương hiệu (bản sạch); fallback w.brand
   var base = 'https://seo-writer-tool.nthieucloud.shop';
   var qs = [];
-  if (url)     qs.push('site='  + encodeURIComponent(url));
-  if (w.brand) qs.push('brand=' + encodeURIComponent(w.brand));   // tên dự án
+  if (url)   qs.push('site='  + encodeURIComponent(url));
+  if (brand) qs.push('brand=' + encodeURIComponent(brand));
   var frag = [];
   if (s301 && s301.account)   frag.push('wpu=' + encodeURIComponent(s301.account));
   if (s301 && s301.appwppass) frag.push('wpp=' + encodeURIComponent(s301.appwppass));
   if (!(s301 && s301.appwppass) && typeof toast === 'function')
-    toast('⚠️ Site ' + w.brand + ' chưa có WP App Password (appwppass) — mở nhưng phải nhập tay để đăng', '#e67e22');
+    toast('⚠️ Site ' + brand + ' chưa có WP App Password (appwppass) — mở nhưng phải nhập tay để đăng', '#e67e22');
   var full = base + (qs.length ? ('/?' + qs.join('&')) : '/') + (frag.length ? ('#' + frag.join('&')) : '');
-  wstOpenWriterModal(full, w.brand + ' (' + url + ')');
+  wstOpenWriterModal(full, brand + ' (' + url + ')');
 }
 
 function wstOpenWriter(domain, brand){
