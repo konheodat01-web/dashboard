@@ -2369,14 +2369,25 @@ async function wstLoadMissingImg(force){
   } catch(e){ _wstMissingImg = []; }
 }
 function _wstNorm(x){ return (x==null?'':String(x)).toLowerCase().replace(/\s+/g,''); }
-// Khớp bài với site theo HỒ SƠ dashboard: brand / Từ khóa SEO (bỏ hoa + khoảng trắng). Chỉ vậy.
+// Khớp bài với site theo URL WEBSITE (không phải brand — cùng brand có nhiều site).
+// Tập URL của 1 website = URL gốc (w.url) + TẤT CẢ URL 301 con -> unique cho từng site.
+function _wstSiteUrlSet(w){
+  var set = {};
+  var add = function(u){ u = (u||'').replace(/^https?:\/\//,'').replace(/\/$/,'').toLowerCase(); if (u) set[u] = 1; };
+  add(w.url);
+  websites.forEach(function(x){
+    if (x.is301 && x.sourceUrl && (x.sourceUrl === w.url || x.sourceUrl === (w.url||'').replace(/\/$/,''))) {
+      add(x.url); add(x.sourceUrl);
+    }
+  });
+  return set;
+}
 function wstMissingForSite(w){
   if (!_wstMissingImg.length) return [];
-  var keys = [
-    _wstNorm((typeof getWstSite === 'function' && getWstSite(w.id) || {}).mainKeyword),
-    _wstNorm(w.brand)
-  ].filter(Boolean);
-  return _wstMissingImg.filter(function(it){ return it.brand_key && keys.indexOf(it.brand_key) >= 0; });
+  var urls = _wstSiteUrlSet(w);
+  return _wstMissingImg.filter(function(it){
+    return (it.host && urls[it.host]) || (it.domain && urls[it.domain]);
+  });
 }
 
 
