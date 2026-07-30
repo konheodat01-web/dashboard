@@ -2584,12 +2584,16 @@ function wstHeadRight(){
       + (title ? ' title="'+title+'"' : '') + '>' + label + '</th>';
   };
   if (_wstMode === 'content') {
-    // Chỉ số NỘI DUNG — không dùng chung cơ chế với chế độ theo dõi website
-    return th('📝 Tổng bài', 0, 'Tong so bai viet da dang len site nay')
-      + th('✅ Đã index', 0, 'So bai da duoc Google index')
-      + th('🚫 Chưa index', 0, 'So bai chua duoc Google index')
-      + th('📊 Tỷ lệ index', 0, 'Da index / Tong so bai')
-      + th('🕒 Cập nhật', 0, 'Lan cap nhat NOI DUNG gan nhat (dang/sua bai)')
+    // Chỉ số NỘI DUNG — có sort (click tiêu đề) giống bên Theo dõi web
+    var cth = function(key, label, title){
+      return '<th onclick="wstHandleSort(\'' + key + '\')" style="padding:8px 6px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none"'
+        + (title ? ' title="'+title+'"' : '') + '>' + label + ' ' + wstGetSortIndicator(key) + '</th>';
+    };
+    return cth('ctotal',       '📝 Tổng bài',    'Tong so bai (post+page)')
+      + cth('cindexed',    '✅ Đã index',    'So bai da index')
+      + cth('cnotindexed', '🚫 Chưa index',  'Tong - da index (gom ca chua kiem tra)')
+      + cth('crate',       '📊 Tỷ lệ index', 'Da index / Tong')
+      + cth('cupdated',    '🕒 Cập nhật',    'Lan cap nhat noi dung gan nhat')
       + th('Thao tác', 0);
   }
   return '<th onclick="wstHandleSort(\'clicks\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Clicks (Giai doan va tang giam so voi giai doan truoc)">Clicks (' + _wstGscPeriod + ') ' + wstGetSortIndicator('clicks') + '</th>'
@@ -3625,6 +3629,18 @@ function renderWsTrack(){
       else if (_wstSortCol === 'updated') {
         valA = a.lastUpdatedAt || '';
         valB = b.lastUpdatedAt || '';
+      }
+      else if (_wstSortCol === 'ctotal' || _wstSortCol === 'cindexed' || _wstSortCol === 'cnotindexed' || _wstSortCol === 'crate' || _wstSortCol === 'cupdated') {
+        var csA = _wstContentStats[a.id] || {}, csB = _wstContentStats[b.id] || {};
+        var totA = (csA.postCount === 0 || csA.postCount > 0) ? csA.postCount : null;
+        var totB = (csB.postCount === 0 || csB.postCount > 0) ? csB.postCount : null;
+        var idxA = csA.indexed || 0, idxB = csB.indexed || 0;
+        // site chưa quét (null) đẩy xuống cuối bằng -1
+        if (_wstSortCol === 'ctotal')         { valA = (totA==null?-1:totA);   valB = (totB==null?-1:totB); }
+        else if (_wstSortCol === 'cindexed')  { valA = (totA==null?-1:idxA);   valB = (totB==null?-1:idxB); }
+        else if (_wstSortCol === 'cnotindexed'){ valA = (totA==null?-1:Math.max(0,totA-idxA)); valB = (totB==null?-1:Math.max(0,totB-idxB)); }
+        else if (_wstSortCol === 'crate')     { valA = (totA?idxA/totA:-1);    valB = (totB?idxB/totB:-1); }
+        else if (_wstSortCol === 'cupdated')  { valA = csA.lastContentUpdate || ''; valB = csB.lastContentUpdate || ''; }
       }
 
       let comp = 0;
