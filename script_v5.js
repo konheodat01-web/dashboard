@@ -2271,18 +2271,6 @@ function wstSetMode(m){
 }
 
 // Đẩy danh sách website (đang theo dõi) sang SEO Writer để khỏi tạo hồ sơ site thủ công
-async function wstSyncSitesToWriter(){
-  var tracked = siteTracking.map(function(st){
-    return websites.find(function(w){ return w.id === st.wsId; });
-  }).filter(Boolean);
-  if (!tracked.length) { if(typeof toast==='function') toast('Chưa theo dõi website nào','#e74c3c'); return; }
-  if (!confirm('Đẩy ' + tracked.length + ' website sang SEO Writer làm hồ sơ site?\n(WP Key sẽ tích hợp ở bước sau)')) return;
-  if(typeof toast==='function') toast('Sẽ nối API ở bước tích hợp — hiện tại chỉ là khung', '#e67e22');
-  console.log('[wstSyncSitesToWriter] payload du kien:', tracked.map(function(w){
-    return { brand: w.brand, domain: (w.url||'').replace(/^https?:\/\//,'').replace(/\/$/,''), team: w.team };
-  }));
-}
-
 // ══ Trạng thái index nội dung — check bằng SERPER (site: query) ══
 // Lưu localStorage RIÊNG, KHÔNG đụng websites/Firebase (tránh rủi ro ghi đè dữ liệu).
 var _wstContentStats = {};   // wsId -> {postCount, indexed, notIndexed, lastContentUpdate, checkedAt}
@@ -2567,16 +2555,23 @@ function wstRowRightContent(w, site){
     + '</td>';
 }
 
-// Lấy URL HIỆN TẠI (site WordPress thật) = child 301 mới nhất, không phải domain gốc.
-// Giống hệt cách cột "URL hiện tại (301)" tính display301Url trong renderWsTrack.
-function wstCurrentUrl(w){
+// Bản ghi 301 HIỆN TẠI (child 301 mới nhất) = nguồn DUY NHẤT cho mọi thao tác nội dung.
+// Gốc chỉ để hiển thị tên dự án. Đọc LIVE từ mảng websites -> user đổi 301 thì tool theo ngay.
+// Nếu w chính là bản ghi 301 (is301) hoặc chưa có child -> dùng chính w.
+function wstCurrent301Site(w){
+  if (!w) return w;
   var kids = websites.filter(function(x){
     return x.is301 && x.sourceUrl &&
       (x.sourceUrl === w.url || x.sourceUrl === (w.url||'').replace(/\/$/, ''));
   });
-  var latest301 = kids.length ? kids[kids.length - 1] : null;
-  var u = latest301 ? (latest301.url || latest301.sourceUrl || w.url) : w.url;
-  return (u || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  return kids.length ? kids[kids.length - 1] : w;
+}
+
+// URL hiện tại (site WordPress thật) = url của bản ghi 301.
+function wstCurrentUrl(w){
+  var site = wstCurrent301Site(w);
+  var u = (site && site.url) || (w && w.url) || '';
+  return u.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
 // ══ POPUP: danh sách tất cả bài viết trên website ══
