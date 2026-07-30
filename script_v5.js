@@ -2561,7 +2561,7 @@ function wstRowRightContent(w, site){
     + '<td style="padding:8px 6px;text-align:center">' + rateCell + '</td>'
     + '<td style="padding:8px 6px;text-align:center;font-size:11px;color:var(--text-muted);white-space:nowrap">' + (c.lastContentUpdate || '—') + '</td>'
     + '<td style="padding:8px 6px;text-align:center;white-space:nowrap">'
-      + '<button onclick="wstOpenWriter(\'' + dom + '\',\'' + (w.brand||'').replace(/'/g,"") + '\')" class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Mo SEO Writer de viet bai cho ' + w.brand + '">✍️ Viết bài</button> '
+      + '<button onclick="wstWriteForSite(' + w.id + ')" class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Mo SEO Writer: site 301 (' + dom + ') + WP key de dang bai cho ' + w.brand + '">✍️ Viết bài</button> '
       + '<button onclick="wstOpenContentConfig(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Cau hinh noi dung">⚙️</button> '
       + '<button onclick="wstOpenPostsModal(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem tat ca bai viet tren website">📋</button>'
     + '</td>';
@@ -2713,6 +2713,26 @@ function wstRenderPosts(){
         + '<a href="' + (p.link || '#') + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 6px">Xem</a></td>'
       + '</tr>';
   }).join('');
+}
+
+// Handoff sang SEO Writer: lấy site 301 (url + account + appwppass) từ bản ghi 301.
+// Gốc (w.brand) = tên dự án để hiển thị. Credential qua FRAGMENT (#) -> VPS không log.
+function wstWriteForSite(wsId){
+  var w = websites.find(function(x){ return x.id === wsId; });
+  if (!w) return;
+  var s301 = wstCurrent301Site(w);           // bản ghi 301: nguồn duy nhất cho url + WP key
+  var url = wstCurrentUrl(w);
+  var base = 'https://seo-writer-tool.nthieucloud.shop';
+  var qs = [];
+  if (url)     qs.push('site='  + encodeURIComponent(url));
+  if (w.brand) qs.push('brand=' + encodeURIComponent(w.brand));   // tên dự án
+  var frag = [];
+  if (s301 && s301.account)   frag.push('wpu=' + encodeURIComponent(s301.account));
+  if (s301 && s301.appwppass) frag.push('wpp=' + encodeURIComponent(s301.appwppass));
+  if (!(s301 && s301.appwppass) && typeof toast === 'function')
+    toast('⚠️ Site ' + w.brand + ' chưa có WP App Password (appwppass) — mở SEO Writer nhưng phải nhập tay để đăng', '#e67e22');
+  var full = base + (qs.length ? ('/?' + qs.join('&')) : '/') + (frag.length ? ('#' + frag.join('&')) : '');
+  window.open(full, '_blank');
 }
 
 function wstOpenWriter(domain, brand){
