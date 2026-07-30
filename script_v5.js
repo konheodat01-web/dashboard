@@ -2292,9 +2292,11 @@ function wstRowRightContent(w, site){
     return '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:'+bg+';color:'+color+';font-weight:600"'
       + (title ? ' title="'+title+'"' : '') + '>' + txt + '</span>';
   };
-  var wpCell = (c.wpUser && c.wpPassSaved)
-    ? badge('✅ có', '#3fb950', 'rgba(46,160,67,.15)', 'User: ' + c.wpUser)
-    : badge('⬜ chưa', '#8b949e', '#21262d', 'Chua luu Application Password cho site nay');
+  // WP Key lay tu chinh ho so website (form da co san field appwppass)
+  var hasKey = !!(w.appwppass && String(w.appwppass).trim());
+  var wpCell = hasKey
+    ? badge('✅ có', '#3fb950', 'rgba(46,160,67,.15)', 'User: ' + (w.account || '?') + ' — da co Application Password')
+    : badge('⬜ chưa', '#8b949e', '#21262d', 'Chua co Application Password — sua o form Website');
   var num = function(v){ return (v === 0 || v > 0) ? String(v) : '—'; };
   var notIdx = (c.notIndexed === 0 || c.notIndexed > 0) ? c.notIndexed : null;
   var dom = (w.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -2305,15 +2307,18 @@ function wstRowRightContent(w, site){
     + '<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap">' + (c.defaultCategory || '—') + '</td>'
     + '<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap">' + ((site && site.lastUpdatedAt) || '—') + '</td>'
     + '<td style="padding:8px 10px;text-align:center;white-space:nowrap">'
-      + '<button onclick="wstOpenWriter(\'' + dom + '\')" class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Mo SEO Writer de viet bai cho ' + w.brand + '">✍️ Viết bài</button> '
+      + '<button onclick="wstOpenWriter(\'' + dom + '\',\'' + (w.brand||'').replace(/'/g,"") + '\')" class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Mo SEO Writer de viet bai cho ' + w.brand + '">✍️ Viết bài</button> '
       + '<button onclick="wstOpenContentConfig(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Cau hinh noi dung (WP key, danh muc, link brand)">⚙️</button> '
       + '<button onclick="wstOpenDashboard(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>'
     + '</td>';
 }
 
-function wstOpenWriter(domain){
+function wstOpenWriter(domain, brand){
   var base = 'https://seo-writer-tool.nthieucloud.shop';
-  window.open(domain ? (base + '/?site=' + encodeURIComponent(domain)) : base, '_blank');
+  var qs = [];
+  if (domain) qs.push('site=' + encodeURIComponent(domain));
+  if (brand)  qs.push('brand=' + encodeURIComponent(brand));
+  window.open(qs.length ? (base + '/?' + qs.join('&')) : base, '_blank');
 }
 
 function wstOpenContentConfig(wsId){
@@ -2970,8 +2975,7 @@ function renderWsTrack(){
 
     // Chế độ nội dung: lọc theo tình trạng WP Key
     if(_wstMode === 'content' && fWpKey){
-      const cfg = (getWstSite(w.id)?.content) || {};
-      const has = !!(cfg.wpUser && cfg.wpPassSaved);
+      const has = !!(w.appwppass && String(w.appwppass).trim());
       if(fWpKey === 'has' && !has) return false;
       if(fWpKey === 'none' && has) return false;
     }
