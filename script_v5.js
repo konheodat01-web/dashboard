@@ -1205,10 +1205,13 @@ function saveAppData(){
   }
   if(window._fbReady && window._fbDb){
     console.log('Pushing to Firebase, ts=', ts);
-    // ══ CHỐT AN TOÀN (thêm 30/7/2026 sau sự cố mất dữ liệu) ══
-    // Không cho ghi khi dữ liệu trong bộ nhớ rỗng/ít bất thường so với server.
-    // Nguyên nhân sự cố: mở trang khi CHƯA ĐĂNG NHẬP -> biến websites = seed mặc định
-    // (1 bản ghi) -> tự đẩy lên Firebase -> xóa sạch 469 website + toàn bộ nhánh khác.
+    // ══ CHỐT AN TOÀN ══
+    // 1. Chặn ghi nếu Firebase chưa load xong lần đầu (trình duyệt mới / ẩn danh)
+    if (!window._fbDataLoaded) {
+      console.warn('[GUARD] Chặn ghi: Firebase chưa load xong lần đầu (_fbDataLoaded=false).');
+      return Promise.resolve();
+    }
+    // 2. Chặn ghi khi local rỗng bất thường so với server
     try {
       var _guardLocal = (Array.isArray(websites) ? websites.length : 0)
                       + (Array.isArray(tasks) ? tasks.length : 0)
@@ -1295,6 +1298,9 @@ function saveToLocalStorage(){
 // Unique session ID - avoid receiving own pushes
 const _sessionId = Math.random().toString(36).slice(2);
 const _pageLoadTime = Date.now();
+// Flag: Firebase data đã được load lần đầu chưa?
+// Chặn saveAppData ghi đè trước khi nhận dữ liệu từ server (bảo vệ trình duyệt mới/ẩn danh)
+window._fbDataLoaded = false;
 
 function initFirebaseListener(){
   if(!window._fbReady || !window._fbDb) return;
@@ -1411,7 +1417,10 @@ function initFirebaseListener(){
       links         = arr(r.links, links);
       linkCategories= r.linkCategories != null ? r.linkCategories : linkCategories;
       if(Array.isArray(r.websites) && r.websites.length){ websites=r.websites; wsNextId=Math.max(2,...websites.map(w=>w.id+1)); deduplicateWebsiteIds(); }
-      else if(r.websites===null) websites=[];
+      // KHÔNG gán websites=[] khi server trả về null — giữ nguyên local để tránh xóa data
+      // else if(r.websites===null) websites=[];
+      // Chỉ set rỗng nếu local cũng đang rỗng (chưa có dữ liệu lần nào)
+      else if(r.websites===null && websites.length <= 1) websites=[];
       wsGroups      = Array.isArray(r.wsGroups)      ? r.wsGroups      : wsGroups;
       if(Array.isArray(r.siteTracking) && r.siteTracking.length > 0){ 
         siteTracking=r.siteTracking; 
@@ -1479,6 +1488,9 @@ if(!_settings.avatars) _settings.avatars = {}; // local fills gaps, fb overrides
 
       // Auto-clean trash only AFTER Firebase data is fully loaded
       if(!window._trashCleaned){ window._trashCleaned=true; autoCleanTrash(); autoBackupDaily(); migrateIndexTasksToKho(); }
+
+      // ✅ Đánh dấu Firebase đã load xong — mở khóa cho saveAppData ghi lên server
+      window._fbDataLoaded = true;
 
       const ind=document.getElementById('syncIndicator');
       if(ind){ind.textContent='🔄 Nhận dữ liệu mới';ind.style.opacity='1';ind.style.color='#fff';setTimeout(()=>ind.style.opacity='0',3000);}
