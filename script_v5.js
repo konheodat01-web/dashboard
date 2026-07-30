@@ -3189,8 +3189,8 @@ function renderWsTrack(){
           const dColor = isSameAsSource ? 'var(--blue)' : '#6c5ce7';
           const sc = WS_STATUS_COLOR[dW.status]||'#999';
           return `<div style="display:flex;align-items:center;gap:6px">
-            <button onclick="event.stopPropagation();wstGoToAdminAndCopy('${joinAdminUrl(dW.url, dW.admin).replace(/'/g, "\\'")}', '${(dW.account||'').replace(/'/g, "\\'")}', '${(dW.password||'').replace(/'/g, "\\'")}')" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Mở quản trị ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
-            <div style="min-width:0;cursor:pointer" onclick="wstShowWebInfo(${dW.id})">
+            <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
+            <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dW.brand}</div>
               <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${dW.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
@@ -3202,8 +3202,8 @@ function renderWsTrack(){
         ${(()=>{
           const sc = WS_STATUS_COLOR[w.status]||'#999';
           return `<div style="display:flex;align-items:center;gap:6px">
-            <button onclick="event.stopPropagation();wstGoToAdminAndCopy('${joinAdminUrl(w.url, w.admin).replace(/'/g, "\\'")}', '${(w.account||'').replace(/'/g, "\\'")}', '${(w.password||'').replace(/'/g, "\\'")}')" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Mở quản trị ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
-            <div style="min-width:0;cursor:pointer" onclick="wstShowWebInfo(${w.id})">
+            <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
+            <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.brand}</div>
               <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${w.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
@@ -5500,6 +5500,19 @@ function clearWebsiteForm(){
   const _301=document.getElementById('wf_is301'); if(_301){_301.checked=false; document.getElementById('wf_301_fields').style.display='none'; document.getElementById('wf_source_url').value='';}
 }
 
+function getAdminUrlForWebsite(w) {
+  if (!w) return '';
+  let target = w;
+  if (w.is301) {
+    const chain = getWstRedirectChainBackward(w);
+    const parent = chain.find(x => !x.is301) || chain[chain.length - 1];
+    if (parent) {
+      target = parent;
+    }
+  }
+  return joinAdminUrl(target.url, target.admin);
+}
+
 function normalizeAdmin(v){ return (v||'').trim().replace(/^\/+|\/+$/g,''); }
 function normalizeUrl(v){ return (v||'').trim().replace(/^https?:\/\//i,'').replace(/\/+$/,''); }
 function joinAdminUrl(url, admin){
@@ -5710,13 +5723,13 @@ function showWebsiteInfo(w, found, url=''){
     _copyMap['wi_acc'] = w.account||'';
     _copyMap['wi_pwd'] = w.password||'';
     const _vidcoDomain = (w.url||'').replace(/https?:\/\//,'').replace(/\/$/,'');
-    const _vidcoAdminUrl = (w.url&&w.admin) ? joinAdminUrl(w.url,w.admin) : '';
+    const _vidcoAdminUrl = getAdminUrlForWebsite(w);
     const _vidcoOwner = (w.owner&&w.owner!=='Công ty'&&w.owner!=='Chung') ? w.owner : '';
     _copyMap['wi_vidco'] = _vidcoDomain+' | '+_vidcoAdminUrl+' | '+(w.account||'')+' | '+(w.password||'')+' | '+(w.group||'')+' | '+_vidcoOwner;
     const rows=[
       ['Brand', w.brand],
       ['URL', `<a href="${ensureHttps(w.url)}" target="_blank" style="color:var(--blue)">${w.url}</a>`],
-      ['Quản trị', w.admin?`<a href="${joinAdminUrl(w.url,w.admin)}" target="_blank" style="color:var(--blue)">${w.admin}</a>`:'—'],
+      ['Quản trị', w.admin?`<a href="${getAdminUrlForWebsite(w)}" target="_blank" style="color:var(--blue)">${w.admin}</a>`:'—'],
       ['Tài khoản', w.account ? `<div style="display:flex;align-items:center;gap:6px">
         <span style="flex:1;user-select:all">${w.account}</span>
         <button onclick="_cp('wi_acc',this)" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 7px;font-size:12px;color:var(--text-muted)" title="Copy">📋</button>
@@ -5742,7 +5755,7 @@ function showWebsiteInfo(w, found, url=''){
       </table>`;
     document.getElementById('wiBtnEdit').style.display='inline-flex';
     const _vBtn=document.getElementById('wiBtnVidco'); if(_vBtn) _vBtn.style.display='inline-flex';
-    const adminUrl = (w.url&&w.admin) ? joinAdminUrl(w.url,w.admin) : '';
+    const adminUrl = getAdminUrlForWebsite(w);
     const btnOpen = document.getElementById('wiBtnOpen');
     if(btnOpen){ btnOpen.style.display = adminUrl ? 'inline-flex' : 'none'; btnOpen._href = adminUrl; }
   }
@@ -5770,7 +5783,22 @@ function saveWebsiteFromPopup(){
   toast('✓ Đã thêm '+brand+' vào danh sách!');
 }
 
-function wiOpenAdmin(){ const btn=document.getElementById('wiBtnOpen'); if(btn&&btn._href) window.open(btn._href,'_blank'); }
+function wiOpenAdmin(){ 
+  const btn=document.getElementById('wiBtnOpen'); 
+  if(btn&&btn._href) {
+    if (websiteInfoTarget) {
+      let target = websiteInfoTarget;
+      if (target.is301) {
+        const chain = getWstRedirectChainBackward(target);
+        const parent = chain.find(x => !x.is301) || chain[chain.length - 1];
+        if (parent) target = parent;
+      }
+      wstGoToAdminAndCopy(btn._href, target.account || '', target.password || '');
+    } else {
+      window.open(btn._href,'_blank'); 
+    }
+  } 
+}
 
 function closeWebsiteInfo(){document.getElementById('websiteInfoModal').classList.remove('open');}
 
