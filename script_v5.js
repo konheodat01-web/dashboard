@@ -2280,7 +2280,7 @@ async function wstSyncSitesToWriter(){
   }));
 }
 
-// ══ Trạng thái index nội dung — GIỐNG cơ chế index trang chủ (wstInspectUrlGsc) ══
+// ══ Trạng thái index nội dung — check bằng SERPER (site: query) ══
 // Lưu localStorage RIÊNG, KHÔNG đụng websites/Firebase (tránh rủi ro ghi đè dữ liệu).
 var _wstContentStats = {};   // wsId -> {postCount, indexed, notIndexed, lastContentUpdate, checkedAt}
 var _wstIndexCache   = {};   // "host/slug" -> {indexed:bool, reason, checkedAt}
@@ -2296,49 +2296,68 @@ function _wstUrlKey(u){ return (u||'').replace(/^https?:\/\//,'').replace(/\/$/,
 
 var _wstScanAbort = false;
 
-// Quét index cho MỘT site: lấy bài (/api/wp-posts) -> soi từng URL bằng GSC như trang chủ.
-async function wstScanSiteIndex(w, opts){
-  opts = opts || {};
-  var host = wstCurrentUrl(w);
-  if (!host) return null;
-
-  // 1) property GSC đúng như trang chủ dùng
-  var property;
-  try { property = await wstGetExactGscPropertyUrl(host); }
-  catch(e){ property = 'sc-domain:' + host; }
-
-  // 2) danh sách bài
-  var posts = [];
+// Check index bằng SERPER — query "site:<url>" trên Google. Có organic khớp URL = đã index.
+// Serper gọi trực tiếp từ browser (wtApiKey), không dính chặn request như GSC.
+async function wstCheckIndexSerper(link){
+  if (!wtApiKey) return { error: 'Chưa có Serper API Key' };
+  var key = _wstUrlKey(link);
+  var clean = (link || '').replace(/\/$/, '');
   try {
-    var r = await fetch('/api/wp-posts?domain=' + encodeURIComponent(host) + '&type=posts&per_page=100');
-    var d = await r.json();
-    if (d.ok && Array.isArray(d.items)) posts = d.items;
-    else { if(opts.onError) opts.onError(w, d.error||'Không lấy được bài'); return null; }
-  } catch(e){ if(opts.onError) opts.onError(w, e.message); return null; }
-
-  var total = posts.length, indexed = 0, latestMod = '';
-  for (var i = 0; i < posts.length; i++){
-    if (_wstScanAbort) break;
-    var link = posts[i].link;
-    if (posts[i].modified && posts[i].modified > latestMod) latestMod = posts[i].modified;
-    var key = _wstUrlKey(link);
-    var cached = _wstIndexCache[key];
-    var isIdx;
-    if (cached && !opts.force && (Date.now() - cached.checkedAt) < 24*3600*1000){
-      isIdx = cached.indexed;                 // dùng cache < 24h, khỏi tốn quota
-    } else {
-      await new Promise(function(res){ setTimeout(res, 1200); });   // giãn nhịp như trang chủ
-      var ir = null;
-      try { ir = await wstInspectUrlGsc(property, link); } catch(e){}
-      isIdx = !!(ir && ir.indexStatusResult && ir.indexStatusResult.verdict === 'PASS');
-      _wstIndexCache[key] = { indexed: isIdx, reason: ir ? wstGetFriendlyIndexReason(ir) : 'Chưa kiểm tra', checkedAt: Date.now() };
+    var res = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      headers: { 'X-API-KEY': wtApiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: 'site:' + clean, gl: 'vn', hl: 'vi', num: 10 })
+    });
+    var data = await res.json();
+    if (data.message === 'Unauthorized.' || data.statusCode === 403) return { error: 'API Key sai hoặc hết lượt!' };
+    // trừ credit như các chỗ Serper khác
+    var cost = data.credits || 1;
+    wtSerperCredits = Math.max(0, wtSerperCredits - cost);
+    try { localStorage.setItem('wt_serper_credits_left', wtSerperCredits); } catch(e){}
+    if (typeof wstUpdateAPIUsage === 'function') wstUpdateAPIUsage();
+    // Đã index nếu có kết quả organic khớp đúng URL (hoặc cùng path)
+    var organic = data.organic || [];
+    var indexed = organic.some(function(o){ return _wstUrlKey(o.link) === key; });
+    if (!indexed && organic.length){
+      indexed = organic.some(function(o){ var ok = _wstUrlKey(o.link); return ok.indexOf(key) === 0 || key.indexOf(ok) === 0; });
     }
-    if (isIdx) indexed++;
-    if (opts.onProgress) opts.onProgress(i+1, total, w);
-  }
+    _wstIndexCache[key] = { indexed: indexed, reason: indexed ? 'Đã index (Serper)' : 'Không thấy trên Google', checkedAt: Date.now() };
+    wstSaveContentStats();
+    return { indexed: indexed };
+  } catch(e){ return { error: e.message }; }
+}
 
+// Check nhiều link song song (concurrency giới hạn) qua Serper.
+async function wstCheckLinksIndex(links, opts){
+  opts = opts || {};
+  links = links.filter(Boolean);
+  var CONC = 3, i = 0, done = 0, errMsg = '';
+  async function worker(){
+    while (i < links.length && !_wstScanAbort){
+      var link = links[i++];
+      var r = await wstCheckIndexSerper(link);
+      if (r && r.error){ errMsg = r.error; if (opts.onError) opts.onError(r.error); if (r.error.indexOf('API Key') >= 0) { _wstScanAbort = true; } }
+      done++;
+      if (opts.onProgress) opts.onProgress(done, links.length);
+    }
+  }
+  var ws = [];
+  for (var k = 0; k < Math.min(CONC, links.length); k++) ws.push(worker());
+  await Promise.all(ws);
+  return { done: done, error: errMsg };
+}
+
+// Tính lại thống kê 1 site từ cache (đã index / chưa index dựa trên các bài ĐÃ CHECK).
+function wstRecomputeSiteStats(w, posts){
+  var total = posts.length, indexed = 0, notIndexed = 0, latestMod = '';
+  posts.forEach(function(p){
+    if (p.modified && p.modified > latestMod) latestMod = p.modified;
+    var ic = _wstIndexCache[_wstUrlKey(p.link)];
+    if (ic){ if (ic.indexed) indexed++; else notIndexed++; }
+  });
   _wstContentStats[w.id] = {
-    postCount: total, indexed: indexed, notIndexed: Math.max(0, total - indexed),
+    postCount: total, indexed: indexed, notIndexed: notIndexed,
+    checked: indexed + notIndexed,
     lastContentUpdate: latestMod ? latestMod.slice(0,10) : '',
     checkedAt: Date.now()
   };
@@ -2346,43 +2365,61 @@ async function wstScanSiteIndex(w, opts){
   return _wstContentStats[w.id];
 }
 
-// Quét TẤT CẢ site đang theo dõi (nút "🚫 Quét bài chưa index").
+// Quét index cho MỘT site: lấy bài (/api/wp-posts) -> check TẤT CẢ link bằng Serper.
+async function wstScanSiteIndex(w, opts){
+  opts = opts || {};
+  var host = wstCurrentUrl(w);
+  if (!host) return null;
+  var posts = [];
+  try {
+    var r = await fetch('/api/wp-posts?domain=' + encodeURIComponent(host) + '&type=posts&per_page=100');
+    var d = await r.json();
+    if (d.ok && Array.isArray(d.items)) posts = d.items;
+    else { if (opts.onError) opts.onError(w, d.error || 'Không lấy được bài'); return null; }
+  } catch(e){ if (opts.onError) opts.onError(w, e.message); return null; }
+
+  var links = posts.map(function(p){ return p.link; });
+  await wstCheckLinksIndex(links, {
+    onProgress: function(cur, tot){ if (opts.onProgress) opts.onProgress(cur, tot, w); },
+    onError: function(m){ if (opts.onError) opts.onError(w, m); }
+  });
+  return wstRecomputeSiteStats(w, posts);
+}
+
+// Quét TẤT CẢ site đang theo dõi (nút "🚫 Quét bài chưa index"). Tốn credit Serper.
 async function wstScanNotIndexed(){
-  if (!sessionStorage.getItem('gsc_access_token')){
-    if(typeof toast==='function') toast('Chưa đăng nhập GSC — bấm nút "GSC" ở góc trên để đăng nhập trước','#e74c3c');
-    return;
-  }
+  if (!wtApiKey){ if(typeof toast==='function') toast('Chưa có Serper API Key — thiết lập trước','#e74c3c'); return; }
   var sites = siteTracking.map(function(st){ return websites.find(function(w){ return w.id === st.wsId; }); })
                           .filter(function(w){ return w && !w.is301; });
   if (!sites.length){ if(typeof toast==='function') toast('Chưa theo dõi website nào','#e74c3c'); return; }
-  if (!confirm('Quét trạng thái index cho ' + sites.length + ' website?\nLần đầu có thể mất vài phút (mỗi bài giãn ~1.2s để tránh rate limit GSC). Kết quả được cache 24h.')) return;
+  if (!confirm('Check index cho ' + sites.length + ' website bằng Serper?\nMỗi bài tốn ~1 credit. Còn ' + wtSerperCredits + ' credit. Kết quả cache 24h.')) return;
 
   _wstScanAbort = false;
   var bar = wstShowScanProgress();
-  var doneSites = 0, doneUrls = 0;
+  var doneSites = 0;
   for (var i = 0; i < sites.length; i++){
     if (_wstScanAbort) break;
     var w = sites[i];
-    bar.set('Đang quét ' + w.brand + ' (' + (i+1) + '/' + sites.length + ')...', doneSites/sites.length*100);
+    bar.set('Đang check ' + w.brand + ' (' + (i+1) + '/' + sites.length + ')...', doneSites/sites.length*100);
     await wstScanSiteIndex(w, {
-      onProgress: function(cur, tot, ww){ doneUrls++; bar.set('Quét ' + ww.brand + ': bài ' + cur + '/' + tot, (doneSites + cur/Math.max(tot,1))/sites.length*100); },
-      onError: function(ww, msg){ console.warn('[Quét index]', ww.brand, msg); }
+      onProgress: function(cur, tot, ww){ bar.set('Check ' + ww.brand + ': bài ' + cur + '/' + tot + ' · còn ' + wtSerperCredits + ' credit', (doneSites + cur/Math.max(tot,1))/sites.length*100); },
+      onError: function(ww, msg){ console.warn('[Check index]', ww.brand, msg); }
     });
     doneSites++;
-    if (typeof renderWsTrack === 'function') renderWsTrack();   // cập nhật cột ngay từng site
+    if (typeof renderWsTrack === 'function') renderWsTrack();
   }
-  bar.done(_wstScanAbort ? ('Đã dừng — quét xong ' + doneSites + '/' + sites.length + ' site') : ('Xong! Đã quét ' + doneSites + ' site, ' + doneUrls + ' bài'));
+  bar.done(_wstScanAbort ? ('Đã dừng — xong ' + doneSites + '/' + sites.length + ' site') : ('Xong! Đã check ' + doneSites + ' site'));
   if (typeof renderWsTrack === 'function') renderWsTrack();
 }
 
-// Thanh tiến trình quét (cố định góc phải dưới, có nút Dừng).
+// Thanh tiến trình (góc phải dưới, có nút Dừng).
 function wstShowScanProgress(){
   var old = document.getElementById('wstScanBar'); if (old) old.remove();
   var box = document.createElement('div');
   box.id = 'wstScanBar';
-  box.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px 14px;width:300px;box-shadow:0 8px 28px rgba(0,0,0,.4);color:#e6edf3;font-size:12px';
+  box.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px 14px;width:320px;box-shadow:0 8px 28px rgba(0,0,0,.4);color:#e6edf3;font-size:12px';
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    + '<b>🔎 Quét index từ GSC</b>'
+    + '<b>🔎 Check index (Serper)</b>'
     + '<button onclick="_wstScanAbort=true;this.textContent=\'Đang dừng...\'" style="background:#e74c3c;color:#fff;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">Dừng</button></div>'
     + '<div id="wstScanMsg" style="color:#8b949e;margin-bottom:6px">Bắt đầu...</div>'
     + '<div style="height:6px;background:#0d1117;border-radius:4px;overflow:hidden"><div id="wstScanFill" style="height:100%;width:0;background:#3fb950;transition:width .3s"></div></div>';
@@ -2483,7 +2520,7 @@ function wstCurrentUrl(w){
 }
 
 // ══ POPUP: danh sách tất cả bài viết trên website ══
-var _wstPosts = { wsId: null, domain: '', items: [] };
+var _wstPosts = { wsId: null, domain: '', items: [], sel: {} };   // sel: {urlKey:true}
 
 function wstOpenPostsModal(wsId){
   var w = websites.find(function(x){ return x.id === wsId; });
@@ -2491,31 +2528,66 @@ function wstOpenPostsModal(wsId){
   _wstPosts.wsId = wsId;
   _wstPosts.domain = wstCurrentUrl(w);   // site WordPress thật, không phải domain gốc
   _wstPosts.items = [];
+  _wstPosts.sel = {};
   document.getElementById('wstPostsSite').textContent = w.brand + ' (' + _wstPosts.domain + ')';
   document.getElementById('wstPostsSearch').value = '';
   document.getElementById('wstPostsOverlay').classList.add('open');
   wstLoadPosts();
 }
 
-async function wstScanPostsIndex(){
-  if (!sessionStorage.getItem('gsc_access_token')){
-    if(typeof toast==='function') toast('Chưa đăng nhập GSC — bấm nút "GSC" ở góc trên trước','#e74c3c'); return;
-  }
+function wstTogglePostSel(key, on){ if (on) _wstPosts.sel[key] = true; else delete _wstPosts.sel[key]; wstUpdateSelInfo(); }
+function wstToggleAllPosts(on){
+  var q = (document.getElementById('wstPostsSearch').value || '').toLowerCase();
+  _wstPosts.items.forEach(function(p){
+    var t = ((p.title && p.title.rendered) || '').toLowerCase();
+    if (!q || t.indexOf(q) >= 0){ var k = _wstUrlKey(p.link); if (on) _wstPosts.sel[k] = true; else delete _wstPosts.sel[k]; }
+  });
+  wstRenderPosts();
+}
+function wstUpdateSelInfo(){
+  var n = Object.keys(_wstPosts.sel).length;
+  var b = document.getElementById('wstPostsScanBtn');
+  if (b) b.innerHTML = n ? ('✅ Check ' + n + ' link (Serper)') : '✅ Check index (Serper)';
+}
+
+// Check index các link ĐÃ CHỌN (không chọn gì thì check toàn bộ đang hiển thị) bằng Serper.
+async function wstCheckSelectedIndex(){
+  if (!wtApiKey){ if(typeof toast==='function') toast('Chưa có Serper API Key — thiết lập trước','#e74c3c'); return; }
   var w = websites.find(function(x){ return x.id === _wstPosts.wsId; });
   if (!w) return;
+
+  var q = (document.getElementById('wstPostsSearch').value || '').toLowerCase();
+  var visible = _wstPosts.items.filter(function(p){
+    var t = ((p.title && p.title.rendered) || '').toLowerCase(); return !q || t.indexOf(q) >= 0;
+  });
+  var selKeys = Object.keys(_wstPosts.sel);
+  var targets = selKeys.length
+    ? visible.filter(function(p){ return _wstPosts.sel[_wstUrlKey(p.link)]; })
+    : visible;
+  if (!targets.length){ if(typeof toast==='function') toast('Không có link nào để check','#e74c3c'); return; }
+  if (!selKeys.length && !confirm('Chưa chọn link nào — check TẤT CẢ ' + targets.length + ' bài đang hiển thị?\n(~' + targets.length + ' credit, còn ' + wtSerperCredits + ')')) return;
+
   var btn = document.getElementById('wstPostsScanBtn');
-  if (btn){ btn.disabled = true; btn.dataset.old = btn.innerHTML; }
   var info = document.getElementById('wstPostsInfo');
+  if (btn){ btn.disabled = true; btn.dataset.old = btn.innerHTML; }
   _wstScanAbort = false;
-  await wstScanSiteIndex(w, { force: false, onProgress: function(cur, tot){
-    if (info) info.textContent = '🔎 Soi index: ' + cur + '/' + tot;
-    if (btn) btn.innerHTML = '⏳ ' + cur + '/' + tot;
-  }});
+
+  await wstCheckLinksIndex(targets.map(function(p){ return p.link; }), {
+    onProgress: function(cur, tot){
+      if (info) info.textContent = '🔎 Đang check ' + cur + '/' + tot + ' · còn ' + wtSerperCredits + ' credit';
+      if (btn) btn.innerHTML = '⏳ ' + cur + '/' + tot;
+      if (cur % 3 === 0) wstRenderPosts();   // cập nhật dần
+    },
+    onError: function(m){ if (info) info.textContent = '❌ ' + m; }
+  });
+
+  // tính lại thống kê site từ TOÀN BỘ bài (cache)
+  wstRecomputeSiteStats(w, _wstPosts.items);
   wstRenderPosts();
-  if (typeof renderWsTrack === 'function') renderWsTrack();   // cập nhật cột ngoài bảng
+  if (typeof renderWsTrack === 'function') renderWsTrack();
   var st = _wstContentStats[w.id];
-  if (info && st) info.textContent = 'Đã index ' + st.indexed + '/' + st.postCount + ' bài (' + (st.postCount ? Math.round(st.indexed/st.postCount*100) : 0) + '%)';
-  if (btn){ btn.disabled = false; btn.innerHTML = btn.dataset.old || '✅ Kiểm tra index'; }
+  if (info && st) info.textContent = 'Đã check ' + (st.checked||0) + '/' + st.postCount + ' bài · index ' + st.indexed + ' · chưa index ' + st.notIndexed;
+  if (btn){ btn.disabled = false; btn.innerHTML = btn.dataset.old || '✅ Check index (Serper)'; wstUpdateSelInfo(); }
 }
 
 function wstClosePostsModal(){
@@ -2548,18 +2620,21 @@ function wstRenderPosts(){
     var t = ((p.title && p.title.rendered) || '').toLowerCase();
     return !q || t.indexOf(q) >= 0;
   });
-  if (!list.length) { body.innerHTML = '<tr><td colspan="7" style="padding:18px;text-align:center;color:#8b949e">Không có bài nào</td></tr>'; return; }
+  if (!list.length) { body.innerHTML = '<tr><td colspan="8" style="padding:18px;text-align:center;color:#8b949e">Không có bài nào</td></tr>'; return; }
+  var selHdr = document.getElementById('wstPostsSelAll'); if (selHdr) selHdr.checked = list.length>0 && list.every(function(p){ return _wstPosts.sel[_wstUrlKey(p.link)]; });
   var d10 = function(s){ return s ? String(s).slice(0, 10) : '—'; };
   body.innerHTML = list.map(function(p, i){
     var title = (p.title && p.title.rendered) || '(không tiêu đề)';
     var stColor = p.status === 'publish' ? '#3fb950' : (p.status === 'draft' ? '#d29922' : '#8b949e');
-    // Trạng thái index từ cache GSC (nếu đã quét)
+    // Trạng thái index từ cache (đã check Serper chưa)
     var ic = _wstIndexCache[_wstUrlKey(p.link)];
     var idxCell;
     if (!ic) idxCell = '<span style="color:#8b949e;font-size:10px">— chưa quét</span>';
     else if (ic.indexed) idxCell = '<span style="color:#3fb950;font-weight:700;font-size:11px" title="' + (ic.reason||'') + '">✅ Index</span>';
     else idxCell = '<span style="color:#f85149;font-weight:600;font-size:10px" title="' + (ic.reason||'') + '">🚫 ' + (ic.reason||'Chưa index') + '</span>';
+    var _k = _wstUrlKey(p.link);
     return '<tr style="border-top:1px solid #21262d">'
+      + '<td style="padding:7px 6px;text-align:center"><input type="checkbox" ' + (_wstPosts.sel[_k] ? 'checked' : '') + ' onchange="wstTogglePostSel(&quot;' + _k + '&quot;, this.checked)"></td>'
       + '<td style="padding:7px 6px;color:#8b949e">' + (i + 1) + '</td>'
       + '<td style="padding:7px 6px"><div style="font-weight:600">' + title + '</div>'
         + '<div style="font-size:10px;color:#8b949e;word-break:break-all">' + (p.link || '') + '</div></td>'

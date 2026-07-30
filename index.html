@@ -672,16 +672,17 @@
         </select>
         <input type="text" id="wstPostsSearch" placeholder="🔍 Lọc theo tiêu đề..." oninput="wstRenderPosts()" style="height:30px;font-size:12px;width:190px">
         <button class="btn btn-outline btn-sm" onclick="wstLoadPosts()">🔄 Tải lại</button>
-        <button id="wstPostsScanBtn" class="btn btn-sm" style="background:#3fb950;color:#fff;border:none" onclick="wstScanPostsIndex()" title="Soi trạng thái index từng bài bằng GSC (giống index trang chủ)">✅ Kiểm tra index</button>
+        <button id="wstPostsScanBtn" class="btn btn-sm" style="background:#3fb950;color:#fff;border:none" onclick="wstCheckSelectedIndex()" title="Check index link đã chọn bằng Serper (site: query)">✅ Check index (Serper)</button>
         <span id="wstPostsInfo" class="sub" style="margin-left:auto">—</span>
       </div>
       <div style="max-height:58vh;overflow:auto;border:1px solid var(--gray-border);border-radius:8px">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead style="position:sticky;top:0;background:#161b22;z-index:2">
             <tr>
-              <th style="padding:8px 6px;text-align:left;width:40px">#</th>
+              <th style="padding:8px 6px;text-align:center;width:34px"><input type="checkbox" id="wstPostsSelAll" onchange="wstToggleAllPosts(this.checked)" title="Chọn tất cả"></th>
+              <th style="padding:8px 6px;text-align:left;width:36px">#</th>
               <th style="padding:8px 6px;text-align:left">Tiêu đề</th>
-              <th style="padding:8px 6px;text-align:center;width:120px">Index (GSC)</th>
+              <th style="padding:8px 6px;text-align:center;width:130px">Index</th>
               <th style="padding:8px 6px;text-align:center;width:100px">Ngày đăng</th>
               <th style="padding:8px 6px;text-align:center;width:100px">Sửa lần cuối</th>
               <th style="padding:8px 6px;text-align:center;width:80px">Trạng thái</th>
