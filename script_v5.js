@@ -3356,8 +3356,15 @@ function renderWsTrack(){
       })()}
       <td style="padding:8px 10px;text-align:center;white-space:nowrap">
         ${(() => {
-          const gscStatus = site?.gscConnectionStatus || 'not_connected';
-          const gscEmail = site?.gscEmail || '';
+          let targetWs = w;
+          if (w.is301) {
+            const chain = getWstRedirectChainBackward(w);
+            const parent = chain.find(x => !x.is301) || chain[chain.length - 1];
+            if (parent) targetWs = parent;
+          }
+          const siteTarget = getWstSite(targetWs.id);
+          const gscStatus = siteTarget?.gscConnectionStatus || 'not_connected';
+          const gscEmail = siteTarget?.gscEmail || '';
           if (gscStatus === 'connected') {
             return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="website thuộc tài sản gsc email: ${gscEmail}">GSC</span>`;
           } else if (gscStatus === 'disconnected') {
