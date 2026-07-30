@@ -5846,7 +5846,7 @@ function wf301Search(q){
   if(!list.length || !q){ res.style.display='none'; return; }
   res.style.display='block';
   res.innerHTML = list.map(w=>`
-    <div onclick="wf301SelectSource(${w.id})" style="padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0f0;display:flex;flex-direction:column;gap:2px"
+    <div onclick="wf301SelectSource(${w.id}); document.getElementById('wf_source_results').style.display='none';" style="padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0f0;display:flex;flex-direction:column;gap:2px"
       onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background=''">
       <span style="font-weight:600">${w.brand}</span>
       <span style="color:var(--blue);font-size:11px">${w.url||''}</span>
@@ -5870,11 +5870,15 @@ function wf301SelectSource(wsId){
   if(document.getElementById('wf_group')) document.getElementById('wf_group').value = src.group||'';
   // Store source URL
   document.getElementById('wf_source_url').value = src.url||'';
-  // Update search box display
-  const si = document.getElementById('wf_source_search');
-  if(si) si.value = src.brand + ' — ' + (src.url||'');
-  const sr = document.getElementById('wf_source_results');
-  if(sr) sr.style.display='none';
+  
+  // Update search box display and close suggestions (wrap in setTimeout to avoid browser override)
+  setTimeout(() => {
+    const si = document.getElementById('wf_source_search');
+    if(si) si.value = src.brand + ' — ' + (src.url||'');
+    const sr = document.getElementById('wf_source_results');
+    if(sr) sr.style.display='none';
+  }, 80);
+
   // Clear URL field so user fills it
   document.getElementById('wf_url').value = '';
   setTimeout(()=>document.getElementById('wf_url').focus(), 50);
