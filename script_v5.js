@@ -2350,8 +2350,71 @@ function wstRowRightContent(w, site){
     + '<td style="padding:8px 6px;text-align:center;white-space:nowrap">'
       + '<button onclick="wstOpenWriter(\'' + dom + '\',\'' + (w.brand||'').replace(/'/g,"") + '\')" class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Mo SEO Writer de viet bai cho ' + w.brand + '">✍️ Viết bài</button> '
       + '<button onclick="wstOpenContentConfig(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Cau hinh noi dung">⚙️</button> '
-      + '<button onclick="wstOpenDashboard(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>'
+      + '<button onclick="wstOpenPostsModal(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem tat ca bai viet tren website">📋</button>'
     + '</td>';
+}
+
+// ══ POPUP: danh sách tất cả bài viết trên website ══
+var _wstPosts = { wsId: null, domain: '', items: [] };
+
+function wstOpenPostsModal(wsId){
+  var w = websites.find(function(x){ return x.id === wsId; });
+  if (!w) return;
+  _wstPosts.wsId = wsId;
+  _wstPosts.domain = (w.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  _wstPosts.items = [];
+  document.getElementById('wstPostsSite').textContent = w.brand + ' (' + _wstPosts.domain + ')';
+  document.getElementById('wstPostsSearch').value = '';
+  document.getElementById('wstPostsOverlay').classList.add('open');
+  wstLoadPosts();
+}
+
+function wstClosePostsModal(){
+  document.getElementById('wstPostsOverlay').classList.remove('open');
+}
+
+async function wstLoadPosts(){
+  var info = document.getElementById('wstPostsInfo');
+  var body = document.getElementById('wstPostsBody');
+  var type = document.getElementById('wstPostsType').value;
+  info.textContent = '⏳ Đang tải danh sách ' + (type === 'pages' ? 'trang' : 'bài viết') + ' từ ' + _wstPosts.domain + '...';
+  body.innerHTML = '';
+  try {
+    var r = await fetch('/api/wp-posts?domain=' + encodeURIComponent(_wstPosts.domain) + '&type=' + type + '&per_page=100');
+    var d = await r.json();
+    if (d.error) { info.innerHTML = '❌ ' + d.error + (d.detail ? ' — <span style="color:#8b949e">' + d.detail + '</span>' : ''); return; }
+    _wstPosts.items = Array.isArray(d.items) ? d.items : [];
+    info.textContent = 'Tổng ' + (d.total || _wstPosts.items.length) + ' ' + (type === 'pages' ? 'trang' : 'bài viết')
+      + ' · hiển thị ' + _wstPosts.items.length + ' bản ghi mới nhất';
+    wstRenderPosts();
+  } catch(e) {
+    info.textContent = '❌ Lỗi: ' + e.message;
+  }
+}
+
+function wstRenderPosts(){
+  var body = document.getElementById('wstPostsBody');
+  var q = (document.getElementById('wstPostsSearch').value || '').toLowerCase();
+  var list = _wstPosts.items.filter(function(p){
+    var t = ((p.title && p.title.rendered) || '').toLowerCase();
+    return !q || t.indexOf(q) >= 0;
+  });
+  if (!list.length) { body.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;color:#8b949e">Không có bài nào</td></tr>'; return; }
+  var d10 = function(s){ return s ? String(s).slice(0, 10) : '—'; };
+  body.innerHTML = list.map(function(p, i){
+    var title = (p.title && p.title.rendered) || '(không tiêu đề)';
+    var stColor = p.status === 'publish' ? '#3fb950' : (p.status === 'draft' ? '#d29922' : '#8b949e');
+    return '<tr style="border-top:1px solid #21262d">'
+      + '<td style="padding:7px 6px;color:#8b949e">' + (i + 1) + '</td>'
+      + '<td style="padding:7px 6px"><div style="font-weight:600">' + title + '</div>'
+        + '<div style="font-size:10px;color:#8b949e;word-break:break-all">' + (p.link || '') + '</div></td>'
+      + '<td style="padding:7px 6px;text-align:center;color:#8b949e">' + d10(p.date) + '</td>'
+      + '<td style="padding:7px 6px;text-align:center;color:#8b949e">' + d10(p.modified) + '</td>'
+      + '<td style="padding:7px 6px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(139,148,158,.15);color:' + stColor + ';font-weight:600">' + (p.status || '?') + '</span></td>'
+      + '<td style="padding:7px 6px;text-align:center">'
+        + '<a href="' + (p.link || '#') + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 6px">Xem</a></td>'
+      + '</tr>';
+  }).join('');
 }
 
 function wstOpenWriter(domain, brand){

@@ -59,6 +59,10 @@ function serveFile(res, filePath) {
   });
 }
 
+function safeJson(txt) {
+  try { return JSON.parse(txt); } catch (e) { return []; }
+}
+
 // ── CORS headers (allow the admin page to call API) ───────────────────────────
 function setCORS(res) {
   res.setHeader("Access-Control-Allow-Origin",  "*");
@@ -148,6 +152,50 @@ const server = http.createServer(async (req, res) => {
     });
 
     clientReq.end();
+    return;
+  }
+
+  // ── GET /api/wp-posts?domain=&type=&per_page= ────────────────────────────
+  // Proxy lay danh sach bai viet tu WordPress REST. Fetch tu VPS nen qua duoc
+  // lop bao mat chan IP la cua cac site .fashion/.io/.health.
+  if (req.method === "GET" && url === "/api/wp-posts") {
+    const q = new URL(req.url, `http://${req.headers.host}`).searchParams;
+    let domain = (q.get("domain") || "").trim();
+    const type = (q.get("type") === "pages") ? "pages" : "posts";
+    const perPage = Math.min(parseInt(q.get("per_page") || "100", 10) || 100, 100);
+    if (!domain) {
+      res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Thieu domain" }));
+      return;
+    }
+    domain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    const path = `/wp-json/wp/v2/${type}?per_page=${perPage}&orderby=date&order=desc`
+      + `&_fields=id,title,link,date,modified,status,categories`;
+    const opts = {
+      hostname: domain, path, method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+        "Accept": "application/json"
+      }
+    };
+    const cr = https.request(opts, (cres) => {
+      let body = "";
+      cres.on("data", (c) => { body += c; });
+      cres.on("end", () => {
+        res.writeHead(cres.statusCode === 200 ? 200 : 502,
+                      { "Content-Type": "application/json; charset=utf-8" });
+        if (cres.statusCode === 200) {
+          res.end(JSON.stringify({ ok: true, total: cres.headers["x-wp-total"] || null, items: safeJson(body) }));
+        } else {
+          res.end(JSON.stringify({ error: `WordPress tra ve ${cres.statusCode}`, detail: body.slice(0, 200) }));
+        }
+      });
+    });
+    cr.on("error", (e) => {
+      res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Khong ket noi duoc " + domain, detail: e.message }));
+    });
+    cr.end();
     return;
   }
 
