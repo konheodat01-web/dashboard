@@ -1006,6 +1006,13 @@
               <button class="ws-copy-btn" data-field="wf_password" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px" title="Copy">📋</button>
             </div>
           </div>
+          <div class="form-group">
+            <label>Mật khẩu ứng dụng WP (appwppass)</label>
+            <div style="display:flex;gap:4px">
+              <input type="text" id="wf_appwppass" style="flex:1" placeholder="Vd: xxxx xxxx xxxx xxxx">
+              <button class="ws-copy-btn" data-field="wf_appwppass" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:13px" title="Copy">📋</button>
+            </div>
+          </div>
           <div class="form-group"><label>Trạng thái</label>
             <select id="wf_status" style="width:100%">
               <option value="Tốt">&#9989; Tốt</option>
@@ -1013,23 +1020,16 @@
               <option value="Lỗi web">&#9888; Lỗi web</option>
             </select>
           </div>
-          <div id="wf_team_row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div class="form-group"><label>Team</label>
+          <div id="wf_team_row" style="display:block;width:100%">
+            <div class="form-group" style="margin-bottom:0"><label>Team</label>
               <select id="wf_team" style="width:100%" onchange="onWfTeamChange()">
                 <option value="Team 01">Chaewon</option>
                 <option value="Team 02">M7</option>
               </select>
             </div>
-            <div class="form-group"><label>Người quản lý</label>
-              <select id="wf_owner" style="width:100%"><option value="Công ty">Công ty</option><option value="admin">Admin</option></select>
-            </div>
+            <input type="hidden" id="wf_owner" value="Công ty">
           </div>
-          <div class="form-group"><label>Nhóm con <span style="font-size:11px;color:var(--text-muted)">(Team 01)</span></label>
-            <div style="display:flex;gap:4px">
-              <select id="wf_group" style="flex:1"></select>
-              <button onclick="openWsGroupManager()" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer;font-size:14px" title="Quản lý nhóm">⚙</button>
-            </div>
-          </div>
+          <input type="hidden" id="wf_group" value="">
           <div class="form-group"><label>Ghi chú</label><textarea id="wf_note" rows="2" style="width:100%"></textarea></div>
           <div style="display:flex;gap:6px">
             <button class="btn btn-primary" onclick="saveWebsite()" style="flex:1">&#10003; Lưu</button>

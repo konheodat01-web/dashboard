@@ -5218,6 +5218,7 @@ function openWebsiteForm(id=null){
   document.getElementById('wf_admin').value=w?.admin||'';
   document.getElementById('wf_account').value=w?.account||'';
   document.getElementById('wf_password').value=w?.password||'';
+  document.getElementById('wf_appwppass').value=w?.appwppass||'';
   document.getElementById('wf_status').value=w?.status||'Tốt';
   document.getElementById('wf_note').value=w?.note||'';
   document.getElementById('wf_team').value=w?.team||'Team 01';
@@ -5227,14 +5228,9 @@ function openWebsiteForm(id=null){
   document.getElementById('wf_owner').value=w?.owner||'Công ty';
   // If Hải member: hide Team field (Hải is always Team 01)
   const teamRow=document.getElementById('wf_team_row');
-  if(teamRow) teamRow.style.display = currentMember==='hai' ? 'none' : 'grid';
+  if(teamRow) teamRow.style.display = currentMember==='hai' ? 'none' : 'block';
   // Populate group select
-  const wfGroup=document.getElementById('wf_group');
-  if(wfGroup){
-    wfGroup.innerHTML='<option value="">-- Không có nhóm --</option>';
-    wsGroups.forEach(g=>{ const o=document.createElement('option'); o.value=g; o.textContent=g; wfGroup.appendChild(o); });
-    wfGroup.value=w?.group||'';
-  }
+  document.getElementById('wf_group').value=w?.group||'';
   document.getElementById('wf_delete_btn').style.display=w?'inline-flex':'none';
   // 301 fields
   const is301El=document.getElementById('wf_is301');
@@ -5339,7 +5335,7 @@ function wf301SelectSource(wsId){
 
 function clearWebsiteForm(){
   editingWsId=null;
-  ['wf_brand','wf_url','wf_admin','wf_account','wf_password','wf_note'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['wf_brand','wf_url','wf_admin','wf_account','wf_password','wf_appwppass','wf_note'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('wf_status').value='Tốt';
   document.getElementById('wf_delete_btn').style.display='none';
   document.getElementById('wfTitle').textContent='+ Thêm website';
@@ -5362,6 +5358,7 @@ function saveWebsite(){
     admin: normalizeAdmin(document.getElementById('wf_admin')?.value),
     account: (document.getElementById('wf_account')?.value||'').trim(),
     password: document.getElementById('wf_password')?.value||'',
+    appwppass: (document.getElementById('wf_appwppass')?.value||'').trim(),
     status: document.getElementById('wf_status')?.value||'Tốt',
     note: (document.getElementById('wf_note')?.value||'').trim(),
     team: document.getElementById('wf_team')?.value||'Team 01',
