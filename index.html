@@ -658,36 +658,39 @@
 </div>
 <!-- LINK QUAN TRỌNG -->
 <!-- MODAL: danh sach bai viet cua website -->
-<div class="overlay" id="wstPostsOverlay" onclick="if(event.target===this)wstClosePostsModal()">
-  <div class="modal" style="max-width:900px;width:94%">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+<div class="modal-overlay" id="wstPostsOverlay" onclick="if(event.target===this)wstClosePostsModal()">
+  <div class="modal" style="max-width:920px;width:94%" onclick="event.stopPropagation()">
+    <div class="modal-header">
       <h3 style="margin:0">📋 Bài viết trên <span id="wstPostsSite" style="color:#58a6ff"></span></h3>
-      <div style="display:flex;gap:6px;align-items:center">
+      <button class="modal-close" onclick="wstClosePostsModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:10px">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <select id="wstPostsType" onchange="wstLoadPosts()" style="height:30px;font-size:12px">
           <option value="posts">Post (bài viết)</option>
           <option value="pages">Page (trang)</option>
         </select>
-        <input type="text" id="wstPostsSearch" placeholder="🔍 Lọc theo tiêu đề..." oninput="wstRenderPosts()" style="height:30px;font-size:12px;width:170px">
+        <input type="text" id="wstPostsSearch" placeholder="🔍 Lọc theo tiêu đề..." oninput="wstRenderPosts()" style="height:30px;font-size:12px;width:190px">
         <button class="btn btn-outline btn-sm" onclick="wstLoadPosts()">🔄 Tải lại</button>
+        <span id="wstPostsInfo" class="sub" style="margin-left:auto">—</span>
+      </div>
+      <div style="max-height:58vh;overflow:auto;border:1px solid var(--gray-border);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead style="position:sticky;top:0;background:#161b22;z-index:2">
+            <tr>
+              <th style="padding:8px 6px;text-align:left;width:40px">#</th>
+              <th style="padding:8px 6px;text-align:left">Tiêu đề</th>
+              <th style="padding:8px 6px;text-align:center;width:100px">Ngày đăng</th>
+              <th style="padding:8px 6px;text-align:center;width:100px">Sửa lần cuối</th>
+              <th style="padding:8px 6px;text-align:center;width:80px">Trạng thái</th>
+              <th style="padding:8px 6px;text-align:center;width:64px">Mở</th>
+            </tr>
+          </thead>
+          <tbody id="wstPostsBody"></tbody>
+        </table>
       </div>
     </div>
-    <div id="wstPostsInfo" class="sub" style="margin:8px 0">Đang tải...</div>
-    <div style="max-height:60vh;overflow:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead style="position:sticky;top:0;background:#161b22;z-index:2">
-          <tr>
-            <th style="padding:8px 6px;text-align:left;width:46px">#</th>
-            <th style="padding:8px 6px;text-align:left">Tiêu đề</th>
-            <th style="padding:8px 6px;text-align:center;width:110px">Ngày đăng</th>
-            <th style="padding:8px 6px;text-align:center;width:110px">Sửa lần cuối</th>
-            <th style="padding:8px 6px;text-align:center;width:90px">Trạng thái</th>
-            <th style="padding:8px 6px;text-align:center;width:80px">Mở</th>
-          </tr>
-        </thead>
-        <tbody id="wstPostsBody"></tbody>
-      </table>
-    </div>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+    <div class="modal-footer">
       <button class="btn sec" onclick="wstClosePostsModal()">Đóng</button>
     </div>
   </div>
