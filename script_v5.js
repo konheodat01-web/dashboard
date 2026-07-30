@@ -2870,16 +2870,11 @@ async function wstPollProcesses(){
     var r = await fetch('/api/sw-processes');
     _swProc = (await r.json()) || { processes: [], running: 0, unseen: 0 };
   } catch(e){ return; }
-  // Vòng tròn: số tiến trình đang chạy
-  var cw = document.getElementById('procCircleWrap'), cb = document.getElementById('procCircleBadge');
-  if (cw){ if ((_swProc.running||0) > 0){ cw.style.display='inline-block'; cb.textContent=_swProc.running; } else cw.style.display='none'; }
-  // Chuông: hiện khi có tiến trình đã xong; badge = số chưa xem
-  var hasDone = (_swProc.processes||[]).some(function(p){ return p.status==='done'; });
-  var bw = document.getElementById('procBellWrap'), bb = document.getElementById('procBellBadge');
-  if (bw){
-    bw.style.display = hasDone ? 'inline-block' : 'none';
-    if ((_swProc.unseen||0) > 0){ bb.style.display='inline-block'; bb.textContent=_swProc.unseen; } else bb.style.display='none';
-  }
+  // Icon LUÔN hiển thị; chỉ badge (số) mới bật/tắt theo running / chưa xem
+  var cb = document.getElementById('procCircleBadge');
+  if (cb){ if ((_swProc.running||0) > 0){ cb.style.display='inline-block'; cb.textContent=_swProc.running; } else cb.style.display='none'; }
+  var bb = document.getElementById('procBellBadge');
+  if (bb){ if ((_swProc.unseen||0) > 0){ bb.style.display='inline-block'; bb.textContent=_swProc.unseen; } else bb.style.display='none'; }
   if (_procPopupMode) wstRenderProcPopup();
 }
 function wstToggleProcPopup(mode){
