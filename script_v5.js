@@ -6486,11 +6486,13 @@ function onWfTeamChange(){
   const ownerSel = document.getElementById('wf_owner');
   const groupRow = document.getElementById('wf_group')?.closest('.form-group');
 
-  if(ownerSel){
+  if(ownerSel && ownerSel.tagName === 'SELECT'){
     const cur = ownerSel.value;
     ownerSel.innerHTML = '<option value="Công ty">Công ty</option><option value="admin">Admin</option>';
     if([...ownerSel.options].find(o=>o.value===cur)) ownerSel.value=cur;
     else ownerSel.value='Công ty';
+  } else if (ownerSel) {
+    ownerSel.value = 'Công ty';
   }
   // Group only for Team 01 (Chaewon)
   if(groupRow) groupRow.style.display = team==='Team 02' ? 'none' : 'block';
