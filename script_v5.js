@@ -5595,17 +5595,6 @@ function renderWebsites(){
 function openWebsiteForm(id=null){
   let w=id?websites.find(x=>x.id===id):null;
   
-  // Nếu website được chọn là 301, tự động chuyển hướng form sửa sang website gốc
-  if (w && w.is301) {
-    const chain = getWstRedirectChainBackward(w);
-    const parent = chain.find(x => !x.is301) || chain[chain.length - 1];
-    if (parent && parent.id !== w.id) {
-      toast(`🔔 Web 301 tự động đồng bộ. Đang mở sửa trên web gốc: ${parent.brand}`, '#6c5ce7', 3500);
-      id = parent.id;
-      w = parent;
-    }
-  }
-
   editingWsId=id;
   document.getElementById('wfTitle').textContent=w?'✎ Sửa website':'+ Thêm website';
   document.getElementById('wf_id').value=id||'';
@@ -5639,6 +5628,24 @@ function openWebsiteForm(id=null){
       if(sel) sel.innerHTML='<option value="">-- Chọn từ kho --</option>'+websites.filter(x=>x.id!==w?.id).map(x=>`<option value="${x.url||''}">${x.brand} (${x.url||''})</option>`).join('');
     }
   }
+
+  // Khóa các trường dùng chung nếu là web 301 (được kế thừa từ gốc)
+  const isReadonly = !!(w?.is301);
+  ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_team'].forEach(fieldId => {
+    const el = document.getElementById(fieldId);
+    if (el) {
+      if (isReadonly) {
+        el.setAttribute('disabled', 'true');
+        el.style.opacity = '0.65';
+        el.style.cursor = 'not-allowed';
+      } else {
+        el.removeAttribute('disabled');
+        el.style.opacity = '1';
+        el.style.cursor = 'default';
+      }
+    }
+  });
+
   document.getElementById('wf_brand').focus();
 }
 
@@ -5682,6 +5689,16 @@ function wfToggle301(){
     if(si) si.value='';
     const sr = document.getElementById('wf_source_results');
     if(sr) sr.style.display='none';
+  } else {
+    // Mở khóa lại các trường nếu bỏ check 301
+    ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_team'].forEach(fieldId => {
+      const el = document.getElementById(fieldId);
+      if (el) {
+        el.removeAttribute('disabled');
+        el.style.opacity = '1';
+        el.style.cursor = 'default';
+      }
+    });
   }
 }
 
@@ -5726,6 +5743,17 @@ function wf301SelectSource(wsId){
   // Clear URL field so user fills it
   document.getElementById('wf_url').value = '';
   setTimeout(()=>document.getElementById('wf_url').focus(), 50);
+
+  // Khóa các trường dùng chung vì đã thừa kế từ web gốc
+  ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_team'].forEach(fieldId => {
+    const el = document.getElementById(fieldId);
+    if (el) {
+      el.setAttribute('disabled', 'true');
+      el.style.opacity = '0.65';
+      el.style.cursor = 'not-allowed';
+    }
+  });
+
   toast('✓ Đã sao chép thông tin từ '+src.brand+' — nhập URL mới vào', '#27ae60', 3000);
 }
 
@@ -5736,6 +5764,16 @@ function clearWebsiteForm(){
   document.getElementById('wf_delete_btn').style.display='none';
   document.getElementById('wfTitle').textContent='+ Thêm website';
   const _301=document.getElementById('wf_is301'); if(_301){_301.checked=false; document.getElementById('wf_301_fields').style.display='none'; document.getElementById('wf_source_url').value='';}
+
+  // Mở khóa các trường
+  ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_team'].forEach(fieldId => {
+    const el = document.getElementById(fieldId);
+    if (el) {
+      el.removeAttribute('disabled');
+      el.style.opacity = '1';
+      el.style.cursor = 'default';
+    }
+  });
 }
 
 function getAdminUrlForWebsite(w) {
