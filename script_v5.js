@@ -5504,9 +5504,9 @@ function normalizeAdmin(v){ return (v||'').trim().replace(/^\/+|\/+$/g,''); }
 function normalizeUrl(v){ return (v||'').trim().replace(/^https?:\/\//i,'').replace(/\/+$/,''); }
 function joinAdminUrl(url, admin){
   let u = (url || '').trim();
-  const normalizedInput = normalizeUrl(u);
+  const normalizedInput = wstNormalizeUrl(u);
   if (normalizedInput) {
-    const matchedWs = websites.find(x => x.url && normalizeUrl(x.url) === normalizedInput);
+    const matchedWs = websites.find(x => x.url && wstNormalizeUrl(x.url) === normalizedInput);
     if (matchedWs && matchedWs.is301) {
       const chain = getWstRedirectChainBackward(matchedWs);
       const parent = chain.find(x => !x.is301) || chain[chain.length - 1];
