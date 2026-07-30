@@ -2428,12 +2428,9 @@ function wstRecomputeSiteStats(w, posts){
 // Lấy danh sách bài: ƯU TIÊN trình duyệt fetch THẲNG (IP user thường được whitelist +
 // CORS site cho phép origin nthieucloud.shop) → fallback proxy VPS nếu trình duyệt fail
 // (vd site chặn IP user) hoặc ngược lại (site chặn IP VPS như diamondair.uk.com).
-async function wstFetchPosts(host, type, perPage){
-  type = (type === 'pages') ? 'pages' : 'posts';
-  perPage = perPage || 100;
-  var restPath = '/wp-json/wp/v2/' + type + '?per_page=' + perPage
-    + '&orderby=date&order=desc&_fields=id,title,link,date,modified,status,categories';
-  // 1) Trình duyệt fetch thẳng
+// Fetch 1 đường dẫn wp-json bất kỳ: ƯU TIÊN trình duyệt thẳng -> fallback proxy VPS.
+async function wstFetchWp(host, restPath){
+  // 1) Trình duyệt fetch thẳng (IP user thường được whitelist + CORS mở origin)
   try {
     var r = await fetch('https://' + host + restPath, { headers: { 'Accept': 'application/json' } });
     if (r.ok) {
@@ -2441,13 +2438,32 @@ async function wstFetchPosts(host, type, perPage){
       if (Array.isArray(items)) return { ok: true, items: items, total: r.headers.get('x-wp-total') || items.length, via: 'browser' };
     }
   } catch(e){ /* CORS / IP user bị chặn -> thử VPS */ }
-  // 2) Fallback proxy VPS
+  // 2) Fallback proxy VPS (truyền path để lấy cả categories)
   try {
-    var r2 = await fetch('/api/wp-posts?domain=' + encodeURIComponent(host) + '&type=' + type + '&per_page=' + perPage);
+    var r2 = await fetch('/api/wp-posts?domain=' + encodeURIComponent(host) + '&path=' + encodeURIComponent(restPath));
     var d = await r2.json();
     if (d.ok && Array.isArray(d.items)) return { ok: true, items: d.items, total: d.total || d.items.length, via: 'vps' };
-    return { ok: false, error: (d.error || 'Không lấy được bài') + ' — cả trình duyệt lẫn VPS đều không vào được ' + host + ' (IP có thể bị chặn ở bảo mật site)' };
+    return { ok: false, error: (d.error || 'Không lấy được') + ' — cả trình duyệt lẫn VPS đều không vào được ' + host + ' (IP có thể bị chặn ở bảo mật site)' };
   } catch(e){ return { ok: false, error: 'Không kết nối được ' + host + ': ' + e.message }; }
+}
+
+// Lấy TOÀN BỘ nội dung site = post + page gộp 1 danh sách, kèm tên danh mục.
+// page -> danh mục 'Page'; post -> tên category thật (map từ /wp/v2/categories).
+async function wstFetchAllContent(host){
+  var F = '&_fields=id,title,link,date,modified,status,categories';
+  var postPath = '/wp-json/wp/v2/posts?per_page=100&orderby=date&order=desc' + F;
+  var pagePath = '/wp-json/wp/v2/pages?per_page=100&orderby=date&order=desc' + F;
+  var catPath  = '/wp-json/wp/v2/categories?per_page=100&_fields=id,name';
+  var results = await Promise.all([ wstFetchWp(host, postPath), wstFetchWp(host, pagePath), wstFetchWp(host, catPath) ]);
+  var pr = results[0], gr = results[1], cr = results[2];
+  if (!pr.ok && !gr.ok) return { ok: false, error: (pr.error || gr.error || 'Không lấy được nội dung') };
+  var catMap = {};
+  if (cr.ok) cr.items.forEach(function(c){ catMap[c.id] = c.name; });
+  var items = [];
+  if (pr.ok) pr.items.forEach(function(x){ x._type = 'post'; x._cats = (x.categories||[]).map(function(id){ return catMap[id] || ('#'+id); }); items.push(x); });
+  if (gr.ok) gr.items.forEach(function(x){ x._type = 'page'; x._cats = ['Page']; items.push(x); });
+  items.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  return { ok: true, items: items, total: items.length, via: (pr.via || gr.via) };
 }
 
 // Quét index cho MỘT site: lấy bài -> check TẤT CẢ link bằng Serper.
@@ -2455,7 +2471,7 @@ async function wstScanSiteIndex(w, opts){
   opts = opts || {};
   var host = wstCurrentUrl(w);
   if (!host) return null;
-  var res = await wstFetchPosts(host, 'posts', 100);
+  var res = await wstFetchAllContent(host);
   if (!res.ok){ if (opts.onError) opts.onError(w, res.error); return null; }
   var posts = res.items;
 
@@ -2712,15 +2728,15 @@ function wstClosePostsModal(){
 async function wstLoadPosts(){
   var info = document.getElementById('wstPostsInfo');
   var body = document.getElementById('wstPostsBody');
-  var type = document.getElementById('wstPostsType').value;
-  info.textContent = '⏳ Đang tải danh sách ' + (type === 'pages' ? 'trang' : 'bài viết') + ' từ ' + _wstPosts.domain + '...';
+  info.textContent = '⏳ Đang tải bài viết + trang từ ' + _wstPosts.domain + '...';
   body.innerHTML = '';
   try {
-    var res = await wstFetchPosts(_wstPosts.domain, type, 100);
+    var res = await wstFetchAllContent(_wstPosts.domain);
     if (!res.ok) { info.innerHTML = '❌ ' + res.error; return; }
     _wstPosts.items = Array.isArray(res.items) ? res.items : [];
-    info.textContent = 'Tổng ' + (res.total || _wstPosts.items.length) + ' ' + (type === 'pages' ? 'trang' : 'bài viết')
-      + ' · hiển thị ' + _wstPosts.items.length + ' bản ghi' + (res.via === 'browser' ? ' (trực tiếp)' : ' (qua VPS)');
+    var nPost = _wstPosts.items.filter(function(x){ return x._type === 'post'; }).length;
+    var nPage = _wstPosts.items.length - nPost;
+    info.textContent = 'Tổng ' + _wstPosts.items.length + ' (' + nPost + ' bài viết · ' + nPage + ' trang)' + (res.via === 'browser' ? ' · trực tiếp' : ' · qua VPS');
     wstRenderPosts();
   } catch(e) {
     info.textContent = '❌ Lỗi: ' + e.message;
@@ -2734,7 +2750,7 @@ function wstRenderPosts(){
     var t = ((p.title && p.title.rendered) || '').toLowerCase();
     return !q || t.indexOf(q) >= 0;
   });
-  if (!list.length) { body.innerHTML = '<tr><td colspan="8" style="padding:18px;text-align:center;color:#8b949e">Không có bài nào</td></tr>'; return; }
+  if (!list.length) { body.innerHTML = '<tr><td colspan="9" style="padding:18px;text-align:center;color:#8b949e">Không có bài/trang nào</td></tr>'; return; }
   var selHdr = document.getElementById('wstPostsSelAll'); if (selHdr) selHdr.checked = list.length>0 && list.every(function(p){ return _wstPosts.sel[_wstUrlKey(p.link)]; });
   var d10 = function(s){ return s ? String(s).slice(0, 10) : '—'; };
   body.innerHTML = list.map(function(p, i){
@@ -2747,11 +2763,16 @@ function wstRenderPosts(){
     else if (ic.indexed) idxCell = '<span style="color:#3fb950;font-weight:700;font-size:11px" title="' + (ic.reason||'') + '">✅ Index</span>';
     else idxCell = '<span style="color:#f85149;font-weight:600;font-size:10px" title="' + (ic.reason||'') + '">🚫 ' + (ic.reason||'Chưa index') + '</span>';
     var _k = _wstUrlKey(p.link);
+    var isPage = p._type === 'page';
+    var catCell = isPage
+      ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(88,166,255,.15);color:#58a6ff;font-weight:600">📄 Page</span>'
+      : ((p._cats && p._cats.length) ? p._cats.join(', ') : '<span style="color:#8b949e">—</span>');
     return '<tr style="border-top:1px solid #21262d">'
       + '<td style="padding:7px 6px;text-align:center"><input type="checkbox" ' + (_wstPosts.sel[_k] ? 'checked' : '') + ' onchange="wstTogglePostSel(&quot;' + _k + '&quot;, this.checked)"></td>'
       + '<td style="padding:7px 6px;color:#8b949e">' + (i + 1) + '</td>'
       + '<td style="padding:7px 6px"><div style="font-weight:600">' + title + '</div>'
         + '<div style="font-size:10px;color:#8b949e;word-break:break-all">' + (p.link || '') + '</div></td>'
+      + '<td style="padding:7px 6px;font-size:11px;color:var(--text-muted)">' + catCell + '</td>'
       + '<td style="padding:7px 6px;text-align:center">' + idxCell + '</td>'
       + '<td style="padding:7px 6px;text-align:center;color:#8b949e">' + d10(p.date) + '</td>'
       + '<td style="padding:7px 6px;text-align:center;color:#8b949e">' + d10(p.modified) + '</td>'

@@ -186,8 +186,12 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     domain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-    const path = `/wp-json/wp/v2/${type}?per_page=${perPage}&orderby=date&order=desc`
-      + `&_fields=id,title,link,date,modified,status,categories`;
+    // Cho phep client truyen path wp-json bat ky (chi /wp-json/ de an toan) — vd lay categories.
+    const rawPath = (q.get("path") || "").trim();
+    const path = (rawPath && rawPath.indexOf("/wp-json/") === 0)
+      ? rawPath
+      : `/wp-json/wp/v2/${type}?per_page=${perPage}&orderby=date&order=desc`
+        + `&_fields=id,title,link,date,modified,status,categories`;
     // Theo redirect (Cloudflare hay chuyen www / doi host) — toi da 4 lan
     const fetchJson = (host, pth, hops) => {
       if (hops > 4) {
