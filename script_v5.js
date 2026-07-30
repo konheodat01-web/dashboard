@@ -5819,21 +5819,41 @@ function saveWebsite(){
   const brand=(document.getElementById('wf_brand')?.value||'').trim();
   const url=normalizeUrl(document.getElementById('wf_url')?.value||'');
   if(!brand){toast('Vui lòng nhập tên brand!','#e74c3c');return;}
+  
+  let admin = normalizeAdmin(document.getElementById('wf_admin')?.value);
+  let account = (document.getElementById('wf_account')?.value||'').trim();
+  let password = document.getElementById('wf_password')?.value||'';
+  let appwppass = (document.getElementById('wf_appwppass')?.value||'').trim();
+  let status = document.getElementById('wf_status')?.value||'Tốt';
+  let team = document.getElementById('wf_team')?.value||'Team 01';
+  
+  const is301 = document.getElementById('wf_is301')?.checked||false;
+  const sourceUrl = is301 ? (document.getElementById('wf_source_url')?.value||'').trim() : '';
+
+  if (is301 && sourceUrl) {
+    const parentNorm = wstNormalizeUrl(sourceUrl);
+    const parentSite = websites.find(w => !w.is301 && (wstNormalizeUrl(w.url) === parentNorm || w.brand === sourceUrl));
+    if (parentSite) {
+      admin = parentSite.admin || '';
+      account = parentSite.account || '';
+      password = parentSite.password || '';
+      appwppass = parentSite.appwppass || '';
+      status = parentSite.status || 'Tốt';
+      team = parentSite.team || 'Team 01';
+    }
+  }
+
   const newId = editingWsId ? editingWsId : wsNextId++;
   const obj={
     id: newId,
     brand, url,
-    admin: normalizeAdmin(document.getElementById('wf_admin')?.value),
-    account: (document.getElementById('wf_account')?.value||'').trim(),
-    password: document.getElementById('wf_password')?.value||'',
-    appwppass: (document.getElementById('wf_appwppass')?.value||'').trim(),
-    status: document.getElementById('wf_status')?.value||'Tốt',
+    admin, account, password, appwppass, status,
     note: (document.getElementById('wf_note')?.value||'').trim(),
-    team: document.getElementById('wf_team')?.value||'Team 01',
+    team,
     owner: document.getElementById('wf_owner')?.value||'Công ty',
     group: document.getElementById('wf_group')?.value||'',
-    is301: document.getElementById('wf_is301')?.checked||false,
-    sourceUrl: document.getElementById('wf_is301')?.checked ? (document.getElementById('wf_source_url')?.value||'').trim() : '',
+    is301,
+    sourceUrl
   };
   if(editingWsId){
     const i=websites.findIndex(w=>w.id===editingWsId);
