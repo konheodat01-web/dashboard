@@ -9565,12 +9565,11 @@ function wsImportParseLines(){
       const url = urlFull.split('/')[0];
       const brand = brandRaw || url.split('.')[0];
       
-      let teamRaw = parts[6] || team;
-      if (teamRaw === 'Chaewon') teamRaw = 'Team 01';
-      if (teamRaw === 'M7') teamRaw = 'Team 02';
+      let teamRaw = parts[7] || team;
+      if (teamRaw === 'Chaewon' || teamRaw === 'Team 01') teamRaw = 'Team 01';
+      if (teamRaw === 'M7' || teamRaw === 'Team 02') teamRaw = 'Team 02';
       
-      let ownerRaw = parts[7] || owner;
-      if (ownerRaw === 'Hải' || ownerRaw === 'Hiếu') ownerRaw = 'admin';
+      const ownerRaw = owner;
       
       return {
         brand,
@@ -9578,11 +9577,12 @@ function wsImportParseLines(){
         admin: normalizeAdmin(parts[2] || ''),
         account: parts[3] || '',
         password: parts[4] || '',
-        status: parts[5] || status,
+        appwppass: parts[5] || '',
+        status: parts[6] || status,
         team: teamRaw,
         owner: ownerRaw,
-        group: parts[8] || '',
-        note: parts[9] || ''
+        group: '',
+        note: parts[8] || ''
       };
     } else {
       const urlRaw = parts[0];
@@ -9592,13 +9592,12 @@ function wsImportParseLines(){
       brand = brand.charAt(0).toUpperCase() + brand.slice(1);
       
       let teamRaw = team;
-      if (teamRaw === 'Chaewon') teamRaw = 'Team 01';
-      if (teamRaw === 'M7') teamRaw = 'Team 02';
+      if (teamRaw === 'Chaewon' || teamRaw === 'Team 01') teamRaw = 'Team 01';
+      if (teamRaw === 'M7' || teamRaw === 'Team 02') teamRaw = 'Team 02';
       
-      let ownerRaw = owner;
-      if (ownerRaw === 'Hải' || ownerRaw === 'Hiếu') ownerRaw = 'admin';
+      const ownerRaw = owner;
       
-      return { brand, url, admin:'', account:'', password:'', status, team: teamRaw, owner: ownerRaw, group:'', note:'' };
+      return { brand, url, admin:'', account:'', password:'', appwppass:'', status, team: teamRaw, owner: ownerRaw, group:'', note:'' };
     }
   });
 }
