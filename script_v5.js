@@ -2280,9 +2280,125 @@ async function wstSyncSitesToWriter(){
   }));
 }
 
-// Quét các bài đã đăng nhưng Google chưa index (dùng /api/gsc-inspect đã có)
-function wstScanNotIndexed(){
-  if(typeof toast==='function') toast('Quét bài chưa index — mở ở bước tích hợp GSC + SEO Writer', '#e67e22');
+// ══ Trạng thái index nội dung — GIỐNG cơ chế index trang chủ (wstInspectUrlGsc) ══
+// Lưu localStorage RIÊNG, KHÔNG đụng websites/Firebase (tránh rủi ro ghi đè dữ liệu).
+var _wstContentStats = {};   // wsId -> {postCount, indexed, notIndexed, lastContentUpdate, checkedAt}
+var _wstIndexCache   = {};   // "host/slug" -> {indexed:bool, reason, checkedAt}
+(function wstLoadContentStats(){
+  try { _wstContentStats = JSON.parse(localStorage.getItem('wt_content_stats') || '{}'); } catch(e){ _wstContentStats = {}; }
+  try { _wstIndexCache   = JSON.parse(localStorage.getItem('wt_index_cache')   || '{}'); } catch(e){ _wstIndexCache   = {}; }
+})();
+function wstSaveContentStats(){
+  try { localStorage.setItem('wt_content_stats', JSON.stringify(_wstContentStats)); } catch(e){}
+  try { localStorage.setItem('wt_index_cache',   JSON.stringify(_wstIndexCache));   } catch(e){}
+}
+function _wstUrlKey(u){ return (u||'').replace(/^https?:\/\//,'').replace(/\/$/,'').toLowerCase(); }
+
+var _wstScanAbort = false;
+
+// Quét index cho MỘT site: lấy bài (/api/wp-posts) -> soi từng URL bằng GSC như trang chủ.
+async function wstScanSiteIndex(w, opts){
+  opts = opts || {};
+  var host = wstCurrentUrl(w);
+  if (!host) return null;
+
+  // 1) property GSC đúng như trang chủ dùng
+  var property;
+  try { property = await wstGetExactGscPropertyUrl(host); }
+  catch(e){ property = 'sc-domain:' + host; }
+
+  // 2) danh sách bài
+  var posts = [];
+  try {
+    var r = await fetch('/api/wp-posts?domain=' + encodeURIComponent(host) + '&type=posts&per_page=100');
+    var d = await r.json();
+    if (d.ok && Array.isArray(d.items)) posts = d.items;
+    else { if(opts.onError) opts.onError(w, d.error||'Không lấy được bài'); return null; }
+  } catch(e){ if(opts.onError) opts.onError(w, e.message); return null; }
+
+  var total = posts.length, indexed = 0, latestMod = '';
+  for (var i = 0; i < posts.length; i++){
+    if (_wstScanAbort) break;
+    var link = posts[i].link;
+    if (posts[i].modified && posts[i].modified > latestMod) latestMod = posts[i].modified;
+    var key = _wstUrlKey(link);
+    var cached = _wstIndexCache[key];
+    var isIdx;
+    if (cached && !opts.force && (Date.now() - cached.checkedAt) < 24*3600*1000){
+      isIdx = cached.indexed;                 // dùng cache < 24h, khỏi tốn quota
+    } else {
+      await new Promise(function(res){ setTimeout(res, 1200); });   // giãn nhịp như trang chủ
+      var ir = null;
+      try { ir = await wstInspectUrlGsc(property, link); } catch(e){}
+      isIdx = !!(ir && ir.indexStatusResult && ir.indexStatusResult.verdict === 'PASS');
+      _wstIndexCache[key] = { indexed: isIdx, reason: ir ? wstGetFriendlyIndexReason(ir) : 'Chưa kiểm tra', checkedAt: Date.now() };
+    }
+    if (isIdx) indexed++;
+    if (opts.onProgress) opts.onProgress(i+1, total, w);
+  }
+
+  _wstContentStats[w.id] = {
+    postCount: total, indexed: indexed, notIndexed: Math.max(0, total - indexed),
+    lastContentUpdate: latestMod ? latestMod.slice(0,10) : '',
+    checkedAt: Date.now()
+  };
+  wstSaveContentStats();
+  return _wstContentStats[w.id];
+}
+
+// Quét TẤT CẢ site đang theo dõi (nút "🚫 Quét bài chưa index").
+async function wstScanNotIndexed(){
+  if (!sessionStorage.getItem('gsc_access_token')){
+    if(typeof toast==='function') toast('Chưa đăng nhập GSC — bấm nút "GSC" ở góc trên để đăng nhập trước','#e74c3c');
+    return;
+  }
+  var sites = siteTracking.map(function(st){ return websites.find(function(w){ return w.id === st.wsId; }); })
+                          .filter(function(w){ return w && !w.is301; });
+  if (!sites.length){ if(typeof toast==='function') toast('Chưa theo dõi website nào','#e74c3c'); return; }
+  if (!confirm('Quét trạng thái index cho ' + sites.length + ' website?\nLần đầu có thể mất vài phút (mỗi bài giãn ~1.2s để tránh rate limit GSC). Kết quả được cache 24h.')) return;
+
+  _wstScanAbort = false;
+  var bar = wstShowScanProgress();
+  var doneSites = 0, doneUrls = 0;
+  for (var i = 0; i < sites.length; i++){
+    if (_wstScanAbort) break;
+    var w = sites[i];
+    bar.set('Đang quét ' + w.brand + ' (' + (i+1) + '/' + sites.length + ')...', doneSites/sites.length*100);
+    await wstScanSiteIndex(w, {
+      onProgress: function(cur, tot, ww){ doneUrls++; bar.set('Quét ' + ww.brand + ': bài ' + cur + '/' + tot, (doneSites + cur/Math.max(tot,1))/sites.length*100); },
+      onError: function(ww, msg){ console.warn('[Quét index]', ww.brand, msg); }
+    });
+    doneSites++;
+    if (typeof renderWsTrack === 'function') renderWsTrack();   // cập nhật cột ngay từng site
+  }
+  bar.done(_wstScanAbort ? ('Đã dừng — quét xong ' + doneSites + '/' + sites.length + ' site') : ('Xong! Đã quét ' + doneSites + ' site, ' + doneUrls + ' bài'));
+  if (typeof renderWsTrack === 'function') renderWsTrack();
+}
+
+// Thanh tiến trình quét (cố định góc phải dưới, có nút Dừng).
+function wstShowScanProgress(){
+  var old = document.getElementById('wstScanBar'); if (old) old.remove();
+  var box = document.createElement('div');
+  box.id = 'wstScanBar';
+  box.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px 14px;width:300px;box-shadow:0 8px 28px rgba(0,0,0,.4);color:#e6edf3;font-size:12px';
+  box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<b>🔎 Quét index từ GSC</b>'
+    + '<button onclick="_wstScanAbort=true;this.textContent=\'Đang dừng...\'" style="background:#e74c3c;color:#fff;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">Dừng</button></div>'
+    + '<div id="wstScanMsg" style="color:#8b949e;margin-bottom:6px">Bắt đầu...</div>'
+    + '<div style="height:6px;background:#0d1117;border-radius:4px;overflow:hidden"><div id="wstScanFill" style="height:100%;width:0;background:#3fb950;transition:width .3s"></div></div>';
+  document.body.appendChild(box);
+  return {
+    set: function(msg, pct){
+      var m = document.getElementById('wstScanMsg'); if (m) m.textContent = msg;
+      var f = document.getElementById('wstScanFill'); if (f) f.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    },
+    done: function(msg){
+      var m = document.getElementById('wstScanMsg'); if (m) m.innerHTML = '✅ ' + msg;
+      var f = document.getElementById('wstScanFill'); if (f) f.style.width = '100%';
+      if(typeof toast==='function') toast(msg, '#27ae60');
+      setTimeout(function(){ var b = document.getElementById('wstScanBar'); if (b) b.remove(); }, 4000);
+    }
+  };
 }
 
 // Cố định bề rộng cột bằng <colgroup> (%). Cột TRÁI luôn 45% ở CẢ HAI chế độ
@@ -2327,7 +2443,7 @@ function wstHeadRight(){
 
 // Các ô PHẢI cho 1 dòng ở chế độ QUẢN LÝ NỘI DUNG
 function wstRowRightContent(w, site){
-  var c = (site && site.content) || {};   // chỉ số nội dung (nối SEO Writer ở bước sau)
+  var c = _wstContentStats[w.id] || {};   // thống kê index từ GSC (lưu localStorage riêng)
   var num = function(v){ return (v === 0 || v > 0) ? String(v) : '—'; };
   var total = (c.postCount === 0 || c.postCount > 0) ? c.postCount : null;
   var idx   = (c.indexed === 0 || c.indexed > 0) ? c.indexed : null;
@@ -2381,6 +2497,27 @@ function wstOpenPostsModal(wsId){
   wstLoadPosts();
 }
 
+async function wstScanPostsIndex(){
+  if (!sessionStorage.getItem('gsc_access_token')){
+    if(typeof toast==='function') toast('Chưa đăng nhập GSC — bấm nút "GSC" ở góc trên trước','#e74c3c'); return;
+  }
+  var w = websites.find(function(x){ return x.id === _wstPosts.wsId; });
+  if (!w) return;
+  var btn = document.getElementById('wstPostsScanBtn');
+  if (btn){ btn.disabled = true; btn.dataset.old = btn.innerHTML; }
+  var info = document.getElementById('wstPostsInfo');
+  _wstScanAbort = false;
+  await wstScanSiteIndex(w, { force: false, onProgress: function(cur, tot){
+    if (info) info.textContent = '🔎 Soi index: ' + cur + '/' + tot;
+    if (btn) btn.innerHTML = '⏳ ' + cur + '/' + tot;
+  }});
+  wstRenderPosts();
+  if (typeof renderWsTrack === 'function') renderWsTrack();   // cập nhật cột ngoài bảng
+  var st = _wstContentStats[w.id];
+  if (info && st) info.textContent = 'Đã index ' + st.indexed + '/' + st.postCount + ' bài (' + (st.postCount ? Math.round(st.indexed/st.postCount*100) : 0) + '%)';
+  if (btn){ btn.disabled = false; btn.innerHTML = btn.dataset.old || '✅ Kiểm tra index'; }
+}
+
 function wstClosePostsModal(){
   document.getElementById('wstPostsOverlay').classList.remove('open');
 }
@@ -2411,15 +2548,22 @@ function wstRenderPosts(){
     var t = ((p.title && p.title.rendered) || '').toLowerCase();
     return !q || t.indexOf(q) >= 0;
   });
-  if (!list.length) { body.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;color:#8b949e">Không có bài nào</td></tr>'; return; }
+  if (!list.length) { body.innerHTML = '<tr><td colspan="7" style="padding:18px;text-align:center;color:#8b949e">Không có bài nào</td></tr>'; return; }
   var d10 = function(s){ return s ? String(s).slice(0, 10) : '—'; };
   body.innerHTML = list.map(function(p, i){
     var title = (p.title && p.title.rendered) || '(không tiêu đề)';
     var stColor = p.status === 'publish' ? '#3fb950' : (p.status === 'draft' ? '#d29922' : '#8b949e');
+    // Trạng thái index từ cache GSC (nếu đã quét)
+    var ic = _wstIndexCache[_wstUrlKey(p.link)];
+    var idxCell;
+    if (!ic) idxCell = '<span style="color:#8b949e;font-size:10px">— chưa quét</span>';
+    else if (ic.indexed) idxCell = '<span style="color:#3fb950;font-weight:700;font-size:11px" title="' + (ic.reason||'') + '">✅ Index</span>';
+    else idxCell = '<span style="color:#f85149;font-weight:600;font-size:10px" title="' + (ic.reason||'') + '">🚫 ' + (ic.reason||'Chưa index') + '</span>';
     return '<tr style="border-top:1px solid #21262d">'
       + '<td style="padding:7px 6px;color:#8b949e">' + (i + 1) + '</td>'
       + '<td style="padding:7px 6px"><div style="font-weight:600">' + title + '</div>'
         + '<div style="font-size:10px;color:#8b949e;word-break:break-all">' + (p.link || '') + '</div></td>'
+      + '<td style="padding:7px 6px;text-align:center">' + idxCell + '</td>'
       + '<td style="padding:7px 6px;text-align:center;color:#8b949e">' + d10(p.date) + '</td>'
       + '<td style="padding:7px 6px;text-align:center;color:#8b949e">' + d10(p.modified) + '</td>'
       + '<td style="padding:7px 6px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(139,148,158,.15);color:' + stColor + ';font-weight:600">' + (p.status || '?') + '</span></td>'
