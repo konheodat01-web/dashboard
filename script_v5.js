@@ -6200,19 +6200,7 @@ function saveWebsite(){
   }
 
   // Tự động đồng bộ tài khoản, mật khẩu, admin, team, status từ web gốc xuống các web 301 con liên kết với nó
-  if (!obj.is301 && obj.url) {
-    const parentUrlNorm = wstNormalizeUrl(obj.url);
-    websites.forEach(w => {
-      if (w.is301 && w.sourceUrl && wstNormalizeUrl(w.sourceUrl) === parentUrlNorm) {
-        w.account = obj.account;
-        w.password = obj.password;
-        w.appwppass = obj.appwppass;
-        w.admin = obj.admin;
-        w.team = obj.team;
-        w.status = obj.status;
-      }
-    });
-  }
+  wstSync301Children(obj);
 
   editingWsId=null;
   clearWebsiteForm();
@@ -6351,7 +6339,7 @@ function showWebsiteInfo(w, found, url=''){
             <td style="padding:9px 16px;border-bottom:1px solid var(--gray-border)">${v}</td>
           </tr>`).join('')}
       </table>`;
-    document.getElementById('wiBtnEdit').style.display='inline-flex';
+    document.getElementById('wiBtnEdit').style.display = w.is301 ? 'none' : 'inline-flex';
     const _vBtn=document.getElementById('wiBtnVidco'); if(_vBtn) _vBtn.style.display='inline-flex';
     const adminUrl = getAdminUrlForWebsite(w);
     const btnOpen = document.getElementById('wiBtnOpen');
@@ -6400,6 +6388,22 @@ function wiOpenAdmin(){
 
 function closeWebsiteInfo(){document.getElementById('websiteInfoModal').classList.remove('open');}
 
+function wstSync301Children(parentWs) {
+  if (!parentWs || parentWs.is301 || !parentWs.url) return;
+  const parentUrlNorm = wstNormalizeUrl(parentWs.url);
+  websites.forEach(w => {
+    if (w.is301 && w.sourceUrl && wstNormalizeUrl(w.sourceUrl) === parentUrlNorm) {
+      w.account = parentWs.account;
+      w.password = parentWs.password;
+      w.appwppass = parentWs.appwppass;
+      w.admin = parentWs.admin;
+      w.team = parentWs.team;
+      w.status = parentWs.status;
+      w.owner = parentWs.owner;
+    }
+  });
+}
+
 function goEditWebsite(){
   if(!websiteInfoTarget) return;
   const w=websiteInfoTarget;
@@ -6419,6 +6423,10 @@ function goEditWebsite(){
           <input type="password" id="we_password" value="${(w.password||'').replace(/"/g,'&quot;')}" style="flex:1">
           <button onclick="const i=document.getElementById('we_password');i.type=i.type==='password'?'text':'password'" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:0 8px;cursor:pointer">👁</button>
         </div>
+      </div>
+      <div class="form-group">
+        <label>Mật khẩu ứng dụng WP (appwppass)</label>
+        <input type="text" id="we_appwppass" value="${(w.appwppass||'').replace(/"/g,'&quot;')}" style="width:100%" placeholder="vd: xxxx xxxx xxxx xxxx">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div class="form-group">
@@ -6482,12 +6490,15 @@ function saveWebsiteFromModal(id){
       admin:normalizeAdmin(document.getElementById('we_admin')?.value),
       account:(document.getElementById('we_account')?.value||'').trim(),
       password:document.getElementById('we_password')?.value||'',
+      appwppass:(document.getElementById('we_appwppass')?.value||'').trim(),
       team:document.getElementById('we_team')?.value||websites[idx].team||'Team 01',
       owner:document.getElementById('we_owner')?.value||'Công ty',
       group:document.getElementById('we_group')?.value||'',
       status:document.getElementById('we_status')?.value||'Tốt',
       note:document.getElementById('we_note')?.value||'',
     };
+    // Đồng bộ thông tin từ website gốc vừa được sửa sang các website con 301 liên kết với nó
+    wstSync301Children(websites[idx]);
   }
   saveAppData();
   closeWebsiteInfo();
