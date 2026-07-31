@@ -2887,6 +2887,15 @@ function wstToggleProcPopup(mode){
     fetch('/api/sw-processes-seen', { method:'POST' }).then(function(){ setTimeout(wstPollProcesses, 300); }).catch(function(){});
   }
 }
+function _wstEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _wstKwChips(p){
+  var kws = (p.keywords||[]).filter(Boolean);
+  if (!kws.length) return '';
+  var chips = kws.map(function(k){
+    return '<span style="display:inline-block;background:#1c2128;border:1px solid #30363d;border-radius:10px;padding:1px 7px;margin:2px 3px 0 0;font-size:10.5px;color:#c9d1d9">' + _wstEsc(k) + '</span>';
+  }).join('');
+  return '<div style="margin-top:5px;line-height:1.5">' + chips + '</div>';
+}
 function wstRenderProcPopup(){
   var pop = document.getElementById('procPopup'); if (!pop || !_procPopupMode) return;
   var running = _procPopupMode === 'running';
@@ -2894,9 +2903,12 @@ function wstRenderProcPopup(){
   var head = running ? ('🔄 Đang chạy ngầm (' + list.length + ')') : ('🔔 Tiến trình đã xong (' + list.length + ')');
   var rows = list.length ? list.map(function(p){
     var prog = (p.done||0) + '/' + (p.total||0) + ' bài';
+    var site = _wstEsc(p.site || '');
+    var siteLine = site ? '<div style="font-size:11px;color:#58a6ff;font-weight:600;margin-bottom:1px">🌐 ' + site + '</div>' : '';
+    var kwLine = _wstKwChips(p);
     if (running)
-      return '<div style="padding:9px 12px;border-top:1px solid #21262d"><div style="font-weight:600">' + (p.label||'') + '</div><div style="font-size:11px;color:#8b949e">⏳ ' + prog + ' · bắt đầu ' + (p.created_at||'').slice(5,16) + '</div></div>';
-    return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;"><div style="font-weight:600">✅ ' + (p.label||'') + '</div><div style="font-size:11px;color:#7c5cff">' + prog + ' xong · bấm mở Lịch sử thêm ảnh →</div></div>';
+      return '<div style="padding:9px 12px;border-top:1px solid #21262d">' + siteLine + '<div style="font-size:11px;color:#8b949e">⏳ ' + prog + ' · bắt đầu ' + (p.created_at||'').slice(5,16) + '</div>' + kwLine + '</div>';
+    return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:#7c5cff">✅ ' + prog + ' xong · bấm mở Lịch sử thêm ảnh →</div>' + kwLine + '</div>';
   }).join('') : '<div style="padding:16px;text-align:center;color:#8b949e">Không có</div>';
   pop.innerHTML = '<div style="padding:10px 12px;font-weight:700;border-bottom:1px solid #30363d;display:flex;justify-content:space-between">'
     + '<span>' + head + '</span><span onclick="wstToggleProcPopup(&quot;' + _procPopupMode + '&quot;)" style="cursor:pointer;color:#8b949e">✕</span></div>' + rows;
@@ -3863,11 +3875,11 @@ function renderWsTrack(){
           const gscStatus = siteTarget?.gscConnectionStatus || 'not_connected';
           const gscEmail = siteTarget?.gscEmail || '';
           if (gscStatus === 'connected') {
-            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="website thuộc tài sản gsc email: ${gscEmail}">GSC</span>`;
+            return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="website thuộc tài sản gsc email: ${gscEmail}">GSC</span>`;
           } else if (gscStatus === 'disconnected') {
-            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="mất kết nối tài khoản gsc email: ${gscEmail}">GSC</span>`;
+            return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="mất kết nối tài khoản gsc email: ${gscEmail}">GSC</span>`;
           } else {
-            return `<span class="btn btn-sm" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;display:inline-block;vertical-align:middle" title="chưa ghi nhận email sở hữu">GSC</span>`;
+            return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;display:inline-block;vertical-align:middle" title="chưa ghi nhận email sở hữu">GSC</span>`;
           }
         })()}
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>
