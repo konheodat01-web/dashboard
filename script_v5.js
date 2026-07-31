@@ -14514,15 +14514,19 @@ function wstCompleteRedirect301(cmdId) {
       } else {
         // Tạo mới website 301 và add vào websites
         const newSiteId = wsNextId++;
+        const cleanParentDomain = parentWs.url.replace(/^https?:\/\//i, '').replace(/\/$/, '');
         const newSiteObj = {
           id: newSiteId,
           brand: '[301] ' + parentWs.brand,
           url: destUrl,
-          team: parentWs.team || 'Team 01',
+          admin: parentWs.admin || '',
+          account: parentWs.account || '',
+          password: parentWs.password || '',
+          appwppass: parentWs.appwppass || '',
           status: parentWs.status || 'Tốt',
-          type: parentWs.type || 'Mã nguồn sạch',
           owner: parentWs.owner || 'Công ty',
           group: parentWs.group || '',
+          note: '301 từ ' + cleanParentDomain,
           is301: true,
           sourceUrl: parentWs.url
         };
