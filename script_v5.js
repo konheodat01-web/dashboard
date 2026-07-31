@@ -3738,7 +3738,7 @@ function renderWsTrack(){
       <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
       <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
       <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
-      <th style="padding:8px 10px;text-align:left;font-size:11px;user-select:none">Lệnh 301</th>
+      ${_wstMode !== 'content' ? '<th style="padding:8px 10px;text-align:center;font-size:11px;user-select:none;width:70px">Lệnh 301</th>' : ''}
       ${wstHeadRight()}
     </tr>`;
   }
@@ -3747,7 +3747,8 @@ function renderWsTrack(){
     const site = getWstSite(w.id);
     const entries = (site?.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
     const last = entries[0];
-    const kids = getW301Children(w);
+    // FIX: Sửa lỗi ReferenceError bằng cách tự lọc trực tiếp link 301 tại đây
+  const kids = websites.filter(x => x.is301 && x.sourceUrl && (x.sourceUrl === w.url || x.sourceUrl === (w.url || '').replace(/\/$/, '')));
     // Latest 301: sort by added order (last in array), use url or sourceUrl
     const latest301 = kids.length ? kids[kids.length-1] : null;
     const display301Url = latest301 ? (latest301.url||latest301.sourceUrl||'—') : (w.url||'—');
@@ -3777,7 +3778,7 @@ function renderWsTrack(){
             <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dW.brand}</div>
-              <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${dW.url||''}</div>
+              <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${dW.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
             </div>
           </div>`;
@@ -3790,7 +3791,7 @@ function renderWsTrack(){
             <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.brand}</div>
-              <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${w.url||''}</div>
+              <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${w.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
             </div>
           </div>`;
@@ -3804,21 +3805,23 @@ function renderWsTrack(){
       </td>
       <td style="padding:8px 10px;font-size:11px;">
         <div style="display:flex;align-items:center;gap:4px">
-          <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:110px;font-size:11px;padding:3px 6px;height:24px">
+          <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:100px;font-size:11px;padding:2px 4px;height:24px">
           <button onclick="var btn=this;btn.innerHTML='⏳'; wstFetchRank(${w.id}).then(r=>{btn.innerHTML='↺'; renderWsTrack(); if(r.error)toast(r.error,'#e74c3c'); else toast('Xong!','#27ae60')})" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 4px;font-size:10px" title="Kiểm tra rank ngay">↺</button>
         </div>
       </td>
-      <td style="padding:8px 10px;text-align:center">
-        ${(() => {
+      
+      ${_wstMode !== 'content' ? `
+      <td style="padding:8px 6px;text-align:center;vertical-align:middle;width:70px;">
+        \${(() => {
           const redirectCmds = site?.redirectCommands || [];
           const hasActiveRedirect = redirectCmds.some(cmd => cmd.status === 'Đang 301');
           const btnBg = hasActiveRedirect ? '#10b981' : '#21262d';
           const btnColor = hasActiveRedirect ? '#ffffff' : '#8b949e';
           const btnBorder = hasActiveRedirect ? '1px solid #10b981' : '1px solid #30363d';
           
-          return '<button onclick="wstOpenRedirect301Modal(' + w.id + ')" class="btn btn-sm" style="font-size:10px;padding:2px 6px;background:' + btnBg + ' !important;color:' + btnColor + ' !important;border:' + btnBorder + ' !important;border-radius:4px;" title="' + (hasActiveRedirect ? 'Đang chạy lệnh 301' : 'Tạo lệnh 301') + '">🔗 301</button>';
+          return '<div style="display:flex;justify-content:center;align-items:center;height:100%;"><button onclick="wstOpenRedirect301Modal(' + w.id + ')" class="btn btn-sm" style="font-size:10px;padding:2px 6px;background:' + btnBg + ' !important;color:' + btnColor + ' !important;border:' + btnBorder + ' !important;border-radius:4px;height:24px;line-height:20px;margin:0 auto;" title="' + (hasActiveRedirect ? 'Đang chạy lệnh 301' : 'Tạo lệnh 301') + '">🔗 301</button></div>';
         })()}
-      </td>
+      </td>` : ''}
       ${_wstMode==='content' ? wstRowRightContent(w, site) : `
       ${(()=>{
         const gscData = wstGetGscPeriodData(w.id, _wstGscPeriod);
