@@ -3768,7 +3768,7 @@ function renderWsTrack(){
       <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
       <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
       <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
-      ${_wstMode !== 'content' ? '<th onclick="wstHandleSort(\'redirect301\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">Lệnh 301 ${wstGetSortIndicator(\'redirect301\')}</th>' : ''}
+      ${_wstMode !== 'content' ? '<th onclick="wstHandleSort(\'redirect301\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">Lệnh 301 ' + wstGetSortIndicator('redirect301') + '</th>' : ''}
       ${wstHeadRight()}
     </tr>`;
   }
