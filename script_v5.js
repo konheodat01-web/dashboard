@@ -915,7 +915,7 @@ function _removed_placeholder_0f6d6bf5(){
       </td>
       <td class="ec" onclick="editCell('hai',${r.id},'keyword',this)" style="font-weight:500;max-width:200px">${r.keyword}</td>
       <td class="ec" onclick="editCell('hai',${r.id},'loai',this)">${loaiBadge(r.loai)}</td>
-      <td class="ec" onclick="editCell('hai',${r.id},'website',this)" style="max-width:115px">
+      <td class="ec" onclick="editCell('hai',${r.id},'website',this)" style="max-width:130px">
         <span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.website||''}">${r.website||'<span style=color:var(--text-muted)>—</span>'}</span>
       </td>
       <td style="width:28px;text-align:center;padding:0 2px">
@@ -962,7 +962,7 @@ function _removed_placeholder_1d36d5b3(){
       </td>
       <td class="ec" onclick="editCell('hieu',${r.id},'keyword',this)" style="font-weight:500;max-width:200px">${r.keyword}</td>
       <td class="ec" onclick="editCell('hieu',${r.id},'loai',this)">${loaiBadge(r.loai)}</td>
-      <td class="ec" onclick="editCell('hieu',${r.id},'website',this)" style="max-width:115px">
+      <td class="ec" onclick="editCell('hieu',${r.id},'website',this)" style="max-width:130px">
         <span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.website||''}">${r.website||'<span style=color:var(--text-muted)>—</span>'}</span>
       </td>
       <td style="width:28px;text-align:center;padding:0 2px">
@@ -970,7 +970,7 @@ function _removed_placeholder_1d36d5b3(){
       </td>
       <td class="ec" onclick="editCell('hieu',${r.id},'anchor',this)" style="color:var(--text-muted);max-width:100px">${r.anchor||'—'}</td>
       <td class="ec" onclick="editCell('hieu',${r.id},'chuyenMuc',this)">${r.chuyenMuc||'—'}</td>
-      <td class="ec" onclick="editCell('hieu',${r.id},'link',this)" style="max-width:115px"><span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.link||''}">${r.link||'<span style=color:var(--text-muted)>—</span>'}</span></td>
+      <td class="ec" onclick="editCell('hieu',${r.id},'link',this)" style="max-width:130px"><span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.link||''}">${r.link||'<span style=color:var(--text-muted)>—</span>'}</span></td>
       <td class="ec" onclick="editCell('hieu',${r.id},'spin',this)" style="max-width:100px"><span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.spin||''}">${r.spin||'<span style=color:var(--text-muted)>—</span>'}</span></td>
       <td style="text-align:center;min-width:80px;padding:4px 6px">${getIndexStatusBadge(r)}</td>
       <td style="text-align:center;cursor:pointer" onclick="openNghiemThu('hieu',${r.id})">${nghiemThuBadge(r.nghiemThu===undefined?100:r.nghiemThu)}</td>
@@ -2577,7 +2577,89 @@ function wstApplyColgroup(){
   var cg = tbl.querySelector('colgroup');
   if (!cg) { cg = document.createElement('colgroup'); tbl.insertBefore(cg, tbl.firstChild); }
   cg.innerHTML = LEFT.concat(RIGHT).map(function(w){ return '<col style="width:' + w + '%">'; }).join('');
-};   // sel: {urlKey:true}
+}
+
+// Tiêu đề các cột PHẢI theo chế độ
+function wstHeadRight(){
+  // Bề rộng CỐ ĐỊNH cho từng cột phải -> đổi chế độ bảng không thò thụt
+  var th = function(label, w, title){   // w giữ lại cho dễ đọc, bề rộng thật do colgroup quyết định
+    return '<th style="padding:8px 6px;text-align:center;font-size:11px;white-space:nowrap"'
+      + (title ? ' title="'+title+'"' : '') + '>' + label + '</th>';
+  };
+  if (_wstMode === 'content') {
+    // Chỉ số NỘI DUNG — có sort (click tiêu đề) giống bên Theo dõi web
+    var cth = function(key, label, title){
+      return '<th onclick="wstHandleSort(\'' + key + '\')" style="padding:8px 6px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none"'
+        + (title ? ' title="'+title+'"' : '') + '>' + label + ' ' + wstGetSortIndicator(key) + '</th>';
+    };
+    return cth('ctotal',       '📝 Tổng bài',    'Tong so bai (post+page)')
+      + cth('cindexed',    '✅ Đã index',    'So bai da index')
+      + cth('cnotindexed', '🚫 Chưa index',  'Tong - da index (gom ca chua kiem tra)')
+      + cth('crate',       '📊 Tỷ lệ index', 'Da index / Tong')
+      + cth('cupdated',    '🕒 Cập nhật',    'Lan cap nhat noi dung gan nhat')
+      + th('Thao tác', 0);
+  }
+  return '<th onclick="wstHandleSort(\'clicks\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Clicks (Giai doan va tang giam so voi giai doan truoc)">Clicks (' + _wstGscPeriod + ') ' + wstGetSortIndicator('clicks') + '</th>'
+    + '<th onclick="wstHandleSort(\'imps\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Impressions (Giai doan va tang giam so voi giai doan truoc)">Imps (' + _wstGscPeriod + ') ' + wstGetSortIndicator('imps') + '</th>'
+    + '<th onclick="wstHandleSort(\'ctr\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="CTR (Giai doan va tang giam so voi giai doan truoc)">CTR (' + _wstGscPeriod + ') ' + wstGetSortIndicator('ctr') + '</th>'
+    + '<th onclick="wstHandleSort(\'pos\')" style="padding:8px 10px;text-align:center;font-size:11px;white-space:nowrap;cursor:pointer;user-select:none" title="Vi tri trung binh (Giai doan va tang giam so voi giai doan truoc)">Vị trí (' + _wstGscPeriod + ') ' + wstGetSortIndicator('pos') + '</th>'
+    + '<th onclick="wstHandleSort(\'rank\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🏆 Rank ' + wstGetSortIndicator('rank') + '</th>'
+    + '<th onclick="wstHandleSort(\'index\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🔍 Index ' + wstGetSortIndicator('index') + '</th>'
+    + '<th onclick="wstHandleSort(\'updated\')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Cập nhật ' + wstGetSortIndicator('updated') + '</th>'
+    + '<th style="padding:8px 4px;text-align:center;font-size:11px">Thao tác</th>';
+}
+
+// Các ô PHẢI cho 1 dòng ở chế độ QUẢN LÝ NỘI DUNG
+function wstRowRightContent(w, site){
+  var c = _wstContentStats[w.id] || {};   // thống kê index từ GSC (lưu localStorage riêng)
+  var num = function(v){ return (v === 0 || v > 0) ? String(v) : '—'; };
+  var total = (c.postCount === 0 || c.postCount > 0) ? c.postCount : null;
+  var idx   = (c.indexed === 0 || c.indexed > 0) ? c.indexed : null;
+  // Chưa index = Tổng − Đã index (gồm cả bài chưa kiểm tra) -> luôn cộng khớp Tổng.
+  var noIdx = (total !== null && idx !== null) ? Math.max(0, total - idx) : null;
+  var checked = (c.checked === 0 || c.checked > 0) ? c.checked : ((idx||0) + ((c.notIndexed)||0));
+  // Tỷ lệ index = Đã index / Tổng, màu theo mức
+  var rateCell = '—';
+  if (total && idx !== null) {
+    var pct = Math.round(idx / total * 100);
+    var col = pct >= 80 ? '#3fb950' : (pct >= 50 ? '#d29922' : '#f85149');
+    rateCell = '<span style="font-weight:700;color:' + col + '" title="Đã kiểm tra ' + checked + '/' + total + ' bài">' + pct + '%</span>';
+  }
+  var dom = wstCurrentUrl(w);   // site WordPress thật để viết/đăng bài
+  return ''
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:#58a6ff">' + num(total) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (idx ? '#3fb950' : '#8b949e') + '">' + num(idx) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (noIdx ? '#f85149' : '#8b949e') + '" title="Gồm cả bài chưa kiểm tra (Tổng − Đã index)">' + num(noIdx) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center">' + rateCell + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-size:11px;color:var(--text-muted);white-space:nowrap">' + (c.lastContentUpdate || '—') + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;white-space:nowrap">'
+      + '<button onclick="wstWriteForSite(' + w.id + ')" class="btn btn-sm" style="font-size:10px;padding:3px 7px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Mo SEO Writer: site 301 (' + dom + ') + WP key de dang bai cho ' + w.brand + '">✍️ Viết bài</button> '
+      + '<button onclick="wstOpenContentConfig(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Cau hinh noi dung">⚙️</button> '
+      + '<button onclick="wstOpenPostsModal(' + w.id + ')" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem tat ca bai viet tren website">📋</button>'
+    + '</td>';
+}
+
+// Bản ghi 301 HIỆN TẠI (child 301 mới nhất) = nguồn DUY NHẤT cho mọi thao tác nội dung.
+// Gốc chỉ để hiển thị tên dự án. Đọc LIVE từ mảng websites -> user đổi 301 thì tool theo ngay.
+// Nếu w chính là bản ghi 301 (is301) hoặc chưa có child -> dùng chính w.
+function wstCurrent301Site(w){
+  if (!w) return w;
+  var kids = websites.filter(function(x){
+    return x.is301 && x.sourceUrl &&
+      (x.sourceUrl === w.url || x.sourceUrl === (w.url||'').replace(/\/$/, ''));
+  });
+  return kids.length ? kids[kids.length - 1] : w;
+}
+
+// URL hiện tại (site WordPress thật) = url của bản ghi 301.
+function wstCurrentUrl(w){
+  var site = wstCurrent301Site(w);
+  var u = (site && site.url) || (w && w.url) || '';
+  return u.replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
+// ══ POPUP: danh sách tất cả bài viết trên website ══
+var _wstPosts = { wsId: null, domain: '', items: [], sel: {} };   // sel: {urlKey:true}
 
 function wstOpenPostsModal(wsId){
   var w = websites.find(function(x){ return x.id === wsId; });
@@ -3698,7 +3780,7 @@ function renderWsTrack(){
             <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dW.brand}</div>
-              <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:115px">${dW.url||''}</div>
+              <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${dW.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
             </div>
           </div>`;
@@ -3711,7 +3793,7 @@ function renderWsTrack(){
             <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.brand}</div>
-              <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:115px">${w.url||''}</div>
+              <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${w.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
             </div>
           </div>`;
@@ -3725,7 +3807,7 @@ function renderWsTrack(){
       </td>
       <td style="padding:8px 10px;font-size:11px;">
         <div style="display:flex;align-items:center;gap:4px">
-          <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:80px;font-size:11px;padding:1px 3px;height:24px">
+          <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:100px;font-size:11px;padding:2px 4px;height:24px">
           <button onclick="var btn=this;btn.innerHTML='⏳'; wstFetchRank(${w.id}).then(r=>{btn.innerHTML='↺'; renderWsTrack(); if(r.error)toast(r.error,'#e74c3c'); else toast('Xong!','#27ae60')})" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 4px;font-size:10px" title="Kiểm tra rank ngay">↺</button>
         </div>
       </td>
