@@ -915,7 +915,7 @@ function _removed_placeholder_0f6d6bf5(){
       </td>
       <td class="ec" onclick="editCell('hai',${r.id},'keyword',this)" style="font-weight:500;max-width:200px">${r.keyword}</td>
       <td class="ec" onclick="editCell('hai',${r.id},'loai',this)">${loaiBadge(r.loai)}</td>
-      <td class="ec" onclick="editCell('hai',${r.id},'website',this)" style="max-width:130px">
+      <td class="ec" onclick="editCell('hai',${r.id},'website',this)" style="max-width:115px">
         <span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.website||''}">${r.website||'<span style=color:var(--text-muted)>—</span>'}</span>
       </td>
       <td style="width:28px;text-align:center;padding:0 2px">
@@ -962,7 +962,7 @@ function _removed_placeholder_1d36d5b3(){
       </td>
       <td class="ec" onclick="editCell('hieu',${r.id},'keyword',this)" style="font-weight:500;max-width:200px">${r.keyword}</td>
       <td class="ec" onclick="editCell('hieu',${r.id},'loai',this)">${loaiBadge(r.loai)}</td>
-      <td class="ec" onclick="editCell('hieu',${r.id},'website',this)" style="max-width:130px">
+      <td class="ec" onclick="editCell('hieu',${r.id},'website',this)" style="max-width:115px">
         <span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.website||''}">${r.website||'<span style=color:var(--text-muted)>—</span>'}</span>
       </td>
       <td style="width:28px;text-align:center;padding:0 2px">
@@ -970,7 +970,7 @@ function _removed_placeholder_1d36d5b3(){
       </td>
       <td class="ec" onclick="editCell('hieu',${r.id},'anchor',this)" style="color:var(--text-muted);max-width:100px">${r.anchor||'—'}</td>
       <td class="ec" onclick="editCell('hieu',${r.id},'chuyenMuc',this)">${r.chuyenMuc||'—'}</td>
-      <td class="ec" onclick="editCell('hieu',${r.id},'link',this)" style="max-width:130px"><span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.link||''}">${r.link||'<span style=color:var(--text-muted)>—</span>'}</span></td>
+      <td class="ec" onclick="editCell('hieu',${r.id},'link',this)" style="max-width:115px"><span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.link||''}">${r.link||'<span style=color:var(--text-muted)>—</span>'}</span></td>
       <td class="ec" onclick="editCell('hieu',${r.id},'spin',this)" style="max-width:100px"><span style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block" title="${r.spin||''}">${r.spin||'<span style=color:var(--text-muted)>—</span>'}</span></td>
       <td style="text-align:center;min-width:80px;padding:4px 6px">${getIndexStatusBadge(r)}</td>
       <td style="text-align:center;cursor:pointer" onclick="openNghiemThu('hieu',${r.id})">${nghiemThuBadge(r.nghiemThu===undefined?100:r.nghiemThu)}</td>
@@ -2604,7 +2604,7 @@ function wstHeadRight(){
     + '<th onclick="wstHandleSort(\'rank\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🏆 Rank ' + wstGetSortIndicator('rank') + '</th>'
     + '<th onclick="wstHandleSort(\'index\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">🔍 Index ' + wstGetSortIndicator('index') + '</th>'
     + '<th onclick="wstHandleSort(\'updated\')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Cập nhật ' + wstGetSortIndicator('updated') + '</th>'
-    + '<th style="padding:8px 10px;text-align:center;font-size:11px">Thao tác</th>';
+    + '<th style="padding:8px 4px;text-align:center;font-size:11px">Thao tác</th>';
 }
 
 // Các ô PHẢI cho 1 dòng ở chế độ QUẢN LÝ NỘI DUNG
@@ -3778,7 +3778,7 @@ function renderWsTrack(){
             <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dW.brand}</div>
-              <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${dW.url||''}</div>
+              <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:115px">${dW.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
             </div>
           </div>`;
@@ -3791,7 +3791,7 @@ function renderWsTrack(){
             <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.brand}</div>
-              <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${w.url||''}</div>
+              <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:115px">${w.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
             </div>
           </div>`;
@@ -3805,7 +3805,7 @@ function renderWsTrack(){
       </td>
       <td style="padding:8px 10px;font-size:11px;">
         <div style="display:flex;align-items:center;gap:4px">
-          <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:100px;font-size:11px;padding:2px 4px;height:24px">
+          <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:80px;font-size:11px;padding:1px 3px;height:24px">
           <button onclick="var btn=this;btn.innerHTML='⏳'; wstFetchRank(${w.id}).then(r=>{btn.innerHTML='↺'; renderWsTrack(); if(r.error)toast(r.error,'#e74c3c'); else toast('Xong!','#27ae60')})" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 4px;font-size:10px" title="Kiểm tra rank ngay">↺</button>
         </div>
       </td>
@@ -3853,7 +3853,7 @@ function renderWsTrack(){
       <td id="rank_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600">
         ${!last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank)}
       </td>
-      <td id="index_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="Trạng thái: ${lastIndexedVal || 'Chưa kiểm tra'}${lastIndexedDate ? `\nNgày check: ${lastIndexedDate}` : ''}\n(Click để check index tự động bằng Serper/GSC)">${indexIcon}</td>
+      <td id="index_td_${w.id}" style="padding:8px 4px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="Trạng thái: ${lastIndexedVal || 'Chưa kiểm tra'}${lastIndexedDate ? `\nNgày check: ${lastIndexedDate}` : ''}\n(Click để check index tự động bằng Serper/GSC)">${indexIcon}</td>
       ${(() => {
         const cache = (typeof _gscCache !== 'undefined' ? _gscCache[w.id] : null) || {};
         const gscDate = cache.syncedAt || '';
@@ -3866,7 +3866,25 @@ function renderWsTrack(){
           dates.sort();
           finalDate = dates[dates.length - 1];
         }
-        return `<td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap" title="Bất kỳ thay đổi nào: ${finalDate}\nCheck Rank: ${rankDate || 'Chưa rõ'}\nĐồng bộ GSC: ${gscDate || 'Chưa rõ'}\nNhập thủ công/Note: ${manualDate || 'Chưa rõ'}">${finalDate}</td>`;
+        const formatShortDate = (dStr) => {
+    if (!dStr || dStr === '—') return '—';
+    try {
+      const parts = dStr.split(' ');
+      if (parts.length === 2) {
+        const ymd = parts[0].split('-');
+        const hms = parts[1].split(':');
+        if (ymd.length === 3 && hms.length >= 2) {
+          return `${ymd[2]}/${ymd[1]} ${hms[0]}:${hms[1]}`;
+        }
+      } else {
+        const ymd = dStr.split('-');
+        if (ymd.length === 3) return `${ymd[2]}/${ymd[1]}`;
+      }
+    } catch(e){}
+    return dStr;
+  };
+  const shortFinalDate = formatShortDate(finalDate);
+  return `<td style="padding:8px 6px;font-size:11px;color:var(--text-muted);white-space:nowrap;text-align:center;" title="Bất kỳ thay đổi nào: ${finalDate}\nCheck Rank: ${rankDate || 'Chưa rõ'}\nĐồng bộ GSC: ${gscDate || 'Chưa rõ'}\nNhập thủ công/Note: ${manualDate || 'Chưa rõ'}">${shortFinalDate}</td>`;
       })()}
       <td style="padding:8px 10px;text-align:center;white-space:nowrap">
         ${(() => {
