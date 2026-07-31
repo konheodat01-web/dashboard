@@ -1506,7 +1506,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260729_v40"></script>
+  <script src="script_v5.js?v=20260731_v40"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">
@@ -2747,6 +2747,48 @@
 </div>
 
 <!-- BACKUP & RESTORE MODAL -->
+
+    <!-- MODAL QUẢN LÝ LỆNH 301 -->
+    <div class="modal-overlay" id="wstRedirect301Modal" onclick="if(event.target===this)wstCloseRedirect301Modal()" style="display:none">
+        <div class="modal-body" style="width:750px; max-width:95%; padding:20px; border-radius:8px; background:#161b22; color:#c9d1d9; border:1px solid #30363d;">
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #30363d; padding-bottom:10px; margin-bottom:15px;">
+                <h3 style="margin:0; font-size:16px; color:#f0f6fc;">🔗 Quản Lý Lệnh 301</h3>
+                <button class="modal-close" onclick="wstCloseRedirect301Modal()" style="background:none; border:none; color:#8b949e; font-size:20px; cursor:pointer;">&times;</button>
+            </div>
+            
+            <!-- Form Tạo Lệnh -->
+            <div style="background:#0d1117; border:1px solid #30363d; padding:15px; border-radius:6px; margin-bottom:20px;">
+                <h4 style="margin-top:0; margin-bottom:10px; font-size:13px; color:#f0f6fc;">➕ Tạo Lệnh 301 Mới</h4>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div style="flex-grow:1;">
+                        <input type="text" id="wst301DestUrl" placeholder="Nhập website đích (ví dụ: https://site-target.com)..." style="width:100%; padding:8px 12px; border:1px solid #30363d; border-radius:6px; background:#0d1117; color:#c9d1d9; font-size:13px;">
+                    </div>
+                    <button id="wst301SubmitBtn" class="btn btn-primary" style="background:#238636 !important; border-color:#2ea44f !important; color:#fff !important; height: 34px;" onclick="wstCreateRedirect301()">Tạo lệnh 301</button>
+                </div>
+            </div>
+
+            <!-- Bảng Danh Sách Lệnh -->
+            <h4 style="margin-top:0; margin-bottom:10px; font-size:13px; color:#f0f6fc;">📋 Danh Sách Lệnh Đang Chạy</h4>
+            <div style="max-height:280px; overflow-y:auto; border:1px solid #30363d; border-radius:6px;">
+                <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                    <thead>
+                        <tr style="background:#161b22; border-bottom:1px solid #30363d;">
+                            <th style="padding:10px; color:#8b949e;">Ngày tạo</th>
+                            <th style="padding:10px; color:#8b949e;">Website gốc</th>
+                            <th style="padding:10px; color:#8b949e;">Source</th>
+                            <th style="padding:10px; color:#8b949e;">Đích</th>
+                            <th style="padding:10px; color:#8b949e; text-align:center;">Trạng thái</th>
+                            <th style="padding:10px; color:#8b949e; text-align:center;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wst301TableBody">
+                        <!-- Sẽ render động từ JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 <div class="modal-overlay" id="backupModal" onclick="if(event.target===this)closeBackupModal()" style="display:none">
   <div class="modal" style="max-width:750px;width:95%;background:#0d1117;border:1px solid #30363d;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:85vh" onclick="event.stopPropagation()">
     <div class="modal-header" style="border-bottom:1px solid #30363d;padding:16px">

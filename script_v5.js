@@ -3738,6 +3738,7 @@ function renderWsTrack(){
       <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
       <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
       <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
+      <th style="padding:8px 10px;text-align:left;font-size:11px;user-select:none">Lệnh 301</th>
       ${wstHeadRight()}
     </tr>`;
   }
@@ -3806,6 +3807,17 @@ function renderWsTrack(){
           <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:110px;font-size:11px;padding:3px 6px;height:24px">
           <button onclick="var btn=this;btn.innerHTML='⏳'; wstFetchRank(${w.id}).then(r=>{btn.innerHTML='↺'; renderWsTrack(); if(r.error)toast(r.error,'#e74c3c'); else toast('Xong!','#27ae60')})" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 4px;font-size:10px" title="Kiểm tra rank ngay">↺</button>
         </div>
+      </td>
+      <td style="padding:8px 10px;text-align:center">
+        ${(() => {
+          const redirectCmds = site?.redirectCommands || [];
+          const hasActiveRedirect = redirectCmds.some(cmd => cmd.status === 'Đang 301');
+          const btnBg = hasActiveRedirect ? '#10b981' : '#21262d';
+          const btnColor = hasActiveRedirect ? '#ffffff' : '#8b949e';
+          const btnBorder = hasActiveRedirect ? '1px solid #10b981' : '1px solid #30363d';
+          
+          return '<button onclick="wstOpenRedirect301Modal(' + w.id + ')" class="btn btn-sm" style="font-size:10px;padding:2px 6px;background:' + btnBg + ' !important;color:' + btnColor + ' !important;border:' + btnBorder + ' !important;border-radius:4px;" title="' + (hasActiveRedirect ? 'Đang chạy lệnh 301' : 'Tạo lệnh 301') + '">🔗 301</button>';
+        })()}
       </td>
       ${_wstMode==='content' ? wstRowRightContent(w, site) : `
       ${(()=>{
@@ -14319,6 +14331,134 @@ async function restoreBackupVersion(source, timestamp) {
     console.error("Restore failed:", err);
     toast("❌ Lỗi khôi phục: " + err.message, "#e74c3c");
   }
+}
+
+
+// --- REDIRECT 301 COMMANDS LOGIC ---
+let _wst301ActiveSiteId = null;
+
+function wstOpenRedirect301Modal(wsId) {
+  _wst301ActiveSiteId = wsId;
+  const modal = document.getElementById('wstRedirect301Modal');
+  if (!modal) return;
+  
+  const input = document.getElementById('wst301DestUrl');
+  if (input) input.value = '';
+  
+  modal.style.display = 'flex';
+  wstRenderRedirect301Table();
+}
+
+function wstCloseRedirect301Modal() {
+  const modal = document.getElementById('wstRedirect301Modal');
+  if (modal) modal.style.display = 'none';
+  _wst301ActiveSiteId = null;
+}
+
+function wstRenderRedirect301Table() {
+  const tbody = document.getElementById('wst301TableBody');
+  if (!tbody || !_wst301ActiveSiteId) return;
+
+  const site = getWstSite(_wst301ActiveSiteId);
+  const w = websites.find(x => x.id === _wst301ActiveSiteId);
+  
+  if (!site || !w) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">Không tìm thấy thông tin website</td></tr>';
+    return;
+  }
+
+  const redirectCmds = site.redirectCommands || [];
+  if (redirectCmds.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">Chưa có lệnh 301 nào được tạo</td></tr>';
+    return;
+  }
+
+  const siteUrlGoc = w.url || '—';
+  
+  const kids = getW301Children(w);
+  const latest301 = kids.length ? kids[kids.length-1] : null;
+  const siteSourceUrl = latest301 ? (latest301.url || latest301.sourceUrl) : siteUrlGoc;
+
+  tbody.innerHTML = redirectCmds.map(cmd => {
+    const isRunning = cmd.status === 'Đang 301';
+    const statusBg = isRunning ? 'rgba(16,185,129,0.15)' : 'rgba(56,139,253,0.15)';
+    const statusColor = isRunning ? '#10b981' : '#58a6ff';
+    
+    return '<tr style="border-bottom:1px solid #30363d;">' +
+      '<td style="padding:10px;">' + cmd.createdAt + '</td>' +
+      '<td style="padding:10px;word-break:break-all;">' + siteUrlGoc + '</td>' +
+      '<td style="padding:10px;word-break:break-all;">' + siteSourceUrl + '</td>' +
+      '<td style="padding:10px;word-break:break-all;"><a href="' + cmd.destUrl + '" target="_blank" style="color:var(--blue);text-decoration:none;">' + cmd.destUrl + '</a></td>' +
+      '<td style="padding:10px;text-align:center;">' +
+        '<span style="padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';">' +
+          cmd.status +
+        '</span>' +
+      '</td>' +
+      '<td style="padding:10px;text-align:center;white-space:nowrap;">' +
+        (isRunning ? '<button class="btn btn-sm" style="background:#238636 !important;color:#fff !important;border-color:#2ea44f !important;margin-right:5px;font-size:10px;padding:2px 6px;" onclick="wstCompleteRedirect301(\'' + cmd.id + '\')">Hoàn thành</button>' : '') +
+        '<button class="btn btn-sm" style="background:rgba(248,81,73,0.15) !important;color:#f85149 !important;border:1px solid rgba(248,81,73,0.4) !important;font-size:10px;padding:2px 6px;" onclick="wstCancelRedirect301(\'' + cmd.id + '\')">Hủy lệnh</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function wstCreateRedirect301() {
+  if (!_wst301ActiveSiteId) return;
+  const destInput = document.getElementById('wst301DestUrl');
+  const destUrl = destInput ? destInput.value.trim() : '';
+
+  if (!destUrl) {
+    alert("Vui lòng điền website đích!");
+    return;
+  }
+
+  const site = getWstSite(_wst301ActiveSiteId);
+  if (!site) return;
+
+  site.redirectCommands = site.redirectCommands || [];
+  
+  const newCmd = {
+    id: Date.now() + Math.random().toString(36).substr(2, 9),
+    createdAt: new Date().toLocaleString('vi-VN'),
+    destUrl: destUrl,
+    status: 'Đang 301'
+  };
+
+  site.redirectCommands.push(newCmd);
+  
+  saveWsTrack(_wst301ActiveSiteId);
+  
+  destInput.value = '';
+  wstRenderRedirect301Table();
+  renderWsTrack();
+  toast("✓ Tạo lệnh 301 thành công!", "#27ae60");
+}
+
+function wstCompleteRedirect301(cmdId) {
+  if (!_wst301ActiveSiteId) return;
+  const site = getWstSite(_wst301ActiveSiteId);
+  if (!site || !site.redirectCommands) return;
+
+  const cmd = site.redirectCommands.find(c => c.id === cmdId);
+  if (cmd) {
+    cmd.status = 'Hoàn thành';
+    saveWsTrack(_wst301ActiveSiteId);
+    wstRenderRedirect301Table();
+    renderWsTrack();
+    toast("✓ Hoàn thành lệnh 301!", "#27ae60");
+  }
+}
+
+function wstCancelRedirect301(cmdId) {
+  if (!_wst301ActiveSiteId) return;
+  const site = getWstSite(_wst301ActiveSiteId);
+  if (!site || !site.redirectCommands) return;
+
+  site.redirectCommands = site.redirectCommands.filter(c => c.id !== cmdId);
+  saveWsTrack(_wst301ActiveSiteId);
+  wstRenderRedirect301Table();
+  renderWsTrack();
+  toast("✓ Đã hủy lệnh 301!", "#e74c3c");
 }
 
 // Khởi chạy IndexedDB lúc khởi động trang
