@@ -14380,7 +14380,7 @@ function wstRenderRedirect301Table() {
     return;
   }
 
-  const redirectCmds = site.redirectCommands || [];
+  const redirectCmds = (site.redirectCommands || []).slice().reverse();
   if (redirectCmds.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">Chưa có lệnh 301 nào được tạo</td></tr>';
     return;
@@ -14430,6 +14430,13 @@ function wstCreateRedirect301() {
   if (!site) return;
 
   site.redirectCommands = site.redirectCommands || [];
+  
+  // RULE: Kiểm tra xem đã có lệnh nào đang ở trạng thái 'Đang 301' hay chưa
+  const hasActive = site.redirectCommands.some(cmd => cmd.status === 'Đang 301');
+  if (hasActive) {
+    toast("⚠️ Đang có lệnh 301 đang chạy! Vui lòng hoàn thành hoặc hủy trước.", "#f2a154");
+    return;
+  }
   
   const newCmd = {
     id: Date.now() + Math.random().toString(36).substr(2, 9),
