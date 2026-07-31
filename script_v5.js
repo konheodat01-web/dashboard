@@ -14495,10 +14495,58 @@ function wstCompleteRedirect301(cmdId) {
   const cmd = site.redirectCommands.find(c => c.id === cmdId);
   if (cmd) {
     cmd.status = 'Hoàn thành';
+    
+    // --- TỰ ĐỘNG TẠO WEBSITE 301 MỚI TRONG LINK QUAN TRỌNG ---
+    const parentWs = websites.find(x => x.id === _wst301ActiveSiteId);
+    if (parentWs) {
+      let destUrl = cmd.destUrl.trim();
+      if (!/^https?:\/\//i.test(destUrl)) {
+        destUrl = 'http://' + destUrl;
+      }
+      
+      // Kiểm tra xem URL đích đã tồn tại trong danh sách websites chưa
+      const dup = websites.find(x => x.url && x.url.replace(/\/$/, '') === destUrl.replace(/\/$/, ''));
+      if (dup) {
+        // Nếu đã tồn tại, chỉ cần đổi/xác nhận nó là website 301 trỏ về parentWs
+        dup.is301 = true;
+        dup.sourceUrl = parentWs.url;
+        console.log('Automated 301 link linked to existing site:', destUrl);
+      } else {
+        // Tạo mới website 301 và add vào websites
+        const newSiteId = wsNextId++;
+        const newSiteObj = {
+          id: newSiteId,
+          brand: '[301] ' + parentWs.brand,
+          url: destUrl,
+          team: parentWs.team || 'Team 01',
+          status: parentWs.status || 'Tốt',
+          type: parentWs.type || 'Mã nguồn sạch',
+          owner: parentWs.owner || 'Công ty',
+          group: parentWs.group || '',
+          is301: true,
+          sourceUrl: parentWs.url
+        };
+        websites.push(newSiteObj);
+        
+        // Thêm log vào lịch sử thay đổi (changelog) của website gốc
+        wstAddChangelog(parentWs.id, '301_received', `Tự động tạo web chuyển hướng 301 mới khi hoàn thành lệnh: ${destUrl}`);
+        console.log('Automated 301 site created successfully:', destUrl);
+      }
+      
+      // Đồng bộ các thuộc tính từ web gốc xuống các con 301
+      wstSync301Children(parentWs);
+    }
+    
     saveWsTrack(_wst301ActiveSiteId);
     wstRenderRedirect301Table();
     renderWsTrack();
-    toast("✓ Hoàn thành lệnh 301!", "#27ae60");
+    
+    // Render lại tab Link quan trọng nếu người dùng đang mở
+    if (typeof renderWebsites === 'function') {
+      renderWebsites();
+    }
+    
+    toast("✓ Hoàn thành lệnh 301 & tự động liên kết site!", "#27ae60");
   }
 }
 
