@@ -3739,7 +3739,6 @@ function renderWsTrack(){
       <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
       <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
       ${_wstMode !== 'content' ? '<th style="padding:8px 10px;text-align:center;font-size:11px;user-select:none;width:70px">Lệnh 301</th>' : ''}
-      ${_wstMode !== 'content' ? '<th style="padding:8px 10px;text-align:center;font-size:11px;user-select:none;width:70px">Lệnh 301</th>' : ''}
       ${wstHeadRight()}
     </tr>`;
   }
@@ -3812,18 +3811,7 @@ function renderWsTrack(){
       </td>
       ${wstRender301Cell(w, site)}
       
-      ${_wstMode !== 'content' ? `
-      <td style="padding:8px 6px;text-align:center;vertical-align:middle;width:70px;">
-        \${(() => {
-          const redirectCmds = site?.redirectCommands || [];
-          const hasActiveRedirect = redirectCmds.some(cmd => cmd.status === 'Đang 301');
-          const btnBg = hasActiveRedirect ? '#10b981' : '#21262d';
-          const btnColor = hasActiveRedirect ? '#ffffff' : '#8b949e';
-          const btnBorder = hasActiveRedirect ? '1px solid #10b981' : '1px solid #30363d';
-          
-          return '<div style="display:flex;justify-content:center;align-items:center;height:100%;"><button onclick="wstOpenRedirect301Modal(' + w.id + ')" class="btn btn-sm" style="font-size:10px;padding:2px 6px;background:' + btnBg + ' !important;color:' + btnColor + ' !important;border:' + btnBorder + ' !important;border-radius:4px;height:24px;line-height:20px;margin:0 auto;" title="' + (hasActiveRedirect ? 'Đang chạy lệnh 301' : 'Tạo lệnh 301') + '">🔗 301</button></div>';
-        })()}
-      </td>` : ''}
+      
       ${_wstMode==='content' ? wstRowRightContent(w, site) : `
       ${(()=>{
         const gscData = wstGetGscPeriodData(w.id, _wstGscPeriod);
