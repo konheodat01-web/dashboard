@@ -14468,9 +14468,11 @@ function wstCreateRedirect301() {
     return;
   }
   
+  const now = new Date();
   const newCmd = {
     id: Date.now() + Math.random().toString(36).substr(2, 9),
-    createdAt: new Date().toLocaleString('vi-VN'),
+    createdAt: now.toLocaleString('vi-VN'),
+    dateText: now.getDate() + '/' + (now.getMonth() + 1),
     destUrl: destUrl,
     status: 'Đang 301'
   };
@@ -14525,14 +14527,19 @@ function wstRender301Cell(w, site) {
   let dateText = '';
   if (redirectCmds.length > 0) {
     const latestCmd = redirectCmds[redirectCmds.length - 1];
-    try {
-      const parts = latestCmd.createdAt.split(' ');
-      const datePart = parts.length === 2 ? parts[1] : parts[0];
-      const dParts = datePart.split('/');
-      if (dParts.length >= 2) {
-        dateText = ' - ' + dParts[0] + '/' + dParts[1];
-      }
-    } catch(e){}
+    if (latestCmd.dateText) {
+      dateText = ' - ' + latestCmd.dateText;
+    } else {
+      // Fallback cho các bản ghi cũ chưa có sẵn dateText
+      try {
+        const datePart = latestCmd.createdAt.split(' ')[1] || latestCmd.createdAt.split(' ')[0];
+        const cleanDate = datePart.replace(',', '').trim();
+        const dParts = cleanDate.split('/');
+        if (dParts.length >= 2) {
+          dateText = ' - ' + dParts[0] + '/' + dParts[1];
+        }
+      } catch(e){}
+    }
   }
   
   return '<td style="padding:8px 6px;text-align:center;vertical-align:middle;width:70px;">' +
