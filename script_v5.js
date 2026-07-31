@@ -3561,6 +3561,7 @@ function renderWsTrack(){
   const q=(document.getElementById('wst_search')?.value||'').toLowerCase();
   const fTeam = document.getElementById('wst_filter_team')?.value || '';
   const fStatus = document.getElementById('wst_filter_status')?.value || '';
+  const fRedirect301 = document.getElementById('wst_filter_redirect301')?.value || '';
   const fGsc = document.getElementById('wst_filter_gsc')?.value || '';
   const fClicks = document.getElementById('wst_filter_clicks')?.value || '';
   const fImps = document.getElementById('wst_filter_imps')?.value || '';
@@ -3577,6 +3578,14 @@ function renderWsTrack(){
 
 
     
+    // Advanced Filter: Redirect 301
+    if (fRedirect301) {
+      const redirectCmds = site?.redirectCommands || [];
+      const hasActive = redirectCmds.some(cmd => cmd.status === 'Đang 301');
+      if (fRedirect301 === 'active' && !hasActive) return false;
+      if (fRedirect301 === 'none' && hasActive) return false;
+    }
+
     // Advanced Filter: Status of web
     if(fStatus && w.status !== fStatus) return false;
 
@@ -3720,6 +3729,25 @@ function renderWsTrack(){
         else if (_wstSortCol === 'cnotindexed'){ valA = (totA==null?-1:Math.max(0,totA-idxA)); valB = (totB==null?-1:Math.max(0,totB-idxB)); }
         else if (_wstSortCol === 'crate')     { valA = (totA?idxA/totA:-1);    valB = (totB?idxB/totB:-1); }
         else if (_wstSortCol === 'cupdated')  { valA = csA.lastContentUpdate || ''; valB = csB.lastContentUpdate || ''; }
+        else if (_wstSortCol === 'redirect301') {
+          const getLatestTime = (wsId) => {
+            const site = getWstSite(wsId);
+            const cmds = site?.redirectCommands || [];
+            if (cmds.length === 0) return 0;
+            const latest = cmds[cmds.length - 1];
+            try {
+              const parts = latest.createdAt.split(' ');
+              if (parts.length === 2) {
+                const hms = parts[0].split(':');
+                const dmy = parts[1].split('/');
+                return new Date(dmy[2], dmy[1]-1, dmy[0], hms[0], hms[1], hms[2]).getTime();
+              }
+            } catch(e){}
+            return 1;
+          };
+          valA = getLatestTime(a.id);
+          valB = getLatestTime(b.id);
+        }
       }
 
       let comp = 0;
@@ -3740,7 +3768,7 @@ function renderWsTrack(){
       <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
       <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
       <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
-      ${_wstMode !== 'content' ? '<th style="padding:8px 10px;text-align:center;font-size:11px;user-select:none;width:70px">Lệnh 301</th>' : ''}
+      ${_wstMode !== 'content' ? '<th onclick="wstHandleSort(\'redirect301\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">Lệnh 301 ${wstGetSortIndicator(\'redirect301\')}</th>' : ''}
       ${wstHeadRight()}
     </tr>`;
   }
@@ -3925,6 +3953,8 @@ function wstToggleAdvancedFilters() {
     panel.style.display = 'flex';
   } else {
     // Reset all advanced filter values when closing
+    const fRedirect301 = document.getElementById('wst_filter_redirect301');
+    if (fRedirect301) fRedirect301.value = '';
     const fStatus = document.getElementById('wst_filter_status');
     const fGsc = document.getElementById('wst_filter_gsc');
     const fClicks = document.getElementById('wst_filter_clicks');
@@ -14492,9 +14522,22 @@ function wstRender301Cell(w, site) {
   const btnColor = hasActiveRedirect ? '#ffffff' : '#8b949e';
   const btnBorder = hasActiveRedirect ? '1px solid #10b981' : '1px solid #30363d';
   
+  let dateText = '';
+  if (redirectCmds.length > 0) {
+    const latestCmd = redirectCmds[redirectCmds.length - 1];
+    try {
+      const parts = latestCmd.createdAt.split(' ');
+      const datePart = parts.length === 2 ? parts[1] : parts[0];
+      const dParts = datePart.split('/');
+      if (dParts.length >= 2) {
+        dateText = ' - ' + dParts[0] + '/' + dParts[1];
+      }
+    } catch(e){}
+  }
+  
   return '<td style="padding:8px 6px;text-align:center;vertical-align:middle;width:70px;">' +
     '<div style="display:flex;justify-content:center;align-items:center;height:100%;">' +
-      '<button onclick="wstOpenRedirect301Modal(' + w.id + ')" class="btn btn-sm" style="font-size:10px;padding:2px 6px;background:' + btnBg + ' !important;color:' + btnColor + ' !important;border:' + btnBorder + ' !important;border-radius:4px;height:24px;line-height:20px;margin:0 auto;" title="' + (hasActiveRedirect ? 'Đang chạy lệnh 301' : 'Tạo lệnh 301') + '">🔗 301</button>' +
+      '<button onclick="wstOpenRedirect301Modal(' + w.id + ')" class="btn btn-sm" style="font-size:10px;padding:2px 6px;background:' + btnBg + ' !important;color:' + btnColor + ' !important;border:' + btnBorder + ' !important;border-radius:4px;height:24px;line-height:20px;margin:0 auto;white-space:nowrap;" title="' + (hasActiveRedirect ? 'Đang chạy lệnh 301' : 'Tạo lệnh 301') + '">🔗 301' + dateText + '</button>' +
     '</div>' +
   '</td>';
 }
