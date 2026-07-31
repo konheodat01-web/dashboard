@@ -5854,16 +5854,8 @@ function getFilteredWebsites() {
   const websiteList = websites || []; 
   return websiteList.filter(site => {
     if (currentJobFilter === 'all') return true;
-    
-    const [targetTeam, targetRole] = currentJobFilter.split('-');
-    const isPersonal = site.owner && site.owner !== 'Công ty';
-    
-    if (targetRole === 'Admin') {
-      return site.team === targetTeam && isPersonal;
-    } else {
-      // Trường hợp Công ty: Không có owner hoặc owner bằng Công ty
-      return site.team === targetTeam && (!site.owner || site.owner === 'Công ty');
-    }
+    const [targetTeam] = currentJobFilter.split('-');
+    return site.team === targetTeam;
   });
 }
 
@@ -5872,10 +5864,8 @@ function updateMacroCounters() {
   const list = websites || [];
   
   const allCount = list.length;
-  const cwnAdmin = list.filter(s => s.team === 'Team 01' && s.owner && s.owner !== 'Công ty').length;
-  const cwnCompany = list.filter(s => s.team === 'Team 01' && (!s.owner || s.owner === 'Công ty')).length;
-  const m7Admin = list.filter(s => s.team === 'Team 02' && s.owner && s.owner !== 'Công ty').length;
-  const m7Company = list.filter(s => s.team === 'Team 02' && (!s.owner || s.owner === 'Công ty')).length;
+  const cwnTotal = list.filter(s => s.team === 'Team 01').length;
+  const m7Total = list.filter(s => s.team === 'Team 02').length;
 
   const eAll = document.getElementById('cnt-all');
   const eCwnAdm = document.getElementById('cnt-cwn-adm');
@@ -5884,10 +5874,10 @@ function updateMacroCounters() {
   const eM7Com = document.getElementById('cnt-m7-com');
 
   if (eAll) eAll.textContent = allCount;
-  if (eCwnAdm) eCwnAdm.textContent = cwnAdmin;
-  if (eCwnCom) eCwnCom.textContent = cwnCompany;
-  if (eM7Adm) eM7Adm.textContent = m7Admin;
-  if (eM7Com) eM7Com.textContent = m7Company;
+  if (eCwnAdm) eCwnAdm.textContent = 0;
+  if (eCwnCom) eCwnCom.textContent = cwnTotal;
+  if (eM7Adm) eM7Adm.textContent = 0;
+  if (eM7Com) eM7Com.textContent = m7Total;
 }
 
 function renderWebsites(){
@@ -5901,8 +5891,8 @@ function renderWebsites(){
   wsUpdatePillCounts(getFilteredWebsites().filter(w=>{
     if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
     if(ft && w.team!==ft) return false;
-    if(fg && w.group!==fg) return false;
-    if(fo && w.owner!==fo) return false;
+    // if(fg && w.group!==fg) return false;
+    // if(fo && w.owner!==fo) return false;
     if(w.team==='Team 02' && currentMember==='hai') return false;
     return true;
   }));
@@ -5977,7 +5967,7 @@ function renderWebsites(){
           <span style="font-weight:600;font-size:13px">${w.brand}</span>
           ${w.team==='Team 02'?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#666">M7</span>`:`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>`}
           ${w.group?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fff3cd;color:#856404">${w.group}</span>`:''}
-          ${w.owner&&w.owner!=='Công ty'&&w.owner!=='Chung'?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f7fd;color:var(--blue)">${getWebsiteOwnerLabel(w.owner)}</span>`:''}
+          
         </div>
         <div style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${w.url||''}</div>
         ${w.note?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${w.note}</div>`:''}
@@ -6262,8 +6252,8 @@ function saveWebsite(){
     admin, account, password, appwppass, status,
     note: (document.getElementById('wf_note')?.value||'').trim(),
     team,
-    owner: document.getElementById('wf_owner')?.value||'Công ty',
-    group: document.getElementById('wf_group')?.value||'',
+    owner: 'Công ty',
+    group: '',
     is301,
     sourceUrl
   };
@@ -6591,8 +6581,8 @@ function saveWebsiteFromModal(id){
       password:document.getElementById('we_password')?.value||'',
       appwppass:(document.getElementById('we_appwppass')?.value||'').trim(),
       team:document.getElementById('we_team')?.value||websites[idx].team||'Team 01',
-      owner:websites[idx].owner||'Công ty',
-      group:websites[idx].group||'',
+      owner:'Công ty',
+      group:'',
       status:document.getElementById('we_status')?.value||'Tốt',
       note:document.getElementById('we_note')?.value||'',
     };
@@ -14524,8 +14514,8 @@ function wstCompleteRedirect301(cmdId) {
           password: parentWs.password || '',
           appwppass: parentWs.appwppass || '',
           status: parentWs.status || 'Tốt',
-          owner: parentWs.owner || 'Công ty',
-          group: parentWs.group || '',
+          owner: 'Công ty',
+          group: '',
           note: '301 từ ' + cleanParentDomain,
           is301: true,
           sourceUrl: parentWs.url
