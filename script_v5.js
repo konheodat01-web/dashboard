@@ -14502,25 +14502,20 @@ function wstCompleteRedirect301(cmdId) {
     // --- TỰ ĐỘNG TẠO WEBSITE 301 MỚI TRONG LINK QUAN TRỌNG ---
     const parentWs = websites.find(x => x.id === _wst301ActiveSiteId);
     if (parentWs) {
-      let destUrl = cmd.destUrl.trim();
-      if (!/^https?:\/\//i.test(destUrl)) {
-        destUrl = 'http://' + destUrl;
-      }
+      // Gọi đúng hàm normalizeUrl chuẩn của sếp để làm sạch thành domain trơn
+      const destUrl = normalizeUrl(cmd.destUrl);
       
-      // Kiểm tra xem URL đích đã tồn tại trong danh sách websites chưa
-      const dup = websites.find(x => x.url && x.url.replace(/\/$/, '') === destUrl.replace(/\/$/, ''));
+      const dup = websites.find(x => x.url && normalizeUrl(x.url) === destUrl);
       if (dup) {
-        // Nếu đã tồn tại, chỉ cần đổi/xác nhận nó là website 301 trỏ về parentWs
         dup.is301 = true;
         dup.sourceUrl = parentWs.url;
         console.log('Automated 301 link linked to existing site:', destUrl);
       } else {
-        // Tạo mới website 301 và add vào websites
         const newSiteId = wsNextId++;
-        const cleanParentDomain = parentWs.url.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+        const cleanParentDomain = normalizeUrl(parentWs.url);
         const newSiteObj = {
           id: newSiteId,
-          brand: '[301] ' + parentWs.brand,
+          brand: parentWs.brand, // Không còn thêm [301] đằng trước nữa
           url: destUrl,
           admin: parentWs.admin || '',
           account: parentWs.account || '',
@@ -14713,12 +14708,9 @@ function wstBulkComplete301() {
       // Tự động tạo website 301 trong Link quan trọng
       const parentWs = websites.find(x => x.id === wsId);
       if (parentWs) {
-        let destUrl = cmd.destUrl.trim();
-        if (!/^https?:///i.test(destUrl)) {
-          destUrl = 'http://' + destUrl;
-        }
+        const destUrl = normalizeUrl(cmd.destUrl);
         
-        const dup = websites.find(x => x.url && x.url.replace(//$/, '') === destUrl.replace(//$/, ''));
+        const dup = websites.find(x => x.url && normalizeUrl(x.url) === destUrl);
         if (dup) {
           dup.is301 = true;
           dup.sourceUrl = parentWs.url;
