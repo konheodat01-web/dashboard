@@ -18,6 +18,7 @@ const http = require("http");
 const fs   = require("fs");
 const path = require("path");
 const https = require("https");
+const { exec } = require("child_process");
 
 const PORT        = process.env.PORT || 3050;
 const CONFIG_FILE = path.join(__dirname, "config.json");
@@ -360,6 +361,19 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── GET / → serve index.html ─────────────────────────────────────────────
+  if (req.method === "GET" && url.startsWith("/api/git-pull-deploy")) {
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+    res.write("Đang tiến hành git pull & pm2 restart...\n");
+    exec("git pull origin main && pm2 restart dashboard", (err, stdout, stderr) => {
+      if (err) {
+        res.end("Lỗi deploy: " + err.message + "\n" + stderr);
+        return;
+      }
+      res.end("DEPLOY THÀNH CÔNG!\n\nSTDOUT:\n" + stdout);
+    });
+    return;
+  }
+
   if (req.method === "GET" && (url === "/" || url === "/index.html")) {
     serveFile(res, path.join(STATIC_DIR, "index.html"));
     return;
