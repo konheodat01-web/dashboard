@@ -14716,7 +14716,7 @@ function wstBulkComplete301() {
           dup.sourceUrl = parentWs.url;
         } else {
           const newSiteId = wsNextId++;
-          const cleanParentDomain = parentWs.url.replace(/^https?:///i, '').replace(//$/, '');
+          const cleanParentDomain = normalizeUrl(parentWs.url);
           const newSiteObj = {
             id: newSiteId,
             brand: '[301] ' + parentWs.brand,
