@@ -14668,12 +14668,16 @@ function wstSubmitBulk301() {
           status: 'Đang 301'
         };
         site.redirectCommands.push(newCmd);
-        saveWsTrack(wsId);
         countCreated++;
       }
     }
     i++;
   });
+  
+  // Chỉ gọi ghi 1 lần duy nhất sau khi kết thúc vòng lặp
+  if (countCreated > 0) {
+    saveAppData();
+  }
   
   wstCloseBulk301Modal();
   _wstSelected.clear();
@@ -14743,12 +14747,12 @@ function wstBulkComplete301() {
         wstSync301Children(parentWs);
       }
       
-      saveWsTrack(wsId);
       countCompleted++;
     }
   });
   
   if (countCompleted > 0) {
+    saveAppData(); // Gọi ghi Firebase duy nhất 1 lần
     _wstSelected.clear();
     renderWsTrack();
     if (typeof renderWebsites === 'function') renderWebsites();
@@ -14772,12 +14776,12 @@ function wstBulkCancel301() {
     site.redirectCommands = site.redirectCommands.filter(c => c.status !== 'Đang 301');
     
     if (site.redirectCommands.length !== originalLength) {
-      saveWsTrack(wsId);
       countCancelled++;
     }
   });
   
   if (countCancelled > 0) {
+    saveAppData(); // Gọi ghi Firebase duy nhất 1 lần
     _wstSelected.clear();
     renderWsTrack();
     toast(`✓ Đã hủy ${countCancelled} lệnh 301 đang chạy! (Đã xóa khỏi lịch sử)`, "#e74c3c", 3000);
