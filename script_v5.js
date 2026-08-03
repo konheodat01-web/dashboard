@@ -3418,7 +3418,14 @@ function wstRenderBulkBar(){
       </select>
       <button onclick="wstExecuteBulkCopy()" class="btn btn-sm btn-outline" style="font-size:11px">Thực hiện Copy</button>
     </div>
-    <button onclick="wstOpenBulk301Modal()" class="btn btn-sm btn-outline" style="font-size:11px;color:#10b981;border-color:#10b981">Tạo lệnh 301 hàng loạt</button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <select id="wstBulk301Select" style="height:26px;font-size:11px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;outline:none;cursor:pointer;padding:0 6px">
+        <option value="create">Tạo lệnh 301 hàng loạt</option>
+        <option value="complete">Hoàn thành lệnh 301 hàng loạt</option>
+        <option value="cancel">Hủy lệnh 301 hàng loạt</option>
+      </select>
+      <button onclick="wstExecuteBulk301()" class="btn btn-sm btn-outline" style="font-size:11px;color:#10b981;border-color:#10b981">Thực hiện 301</button>
+    </div>
     <button onclick="wstTriggerAddGscBulk()" class="btn btn-sm btn-outline" style="font-size:11px;color:#f2a154;border-color:#e5893c">Thêm GSC</button>
     ${_wstMode==='content' ? '<button onclick="wstCheckSelectedSites()" class="btn btn-sm" style="font-size:11px;background:#3fb950;color:#fff;border:none">🔎 Check index (Serper)</button>' : ''}
     <button onclick="_wstSelected.clear();renderWsTrack()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;margin-left:auto">×</button>`;
@@ -14672,4 +14679,109 @@ function wstSubmitBulk301() {
   _wstSelected.clear();
   renderWsTrack();
   toast(`✓ Tạo thành công ${countCreated} lệnh 301 hàng loạt!`, "#10b981", 3000);
+}
+
+
+// ===== BULK 301 EXTRA ACTIONS =====
+function wstExecuteBulk301() {
+  const mode = document.getElementById('wstBulk301Select')?.value || 'create';
+  if (mode === 'create') {
+    wstOpenBulk301Modal();
+  } else if (mode === 'complete') {
+    wstBulkComplete301();
+  } else if (mode === 'cancel') {
+    wstBulkCancel301();
+  }
+}
+
+function wstBulkComplete301() {
+  let countCompleted = 0;
+  
+  _wstSelected.forEach(wsId => {
+    const site = getWstSite(wsId);
+    if (!site || !site.redirectCommands) return;
+    
+    // Tìm lệnh đang chạy 301
+    const cmd = site.redirectCommands.find(c => c.status === 'Đang 301');
+    if (cmd) {
+      cmd.status = 'Hoàn thành';
+      
+      // Tự động tạo website 301 trong Link quan trọng
+      const parentWs = websites.find(x => x.id === wsId);
+      if (parentWs) {
+        let destUrl = cmd.destUrl.trim();
+        if (!/^https?:///i.test(destUrl)) {
+          destUrl = 'http://' + destUrl;
+        }
+        
+        const dup = websites.find(x => x.url && x.url.replace(//$/, '') === destUrl.replace(//$/, ''));
+        if (dup) {
+          dup.is301 = true;
+          dup.sourceUrl = parentWs.url;
+        } else {
+          const newSiteId = wsNextId++;
+          const cleanParentDomain = parentWs.url.replace(/^https?:///i, '').replace(//$/, '');
+          const newSiteObj = {
+            id: newSiteId,
+            brand: '[301] ' + parentWs.brand,
+            url: destUrl,
+            admin: parentWs.admin || '',
+            account: parentWs.account || '',
+            password: parentWs.password || '',
+            appwppass: parentWs.appwppass || '',
+            status: parentWs.status || 'Tốt',
+            owner: parentWs.owner || 'Công ty',
+            group: parentWs.group || '',
+            note: '301 từ ' + cleanParentDomain,
+            is301: true,
+            sourceUrl: parentWs.url
+          };
+          websites.push(newSiteObj);
+          
+          wstAddChangelog(parentWs.id, '301_received', `Tự động tạo web chuyển hướng 301 mới khi hoàn thành lệnh: ${destUrl}`);
+        }
+        wstSync301Children(parentWs);
+      }
+      
+      saveWsTrack(wsId);
+      countCompleted++;
+    }
+  });
+  
+  if (countCompleted > 0) {
+    _wstSelected.clear();
+    renderWsTrack();
+    if (typeof renderWebsites === 'function') renderWebsites();
+    toast(`✓ Đã hoàn thành ${countCompleted} lệnh 301 & tự động liên kết site!`, "#27ae60", 3000);
+  } else {
+    toast("⚠️ Không tìm thấy lệnh 301 nào đang chạy để hoàn thành!", "#e74c3c", 3000);
+  }
+}
+
+function wstBulkCancel301() {
+  if (!confirm("⚠️ Xác nhận hủy toàn bộ lệnh 301 đang chạy của các website đã chọn? (Lệnh hủy sẽ bị xóa hoàn toàn)")) return;
+  
+  let countCancelled = 0;
+  
+  _wstSelected.forEach(wsId => {
+    const site = getWstSite(wsId);
+    if (!site || !site.redirectCommands) return;
+    
+    const originalLength = site.redirectCommands.length;
+    // Lọc bỏ (xóa) các lệnh có trạng thái 'Đang 301'
+    site.redirectCommands = site.redirectCommands.filter(c => c.status !== 'Đang 301');
+    
+    if (site.redirectCommands.length !== originalLength) {
+      saveWsTrack(wsId);
+      countCancelled++;
+    }
+  });
+  
+  if (countCancelled > 0) {
+    _wstSelected.clear();
+    renderWsTrack();
+    toast(`✓ Đã hủy ${countCancelled} lệnh 301 đang chạy! (Đã xóa khỏi lịch sử)`, "#e74c3c", 3000);
+  } else {
+    toast("⚠️ Không tìm thấy lệnh 301 nào đang chạy để hủy!", "#e74c3c", 3000);
+  }
 }
