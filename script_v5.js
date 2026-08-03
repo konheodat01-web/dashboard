@@ -3409,10 +3409,16 @@ function wstRenderBulkBar(){
   if(!_wstSelected.size){ bar.style.display='none'; return; }
   bar.style.display='flex';
   bar.innerHTML = `<span style="font-weight:600;font-size:13px">${_wstSelected.size} web đã chọn</span>
-    <button onclick="wstCopySelected('source')" class="btn btn-sm btn-outline" style="font-size:11px">🔗 Copy URL gốc</button>
-    <button onclick="wstCopySelected('301')" class="btn btn-sm btn-outline" style="font-size:11px;color:#6c5ce7;border-color:#c3b1e1">🔀 Copy URL 301</button>
-    <button onclick="wstCopySelected('both')" class="btn btn-sm btn-outline" style="font-size:11px">📋 Copy cả hai</button>
-    <button onclick="wstCopySelected('seo_kw')" class="btn btn-sm btn-outline" style="font-size:11px;color:#2ecc71;border-color:#27ae60">📝 Copy từ khóa SEO</button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <select id="wstBulkCopySelect" style="height:26px;font-size:11px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;outline:none;cursor:pointer">
+        <option value="source">🔗 Copy URL gốc</option>
+        <option value="301">🔀 Copy URL 301</option>
+        <option value="both">📋 Copy cả hai</option>
+        <option value="seo_kw">📝 Copy từ khóa SEO</option>
+      </select>
+      <button onclick="wstExecuteBulkCopy()" class="btn btn-sm btn-outline" style="font-size:11px">Thực hiện Copy</button>
+    </div>
+    <button onclick="wstOpenBulk301Modal()" class="btn btn-sm btn-outline" style="font-size:11px;color:#10b981;border-color:#10b981">🔗 Tạo lệnh 301 hàng loạt</button>
     <button onclick="wstTriggerAddGscBulk()" class="btn btn-sm btn-outline" style="font-size:11px;color:#f2a154;border-color:#e5893c">➕ Thêm GSC</button>
     ${_wstMode==='content' ? '<button onclick="wstCheckSelectedSites()" class="btn btn-sm" style="font-size:11px;background:#3fb950;color:#fff;border:none">🔎 Check index (Serper)</button>' : ''}
     <button onclick="_wstSelected.clear();renderWsTrack()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;margin-left:auto">×</button>`;
@@ -14597,3 +14603,73 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
+
+
+// ===== BULK 301 FUNCTIONS =====
+function wstExecuteBulkCopy() {
+  const mode = document.getElementById('wstBulkCopySelect')?.value || 'source';
+  wstCopySelected(mode);
+}
+
+function wstOpenBulk301Modal() {
+  const modal = document.getElementById('wstBulk301Modal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  
+  document.getElementById('wstBulk301Count').textContent = _wstSelected.size;
+  
+  const lines = [];
+  _wstSelected.forEach(wsId => {
+    const w = websites.find(x => x.id === wsId);
+    if(w) lines.push(w.url || w.brand);
+  });
+  document.getElementById('wstBulk301SourceList').textContent = lines.join('\n');
+  document.getElementById('wstBulk301DestTextarea').value = '';
+}
+
+function wstCloseBulk301Modal() {
+  const modal = document.getElementById('wstBulk301Modal');
+  if(modal) modal.style.display = 'none';
+}
+
+function wstSubmitBulk301() {
+  const destVal = document.getElementById('wstBulk301DestTextarea')?.value || '';
+  const lines = destVal.split('\n').map(l => l.trim()).filter(Boolean);
+  
+  if (lines.length !== _wstSelected.size) {
+    alert(`⚠️ Lỗi số lượng! Số website đích sếp nhập vào là ${lines.length} dòng, nhưng sếp đang chọn ${_wstSelected.size} website gốc. Vui lòng nhập đúng số dòng tương ứng!`);
+    return;
+  }
+  
+  let i = 0;
+  let countCreated = 0;
+  
+  _wstSelected.forEach(wsId => {
+    const site = getWstSite(wsId);
+    const destUrl = lines[i];
+    
+    if (site && destUrl) {
+      site.redirectCommands = site.redirectCommands || [];
+      const hasActive = site.redirectCommands.some(cmd => cmd.status === 'Đang 301');
+      if (!hasActive) {
+        const now = new Date();
+        const newCmd = {
+          id: Date.now() + Math.random().toString(36).substr(2, 9),
+          createdAt: now.toLocaleString('vi-VN'),
+          dateText: now.getDate() + '/' + (now.getMonth() + 1),
+          destUrl: destUrl,
+          status: 'Đang 301'
+        };
+        site.redirectCommands.push(newCmd);
+        saveWsTrack(wsId);
+        countCreated++;
+      }
+    }
+    i++;
+  });
+  
+  wstCloseBulk301Modal();
+  _wstSelected.clear();
+  renderWsTrack();
+  toast(`✓ Tạo thành công ${countCreated} lệnh 301 hàng loạt!`, "#10b981", 3000);
+}
