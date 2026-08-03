@@ -3410,16 +3410,16 @@ function wstRenderBulkBar(){
   bar.style.display='flex';
   bar.innerHTML = `<span style="font-weight:600;font-size:13px">${_wstSelected.size} web đã chọn</span>
     <div style="display:flex;align-items:center;gap:6px">
-      <select id="wstBulkCopySelect" style="height:26px;font-size:11px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;outline:none;cursor:pointer">
-        <option value="source">🔗 Copy URL gốc</option>
-        <option value="301">🔀 Copy URL 301</option>
-        <option value="both">📋 Copy cả hai</option>
-        <option value="seo_kw">📝 Copy từ khóa SEO</option>
+      <select id="wstBulkCopySelect" style="height:26px;font-size:11px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;outline:none;cursor:pointer;padding:0 6px">
+        <option value="source">Copy URL gốc</option>
+        <option value="301">Copy URL 301</option>
+        <option value="both">Copy cả hai</option>
+        <option value="seo_kw">Copy từ khóa SEO</option>
       </select>
       <button onclick="wstExecuteBulkCopy()" class="btn btn-sm btn-outline" style="font-size:11px">Thực hiện Copy</button>
     </div>
-    <button onclick="wstOpenBulk301Modal()" class="btn btn-sm btn-outline" style="font-size:11px;color:#10b981;border-color:#10b981">🔗 Tạo lệnh 301 hàng loạt</button>
-    <button onclick="wstTriggerAddGscBulk()" class="btn btn-sm btn-outline" style="font-size:11px;color:#f2a154;border-color:#e5893c">➕ Thêm GSC</button>
+    <button onclick="wstOpenBulk301Modal()" class="btn btn-sm btn-outline" style="font-size:11px;color:#10b981;border-color:#10b981">Tạo lệnh 301 hàng loạt</button>
+    <button onclick="wstTriggerAddGscBulk()" class="btn btn-sm btn-outline" style="font-size:11px;color:#f2a154;border-color:#e5893c">Thêm GSC</button>
     ${_wstMode==='content' ? '<button onclick="wstCheckSelectedSites()" class="btn btn-sm" style="font-size:11px;background:#3fb950;color:#fff;border:none">🔎 Check index (Serper)</button>' : ''}
     <button onclick="_wstSelected.clear();renderWsTrack()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;margin-left:auto">×</button>`;
 }
