@@ -689,6 +689,7 @@
         </select>
         <button class="btn btn-outline btn-sm" onclick="wstLoadPosts()">🔄 Tải lại</button>
         <button id="wstPostsScanBtn" class="btn btn-sm" style="background:#3fb950;color:#fff;border:none" onclick="wstCheckSelectedIndex()" title="Check index link đã chọn bằng Serper (site: query)">✅ Check index (Serper)</button>
+        <button id="wstPostsCopyBtn" class="btn btn-outline btn-sm" onclick="wstCopySelectedPostUrls()" title="Copy URL các bài đã chọn (không chọn gì thì copy toàn bộ đang hiển thị)">📋 Copy URL đã chọn</button>
         <span id="wstPostsInfo" class="sub" style="margin-left:auto">—</span>
       </div>
       <div style="max-height:58vh;overflow:auto;border:1px solid var(--gray-border);border-radius:8px">
@@ -1514,7 +1515,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260803_v6"></script>
+  <script src="script_v5.js?v=20260803_v7"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">
