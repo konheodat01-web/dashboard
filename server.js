@@ -18,6 +18,7 @@ const http = require("http");
 const fs   = require("fs");
 const path = require("path");
 const https = require("https");
+const { exec } = require("child_process");
 
 const PORT        = process.env.PORT || 3050;
 const CONFIG_FILE = path.join(__dirname, "config.json");
@@ -169,6 +170,33 @@ const server = http.createServer(async (req, res) => {
     });
 
     clientReq.end();
+    return;
+  }
+
+  // ── /api/sw-processes (GET) + /api/sw-processes-seen (POST) ──────────────
+  // Proxy sang SEO Writer (localhost:8501) — theo dõi tiến trình viết hàng loạt (chuông + vòng tròn).
+  if (url === "/api/sw-processes" || url === "/api/sw-processes-seen") {
+    let swKey = "";
+    try { swKey = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
+    const isSeen = url === "/api/sw-processes-seen";
+    const pr = http.request({
+      hostname: "127.0.0.1", port: 8501,
+      path: isSeen ? "/api/processes/seen" : "/api/processes",
+      method: isSeen ? "POST" : "GET",
+      headers: { "x-access-key": swKey, "Content-Type": "application/json" },
+    }, (pres) => {
+      let body = "";
+      pres.on("data", (c) => { body += c; });
+      pres.on("end", () => {
+        res.writeHead(pres.statusCode === 200 ? 200 : 502, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(pres.statusCode === 200 ? body : JSON.stringify({ processes: [], running: 0, unseen: 0 }));
+      });
+    });
+    pr.on("error", () => {
+      res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ processes: [], running: 0, unseen: 0 }));
+    });
+    if (isSeen) pr.end("{}"); else pr.end();
     return;
   }
 
@@ -333,6 +361,19 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── GET / → serve index.html ─────────────────────────────────────────────
+  if (req.method === "GET" && url.startsWith("/api/git-pull-deploy")) {
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+    res.write("Đang tiến hành git pull & pm2 restart...\n");
+    exec("git pull origin main && pm2 restart dashboard", (err, stdout, stderr) => {
+      if (err) {
+        res.end("Lỗi deploy: " + err.message + "\n" + stderr);
+        return;
+      }
+      res.end("DEPLOY THÀNH CÔNG!\n\nSTDOUT:\n" + stdout);
+    });
+    return;
+  }
+
   if (req.method === "GET" && (url === "/" || url === "/index.html")) {
     serveFile(res, path.join(STATIC_DIR, "index.html"));
     return;
