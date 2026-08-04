@@ -6088,10 +6088,10 @@ function getAdminUrlForWebsite(w) {
 
 function normalizeAdmin(v){ return (v||'').trim().replace(/^\/+|\/+$/g,''); }
 function normalizeUrl(v){ return (v||'').trim().replace(/^https?:\/\//i,'').replace(/\/+$/,''); }
-function joinAdminUrl(url, admin){
+function joinAdminUrl(url, admin, bypass301Redirect = false){
   let u = (url || '').trim();
   const normalizedInput = wstNormalizeUrl(u);
-  if (normalizedInput) {
+  if (normalizedInput && !bypass301Redirect) {
     const matchedWs = websites.find(x => x.url && wstNormalizeUrl(x.url) === normalizedInput);
     if (matchedWs && matchedWs.is301) {
       const chain = getWstRedirectChainBackward(matchedWs);
@@ -12886,7 +12886,7 @@ function wstSelectAddGscType(type) {
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-weight:600">${displayUrl}</span>
             ${finalAdmin ? `
-              <button onclick="wstGoToAdminAndCopy('${joinAdminUrl(targetWs.url, finalAdmin).replace(/'/g, "\\'")}', '${finalAccount.replace(/'/g, "\\'")}', '${finalPassword.replace(/'/g, "\\'")}')" 
+              <button onclick="wstGoToAdminAndCopy('${joinAdminUrl(targetWs.url, finalAdmin, true).replace(/'/g, "\\'")}', '${finalAccount.replace(/'/g, "\\'")}', '${finalPassword.replace(/'/g, "\\'")}')" 
                       style="background:none;border:none;color:#58a6ff;cursor:pointer;padding:2px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.2s" 
                       onmouseover="this.style.background='rgba(56,139,253,0.15)'" 
                       onmouseout="this.style.background='none'" 
