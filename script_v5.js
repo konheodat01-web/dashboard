@@ -6206,10 +6206,10 @@ function getAdminUrlForWebsite(w) {
 
 function normalizeAdmin(v){ return (v||'').trim().replace(/^\/+|\/+$/g,''); }
 function normalizeUrl(v){ return (v||'').trim().replace(/^https?:\/\//i,'').replace(/\/+$/,''); }
-function joinAdminUrl(url, admin){
+function joinAdminUrl(url, admin, bypass301Redirect = false){
   let u = (url || '').trim();
   const normalizedInput = wstNormalizeUrl(u);
-  if (normalizedInput) {
+  if (normalizedInput && !bypass301Redirect) {
     const matchedWs = websites.find(x => x.url && wstNormalizeUrl(x.url) === normalizedInput);
     if (matchedWs && matchedWs.is301) {
       const chain = getWstRedirectChainBackward(matchedWs);
@@ -14345,15 +14345,38 @@ async function restoreBackupVersion(source, timestamp) {
     if (Array.isArray(payload.links)) links = payload.links;
     if (Array.isArray(payload.linkCategories)) linkCategories = payload.linkCategories;
     if (Array.isArray(payload.assignees)) assignees = payload.assignees;
-        keysToDelete.forEach(k => {
-          updates[k] = null; // Set null để xoá trên Firebase
-        });
-        return window._fbDb.ref("backups").update(updates);
-      }
-    });
-  }).catch(err => {
-    console.error("Cloud backup auto-cleanup failed:", err);
-  });
+    if (Array.isArray(payload.prompts)) prompts = payload.prompts;
+    if (Array.isArray(payload.recurringTasks)) recurringTasks = payload.recurringTasks;
+    if (Array.isArray(payload.khoId)) khoIdList = payload.khoId;
+    if (Array.isArray(payload.siteTracking)) siteTracking = payload.siteTracking;
+    if (Array.isArray(payload.billings)) billings = payload.billings;
+    if (payload.wtCloudflyToken !== undefined) wtCloudflyToken = payload.wtCloudflyToken;
+    if (payload.wtApiKey !== undefined) wtApiKey = payload.wtApiKey;
+    if (payload.wtSerperCredits !== undefined) wtSerperCredits = payload.wtSerperCredits;
+    if (payload.settings && typeof payload.settings === "object") _settings = payload.settings;
+    
+    // 3. Lưu vào LocalStorage
+    saveToLocalStorage();
+    
+    // 4. Đồng bộ đè lên nhánh chính Firebase /appData
+    if (window._fbReady && window._fbDb) {
+      const cleanTs = Date.now();
+      await window._fbDb.ref("appData").set(fbPayload(cleanTs));
+    }
+    
+    // 5. Đóng modal và render lại toàn bộ giao diện của tab hiện tại
+    closeBackupModal();
+    toast("✓ Khôi phục phiên bản thành công!", "#27ae60");
+    
+    // Reload lại trang hiện tại để áp dụng dữ liệu
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+    
+  } catch (err) {
+    console.error("Restore failed:", err);
+    toast("❌ Lỗi khôi phục: " + err.message, "#e74c3c");
+  }
 }
 
 // Tự động sao lưu tích hợp vào hàm saveAppData gốc
