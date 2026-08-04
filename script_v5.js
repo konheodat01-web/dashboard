@@ -14379,27 +14379,7 @@ async function restoreBackupVersion(source, timestamp) {
   }
 }
 
-// Tự động sao lưu tích hợp vào hàm saveAppData gốc
-// Đè/Ghi đè hàm saveAppData hiện tại để gọi backup tự động
-const _originalSaveAppData = saveAppData;
-saveAppData = function() {
-  return _originalSaveAppData().then(() => {
-    // Tạo payload và lưu backup bất đồng bộ
-    const ts = Date.now();
-    const payload = fbPayload(ts);
-    
-    // Đảm bảo DB được init
-    if (!_backupDb) {
-      dbInitBackup().then(() => {
-        dbSaveBackup(payload);
-        cloudSaveBackup(payload);
-      });
-    } else {
-      dbSaveBackup(payload);
-      cloudSaveBackup(payload);
-    }
-  });
-};
+
 
 // Mở modal Lịch sử phiên bản và tải dữ liệu
 async function openBackupModal() {
