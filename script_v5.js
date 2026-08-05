@@ -6213,15 +6213,7 @@ function clearWebsiteForm(){
 
 function getAdminUrlForWebsite(w) {
   if (!w) return '';
-  let target = w;
-  if (w.is301) {
-    const chain = getWstRedirectChainBackward(w);
-    const parent = chain.find(x => !x.is301) || chain[chain.length - 1];
-    if (parent) {
-      target = parent;
-    }
-  }
-  return joinAdminUrl(target.url, target.admin);
+  return joinAdminUrl(w.url, w.admin, true);
 }
 
 function normalizeAdmin(v){ return (v||'').trim().replace(/^\/+|\/+$/g,''); }
@@ -6511,13 +6503,7 @@ function wiOpenAdmin(){
   const btn=document.getElementById('wiBtnOpen'); 
   if(btn&&btn._href) {
     if (websiteInfoTarget) {
-      let target = websiteInfoTarget;
-      if (target.is301) {
-        const chain = getWstRedirectChainBackward(target);
-        const parent = chain.find(x => !x.is301) || chain[chain.length - 1];
-        if (parent) target = parent;
-      }
-      wstGoToAdminAndCopy(btn._href, target.account || '', target.password || '');
+      wstGoToAdminAndCopy(btn._href, websiteInfoTarget.account || '', websiteInfoTarget.password || '');
     } else {
       window.open(btn._href,'_blank'); 
     }
