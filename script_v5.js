@@ -1,4 +1,4 @@
-
+﻿
 // SAFEGUARD: Automatically clear removed feature data from browser storage
 try { localStorage.removeItem('wt_giaoviec'); } catch(e) {}
 
@@ -3157,15 +3157,10 @@ async function wstFetchRank(wsId) {
     const entries = site.entries.slice().sort((a,b)=>b.date.localeCompare(a.date));
     let last = entries[0];
     
-    // Nếu website lọt Top 100 thì chắc chắn đã được Google Index
-    const hasRank = finalRankStr && finalRankStr !== "Out 100";
-    const autoIndexVal = hasRank ? 'Đã index' : (last ? last.indexed : '');
-    
     if(last && last.date === tbDay) {
       last.rank = finalRankStr || "Out 100";
-      if (autoIndexVal) last.indexed = autoIndexVal;
     } else {
-      site.entries.push({id:'wste'+Date.now(), date:tbDay, rank: finalRankStr || "Out 100", indexed: autoIndexVal, moBot:site.moBot||'Mở', note:''});
+      site.entries.push({id:'wste'+Date.now(), date:tbDay, rank: finalRankStr || "Out 100", indexed: last ? last.indexed : '', moBot:site.moBot||'Mở', note:''});
     }
     saveWsTrack(wsId);
     wstAddChangelog(wsId, 'rank_check', `Check rank Serper từ khóa: "${keyword}" - Hạng: ${finalRankStr || 'Out 100'}`);
