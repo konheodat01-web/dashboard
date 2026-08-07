@@ -1,4 +1,4 @@
-﻿
+
 // SAFEGUARD: Automatically clear removed feature data from browser storage
 try { localStorage.removeItem('wt_giaoviec'); } catch(e) {}
 
@@ -6062,7 +6062,7 @@ function openWebsiteForm(id=null){
 
   // Khóa các trường dùng chung nếu là web 301 (được kế thừa từ gốc)
   const isReadonly = !!(w?.is301);
-  ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_team'].forEach(fieldId => {
+  ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_difficulty', 'wf_team'].forEach(fieldId => {
     const el = document.getElementById(fieldId);
     if (el) {
       if (isReadonly) {
@@ -6122,7 +6122,7 @@ function wfToggle301(){
     if(sr) sr.style.display='none';
   } else {
     // Mở khóa lại các trường nếu bỏ check 301
-    ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_team'].forEach(fieldId => {
+    ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_difficulty', 'wf_team'].forEach(fieldId => {
       const el = document.getElementById(fieldId);
       if (el) {
         el.removeAttribute('disabled');
@@ -6180,7 +6180,7 @@ function wf301SelectSource(wsId){
   setTimeout(()=>document.getElementById('wf_url').focus(), 50);
 
   // Khóa các trường dùng chung vì đã thừa kế từ web gốc
-  ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_team'].forEach(fieldId => {
+  ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_difficulty', 'wf_team'].forEach(fieldId => {
     const el = document.getElementById(fieldId);
     if (el) {
       el.setAttribute('disabled', 'true');
@@ -6201,7 +6201,7 @@ function clearWebsiteForm(){
   const _301=document.getElementById('wf_is301'); if(_301){_301.checked=false; document.getElementById('wf_301_fields').style.display='none'; document.getElementById('wf_source_url').value='';}
 
   // Mở khóa các trường
-  ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_team'].forEach(fieldId => {
+  ['wf_admin', 'wf_account', 'wf_password', 'wf_appwppass', 'wf_status', 'wf_difficulty', 'wf_team'].forEach(fieldId => {
     const el = document.getElementById(fieldId);
     if (el) {
       el.removeAttribute('disabled');
@@ -6274,7 +6274,7 @@ function saveWebsite(){
   const obj={
     id: newId,
     brand, url,
-    admin, account, password, appwppass, status,
+    admin, account, password, appwppass, status, difficulty,
     note: (document.getElementById('wf_note')?.value||'').trim(),
     team,
     owner: 'Công ty',
@@ -6571,6 +6571,17 @@ function goEditWebsite(){
         </select>
       </div>
 
+      <div class="form-group"><label>Độ khó</label>
+        <select id="we_difficulty" style="width:100%">
+          <option value="" style="color:#fff" ${!w.difficulty?'selected':''}>Chưa xác định</option>
+          <option value="Rất Khó" style="color:#ff4d4f" ${w.difficulty==='Rất Khó'?'selected':''}>Rất Khó</option>
+          <option value="Khó" style="color:#fa8c16" ${w.difficulty==='Khó'?'selected':''}>Khó</option>
+          <option value="Trung Bình" style="color:#faad14" ${w.difficulty==='Trung Bình'?'selected':''}>Trung Bình</option>
+          <option value="Dễ" style="color:#52c41a" ${w.difficulty==='Dễ'?'selected':''}>Dễ</option>
+          <option value="Rất Dễ" style="color:#13c2c2" ${w.difficulty==='Rất Dễ'?'selected':''}>Rất Dễ</option>
+        </select>
+      </div>
+
       <div class="form-group"><label>Team</label>
         <select id="we_team" style="width:100%" ${currentMember==='hai'?'disabled':''}>
           <option value="Team 01" ${w.team!=='Team 02'?'selected':''}>Chaewon</option>
@@ -6603,6 +6614,7 @@ function saveWebsiteFromModal(id){
       owner:'Công ty',
       group:'',
       status:document.getElementById('we_status')?.value||'Tốt',
+      difficulty:document.getElementById('we_difficulty')?.value||'',
       note:document.getElementById('we_note')?.value||'',
     };
     // Đồng bộ thông tin từ website gốc vừa được sửa sang các website con 301 liên kết với nó
