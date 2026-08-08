@@ -10902,6 +10902,7 @@ async function wstSyncGscRealtime(token, force = false) {
               startDate: fmt(startDate),
               endDate: fmt(endDate),
               dimensions: ['date'],
+              dataState: 'all',
               rowLimit: 28
             })
           }
@@ -11289,7 +11290,7 @@ async function wstFetchGscDataDirect(siteUrl, body) {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ ...body, dataState: 'all' })
     }
   );
   if (res.status === 401) {
