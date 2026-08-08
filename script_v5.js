@@ -3610,7 +3610,8 @@ function renderWsTrack(){
     if(fTeam && w.team !== fTeam) return false;
 
 
-    
+    const site = getWstSite(w.id);
+
     // Advanced Filter: Redirect 301
     if (fRedirect301) {
       const redirectCmds = site?.redirectCommands || [];
@@ -3623,7 +3624,6 @@ function renderWsTrack(){
     if(fStatus && w.status !== fStatus) return false;
 
     // Advanced Filter: GSC Connection Status
-    const site = getWstSite(w.id);
     if(fGsc) {
       const gscStatus = site?.gscConnectionStatus || 'not_connected';
       if(gscStatus !== fGsc) return false;
