@@ -1544,6 +1544,9 @@
       // Reset data loaded flag so guard blocks any writes until fresh data arrives
       window._fbDataLoaded = false;
       localStorage.removeItem('wt_ts');
+      if (window.indexedDB) {
+        indexedDB.deleteDatabase("WTBackupDB");
+      }
       window.location.reload();
     }
 
@@ -1644,7 +1647,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260810_v17"></script>
+  <script src="script_v5.js?v=20260810_v18"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">

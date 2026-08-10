@@ -14243,11 +14243,12 @@ function dbGetBackups() {
 function cloudSaveBackup(payload) {
   if (!window._fbReady || !window._fbDb) return Promise.resolve();
   const ts = payload._ts || Date.now();
+  const bPath = currentMember === 'admin' ? 'backups' : `backups_${currentMember}`;
   
   // 1. Ghi bản sao lưu mới
-  return window._fbDb.ref(`backups/${ts}`).set(payload).then(() => {
+  return window._fbDb.ref(`${bPath}/${ts}`).set(payload).then(() => {
     // 2. Dọn dẹp Cloud: Chỉ giữ lại 20 bản gần nhất
-    return window._fbDb.ref("backups").once("value").then(snap => {
+    return window._fbDb.ref(bPath).once("value").then(snap => {
       const allBackups = snap.val();
       if (!allBackups) return;
       const keys = Object.keys(allBackups).map(Number).sort((a, b) => b - a); // Mới nhất lên đầu
@@ -14257,7 +14258,7 @@ function cloudSaveBackup(payload) {
         keysToDelete.forEach(k => {
           updates[k] = null; // Set null để xoá trên Firebase
         });
-        return window._fbDb.ref("backups").update(updates);
+        return window._fbDb.ref(bPath).update(updates);
       }
     });
   }).catch(err => {
@@ -14305,7 +14306,8 @@ async function openBackupModal() {
     // Lấy backups từ Cloud (Firebase)
     let cloudBackups = [];
     if (window._fbReady && window._fbDb) {
-      const snap = await window._fbDb.ref("backups").once("value");
+      const bPath = currentMember === 'admin' ? 'backups' : `backups_${currentMember}`;
+      const snap = await window._fbDb.ref(bPath).once("value");
       const val = snap.val();
       if (val && typeof val === "object") {
         cloudBackups = Object.keys(val).map(k => ({
@@ -14431,7 +14433,8 @@ async function restoreBackupVersion(source, timestamp) {
     // Fallback sang Cloud nếu Local bị lỗi hoặc chỉ có Cloud
     if (!payload && (source === "Cloud" || source === "Local + Cloud")) {
       if (window._fbReady && window._fbDb) {
-        const snap = await window._fbDb.ref(`backups/${timestamp}`).once("value");
+        const bPath = currentMember === 'admin' ? 'backups' : `backups_${currentMember}`;
+        const snap = await window._fbDb.ref(`${bPath}/${timestamp}`).once("value");
         payload = snap.val();
       }
     }
