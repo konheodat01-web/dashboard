@@ -6270,6 +6270,7 @@ function saveWebsite(){
   let appwppass = (document.getElementById('wf_appwppass')?.value||'').trim();
   let status = document.getElementById('wf_status')?.value||'Tốt';
   let team = document.getElementById('wf_team')?.value||'Team 01';
+  let difficulty = document.getElementById('wf_difficulty')?.value||'Chưa xác định';
   
   const is301 = document.getElementById('wf_is301')?.checked||false;
   const sourceUrl = is301 ? (document.getElementById('wf_source_url')?.value||'').trim() : '';
