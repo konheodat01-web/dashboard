@@ -1338,7 +1338,7 @@
 </div>
 
 
-  <!-- HỆ SINH THÃI PAGE -->
+  <!-- HỆ SINH THÃ I PAGE -->
   
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeBulkEdit()">Huỷ</button>
@@ -1425,6 +1425,7 @@
             const staff = profiles.find(s => s.username === username);
             if (staff && staff.password === input && staff.status === 'Hoạt động') {
               if (btn) btn.textContent = "Đăng nhập thành công!";
+              Object.keys(localStorage).forEach(k => { if (k.startsWith('wt_')) localStorage.removeItem(k); });
               try { sessionStorage.setItem('wt_session_member', username); localStorage.setItem('wt_activeMember', username); currentMember = username; } catch(e){}
               if (typeof staffProfiles !== 'undefined') staffProfiles = profiles;
               executeLoginSuccess();
@@ -1438,6 +1439,10 @@
             const staff = typeof staffProfiles !== 'undefined' ? staffProfiles.find(s => s.username === username) : null;
             if (staff && staff.password === input && staff.status === 'Hoạt động') {
               if (btn) btn.textContent = "Đăng nhập thành công!";
+              const prev = localStorage.getItem('wt_activeMember');
+              if (prev !== username) {
+                Object.keys(localStorage).forEach(k => { if (k.startsWith('wt_')) localStorage.removeItem(k); });
+              }
               try { sessionStorage.setItem('wt_session_member', username); localStorage.setItem('wt_activeMember', username); currentMember = username; } catch(e){}
               executeLoginSuccess();
             } else {
@@ -1527,12 +1532,8 @@
 
     function executeLoginSuccess() {
       console.log("[V60] Đăng nhập thành công. Tiến hành bẻ khóa giao diện cưỡng bức và đồng bộ lại dữ liệu.");
-
-      // 1. Ẩn hoàn toàn màn hình đăng nhập Login
-      const loginContainer = document.getElementById('loginScreen');
-      if (loginContainer) {
-        loginContainer.style.setProperty('display', 'none', 'important');
-      }
+      window.location.reload();
+    }
 
       // 2. Kích hoạt hiển thị lớp vỏ bọc hệ thống chính và đồng bộ dữ liệu
       if (typeof onAdminLoginSuccess === 'function') {
@@ -1650,7 +1651,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260810_v11"></script>
+  <script src="script_v5.js?v=20260810_v12"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">

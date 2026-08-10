@@ -1335,7 +1335,14 @@ function initFirebaseListener(){
   const dbPath = currentMember === 'admin' ? 'appData' : `appData_${currentMember}`;
   window._fbDb.ref(dbPath).on('value', (snapshot)=>{
     const r = snapshot.val();
-    if(!r) return;
+    if(!r) {
+      // Nếu db remote trống trơn (nhân viên mới đăng nhập), ta ghi đè dữ liệu rỗng hiện tại lên để khởi tạo
+      if (currentMember !== 'admin' && !window._fbDataLoaded) {
+        window._fbDataLoaded = true;
+        saveAppData();
+      }
+      return;
+    }
     // mốc so sánh cho CHỐT AN TOÀN ở hàm ghi
     window._fbLastServerCount = (Array.isArray(r.websites) ? r.websites.length : 0)
                               + (Array.isArray(r.tasks) ? r.tasks.length : 0)
