@@ -1389,6 +1389,9 @@ function initFirebaseListener(){
     const timeSinceLoad = Date.now() - _pageLoadTime;
     if(timeSinceLoad < 5000 && (r._ts||0) < localTs){
       console.log('Skipped stale Firebase data (within 5s of load): fb_ts=', r._ts, 'local_ts=', localTs);
+      if (!window._fbDataLoaded) {
+        window._fbDataLoaded = true;
+      }
       return;
     }
 
