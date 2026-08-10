@@ -1420,15 +1420,31 @@
           });
         } else {
           // Staff login
-          const staff = typeof staffProfiles !== 'undefined' ? staffProfiles.find(s => s.username === username) : null;
-          if (staff && staff.password === input && staff.status === 'Hoạt động') {
-            if (btn) btn.textContent = "Đăng nhập thành công!";
-            try { sessionStorage.setItem('wt_session_member', username); localStorage.setItem('wt_activeMember', username); currentMember = username; } catch(e){}
-            executeLoginSuccess();
-          } else {
-            alert('Tài khoản hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.');
-            if (btn) btn.textContent = "Đăng nhập";
-          }
+          firebase.database().ref('appData/staffProfiles').once('value').then(snap => {
+            const profiles = snap.val() || [];
+            const staff = profiles.find(s => s.username === username);
+            if (staff && staff.password === input && staff.status === 'Hoạt động') {
+              if (btn) btn.textContent = "Đăng nhập thành công!";
+              try { sessionStorage.setItem('wt_session_member', username); localStorage.setItem('wt_activeMember', username); currentMember = username; } catch(e){}
+              if (typeof staffProfiles !== 'undefined') staffProfiles = profiles;
+              executeLoginSuccess();
+            } else {
+              alert('Tài khoản hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.');
+              if (btn) btn.textContent = "Đăng nhập";
+            }
+          }).catch(err => {
+            console.error("Firebase staff check failed:", err);
+            // Fallback to local
+            const staff = typeof staffProfiles !== 'undefined' ? staffProfiles.find(s => s.username === username) : null;
+            if (staff && staff.password === input && staff.status === 'Hoạt động') {
+              if (btn) btn.textContent = "Đăng nhập thành công!";
+              try { sessionStorage.setItem('wt_session_member', username); localStorage.setItem('wt_activeMember', username); currentMember = username; } catch(e){}
+              executeLoginSuccess();
+            } else {
+              alert('Lỗi mạng hoặc tài khoản không đúng.');
+              if (btn) btn.textContent = "Đăng nhập";
+            }
+          });
         }
       },
       togglePwVis() {
@@ -1634,7 +1650,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260810_v10"></script>
+  <script src="script_v5.js?v=20260810_v11"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">

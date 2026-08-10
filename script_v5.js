@@ -1234,7 +1234,8 @@ function saveAppData(){
       }
     } catch(e) { /* guard khong duoc lam vo luong chinh */ }
 
-    return window._fbDb.ref('appData').set(fbPayload(ts)).then(()=>{
+    const dbPath = currentMember === 'admin' ? 'appData' : `appData_${currentMember}`;
+    return window._fbDb.ref(dbPath).set(fbPayload(ts)).then(()=>{
       console.log('Firebase push OK');
       if(ind){
         ind.textContent = '☁ Đã đồng bộ';
@@ -1331,7 +1332,8 @@ function initFirebaseListener(){
   // Đồng bộ trạng thái check index từ nhánh riêng contentIndex (tách khỏi appData)
   wstInitContentIndexSync();
 
-  window._fbDb.ref('appData').on('value', (snapshot)=>{
+  const dbPath = currentMember === 'admin' ? 'appData' : `appData_${currentMember}`;
+  window._fbDb.ref(dbPath).on('value', (snapshot)=>{
     const r = snapshot.val();
     if(!r) return;
     // mốc so sánh cho CHỐT AN TOÀN ở hàm ghi
@@ -14427,7 +14429,8 @@ async function restoreBackupVersion(source, timestamp) {
     // 4. Đồng bộ đè lên nhánh chính Firebase /appData
     if (window._fbReady && window._fbDb) {
       const cleanTs = Date.now();
-      await window._fbDb.ref("appData").set(fbPayload(cleanTs));
+      const dbPath = currentMember === 'admin' ? 'appData' : `appData_${currentMember}`;
+      await window._fbDb.ref(dbPath).set(fbPayload(cleanTs));
     }
     
     // 5. Đóng modal và render lại toàn bộ giao diện của tab hiện tại
