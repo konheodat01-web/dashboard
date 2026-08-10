@@ -1535,25 +1535,6 @@
       window.location.reload();
     }
 
-      // 2. Kích hoạt hiển thị lớp vỏ bọc hệ thống chính và đồng bộ dữ liệu
-      if (typeof onAdminLoginSuccess === 'function') {
-        onAdminLoginSuccess();
-      }
-      
-      // Kích hoạt nạp lại dữ liệu tươi từ Firebase
-      if (typeof initFirebaseListener === 'function') {
-        initFirebaseListener();
-      }
-
-      // Kích hoạt đồng bộ GSC tự động sau khi đăng nhập
-      setTimeout(() => {
-        if (typeof wstSyncGscRealtime === 'function') {
-          const token = sessionStorage.getItem('gsc_access_token');
-          wstSyncGscRealtime(token);
-        }
-      }, 1500); // Delay nhỏ chờ dữ liệu websites tải xong
-    }
-
     function updateAdminProfileHeader(name, photoURL) {
       // Dùng thông tin đã lưu trong session làm fallback khi name/photoURL bị null
       const savedName  = sessionStorage.getItem('admin_display_name');
@@ -1651,7 +1632,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260810_v12"></script>
+  <script src="script_v5.js?v=20260810_v13"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">
