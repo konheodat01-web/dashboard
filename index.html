@@ -1458,16 +1458,16 @@
       },
       logout() {
         try { 
+          // Wipe all wt_ keys from localStorage
+          Object.keys(localStorage).forEach(k => { if (k.startsWith('wt_')) localStorage.removeItem(k); });
           sessionStorage.removeItem('wt_session_admin'); 
           sessionStorage.removeItem('wt_session_member');
-          localStorage.removeItem('wt_activeMember');
           sessionStorage.removeItem('gsc_access_token');
           sessionStorage.removeItem('admin_display_name');
           sessionStorage.removeItem('admin_photo_url');
           firebase.auth().signOut().catch(()=>{});
         } catch(e) {}
-        const ls = document.getElementById('loginScreen');
-        if (ls) ls.style.display = 'flex';
+        window.location.reload();
       },
       loginWithGoogle() {
         const btn = document.querySelector('.login-google-btn');
@@ -1632,7 +1632,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260810_v13"></script>
+  <script src="script_v5.js?v=20260810_v14"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">

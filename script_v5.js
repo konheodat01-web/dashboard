@@ -5112,7 +5112,8 @@ renderTasksOverview = function(){
 
 function isAdminLoggedIn() {
   try {
-    return sessionStorage.getItem('wt_session_admin') === 'true';
+    const session = sessionStorage.getItem('wt_session_member');
+    return !!session; // Any logged-in user (admin or staff) is "logged in"
   } catch(e) {
     return false;
   }
@@ -5349,9 +5350,30 @@ let promptNextId = 1;
   try{
     const session = sessionStorage.getItem('wt_session_member');
     if(!session) return; // No session — login screen will handle, don't set member
-    const valid = ['admin','hai','hieu'];
-    currentMember = 'admin';
-  }catch(e){}
+    currentMember = session; // Restore actual logged-in user (admin or staff username)
+    
+    // Auto-login: hide login screen and show dashboard after DOM is ready
+    document.addEventListener('DOMContentLoaded', function(){
+      hideLoginScreen();
+      // Load staff profiles for permission checks (if staff user)
+      if (currentMember !== 'admin') {
+        firebase.database().ref('appData/staffProfiles').once('value').then(snap => {
+          const profiles = snap.val() || [];
+          if (Array.isArray(profiles)) staffProfiles = profiles;
+          // Re-render UI with correct permissions
+          if (typeof updateNavBadges === 'function') updateNavBadges();
+        }).catch(()=>{});
+      }
+      // Render dashboard
+      if (typeof switchWorkspace === 'function') {
+        switchWorkspace('job', document.querySelector('.sidebar-nav-item'));
+      }
+      if (typeof restorePosition === 'function') restorePosition();
+      if (typeof renderDashboard === 'function') renderDashboard();
+      if (typeof renderTasksOverview === 'function') renderTasksOverview();
+      // NOTE: initFirebaseListener is called by autoStartFirebase() — no need to call here
+    });
+  }catch(e){ console.error('restoreMember error:', e); }
 })();
 // ===== LINK QUAN TRỌNG =====
 let links = [
