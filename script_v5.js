@@ -75,6 +75,15 @@ let websites = [
 ];
 let wsNextId = 2;
 let editingWsId = null;
+let staffProfiles = [];
+
+function hasPermission(permKey) {
+  if (currentMember === 'admin') return true;
+  const staff = staffProfiles.find(s => s.username === currentMember);
+  if (!staff || staff.status !== 'Hoạt động') return false;
+  return !!staff.permissions[permKey];
+}
+
 const WS_STATUS_COLOR = {'Tốt':'#27ae60','Chờ cấp lại mật khẩu':'#e67e22','Lỗi web':'#e74c3c'};
 const WS_STATUS_ICON  = {'Tốt':'✅','Chờ cấp lại mật khẩu':'🔒','Lỗi web':'⚠️'};
 const LOAI_CONFIG_DEFAULT = {
@@ -1154,6 +1163,7 @@ function showPage(name) {
   });
   if (currentSubItem) currentSubItem.classList.add('active');
   if (name === 'dashboard' && typeof renderDashboard === 'function') renderDashboard();
+  if (name === 'staff' && typeof renderStaffList === 'function') renderStaffList();
   if (name === 'tasks' && typeof renderTasksOverview === 'function') renderTasksOverview();
   if (name === 'recurring' && typeof renderRecurringTasks === 'function') renderRecurringTasks();
   if (name === 'wstrack' && typeof renderWsTrack === 'function') renderWsTrack();
@@ -1257,6 +1267,7 @@ function fbPayload(ts){
     deletedTasks, links, linkCategories,
     websites, wsGroups,
     assignees, prompts, recurringTasks, khoId: khoIdList,
+    staffProfiles,
     recurDoneToday: getRecurDoneToday(),
     siteTracking,
     billings, wtCloudflyToken,
@@ -1285,6 +1296,7 @@ function saveToLocalStorage(){
     localStorage.setItem('wt_prompts',         JSON.stringify(prompts));
     localStorage.setItem('wt_recurring',       JSON.stringify(recurringTasks));
     localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
+    localStorage.setItem('wt_staffProfiles',   JSON.stringify(staffProfiles));
     localStorage.setItem('wt_passwords',       JSON.stringify((typeof getProfilePasswords === 'function') ? getProfilePasswords() : {}));
     localStorage.setItem('wt_settings', JSON.stringify(_settings));
     localStorage.setItem('wt_billings',        JSON.stringify(billings));
@@ -1409,6 +1421,10 @@ function initFirebaseListener(){
       if(r.wtCloudflyToken !== undefined){ wtCloudflyToken = r.wtCloudflyToken; localStorage.setItem('wt_cloudfly_token', wtCloudflyToken); }
       if(Array.isArray(r.billings)) { billings = r.billings; }
       else if(r.billings === null) { billings = []; }
+      
+      if(Array.isArray(r.staffProfiles)){ staffProfiles=r.staffProfiles; }
+      else if(r.staffProfiles===null) staffProfiles=[];
+
       initDefaultBillingsIfNeeded();
 
       if(r.teleTokenRank !== undefined) localStorage.setItem('tele_token_rank', r.teleTokenRank);
@@ -1536,6 +1552,7 @@ function loadAppData(){
         const ga=localStorage.getItem('wt_assignees'); if(ga) assignees=JSON.parse(ga);
     const pr=localStorage.getItem('wt_prompts'); if(pr){ prompts=JSON.parse(pr); promptNextId=Math.max(1,...prompts.map(p=>p.id||0))+1; }
     const strk=localStorage.getItem('wt_site_tracking'); if(strk){ try{ siteTracking=JSON.parse(strk); }catch(e){} }
+    const staff=localStorage.getItem('wt_staffProfiles'); if(staff){ try{ staffProfiles=JSON.parse(staff); }catch(e){} }
     const st=localStorage.getItem('wt_settings');
     if(st){
       try{
@@ -9811,6 +9828,19 @@ window.addEventListener('message', function(event) {
 function updateNavBadges() {
   const sidebar = document.querySelector('nav');
   if (!sidebar) return;
+  
+  // Áp dụng phân quyền UI (Staff Permissions)
+  const btnStaff = document.getElementById('btn-tab-staff');
+  if(btnStaff) btnStaff.style.display = (currentMember === 'admin') ? 'flex' : 'none';
+  const btnFinance = document.getElementById('btn-tab-finance');
+  if(btnFinance) btnFinance.style.display = hasPermission('finance') ? 'flex' : 'none';
+  const btnTools = document.getElementById('btn-tab-tools');
+  if(btnTools) btnTools.style.display = hasPermission('tools') ? 'flex' : 'none';
+  const btnSeoWriter = document.getElementById('btn-tab-seowriter');
+  if(btnSeoWriter) btnSeoWriter.style.display = hasPermission('seowriter') ? 'flex' : 'none';
+  
+  // (Tính năng 'viewWebsites' và 'editWebsites' sẽ được check ở mức nút bấm thao tác trong render)
+
   const badgeRecur = document.getElementById('navBadgeRecurring');
   if (badgeRecur) {
     let doneIds = new Set();
@@ -14800,3 +14830,136 @@ function wstBulkCancel301() {
     toast("⚠️ Không tìm thấy lệnh 301 nào đang chạy để hủy!", "#e74c3c", 3000);
   }
 }
+
+// =====================================================================
+// STAFF MANAGEMENT (Quản lý Nhân viên & Phân quyền)
+// =====================================================================
+function renderStaffList() {
+  const tbody = document.getElementById('staffTbody');
+  if (!tbody) return;
+  tbody.innerHTML = staffProfiles.map((s, idx) => {
+    const perms = [];
+    if(s.permissions.viewWebsites) perms.push('Truy cập web');
+    if(s.permissions.editWebsites) perms.push('Sửa web');
+    if(s.permissions.finance) perms.push('Tài chính');
+    if(s.permissions.tools) perms.push('Tools');
+    if(s.permissions.seowriter) perms.push('SEO');
+    const permStr = perms.join(', ') || 'Không có quyền';
+    const statusColor = s.status === 'Hoạt động' ? '#27ae60' : '#e74c3c';
+    return `
+      <tr>
+        <td style="font-weight:600">${s.username}</td>
+        <td>${s.fullName || '-'}</td>
+        <td><span style="color:${statusColor}">${s.status}</span></td>
+        <td style="font-size:12px;color:var(--text-muted)">${permStr}</td>
+        <td style="text-align:right">
+          <button class="btn btn-sm" onclick="editStaff(${idx})" style="background:#2c3e50;color:#fff;border:none">Sửa</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openStaffModal(idx = -1) {
+  const modal = document.getElementById('staffModal');
+  if (!modal) return;
+  const idxInput = document.getElementById('staff_edit_idx');
+  const userInp = document.getElementById('staff_username');
+  const passInp = document.getElementById('staff_password');
+  const nameInp = document.getElementById('staff_fullname');
+  const statusInp = document.getElementById('staff_status');
+  
+  const p_view = document.getElementById('perm_view_websites');
+  const p_edit = document.getElementById('perm_edit_websites');
+  const p_fin = document.getElementById('perm_finance');
+  const p_tools = document.getElementById('perm_tools');
+  const p_seo = document.getElementById('perm_seowriter');
+  
+  idxInput.value = idx;
+  if (idx >= 0 && staffProfiles[idx]) {
+    const s = staffProfiles[idx];
+    document.getElementById('staffModalTitle').innerHTML = '✎ Sửa nhân viên';
+    userInp.value = s.username;
+    userInp.disabled = true; // Không cho đổi username
+    passInp.value = s.password;
+    nameInp.value = s.fullName || '';
+    statusInp.value = s.status || 'Hoạt động';
+    p_view.checked = !!s.permissions.viewWebsites;
+    p_edit.checked = !!s.permissions.editWebsites;
+    p_fin.checked = !!s.permissions.finance;
+    p_tools.checked = !!s.permissions.tools;
+    p_seo.checked = !!s.permissions.seowriter;
+  } else {
+    document.getElementById('staffModalTitle').innerHTML = '➕ Thêm nhân viên';
+    userInp.value = '';
+    userInp.disabled = false;
+    passInp.value = '';
+    nameInp.value = '';
+    statusInp.value = 'Hoạt động';
+    p_view.checked = false;
+    p_edit.checked = false;
+    p_fin.checked = false;
+    p_tools.checked = false;
+    p_seo.checked = false;
+  }
+  modal.style.display = 'flex';
+}
+
+function closeStaffModal() {
+  document.getElementById('staffModal').style.display = 'none';
+}
+
+function editStaff(idx) {
+  openStaffModal(idx);
+}
+
+function saveStaffProfile() {
+  const idx = parseInt(document.getElementById('staff_edit_idx').value);
+  const username = document.getElementById('staff_username').value.trim();
+  const password = document.getElementById('staff_password').value.trim();
+  const fullName = document.getElementById('staff_fullname').value.trim();
+  const status = document.getElementById('staff_status').value;
+  
+  if (!username || !password) {
+    alert('Vui lòng nhập Tên đăng nhập và Mật khẩu');
+    return;
+  }
+  
+  const perms = {
+    viewWebsites: document.getElementById('perm_view_websites').checked,
+    editWebsites: document.getElementById('perm_edit_websites').checked,
+    finance: document.getElementById('perm_finance').checked,
+    tools: document.getElementById('perm_tools').checked,
+    seowriter: document.getElementById('perm_seowriter').checked
+  };
+  
+  if (idx >= 0 && staffProfiles[idx]) {
+    staffProfiles[idx].password = password;
+    staffProfiles[idx].fullName = fullName;
+    staffProfiles[idx].status = status;
+    staffProfiles[idx].permissions = perms;
+  } else {
+    if (staffProfiles.some(s => s.username === username)) {
+      alert('Tên đăng nhập đã tồn tại!');
+      return;
+    }
+    if (username.toLowerCase() === 'admin') {
+      alert('Tên đăng nhập không hợp lệ');
+      return;
+    }
+    staffProfiles.push({
+      id: 'staff_' + Date.now(),
+      username,
+      password,
+      fullName,
+      status,
+      permissions: perms
+    });
+  }
+  
+  saveAppData();
+  renderStaffList();
+  closeStaffModal();
+  if(typeof toast==='function') toast('Đã lưu thông tin nhân viên', '#27ae60');
+}
+

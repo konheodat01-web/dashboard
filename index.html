@@ -47,14 +47,20 @@
 
     <!-- Password Form -->
     <div id="loginStep2" class="login-form-wrap">
+      <div class="login-input-container" style="margin-bottom:12px;">
+        <input id="loginUsernameInput" type="text" placeholder="Tên đăng nhập (hoặc để trống nếu Admin)..."
+          autocomplete="username"
+          class="login-pw-input"
+          oninput="document.getElementById('loginPwErr').style.display='none'">
+      </div>
       <div class="login-input-container">
-        <input id="loginPwInput" type="password" placeholder="Mật khẩu Admin..."
+        <input id="loginPwInput" type="password" placeholder="Mật khẩu..."
           autocomplete="current-password"
           class="login-pw-input"
           oninput="document.getElementById('loginPwErr').style.display='none'">
         <button onclick="togglePwVis()" class="login-pw-toggle">👁</button>
       </div>
-      <div id="loginPwErr" class="login-pw-err">Mật khẩu không đúng. Thử lại.</div>
+      <div id="loginPwErr" class="login-pw-err">Tài khoản hoặc Mật khẩu không đúng. Thử lại.</div>
       <button class="login-submit-btn">Đăng nhập →</button>
       <div style="display: flex; align-items: center; margin: 15px 0 10px; color: rgba(255,255,255,0.3); font-size: 11px;">
         <hr style="flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.1); margin-right: 10px;">
@@ -253,6 +259,11 @@
     <a href="https://seo-writer-tool.nthieucloud.shop/" target="_blank" class="sidebar-nav-item" id="btn-tab-seowriter" style="text-decoration: none;">
       <i class="fa fa-pencil-square-o"></i> <span>SEO Writer Tool</span>
     </a>
+
+    <!-- Quản lý Nhân viên -->
+    <a href="#" class="sidebar-nav-item" id="btn-tab-staff" onclick="showPage('staff')" style="display:none;">
+      <i class="fa fa-users"></i> <span>Quản lý nhân viên</span>
+    </a>
   </div>
   
   <!-- Bottom actions: footer aligned -->
@@ -276,6 +287,87 @@
 </div>
 
 <!-- QUẢN LÝ HÓA ĐƠN -->
+<div id="page-staff" class="page is-hidden">
+  <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden;background:#0d1117;border-color:#30363d">
+    <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px;background:#161b22;border-bottom:1px solid #30363d">
+      <div class="panel-title" style="color:#c9d1d9">👥 Quản lý nhân viên</div>
+      <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+        <button onclick="openStaffModal()" class="btn btn-primary btn-sm">➕ Thêm nhân viên</button>
+      </div>
+    </div>
+    <div class="table-container" style="flex:1;overflow:auto">
+      <table class="table" style="min-width:700px">
+        <thead>
+          <tr>
+            <th style="width:150px">Tên đăng nhập</th>
+            <th style="width:200px">Tên hiển thị</th>
+            <th style="width:100px">Trạng thái</th>
+            <th>Quyền hạn</th>
+            <th style="width:100px;text-align:right">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="staffTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Thêm/Sửa Nhân viên -->
+<div id="staffModal" class="modal">
+  <div class="modal-content" style="max-width:500px">
+    <div class="modal-header">
+      <h3 id="staffModalTitle">➕ Thêm nhân viên</h3>
+      <button class="close-btn" onclick="closeStaffModal()">×</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+      <input type="hidden" id="staff_edit_idx" value="-1">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted)">Tên đăng nhập *</label>
+        <input type="text" id="staff_username" style="width:100%;margin-top:4px" placeholder="Ví dụ: hieu">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted)">Mật khẩu *</label>
+        <input type="text" id="staff_password" style="width:100%;margin-top:4px" placeholder="Mật khẩu đăng nhập">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted)">Tên hiển thị</label>
+        <input type="text" id="staff_fullname" style="width:100%;margin-top:4px" placeholder="Nguyễn Văn Hiếu">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted)">Trạng thái</label>
+        <select id="staff_status" style="width:100%;margin-top:4px">
+          <option value="Hoạt động">Hoạt động</option>
+          <option value="Khóa">Khóa</option>
+        </select>
+      </div>
+      <div style="border-top:1px solid var(--gray-border);padding-top:12px;margin-top:4px">
+        <label style="font-size:12px;font-weight:600;color:var(--text-muted)">Quyền truy cập</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_view_websites" class="staff-perm-chk"> Truy cập Websites (Theo dõi web)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_edit_websites" class="staff-perm-chk"> Thêm / Sửa / Xóa Website
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_finance" class="staff-perm-chk"> Quản lý Hóa đơn & Tài chính
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_tools" class="staff-perm-chk"> Kho Tool Nhỏ
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="perm_seowriter" class="staff-perm-chk"> SEO Writer Tool
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeStaffModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="saveStaffProfile()">Lưu nhân viên</button>
+    </div>
+  </div>
+</div>
+
 <div id="page-billing" class="page is-hidden">
   <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden;background:#0d1117;border-color:#30363d">
     <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px;background:#161b22;border-bottom:1px solid #30363d">
@@ -1290,6 +1382,8 @@
         } catch(e) {}
       },
       submitPassword() {
+        const inpUser = document.getElementById('loginUsernameInput');
+        const username = inpUser?.value.trim() || '';
         const inp = document.getElementById('loginPwInput');
         const input = inp?.value.trim() || '';
         if (!input) {
@@ -1299,30 +1393,43 @@
         const btn = document.querySelector('.login-submit-btn');
         if (btn) btn.textContent = "Đang xác thực...";
 
-        // Truy vấn trực tiếp mật khẩu thật từ Firebase DB gốc
-        firebase.database().ref('passwords/admin').once('value').then(snapshot => {
-          const correctPassword = snapshot.val();
-          if (input === correctPassword) {
+        if (!username || username.toLowerCase() === 'admin') {
+          firebase.database().ref('passwords/admin').once('value').then(snapshot => {
+            const correctPassword = snapshot.val();
+            if (input === correctPassword) {
+              if (btn) btn.textContent = "Đăng nhập thành công!";
+              try { sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
+              executeLoginSuccess();
+            } else {
+              alert('Sai mật khẩu Admin! Vui lòng kiểm tra lại.');
+              if (btn) btn.textContent = "Đăng nhập";
+            }
+          }).catch(err => {
+            console.error("[V54 Error] Lỗi kết nối Firebase:", err);
+            const localData = localStorage.getItem('wt_passwords');
+            if (localData) {
+              const storedPasswords = JSON.parse(localData);
+              if (storedPasswords && input === storedPasswords.admin) {
+                try { sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
+                executeLoginSuccess();
+                return;
+              }
+            }
+            alert('Lỗi kết nối cơ sở dữ liệu. Vui lòng thử lại sau.');
+            if (btn) btn.textContent = "Đăng nhập";
+          });
+        } else {
+          // Staff login
+          const staff = typeof staffProfiles !== 'undefined' ? staffProfiles.find(s => s.username === username) : null;
+          if (staff && staff.password === input && staff.status === 'Hoạt động') {
             if (btn) btn.textContent = "Đăng nhập thành công!";
+            try { sessionStorage.setItem('wt_session_member', username); localStorage.setItem('wt_activeMember', username); currentMember = username; } catch(e){}
             executeLoginSuccess();
           } else {
-            alert('Sai mật khẩu! Vui lòng kiểm tra lại.');
+            alert('Tài khoản hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.');
             if (btn) btn.textContent = "Đăng nhập";
           }
-        }).catch(err => {
-          console.error("[V54 Error] Lỗi kết nối Firebase:", err);
-          // Fallback phòng thủ nếu mất mạng hoặc lỗi kết nối Firebase: Quét qua Local Storage cũ
-          const localData = localStorage.getItem('wt_passwords');
-          if (localData) {
-            const storedPasswords = JSON.parse(localData);
-            if (storedPasswords && input === storedPasswords.admin) {
-              executeLoginSuccess();
-              return;
-            }
-          }
-          alert('Lỗi kết nối cơ sở dữ liệu. Vui lòng thử lại sau.');
-          if (btn) btn.textContent = "Đăng nhập";
-        });
+        }
       },
       togglePwVis() {
         const inp = document.getElementById('loginPwInput');
