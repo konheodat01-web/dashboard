@@ -1219,7 +1219,7 @@ function saveAppData(){
     // 1. Chặn ghi nếu Firebase chưa load xong lần đầu (trình duyệt mới / ẩn danh)
     if (!window._fbDataLoaded) {
       console.warn('[GUARD] Chặn ghi: Firebase chưa load xong lần đầu (_fbDataLoaded=false).');
-      return Promise.resolve();
+      return Promise.reject('GUARD_BLOCKED_NOT_LOADED');
     }
     // 2. Chặn ghi khi local rỗng bất thường so với server
     try {
@@ -1230,7 +1230,7 @@ function saveAppData(){
         console.error('[GUARD] CHAN GHI: local chi co', _guardLocal,
           'ban ghi nhung server dang co', window._fbLastServerCount, '- bo qua de tranh xoa du lieu.');
         if (typeof toast === 'function') toast('⛔ Đã chặn ghi dữ liệu rỗng lên Firebase (bảo vệ dữ liệu)', '#e74c3c');
-        return Promise.resolve();
+        return Promise.reject('GUARD_BLOCKED_EMPTY_LOCAL');
       }
     } catch(e) { /* guard khong duoc lam vo luong chinh */ }
 
