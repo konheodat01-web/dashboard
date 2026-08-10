@@ -303,7 +303,7 @@ function renderDashboard() {
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gray-border);padding-bottom:12px;margin-bottom:16px">
       <div>
         <h2 style="font-size:18px;font-weight:800;margin:0">Trung tâm Điều hành</h2>
-        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0 0">Chào mừng bạn quay lại, Admin</p>
+        <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0 0">Chào mừng bạn quay lại, ${currentMember === 'admin' ? 'Admin' : (staffProfiles.find(s=>s.username===currentMember)?.fullName || currentMember)}</p>
       </div>
       <button onclick="showPage('tasks')" class="btn btn-primary btn-sm">Xem tất cả công việc</button>
     </div>
@@ -9828,6 +9828,22 @@ window.addEventListener('message', function(event) {
 function updateNavBadges() {
   const sidebar = document.querySelector('nav');
   if (!sidebar) return;
+  
+  const adminNameEl = document.getElementById('admin-name');
+  const adminAvtEl = document.getElementById('admin-avatar');
+  if (adminNameEl && adminAvtEl) {
+    if (currentMember !== 'admin') {
+      const staff = staffProfiles.find(s => s.username === currentMember);
+      if (staff) {
+        const dName = staff.fullName || staff.username;
+        adminNameEl.textContent = dName;
+        adminAvtEl.textContent = dName.charAt(0).toUpperCase();
+      }
+    } else {
+      adminNameEl.textContent = sessionStorage.getItem('admin_display_name') || 'Admin Portal';
+      adminAvtEl.textContent = 'A';
+    }
+  }
   
   // Áp dụng phân quyền UI (Staff Permissions)
   const btnStaff = document.getElementById('btn-tab-staff');

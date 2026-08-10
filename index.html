@@ -1438,6 +1438,8 @@
       logout() {
         try { 
           sessionStorage.removeItem('wt_session_admin'); 
+          sessionStorage.removeItem('wt_session_member');
+          localStorage.removeItem('wt_activeMember');
           sessionStorage.removeItem('gsc_access_token');
           sessionStorage.removeItem('admin_display_name');
           sessionStorage.removeItem('admin_photo_url');
@@ -1480,6 +1482,7 @@
             
             if (isAllowed) {
               if (btn) btn.textContent = "Đăng nhập thành công!";
+              try { sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
               executeLoginSuccess();
             } else {
               alert(`Tài khoản Google (${email}) không có quyền Admin!`);
@@ -1490,6 +1493,7 @@
             console.error("Lỗi kiểm tra email admin:", err);
             const defaultAdmins = ["konheodat01@gmail.com", "admin@nthieucloud.shop"];
             if (defaultAdmins.includes(email)) {
+              try { sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
               executeLoginSuccess();
             } else {
               alert(`Tài khoản Google (${email}) không có quyền Admin!`);
@@ -1507,8 +1511,6 @@
 
     function executeLoginSuccess() {
       console.log("[V60] Đăng nhập thành công. Tiến hành bẻ khóa giao diện cưỡng bức và đồng bộ lại dữ liệu.");
-      sessionStorage.setItem('wt_session_admin', 'true');
-      localStorage.setItem('wt_activeMember', 'admin');
 
       // 1. Ẩn hoàn toàn màn hình đăng nhập Login
       const loginContainer = document.getElementById('loginScreen');
@@ -1632,7 +1634,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260810_v8"></script>
+  <script src="script_v5.js?v=20260810_v9"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">
