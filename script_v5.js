@@ -14863,6 +14863,7 @@ function renderStaffList() {
 function openStaffModal(idx = -1) {
   const modal = document.getElementById('staffModal');
   if (!modal) return;
+  modal.style.display = 'flex';
   const idxInput = document.getElementById('staff_edit_idx');
   const userInp = document.getElementById('staff_username');
   const passInp = document.getElementById('staff_password');

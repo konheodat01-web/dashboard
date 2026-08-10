@@ -87,7 +87,7 @@
       <div id="admin-avatar" style="background:#2c3e50;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;background-size:cover;background-position:center">A</div>
       <span id="admin-name" style="font-weight:600;font-size:13px;color:var(--white)">Admin Portal</span>
     </div>
-    <h1>&#128188; Quản lý công việc (Updated)</h1>
+    <h1>&#128188; Quản lý công việc</h1>
   </div>
   <div class="meta" id="currentDate"></div>
   <!-- UNIFIED SEARCH BOX -->
@@ -261,7 +261,7 @@
     </a>
 
     <!-- Quản lý Nhân viên -->
-    <a href="#" class="sidebar-nav-item" id="btn-tab-staff" onclick="showPage('staff')" style="display:none;">
+    <a href="#" class="sidebar-nav-item" id="btn-tab-staff" onclick="showPage('staff')" style="display:none; text-decoration:none;">
       <i class="fa fa-users"></i> <span>Quản lý nhân viên</span>
     </a>
   </div>
@@ -313,11 +313,11 @@
 </div>
 
 <!-- Modal: Thêm/Sửa Nhân viên -->
-<div id="staffModal" class="modal">
-  <div class="modal-content" style="max-width:500px">
+<div class="modal-overlay" id="staffModal" onclick="if(event.target===this)closeStaffModal()">
+  <div class="modal" style="max-width:500px" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h3 id="staffModalTitle">➕ Thêm nhân viên</h3>
-      <button class="close-btn" onclick="closeStaffModal()">×</button>
+      <button class="modal-close" onclick="closeStaffModal()">×</button>
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
       <input type="hidden" id="staff_edit_idx" value="-1">
@@ -362,7 +362,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeStaffModal()">Hủy</button>
+      <button class="btn btn-outline" onclick="closeStaffModal()">Hủy</button>
       <button class="btn btn-primary" onclick="saveStaffProfile()">Lưu nhân viên</button>
     </div>
   </div>
