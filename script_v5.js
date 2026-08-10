@@ -1318,6 +1318,11 @@ window._fbDataLoaded = false;
 function initFirebaseListener(){
   if(!window._fbReady || !window._fbDb) return;
 
+  // Detach previous listener to prevent stale writes when switching users
+  if (window._fbActiveListenerPath) {
+    window._fbDb.ref(window._fbActiveListenerPath).off('value');
+  }
+
   // Fetch settings immediately on connect (for login screen bg/avatars on fresh devices)
   window._fbDb.ref('appData/settings').once('value').then(snap=>{
     const s = snap.val();
@@ -1333,13 +1338,15 @@ function initFirebaseListener(){
   wstInitContentIndexSync();
 
   const dbPath = currentMember === 'admin' ? 'appData' : `appData_${currentMember}`;
+  window._fbActiveListenerPath = dbPath; // Track for cleanup
+  console.log('[Firebase] Listening on path:', dbPath, 'currentMember:', currentMember);
   window._fbDb.ref(dbPath).on('value', (snapshot)=>{
     const r = snapshot.val();
     if(!r) {
-      // Nếu db remote trống trơn (nhân viên mới đăng nhập), ta ghi đè dữ liệu rỗng hiện tại lên để khởi tạo
-      if (currentMember !== 'admin' && !window._fbDataLoaded) {
+      // Staff path is empty — just mark as loaded, do NOT push data
+      // (pushing here would write stale admin data from memory to staff path)
+      if (!window._fbDataLoaded) {
         window._fbDataLoaded = true;
-        saveAppData();
       }
       return;
     }
