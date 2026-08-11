@@ -11533,10 +11533,14 @@ async function wstInspectUrlGsc(gscPropertyUrl, homepageUrl) {
           return data.inspectionResult || null;
         }
       }
+      if (res.status === 401) {
+        if (typeof toast === 'function') toast('⚠️ Lỗi: Token Google Search Console đã hết hạn (401). Vui lòng kết nối lại GSC!', '#e74c3c', 5000);
+      }
       console.warn('[GSC Inspect] Failed for siteUrl:', gscPropertyUrl, 'status:', res.status);
     }
   } catch (err) {
     console.error('[GSC Inspect] Error:', err);
+    if (typeof toast === 'function') toast('⚠️ Lỗi kết nối API GSC Inspect!', '#e74c3c');
   }
   return null;
 }
@@ -13217,8 +13221,8 @@ async function wstCheckIndexStatus(wsId) {
           site.entries.push({
             id: 'wste'+Date.now(),
             date: tbDay,
-            rank: last ? last.rank : 'Out 100',
-            backlinks: last ? last.backlinks : null,
+            rank: (last && last.rank !== undefined) ? last.rank : 'Out 100',
+            backlinks: (last && last.backlinks !== undefined) ? last.backlinks : null,
             indexed: finalStatus,
             moBot: site.moBot || 'Mở',
             note: ''
@@ -13285,8 +13289,8 @@ async function wstCheckIndexStatusSerper(wsId) {
       site.entries.push({
         id: 'wste'+Date.now(),
         date: tbDay,
-        rank: last ? last.rank : 'Out 100',
-        backlinks: last ? last.backlinks : null,
+        rank: (last && last.rank !== undefined) ? last.rank : 'Out 100',
+        backlinks: (last && last.backlinks !== undefined) ? last.backlinks : null,
         indexed: finalStatus,
         moBot: site.moBot || 'Mở',
         note: ''
