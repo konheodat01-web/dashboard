@@ -1229,6 +1229,14 @@
             <input type="hidden" id="wf_owner" value="Công ty">
           </div>
           <input type="hidden" id="wf_group" value="">
+          <div class="form-group" style="position:relative;margin-bottom:12px;">
+            <label>Tags (Chủ đề)</label>
+            <div id="wf_tags_container" onclick="document.getElementById('wf_tag_input').focus()" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;border:1px solid #30363d;border-radius:6px;padding:6px;background:#0d1117;align-items:center;cursor:text;">
+              <input type="text" id="wf_tag_input" placeholder="Tìm hoặc tạo tag..." autocomplete="off" style="border:none;background:transparent;color:#c9d1d9;outline:none;flex:1;min-width:120px;padding:0;height:20px;font-size:12px;">
+            </div>
+            <div id="wf_tag_suggestions" style="display:none;position:absolute;z-index:100;background:#161b22;border:1px solid #30363d;border-radius:6px;max-height:150px;overflow-y:auto;width:100%;box-shadow:0 8px 16px rgba(0,0,0,0.5);top:100%;left:0;margin-top:4px;">
+            </div>
+          </div>
           <div class="form-group"><label>Ghi chú</label><textarea id="wf_note" rows="2" style="width:100%"></textarea></div>
           <div style="display:flex;gap:6px">
             <button class="btn btn-primary" onclick="saveWebsite()" style="flex:1">&#10003; Lưu</button>
@@ -1647,7 +1655,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260811_v35"></script>
+  <script src="script_v5.js?v=20260811_v36"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">

@@ -6251,6 +6251,10 @@ function openWebsiteForm(id=null){
   document.getElementById('wf_status').value=w?.status||'Tốt';
   document.getElementById('wf_difficulty').value=w?.difficulty||'';
   document.getElementById('wf_note').value=w?.note||'';
+  if (typeof _currentFormTags !== 'undefined') {
+    _currentFormTags = (w && Array.isArray(w.tags)) ? [...w.tags] : [];
+    if (typeof renderCurrentTags === 'function') renderCurrentTags();
+  }
   document.getElementById('wf_team').value=w?.team||'Team 01';
   // Apply team rules first (populates owner options correctly)
   onWfTeamChange();
@@ -6414,6 +6418,10 @@ function wf301SelectSource(wsId){
   document.getElementById('wf_status').value = src.status||'Tốt';
   document.getElementById('wf_difficulty').value = src.difficulty||'';
   document.getElementById('wf_note').value = src.note||'';
+  if (typeof _currentFormTags !== 'undefined') {
+    _currentFormTags = (src && Array.isArray(src.tags)) ? [...src.tags] : [];
+    if (typeof renderCurrentTags === 'function') renderCurrentTags();
+  }
   if(document.getElementById('wf_team')) document.getElementById('wf_team').value = src.team||'Team 01';
   onWfTeamChange();
   if(document.getElementById('wf_owner')) document.getElementById('wf_owner').value = src.owner||'Công ty';
@@ -6532,6 +6540,7 @@ function saveWebsite(){
     brand, url,
     admin, account, password, appwppass, status, difficulty,
     note: (document.getElementById('wf_note')?.value||'').trim(),
+    tags: (typeof _currentFormTags !== 'undefined') ? [..._currentFormTags] : [],
     team,
     owner: 'Công ty',
     group: '',
@@ -15276,3 +15285,97 @@ function saveStaffProfile() {
   if(typeof toast==='function') toast('Đã lưu thông tin nhân viên', '#27ae60');
 }
 
+// --- TAGS LOGIC ---
+function initTagsUI() {
+  const input = document.getElementById('wf_tag_input');
+  if(!input) return;
+  input.addEventListener('input', handleTagInput);
+  input.addEventListener('focus', handleTagInput);
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') {
+      e.preventDefault();
+      const val = input.value.trim();
+      if(val) {
+        addTag(val);
+      }
+    }
+  });
+  
+  document.addEventListener('click', (e) => {
+    const sugg = document.getElementById('wf_tag_suggestions');
+    const container = document.getElementById('wf_tags_container');
+    if(sugg && container && !container.contains(e.target) && !sugg.contains(e.target)) {
+      sugg.style.display = 'none';
+    }
+  });
+}
+
+function getAllAvailableTags() {
+  const tags = new Set();
+  websites.forEach(w => {
+    if(w.tags && Array.isArray(w.tags)) {
+      w.tags.forEach(t => tags.add(t));
+    }
+  });
+  return Array.from(tags);
+}
+
+function handleTagInput() {
+  const val = document.getElementById('wf_tag_input').value.trim().toLowerCase();
+  const sugg = document.getElementById('wf_tag_suggestions');
+  const available = getAllAvailableTags();
+  
+  let matches = available.filter(t => t.toLowerCase().includes(val) && !_currentFormTags.includes(t));
+  
+  let html = '';
+  matches.forEach(t => {
+    html += `<div class="tag-sugg-item" onclick="addTag('${t.replace(/'/g, "\\'")}')" onmouseover="this.style.background='#30363d'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:#c9d1d9;border-bottom:1px solid #30363d;transition:background 0.2s;">${t}</div>`;
+  });
+  
+  const rawVal = document.getElementById('wf_tag_input').value.trim();
+  if(rawVal && !available.find(t => t.toLowerCase() === rawVal.toLowerCase()) && !_currentFormTags.find(t => t.toLowerCase() === rawVal.toLowerCase())) {
+    html += `<div class="tag-sugg-item" onclick="addTag('${rawVal.replace(/'/g, "\\'")}')" onmouseover="this.style.background='#30363d'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:#58a6ff;transition:background 0.2s;">+ Tạo tag: <b>${rawVal}</b></div>`;
+  }
+  
+  if(html) {
+    sugg.innerHTML = html;
+    sugg.style.display = 'block';
+  } else {
+    sugg.style.display = 'none';
+  }
+}
+
+function addTag(tag) {
+  if(!_currentFormTags.includes(tag)) {
+    _currentFormTags.push(tag);
+    if (typeof renderCurrentTags === 'function') renderCurrentTags();
+  }
+  document.getElementById('wf_tag_input').value = '';
+  document.getElementById('wf_tag_input').focus();
+  document.getElementById('wf_tag_suggestions').style.display = 'none';
+}
+
+function removeTag(tag) {
+  _currentFormTags = _currentFormTags.filter(t => t !== tag);
+  if (typeof renderCurrentTags === 'function') renderCurrentTags();
+}
+
+function renderCurrentTags() {
+  const container = document.getElementById('wf_tags_container');
+  if(!container) return;
+  const inputEl = document.getElementById('wf_tag_input');
+  
+  // Xóa các tag cũ (chỉ giữ lại input)
+  Array.from(container.children).forEach(child => {
+    if(child.id !== 'wf_tag_input') container.removeChild(child);
+  });
+  
+  _currentFormTags.forEach(t => {
+    const pill = document.createElement('div');
+    pill.style.cssText = 'background:#1f6feb;color:#ffffff;padding:2px 8px;border-radius:12px;font-size:11px;display:flex;align-items:center;gap:6px;font-weight:500;';
+    pill.innerHTML = `<span>${t}</span><span style="cursor:pointer;font-weight:bold;font-size:14px;line-height:1;opacity:0.8;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'" onclick="removeTag('${t.replace(/'/g, "\\'")}')">&times;</span>`;
+    container.insertBefore(pill, inputEl);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initTagsUI);
