@@ -2937,7 +2937,13 @@ async function wstPollProcesses(){
   var cb = document.getElementById('procCircleBadge');
   if (cb){ if ((_swProc.running||0) > 0){ cb.style.display='inline-block'; cb.textContent=_swProc.running; } else cb.style.display='none'; }
   var bb = document.getElementById('procBellBadge');
-  if (bb){ if ((_swProc.unseen||0) > 0){ bb.style.display='inline-block'; bb.textContent=_swProc.unseen; } else bb.style.display='none'; }
+  
+  let gscReports = [];
+  try { gscReports = JSON.parse(localStorage.getItem('wst_gsc_reports')||'[]'); } catch(e){}
+  var gscUnseen = gscReports.filter(rep => !rep.seen).length;
+  var totalUnseen = (_swProc.unseen||0) + gscUnseen;
+  
+  if (bb){ if (totalUnseen > 0){ bb.style.display='inline-block'; bb.textContent=totalUnseen; } else bb.style.display='none'; }
   if (_procPopupMode) wstRenderProcPopup();
 }
 function wstToggleProcPopup(mode){
@@ -2948,6 +2954,11 @@ function wstToggleProcPopup(mode){
   pop.style.display = 'block';
   if (mode === 'bell'){   // xem chuông = đánh dấu đã xem -> xóa badge
     fetch('/api/sw-processes-seen', { method:'POST' }).then(function(){ setTimeout(wstPollProcesses, 300); }).catch(function(){});
+    // Mark GSC reports as seen
+    let gscReports = [];
+    try { gscReports = JSON.parse(localStorage.getItem('wst_gsc_reports')||'[]'); } catch(e){}
+    gscReports.forEach(r => r.seen = true);
+    localStorage.setItem('wst_gsc_reports', JSON.stringify(gscReports));
   }
 }
 function _wstEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -2963,7 +2974,7 @@ function wstRenderProcPopup(){
   var pop = document.getElementById('procPopup'); if (!pop || !_procPopupMode) return;
   var running = _procPopupMode === 'running';
   var list = (_swProc.processes||[]).filter(function(p){ return running ? p.status==='running' : p.status==='done'; });
-  var head = running ? ('🔄 Đang chạy ngầm (' + list.length + ')') : ('🔔 Tiến trình đã xong (' + list.length + ')');
+  var head = running ? ('🔄 Đang chạy ngầm (' + list.length + ')') : ('🔔 Tiến trình & Báo cáo');
   var rows = list.length ? list.map(function(p){
     var prog = (p.done||0) + '/' + (p.total||0) + ' bài';
     var site = _wstEsc(p.site || '');
@@ -2973,8 +2984,88 @@ function wstRenderProcPopup(){
       return '<div style="padding:9px 12px;border-top:1px solid #21262d">' + siteLine + '<div style="font-size:11px;color:#8b949e">⏳ ' + prog + ' · bắt đầu ' + (p.created_at||'').slice(5,16) + '</div>' + kwLine + '</div>';
     return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:#7c5cff">✅ ' + prog + ' xong · bấm mở Lịch sử thêm ảnh →</div>' + kwLine + '</div>';
   }).join('') : '<div style="padding:16px;text-align:center;color:#8b949e">Không có</div>';
+  
+  if (!running) {
+    let gscReports = [];
+    try { gscReports = JSON.parse(localStorage.getItem('wst_gsc_reports')||'[]'); } catch(e){}
+    if (gscReports.length > 0) {
+       var gscRows = gscReports.map(function(r, idx){
+         var time = new Date(r.date).toLocaleString('vi-VN');
+         var shortText = 'Đồng bộ GSC: ' + r.totalSuccess + '/' + r.totalScanned + ' web thành công';
+         return '<div onclick="wstShowGscReportDetails(' + idx + ')" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' +
+           '<div style="font-size:12px;color:#3fb950;font-weight:600">📊 ' + shortText + '</div>' +
+           '<div style="font-size:11px;color:#8b949e">' + time + ' · Bấm để xem chi tiết →</div>' +
+           '</div>';
+       }).join('');
+       rows = '<div style="padding:6px 12px;font-size:11px;color:#8b949e;background:#161b22">BÁO CÁO GSC</div>' + gscRows + 
+              '<div style="padding:6px 12px;font-size:11px;color:#8b949e;background:#161b22">TIẾN TRÌNH SEO WRITER</div>' + rows;
+    }
+  }
+  
   pop.innerHTML = '<div style="padding:10px 12px;font-weight:700;border-bottom:1px solid #30363d;display:flex;justify-content:space-between">'
     + '<span>' + head + '</span><span onclick="wstToggleProcPopup(&quot;' + _procPopupMode + '&quot;)" style="cursor:pointer;color:#8b949e">✕</span></div>' + rows;
+}
+
+function wstShowGscReportDetails(idx) {
+  let gscReports = [];
+  try { gscReports = JSON.parse(localStorage.getItem('wst_gsc_reports')||'[]'); } catch(e){}
+  const r = gscReports[idx];
+  if (!r) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+  overlay.onclick = e=>{ if(e.target===overlay) overlay.remove(); };
+  
+  let html = `<div style="background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:12px;padding:24px;width:600px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);font-size:13px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid var(--border-color);padding-bottom:10px">
+      <div style="font-weight:700;font-size:16px">📊 Báo cáo đồng bộ GSC</div>
+      <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted)">×</button>
+    </div>
+    
+    <div style="margin-bottom:15px;font-size:14px">
+      <b>Tổng quan:</b> Đã quét thành công <span style="color:#3fb950;font-weight:bold">${r.totalSuccess}/${r.totalScanned}</span> website.
+      <br><span style="font-size:11px;color:var(--text-muted)">Thời gian: ${new Date(r.date).toLocaleString('vi-VN')}</span>
+    </div>`;
+    
+    if (r.notOnGsc && r.notOnGsc.length > 0) {
+      html += `<div style="margin-bottom:15px">
+        <b style="color:#e67e22">1. Web có trên Tool nhưng KHÔNG CÓ trên GSC (${r.notOnGsc.length}):</b>
+        <ul style="margin-top:5px;padding-left:20px;color:var(--text-muted);max-height:100px;overflow-y:auto">
+          ${r.notOnGsc.map(w => `<li>${w.url || w.id}</li>`).join('')}
+        </ul>
+      </div>`;
+    }
+    
+    if (r.rateLimitAnalytics && r.rateLimitAnalytics.length > 0) {
+      html += `<div style="margin-bottom:15px">
+        <b style="color:#e74c3c">2. Lỗi Rate Limit (429) khi kéo Analytics (${r.rateLimitAnalytics.length}):</b>
+        <ul style="margin-top:5px;padding-left:20px;color:var(--text-muted);max-height:100px;overflow-y:auto">
+          ${r.rateLimitAnalytics.map(url => `<li>${url}</li>`).join('')}
+        </ul>
+      </div>`;
+    }
+
+    if (r.rateLimitInspect && r.rateLimitInspect.length > 0) {
+      html += `<div style="margin-bottom:15px">
+        <b style="color:#e74c3c">3. Lỗi Rate Limit (429) khi Inspect URL (${r.rateLimitInspect.length}):</b>
+        <ul style="margin-top:5px;padding-left:20px;color:var(--text-muted);max-height:100px;overflow-y:auto">
+          ${r.rateLimitInspect.map(url => `<li>${url}</li>`).join('')}
+        </ul>
+      </div>`;
+    }
+
+    if (r.onGscNotOnTool && r.onGscNotOnTool.length > 0) {
+      html += `<div style="margin-bottom:15px">
+        <b style="color:#3498db">4. Web có trên GSC nhưng CHƯA THÊM vào Tool (${r.onGscNotOnTool.length}):</b>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Bao gồm cả các http, https, url-prefix, domain properties...</div>
+        <ul style="margin-top:5px;padding-left:20px;color:var(--text-muted);max-height:150px;overflow-y:auto;background:rgba(0,0,0,0.2);padding:10px 10px 10px 30px;border-radius:6px">
+          ${r.onGscNotOnTool.map(url => `<li style="margin-bottom:3px">${url}</li>`).join('')}
+        </ul>
+      </div>`;
+    }
+    
+  html += `</div>`;
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
 }
 function wstOpenBatchHistory(){
   var pop = document.getElementById('procPopup'); if (pop) pop.style.display='none';
@@ -11013,6 +11104,27 @@ async function wstSyncGscRealtime(token, force = false) {
     let done = 0;
     const updates = {};
     let skipped = 0;
+    
+    let report = {
+      totalScanned: matched.length,
+      totalSuccess: 0,
+      notOnGsc: [],
+      rateLimitAnalytics: [],
+      rateLimitInspect: [],
+      onGscNotOnTool: []
+    };
+    
+    // Tìm các web trên tool nhưng không có trên GSC
+    allDomains.forEach(d => {
+      const isMatched = matched.some(m => m.siteId === d.id);
+      if (!isMatched) report.notOnGsc.push({ id: d.id, url: d.original });
+    });
+    
+    // Tìm các web trên GSC nhưng không tracking trên Tool
+    gscSites.forEach(g => {
+      const isTracked = allDomains.some(d => d.normalized === g.normalized || g.normalized.endsWith('.'+d.normalized) || d.normalized.endsWith('.'+g.normalized));
+      if (!isTracked) report.onGscNotOnTool.push(g.siteUrl);
+    });
 
     for (const item of matched) {
       wstSetGscBadge('syncing', `${done}/${matched.length}`);
@@ -11040,6 +11152,10 @@ async function wstSyncGscRealtime(token, force = false) {
           wstSetGscBadge('expired');
           return;
         }
+        
+        if (analyticsRes.status === 429) {
+          report.rateLimitAnalytics.push(item.siteUrl);
+        }
 
         if (analyticsRes.ok) {
           const analyticsData = await analyticsRes.json();
@@ -11064,12 +11180,15 @@ async function wstSyncGscRealtime(token, force = false) {
             if (wObj && wObj.url) {
               try {
                 // Chỉ gọi API Inspect đối với các website không có traffic/mới để kiểm tra chính xác lý do chưa index
-                await new Promise(r => setTimeout(r, 1200));
+                await new Promise(r => setTimeout(r, 1500));
                 const inspectResult = await wstInspectUrlGsc(item.siteUrl, wObj.url);
                 if (inspectResult) {
                   indexedStatus = wstGetFriendlyIndexReason(inspectResult);
                 }
               } catch (inspectErr) {
+                if (inspectErr && inspectErr.toString().includes('429')) {
+                  report.rateLimitInspect.push(wObj.url);
+                }
                 console.warn('[GSC Inspect Auto-Sync Failed]', wObj.url, inspectErr);
               }
             }
@@ -11081,6 +11200,8 @@ async function wstSyncGscRealtime(token, force = false) {
           const mainKw = siteObj ? (siteObj.mainKeyword || '') : '';
           if (mainKw) {
             try {
+              // Nghỉ nhỏ trước khi gọi request phụ
+              await new Promise(r => setTimeout(r, 800));
               const kwRes = await fetch(
                 `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(item.siteUrl)}/searchAnalytics/query`,
                 {
@@ -11108,6 +11229,9 @@ async function wstSyncGscRealtime(token, force = false) {
                   })
                 }
               );
+              if (kwRes.status === 429) {
+                // Rate limit for keyword sync, though usually same quota as overall analytics
+              }
               if (kwRes.ok) {
                 const kwData = await kwRes.json();
                 keywordHistory = (kwData.rows || []).map(r => ({
@@ -11129,13 +11253,24 @@ async function wstSyncGscRealtime(token, force = false) {
         skipped++;
       }
       done++;
-      // Delay nhỏ giữa mỗi request tránh rate limit
-      await new Promise(r => setTimeout(r, 150));
+      // TĂNG DELAY ĐỂ NÉ RATE LIMIT: 1500ms (1.5s) thay vì 150ms
+      await new Promise(r => setTimeout(r, 1500));
     }
 
     if (skipped > 0) {
       console.log(`[GSC Sync] ${Object.keys(updates).length} site thành công, ${skipped} site không có quyền truy cập trong tài khoản Google này (bỏ qua).`);
     }
+
+    // Lưu Báo cáo GSC
+    report.totalSuccess = Object.keys(updates).length;
+    report.date = new Date().toISOString();
+    report.seen = false;
+    let storedReports = [];
+    try { storedReports = JSON.parse(localStorage.getItem('wst_gsc_reports')||'[]'); } catch(e){}
+    storedReports.unshift(report);
+    if (storedReports.length > 30) storedReports = storedReports.slice(0, 30);
+    localStorage.setItem('wst_gsc_reports', JSON.stringify(storedReports));
+    wstPollProcesses(); // Kích hoạt chấm đỏ ngay lập tức
 
     // Bước 5: Cập nhật vào Firebase gsc_cache và bộ nhớ cục bộ
     if (Object.keys(updates).length > 0) {
