@@ -9562,7 +9562,16 @@ function submitSwitchPw(){
   closeSwitchPwModal();
   try{ sessionStorage.setItem('wt_session_member', target); }catch(e){}
   try{ localStorage.setItem('wt_activeMember', target); }catch(e){}
-  currentMember = target; updateNavBadges();
+  
+  // Xóa cache local để không bị rò rỉ hoặc ghi đè sai dữ liệu giữa các tài khoản
+  Object.keys(localStorage).forEach(k => { 
+    if (k.startsWith('wt_') && !['wt_activeMember', 'wt_settings', 'wt_session_admin'].includes(k)) {
+      localStorage.removeItem(k);
+    }
+  });
+  
+  // Tải lại trang để áp dụng môi trường mới
+  window.location.reload();
 }
 
 // ===== NGHIỆM THU =====
