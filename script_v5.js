@@ -3728,18 +3728,20 @@ function wstUrlHtml(w, fallbackColor) {
 
 function wstColorizeDomainText(text) {
   if (!text) return text;
-  let res = text;
+  let res = String(text);
   const sorted = websites
     .filter(w => w.url && w.difficulty && w.difficulty !== 'Chưa xác định')
     .sort((a,b) => (b.url||'').length - (a.url||'').length);
   sorted.forEach(w => {
-    let url = (w.url||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
+    let url = (w.url||'').replace(/^https?:\/\//i,'').replace(/^www\./i,'').replace(/\/$/,'');
     if (!url) return;
     const safeUrl = url.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-    const regex = new RegExp(`\\b${safeUrl}\\b`, 'gi');
+    // Không dùng \b vì các ký tự url thường kết thúc bằng non-word
+    const regex = new RegExp(`(${safeUrl})`, 'gi');
     const color = wstGetDiffColor(w.difficulty);
     if(color) {
-      res = res.replace(regex, match => `<span style="color:${color}">${match}</span>`);
+      // Dùng !important để ghi đè mọi CSS màu của thẻ cha
+      res = res.replace(regex, match => `<span style="color:${color} !important; font-weight:bold">${match}</span>`);
     }
   });
   return res;
