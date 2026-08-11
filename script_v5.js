@@ -3944,6 +3944,13 @@ function renderWsTrack(){
     return ''; // Mặc định
   }
 
+  function wstBrandHtml(w) {
+    if (!w || !w.brand) return '';
+    const color = wstGetDiffColor(w.difficulty);
+    if (color) return `<span style="color:${color}">${w.brand}</span>`;
+    return w.brand;
+  }
+
   tbody.innerHTML = list.map(w=>{
     const site = getWstSite(w.id);
     const entries = (site?.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
@@ -3975,11 +3982,10 @@ function renderWsTrack(){
           const dW = isSameAsSource ? w : latest301;
           const dColor = isSameAsSource ? 'var(--blue)' : '#6c5ce7';
           const sc = WS_STATUS_COLOR[dW.status]||'#999';
-          const diffColor = wstGetDiffColor(dW.difficulty) || 'var(--text-color)';
           return `<div style="display:flex;align-items:center;gap:6px">
             <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
             <div style="min-width:0">
-              <div style="font-weight:600;font-size:12px;color:${diffColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dW.brand}</div>
+              <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wstBrandHtml(dW)}</div>
               <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${dW.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
             </div>
@@ -3989,11 +3995,10 @@ function renderWsTrack(){
       <td style="padding:8px 6px;overflow:hidden">
         ${(()=>{
           const sc = WS_STATUS_COLOR[w.status]||'#999';
-          const diffColor = wstGetDiffColor(w.difficulty) || 'var(--text-color)';
           return `<div style="display:flex;align-items:center;gap:6px">
             <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
             <div style="min-width:0">
-              <div style="font-weight:600;font-size:12px;color:${diffColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.brand}</div>
+              <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wstBrandHtml(w)}</div>
               <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${w.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
             </div>
@@ -4223,7 +4228,7 @@ function wstOpenDetail(wsId){
   ov.onclick=e=>{if(e.target===ov)ov.remove()};
   ov.innerHTML=`<div style="background:#fff;border-radius:12px;padding:22px;width:620px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div><div style="font-weight:700;font-size:15px">📋 ${w.brand}</div><div style="font-size:11px;color:var(--blue)">${w.url||''}</div></div>
+      <div><div style="font-weight:700;font-size:15px">💼 ${wstBrandHtml(w)}</div><div style="font-size:11px;color:var(--blue)">${w.url||''}</div></div>
       <div style="display:flex;gap:6px">
         <button onclick="wstAddEntry(${wsId});document.getElementById('wstDetailOv').remove()" class="btn btn-primary btn-sm">+ Thêm dữ liệu</button>
         <button onclick="document.getElementById('wstDetailOv').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted)">×</button>
@@ -4277,7 +4282,7 @@ function renderWstContent(wsId){
 
   content.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-      <div style="font-weight:700;font-size:15px">📈 ${w.brand}</div>
+      <div style="font-weight:700;font-size:15px">📈 ${wstBrandHtml(w)}</div>
       <div style="font-size:11px;color:var(--blue)">${w.url||''}</div>
       <button onclick="openWstAddModal()" class="btn btn-primary btn-sm" style="margin-left:auto">+ Thêm dữ liệu</button>
     </div>
@@ -4328,7 +4333,7 @@ function openWstPickModal(){
     <div id="wstPickList" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
       ${available.length?available.map(w=>`
         <div onclick="wstAddTracking(${w.id})" style="padding:8px 12px;border:1px solid var(--gray-border);border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background=''">
-          <div style="flex:1"><div style="font-size:13px;font-weight:600">${w.brand}</div><div style="font-size:11px;color:var(--blue)">${w.url||''}</div></div>
+          <div style="flex:1"><div style="font-size:13px;font-weight:600">${wstBrandHtml(w)}</div><div style="font-size:11px;color:var(--blue)">${w.url||''}</div></div>
           <span style="font-size:11px;color:#27ae60;font-weight:600">+ Thêm</span>
         </div>`).join(''):'<div style="text-align:center;padding:20px;color:var(--text-muted)">Tất cả website đã được theo dõi</div>'}
     </div>
@@ -4368,7 +4373,7 @@ function wstPickFilter(q){
     const div = document.createElement('div');
     div.style.cssText='padding:8px 12px;border:1px solid '+(isTracked?'#a8deba':'#dee2e6')+';border-radius:8px;display:flex;align-items:center;gap:8px;background:'+(isTracked?'#f0faf4':'#fff');
     if(!isTracked){ div.style.cursor='pointer'; div.onmouseover=()=>div.style.background='#fdf2f2'; div.onmouseout=()=>div.style.background='#fff'; div.onclick=()=>wstAddTracking(w.id); }
-    div.innerHTML='<div style="flex:1"><div style="font-size:13px;font-weight:600">'+w.brand+(isParent?'<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:10px;margin-left:4px">web gốc của 301</span>':'')+'</div><div style="font-size:11px;color:#2980b9">'+(w.url||'')+'</div></div>'+(isTracked?'<span style="font-size:11px;color:#27ae60;font-weight:600">✓ Đã theo dõi</span>':'<span style="font-size:11px;color:#27ae60;font-weight:600">+ Thêm</span>');
+    div.innerHTML='<div style="flex:1"><div style="font-size:13px;font-weight:600">'+wstBrandHtml(w)+(isParent?'<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:10px;margin-left:4px">web gốc của 301</span>':'')+'</div><div style="font-size:11px;color:#2980b9">'+(w.url||'')+'</div></div>'+(isTracked?'<span style="font-size:11px;color:#27ae60;font-weight:600">✓ Đã theo dõi</span>':'<span style="font-size:11px;color:#27ae60;font-weight:600">+ Thêm</span>');
     return div;
   });
   el.innerHTML='';
@@ -4787,7 +4792,7 @@ function editRecurring(id){ openNewRecurringModal(id); }
 
 function saveRecurringModal(id){
   const name = (document.getElementById('rm_name').value||'').trim();
-  if(!name){ toast('Nhập tên task!','#e74c3c'); return; }
+  if(!name){toast('Nhập tên task!','#e74c3c'); return; }
   const obj = {
     id: id||recurNextId++,
     name,
@@ -6159,7 +6164,7 @@ function renderWebsites(){
       <div style="width:34px;height:34px;border-radius:8px;background:${WS_STATUS_COLOR[w.status]||'#999'}22;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${WS_STATUS_ICON[w.status]||'🌐'}</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          <span style="font-weight:600;font-size:13px">${w.brand}</span>
+          <span style="font-weight:600;font-size:13px">${wstBrandHtml(w)}</span>
           ${w.team==='Team 02'?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#666">M7</span>`:`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>`}
           ${w.group?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fff3cd;color:#856404">${w.group}</span>`:''}
           
@@ -6254,7 +6259,7 @@ function showW301s(wsId){
   overlay.onclick = e=>{ if(e.target===overlay) overlay.remove(); };
   overlay.innerHTML = `<div class="modal" style="background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:12px;padding:24px;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.5)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div style="font-weight:700;font-size:15px">🔀 Web 301 từ <span style="color:var(--red)">${w.brand}</span></div>
+      <div style="font-weight:700;font-size:15px">🔀 Web 301 từ <span style="color:var(--red)">${wstBrandHtml(w)}</span></div>
       <button onclick="document.getElementById('w301Overlay').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted)">×</button>
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Web gốc: <b>${w.url||''}</b></div>
@@ -6271,7 +6276,7 @@ function showW301s(wsId){
         <div style="padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;display:flex;align-items:center;gap:10px;background:var(--bg-tertiary, rgba(255,255,255,0.05))">
           <input type="checkbox" class="w301-checkbox" value="${x.id}" style="cursor:pointer;accent-color:var(--blue)">
           <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:13px">${x.brand}</div>
+            <div style="font-weight:600;font-size:13px">${wstBrandHtml(x)}</div>
             <div style="font-size:11px;color:var(--blue)">${x.url||''}</div>
           </div>
           <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${WS_STATUS_COLOR[x.status]||'#999'}18;color:${WS_STATUS_COLOR[x.status]||'#999'}">${x.status||''}</span>
@@ -6345,7 +6350,7 @@ function wf301Search(q){
   res.innerHTML = list.map(w=>`
     <div onclick="wf301SelectSource(${w.id}); document.getElementById('wf_source_results').style.display='none';" style="padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f0f0f0;display:flex;flex-direction:column;gap:2px"
       onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background=''">
-      <span style="font-weight:600">${w.brand}</span>
+      <span style="font-weight:600">${wstBrandHtml(w)}</span>
       <span style="color:var(--blue);font-size:11px">${w.url||''}</span>
     </div>`).join('');
 }
@@ -6641,7 +6646,7 @@ function showWebsiteInfo(w, found, url=''){
     const _vidcoOwner = (w.owner&&w.owner!=='Công ty'&&w.owner!=='Chung') ? w.owner : '';
     _copyMap['wi_vidco'] = _vidcoDomain+' | '+_vidcoAdminUrl+' | '+(w.account||'')+' | '+(w.password||'')+' | '+(w.group||'')+' | '+_vidcoOwner;
     const rows=[
-      ['Brand', w.brand],
+      ['Brand', wstBrandHtml(w)],
       ['URL', `<a href="${ensureHttps(w.url)}" target="_blank" style="color:var(--blue)">${w.url}</a>`],
       ['Quản trị', w.admin?`<a href="${getAdminUrlForWebsite(w)}" target="_blank" style="color:var(--blue)">${w.admin}</a>`:'—'],
       ['Tài khoản', w.account ? `<div style="display:flex;align-items:center;gap:6px">
@@ -6662,7 +6667,7 @@ function showWebsiteInfo(w, found, url=''){
     body.innerHTML=`
       <div style="padding:12px 16px;background:#f0faf4;border-bottom:1px solid #b7e4c7;display:flex;align-items:center;gap:8px">
         <span style="font-size:20px">✅</span>
-        <span style="font-weight:600;color:#27ae60">Đã nhận diện: ${w.brand}</span>
+        <span style="font-weight:600;color:#27ae60">Đã nhận diện: ${wstBrandHtml(w)}</span>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         ${rows.map(([k,v])=>`
@@ -10705,7 +10710,7 @@ function wsImportPreview(){
   
   el.style.display = 'block';
   el.innerHTML = '<div style="font-weight:600;margin-bottom:6px;color:#f0f6fc">Đang tải cấu trúc dữ liệu (' + items.length + ' website):</div>'
-    + items.map(w=>`<div style="padding:4px 0;border-bottom:1px solid #30363d;display:flex;justify-content:space-between"><span style="font-weight:500;color:#c9d1d9">${w.brand}</span><span style="color:var(--blue)">${w.url}</span></div>`).join('');
+    + items.map(w=>`<div style="padding:4px 0;border-bottom:1px solid #30363d;display:flex;justify-content:space-between"><span style="font-weight:500;color:#c9d1d9">${wstBrandHtml(w)}</span><span style="color:var(--blue)">${w.url}</span></div>`).join('');
 }
 
 // Bổ sung sự kiện cập nhật preview khi gõ text
@@ -12159,7 +12164,7 @@ function wstOpenDashboard(wsId) {
     <div class="mh" id="wst-h">
       <div class="mh-icon">🌐</div>
       <div class="mh-info">
-        <div class="mh-name">${w.brand}</div>
+        <div class="mh-name">${wstBrandHtml(w)}</div>
         <div class="mh-url">${w.url || '—'} · Nhóm: ${w.group || 'Chưa phân nhóm'} · Trạng thái: ${w.status || '—'}</div>
         <div class="mh-tags">
           <span class="tag tg">✅ ${w.status || 'Tốt'}</span>
@@ -13076,7 +13081,7 @@ function wstOpenHistoryModal(wsId) {
   overlay.innerHTML = `
     <div style="background:#161b22;width:550px;max-height:85%;border:1px solid #30363d;border-radius:12px;padding:20px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
       <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #30363d;padding-bottom:12px;margin-bottom:16px">
-        <h3 style="margin:0;color:#c9d1d9;font-size:16px;display:flex;align-items:center;gap:8px">🕒 Lịch sử thay đổi dữ liệu: ${w.brand}</h3>
+        <h3 style="margin:0;color:#c9d1d9;font-size:16px;display:flex;align-items:center;gap:8px">🕒 Lịch sử thay đổi dữ liệu: ${wstBrandHtml(w)}</h3>
         <button onclick="document.getElementById('wstHistoryOverlay').remove()" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:24px;line-height:20px;padding:0">&times;</button>
       </div>
       <div style="overflow-y:auto;flex:1;padding-right:8px" class="custom-scroll">
