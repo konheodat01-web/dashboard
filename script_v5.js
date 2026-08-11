@@ -6553,6 +6553,7 @@ function saveWebsite(){
   clearWebsiteForm();
   saveAppData();
   renderWebsites();
+  if (typeof renderWsTrack === 'function') renderWsTrack();
   autoFillAnchors();
   updateWsIcons();
   toast('✓ Đã lưu website: '+brand);
@@ -6564,6 +6565,7 @@ function deleteWebsite(){
   clearWebsiteForm();
   saveAppData();
   renderWebsites();
+  if (typeof renderWsTrack === 'function') renderWsTrack();
   updateWsIcons();
   toast('Đã xoá.');
 }
