@@ -3934,12 +3934,14 @@ function renderWsTrack(){
   }
 
   function wstGetDiffColor(diff) {
-    if (diff === 'Rất Khó') return '#ff4d4f';
-    if (diff === 'Khó') return '#fa8c16';
-    if (diff === 'Trung Bình') return '#faad14';
-    if (diff === 'Dễ') return '#52c41a';
-    if (diff === 'Rất Dễ') return '#13c2c2';
-    return ''; // Mặc định theo theme (sẽ để trống để dùng color mặc định hoặc màu xám nếu muốn)
+    if (!diff) return '';
+    diff = String(diff);
+    if (diff.includes('Kh') && diff.includes('R')) return '#ff4d4f'; // Rất Khó
+    if (diff.includes('Kh')) return '#fa8c16'; // Khó
+    if (diff.includes('Trung')) return '#faad14'; // Trung Bình
+    if (diff.includes('D') && diff.includes('R')) return '#13c2c2'; // Rất Dễ
+    if (diff.includes('D')) return '#52c41a'; // Dễ
+    return ''; // Mặc định
   }
 
   tbody.innerHTML = list.map(w=>{
@@ -6724,6 +6726,7 @@ function wstSync301Children(parentWs) {
       w.team = parentWs.team;
       w.status = parentWs.status;
       w.owner = parentWs.owner;
+      w.difficulty = parentWs.difficulty || '';
     }
   });
 }
