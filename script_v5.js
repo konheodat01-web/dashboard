@@ -3708,9 +3708,9 @@ function wstGetDiffColor(diff) {
   diff = String(diff).toLowerCase();
   if (diff.includes('kh') && diff.includes('r')) return '#ff4d4f'; // Rất Khó
   if (diff.includes('kh')) return '#fa8c16'; // Khó
-  if (diff.includes('trung')) return '#52c41a'; // Trung Bình
-  if (diff.includes('d') && diff.includes('r')) return '#9e9e9e'; // Rất Dễ
-  if (diff.includes('d')) return '#1890ff'; // Dễ
+  if (diff.includes('trung')) return '#1890ff'; // Trung Bình
+  if (diff.includes('d') && diff.includes('r')) return '#ffffff'; // Rất Dễ
+  if (diff.includes('d')) return '#52c41a'; // Dễ
   return '';
 }
 
@@ -6838,9 +6838,9 @@ function goEditWebsite(){
           <option value="" style="color:#fff" ${!w.difficulty?'selected':''}>Chưa xác định</option>
           <option value="Rất Khó" style="color:#ff4d4f" ${w.difficulty==='Rất Khó'?'selected':''}>Rất Khó</option>
           <option value="Khó" style="color:#fa8c16" ${w.difficulty==='Khó'?'selected':''}>Khó</option>
-          <option value="Trung Bình" style="color:#52c41a" ${w.difficulty==='Trung Bình'?'selected':''}>Trung Bình</option>
-          <option value="Dễ" style="color:#1890ff" ${w.difficulty==='Dễ'?'selected':''}>Dễ</option>
-          <option value="Rất Dễ" style="color:#9e9e9e" ${w.difficulty==='Rất Dễ'?'selected':''}>Rất Dễ</option>
+          <option value="Trung Bình" style="color:#1890ff" ${w.difficulty==='Trung Bình'?'selected':''}>Trung Bình</option>
+          <option value="Dễ" style="color:#52c41a" ${w.difficulty==='Dễ'?'selected':''}>Dễ</option>
+          <option value="Rất Dễ" style="color:#ffffff" ${w.difficulty==='Rất Dễ'?'selected':''}>Rất Dễ</option>
         </select>
       </div>
 
