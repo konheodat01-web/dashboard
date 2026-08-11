@@ -3705,12 +3705,12 @@ function wstHandleSort(colName) {
 
 function wstGetDiffColor(diff) {
   if (!diff) return '';
-  diff = String(diff);
-  if (diff.includes('Kh') && diff.includes('R')) return '#ff4d4f'; // Rất Khó
-  if (diff.includes('Kh')) return '#fa8c16'; // Khó
-  if (diff.includes('Trung')) return '#faad14'; // Trung Bình
-  if (diff.includes('D') && diff.includes('R')) return '#13c2c2'; // Rất Dễ
-  if (diff.includes('D')) return '#52c41a'; // Dễ
+  diff = String(diff).toLowerCase();
+  if (diff.includes('kh') && diff.includes('r')) return '#ff4d4f'; // Rất Khó
+  if (diff.includes('kh')) return '#fa8c16'; // Khó
+  if (diff.includes('trung')) return '#faad14'; // Trung Bình
+  if (diff.includes('d') && diff.includes('r')) return '#13c2c2'; // Rất Dễ
+  if (diff.includes('d')) return '#52c41a'; // Dễ
   return '';
 }
 
@@ -3732,18 +3732,36 @@ function wstColorizeDomainText(text) {
   const sorted = websites
     .filter(w => w.url && w.difficulty && w.difficulty !== 'Chưa xác định')
     .sort((a,b) => (b.url||'').length - (a.url||'').length);
+  
+  let colored = false;
   sorted.forEach(w => {
     let url = (w.url||'').replace(/^https?:\/\//i,'').replace(/^www\./i,'').replace(/\/$/,'');
     if (!url) return;
     const safeUrl = url.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-    // Không dùng \b vì các ký tự url thường kết thúc bằng non-word
     const regex = new RegExp(`(${safeUrl})`, 'gi');
     const color = wstGetDiffColor(w.difficulty);
-    if(color) {
-      // Dùng !important để ghi đè mọi CSS màu của thẻ cha
+    if(color && regex.test(res)) {
       res = res.replace(regex, match => `<span style="color:${color} !important; font-weight:bold">${match}</span>`);
+      colored = true;
     }
   });
+
+  if (!colored) {
+    const q = text.toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'').trim();
+    if (q.length >= 4) {
+      const ws = sorted.find(w => {
+        const wu = (w.url||'').toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'');
+        return wu === q || wu.includes(q) || q.includes(wu);
+      });
+      if (ws) {
+        const color = wstGetDiffColor(ws.difficulty);
+        if (color) {
+          res = `<span style="color:${color} !important; font-weight:bold">${text}</span>`;
+        }
+      }
+    }
+  }
+
   return res;
 }
 
