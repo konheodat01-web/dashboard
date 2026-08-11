@@ -6752,6 +6752,9 @@ function saveWebsiteFromPopup(){
   websites.unshift(obj);
   saveAppData();
   closeWebsiteInfo();
+  if (typeof renderWsTrack === 'function') renderWsTrack();
+  if (typeof renderTasksOverview === 'function') renderTasksOverview();
+  if (typeof renderIndexTasks === 'function') renderIndexTasks();
   // Re-render websites panel if visible
   if(document.getElementById('websitesPanel')?.style.display!=='none') renderWebsites();
   toast('✓ Đã thêm '+brand+' vào danh sách!');
@@ -6882,6 +6885,9 @@ function saveWebsiteFromModal(id){
   saveAppData();
   closeWebsiteInfo();
   if(document.getElementById('websitesPanel')?.style.display!=='none') renderWebsites();
+  if (typeof renderWsTrack === 'function') renderWsTrack();
+  if (typeof renderTasksOverview === 'function') renderTasksOverview();
+  if (typeof renderIndexTasks === 'function') renderIndexTasks();
   toast('✓ Đã cập nhật!');
 }
 
