@@ -4061,7 +4061,10 @@ function renderWsTrack(){
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wstBrandHtml(dW)}</div>
               <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${wstUrlHtml(dW)}</div>
-              <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px">
+                <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
+                ${(dW.tags||[]).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:#58a6ff;border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
+              </div>
             </div>
           </div>`;
         })()}
@@ -4074,7 +4077,10 @@ function renderWsTrack(){
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wstBrandHtml(w)}</div>
               <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${wstUrlHtml(w)}</div>
-              <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px">
+                <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
+                ${(w.tags||[]).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:#58a6ff;border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
+              </div>
             </div>
           </div>`;
         })()}
