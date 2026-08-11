@@ -3933,6 +3933,21 @@ function renderWsTrack(){
     </tr>`;
   }
 
+  function wstRenderStatusIconHtml(status, diff) {
+    let color = '#8b949e'; // Xám mặc định
+    if (diff === 'Rất Khó') color = '#ff4d4f';
+    else if (diff === 'Khó') color = '#fa8c16';
+    else if (diff === 'Trung Bình') color = '#faad14';
+    else if (diff === 'Dễ') color = '#52c41a';
+    else if (diff === 'Rất Dễ') color = '#13c2c2';
+
+    let iconClass = 'fa fa-check-square';
+    if (status === 'Chờ cấp lại mật khẩu') iconClass = 'fa fa-exclamation-triangle';
+    if (status === 'Lỗi web') iconClass = 'fa fa-minus-square';
+    
+    return `<i class="${iconClass}" style="color:${color};font-size:16px;"></i>`;
+  }
+
   tbody.innerHTML = list.map(w=>{
     const site = getWstSite(w.id);
     const entries = (site?.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
@@ -3965,7 +3980,7 @@ function renderWsTrack(){
           const dColor = isSameAsSource ? 'var(--blue)' : '#6c5ce7';
           const sc = WS_STATUS_COLOR[dW.status]||'#999';
           return `<div style="display:flex;align-items:center;gap:6px">
-            <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
+            <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${wstRenderStatusIconHtml(dW.status, dW.difficulty)}</button>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dW.brand}</div>
               <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${dW.url||''}</div>
@@ -3978,7 +3993,7 @@ function renderWsTrack(){
         ${(()=>{
           const sc = WS_STATUS_COLOR[w.status]||'#999';
           return `<div style="display:flex;align-items:center;gap:6px">
-            <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
+            <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${wstRenderStatusIconHtml(w.status, w.difficulty)}</button>
             <div style="min-width:0">
               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.brand}</div>
               <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${w.url||''}</div>
