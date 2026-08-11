@@ -6203,6 +6203,7 @@ function openWebsiteForm(id=null){
   document.getElementById('wf_password').value=w?.password||'';
   document.getElementById('wf_appwppass').value=w?.appwppass||'';
   document.getElementById('wf_status').value=w?.status||'Tốt';
+  document.getElementById('wf_difficulty').value=w?.difficulty||'';
   document.getElementById('wf_note').value=w?.note||'';
   document.getElementById('wf_team').value=w?.team||'Team 01';
   // Apply team rules first (populates owner options correctly)
@@ -6365,6 +6366,7 @@ function wf301SelectSource(wsId){
   document.getElementById('wf_account').value = src.account||'';
   document.getElementById('wf_password').value = src.password||'';
   document.getElementById('wf_status').value = src.status||'Tốt';
+  document.getElementById('wf_difficulty').value = src.difficulty||'';
   document.getElementById('wf_note').value = src.note||'';
   if(document.getElementById('wf_team')) document.getElementById('wf_team').value = src.team||'Team 01';
   onWfTeamChange();
@@ -6402,6 +6404,7 @@ function clearWebsiteForm(){
   editingWsId=null;
   ['wf_brand','wf_url','wf_admin','wf_account','wf_password','wf_appwppass','wf_note'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('wf_status').value='Tốt';
+  document.getElementById('wf_difficulty').value='';
   document.getElementById('wf_delete_btn').style.display='none';
   document.getElementById('wfTitle').textContent='+ Thêm website';
   const _301=document.getElementById('wf_is301'); if(_301){_301.checked=false; document.getElementById('wf_301_fields').style.display='none'; document.getElementById('wf_source_url').value='';}
