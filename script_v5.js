@@ -6146,27 +6146,66 @@ function showW301s(wsId){
   if(!children.length){ toast('Chưa có website 301 nào từ '+w.brand,'#e67e22'); return; }
   const overlay = document.createElement('div');
   overlay.id = 'w301Overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
   overlay.onclick = e=>{ if(e.target===overlay) overlay.remove(); };
-  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+  overlay.innerHTML = `<div class="modal" style="background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:12px;padding:24px;width:480px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.5)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div style="font-weight:700;font-size:15px">🔀 Web 301 từ <span style="color:var(--red)">${w.brand}</span></div>
       <button onclick="document.getElementById('w301Overlay').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-muted)">×</button>
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Web gốc: <b>${w.url||''}</b></div>
-    <div style="display:flex;flex-direction:column;gap:6px">
+    
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:12px;color:var(--text-color)">
+      <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" onchange="document.querySelectorAll('.w301-checkbox').forEach(cb=>cb.checked=this.checked)"> Chọn tất cả
+      </label>
+      <button onclick="bulkDelete301s(${w.id})" class="btn btn-sm" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer">🗑 Xoá đã chọn</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow-y:auto;padding-right:4px">
       ${children.map(x=>`
-        <div style="padding:10px 12px;border:1px solid var(--gray-border);border-radius:8px;display:flex;align-items:center;gap:10px;background:#fff">
+        <div style="padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;display:flex;align-items:center;gap:10px;background:var(--bg-tertiary, rgba(255,255,255,0.05))">
+          <input type="checkbox" class="w301-checkbox" value="${x.id}" style="cursor:pointer;accent-color:var(--blue)">
           <div style="flex:1;min-width:0">
             <div style="font-weight:600;font-size:13px">${x.brand}</div>
             <div style="font-size:11px;color:var(--blue)">${x.url||''}</div>
           </div>
           <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${WS_STATUS_COLOR[x.status]||'#999'}18;color:${WS_STATUS_COLOR[x.status]||'#999'}">${x.status||''}</span>
-          <button onclick="document.getElementById('w301Overlay').remove();openWebsiteForm(${x.id})" class="btn btn-sm btn-outline" style="font-size:11px">✎</button>
+          <button onclick="document.getElementById('w301Overlay').remove();openWebsiteForm(${x.id})" class="btn btn-sm" style="font-size:11px;background:transparent;border:1px solid var(--border-color);color:var(--text-color);border-radius:4px">✎</button>
         </div>`).join('')}
     </div>
   </div>`;
   document.body.appendChild(overlay);
+}
+
+function bulkDelete301s(parentWsId) {
+  const checkboxes = document.querySelectorAll('.w301-checkbox:checked');
+  const idsToDelete = Array.from(checkboxes).map(cb => parseInt(cb.value));
+  
+  if (idsToDelete.length === 0) {
+    toast('Vui lòng chọn ít nhất 1 website 301 để xoá!', '#e74c3c');
+    return;
+  }
+  
+  if (!confirm(`Bạn có chắc muốn xoá ${idsToDelete.length} website 301 này? Dữ liệu sẽ bị xoá vĩnh viễn.`)) return;
+  
+  websites = websites.filter(w => !idsToDelete.includes(w.id));
+  saveAppData();
+  renderWebsites();
+  try { updateWsIcons(); } catch(e) {}
+  
+  document.getElementById('w301Overlay')?.remove();
+  
+  // Re-open if there are still 301s left
+  const w = websites.find(x=>x.id===parentWsId);
+  if(w) {
+    const childrenLeft = websites.filter(x=>x.is301&&x.sourceUrl&&(x.sourceUrl===w.url||(w.url&&x.sourceUrl.replace(/\/$/,'')===w.url.replace(/\/$/,''))));
+    if (childrenLeft.length > 0) {
+      showW301s(parentWsId);
+    }
+  }
+  
+  toast(`Đã xoá thành công ${idsToDelete.length} website 301!`);
 }
 
 function wfToggle301(){
