@@ -15219,16 +15219,48 @@ function renderStaffList() {
     if(s.permissions.finance) perms.push('Tài chính');
     if(s.permissions.tools) perms.push('Tools');
     if(s.permissions.seowriter) perms.push('SEO');
-    const permStr = perms.join(', ') || 'Không có quyền';
-    const statusColor = s.status === 'Hoạt động' ? '#27ae60' : '#e74c3c';
+    
+    const permColors = {
+      'Truy cập web': {bg: '#1f6feb20', color: '#58a6ff', border: '#1f6feb40'},
+      'Sửa web': {bg: '#d2992220', color: '#e3b341', border: '#d2992240'},
+      'Tài chính': {bg: '#8957e520', color: '#a371f7', border: '#8957e540'},
+      'Tools': {bg: '#23863620', color: '#3fb950', border: '#2ea04340'},
+      'SEO': {bg: '#bf398920', color: '#f778ba', border: '#bf398940'},
+    };
+    const permHtml = perms.length > 0 
+      ? perms.map(p => {
+          const c = permColors[p] || {bg: '#30363d', color: '#c9d1d9', border: '#30363d'};
+          return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:${c.bg};color:${c.color};border:1px solid ${c.border};font-size:11px;margin:2px 2px;white-space:nowrap">${p}</span>`;
+        }).join('')
+      : `<span style="font-size:12px;color:var(--text-muted);font-style:italic">Không có quyền</span>`;
+
+    const statusHtml = s.status === 'Hoạt động' 
+      ? `<span style="display:inline-block;padding:4px 10px;border-radius:12px;background:#23863620;color:#3fb950;border:1px solid #2ea04340;font-size:11px;font-weight:600">Hoạt động</span>` 
+      : `<span style="display:inline-block;padding:4px 10px;border-radius:12px;background:#da363320;color:#ff7b72;border:1px solid #da363340;font-size:11px;font-weight:600">Khóa</span>`;
+
+    const avatarLetter = (s.fullName || s.username || '?').charAt(0).toUpperCase();
+
     return `
-      <tr>
-        <td style="font-weight:600">${s.username}</td>
-        <td>${s.fullName || '-'}</td>
-        <td><span style="color:${statusColor}">${s.status}</span></td>
-        <td style="font-size:12px;color:var(--text-muted)">${permStr}</td>
-        <td style="text-align:right">
-          <button class="btn btn-sm" onclick="editStaff(${idx})" style="background:#2c3e50;color:#fff;border:none">Sửa</button>
+      <tr style="border-bottom:1px solid #30363d; transition:background 0.2s" onmouseover="this.style.background='#1c2128'" onmouseout="this.style.background=''">
+        <td style="padding:12px 10px;">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg, #7c5cff, #4a34b2);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:16px;flex-shrink:0">
+              ${avatarLetter}
+            </div>
+            <div style="font-weight:600;color:#c9d1d9;font-size:14px">${s.username}</div>
+          </div>
+        </td>
+        <td style="padding:12px 10px;color:#8b949e;font-size:13px">${s.fullName || '-'}</td>
+        <td style="padding:12px 10px;text-align:center">${statusHtml}</td>
+        <td style="padding:12px 10px;">
+          <div style="display:flex;flex-wrap:wrap;gap:4px">
+            ${permHtml}
+          </div>
+        </td>
+        <td style="padding:12px 10px;text-align:right">
+          <button class="btn btn-sm" onclick="editStaff(${idx})" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;transition:0.2s;padding:6px 12px" onmouseover="this.style.background='#30363d';this.style.color='#fff'" onmouseout="this.style.background='#21262d';this.style.color='#c9d1d9'" title="Chỉnh sửa">
+            ✏️ Sửa
+          </button>
         </td>
       </tr>
     `;
