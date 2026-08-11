@@ -3703,6 +3703,24 @@ function wstHandleSort(colName) {
   renderWsTrack();
 }
 
+function wstGetDiffColor(diff) {
+  if (!diff) return '';
+  diff = String(diff);
+  if (diff.includes('Kh') && diff.includes('R')) return '#ff4d4f'; // Rất Khó
+  if (diff.includes('Kh')) return '#fa8c16'; // Khó
+  if (diff.includes('Trung')) return '#faad14'; // Trung Bình
+  if (diff.includes('D') && diff.includes('R')) return '#13c2c2'; // Rất Dễ
+  if (diff.includes('D')) return '#52c41a'; // Dễ
+  return '';
+}
+
+function wstBrandHtml(w) {
+  if (!w || !w.brand) return '';
+  const color = wstGetDiffColor(w.difficulty);
+  if (color) return `<span style="color:${color}">${w.brand}</span>`;
+  return w.brand;
+}
+
 function renderWsTrack(){
   const tbody = document.getElementById('wstTbody');
   const thead = document.getElementById('wstThead');
@@ -3933,23 +3951,7 @@ function renderWsTrack(){
     </tr>`;
   }
 
-  function wstGetDiffColor(diff) {
-    if (!diff) return '';
-    diff = String(diff);
-    if (diff.includes('Kh') && diff.includes('R')) return '#ff4d4f'; // Rất Khó
-    if (diff.includes('Kh')) return '#fa8c16'; // Khó
-    if (diff.includes('Trung')) return '#faad14'; // Trung Bình
-    if (diff.includes('D') && diff.includes('R')) return '#13c2c2'; // Rất Dễ
-    if (diff.includes('D')) return '#52c41a'; // Dễ
-    return ''; // Mặc định
-  }
 
-  function wstBrandHtml(w) {
-    if (!w || !w.brand) return '';
-    const color = wstGetDiffColor(w.difficulty);
-    if (color) return `<span style="color:${color}">${w.brand}</span>`;
-    return w.brand;
-  }
 
   tbody.innerHTML = list.map(w=>{
     const site = getWstSite(w.id);
