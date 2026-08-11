@@ -6805,9 +6805,10 @@ function goEditWebsite(){
   const body=document.getElementById('websiteInfoBody');
   body.innerHTML=`
     <div style="padding:10px 16px;background:#f8f9fa;border-bottom:1px solid var(--gray-border);font-weight:600;font-size:13px">✎ Sửa: ${w.brand}</div>
-    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
-      <div class="form-group"><label>Tên brand *</label><input type="text" id="we_brand" value="${w.brand.replace(/"/g,'&quot;')}" style="width:100%"></div>
-      <div class="form-group"><label>URL *</label><input type="text" id="we_url" value="${(w.url||'').replace(/"/g,'&quot;')}" style="width:100%"></div>
+    <div style="padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:14px 10px;">
+      <style>#websiteInfoBody .form-group { margin:0; }</style>
+      <div class="form-group" style="grid-column:1/-1;"><label>Tên brand *</label><input type="text" id="we_brand" value="${w.brand.replace(/"/g,'&quot;')}" style="width:100%"></div>
+      <div class="form-group" style="grid-column:1/-1;"><label>URL *</label><input type="text" id="we_url" value="${(w.url||'').replace(/"/g,'&quot;')}" style="width:100%"></div>
       <div class="form-group"><label>Đuôi quản trị</label><input type="text" id="we_admin" value="${(w.admin||'').replace(/"/g,'&quot;')}" style="width:100%"></div>
       
       <div class="form-group">
@@ -6860,12 +6861,25 @@ function goEditWebsite(){
         </select>
       </div>
 
-      <div class="form-group"><label>Ghi chú</label><textarea id="we_note" rows="2" style="width:100%">${w.note||''}</textarea></div>
-      <div style="display:flex;gap:6px">
+      <div class="form-group" style="position:relative;">
+        <label>Tags (Chủ đề)</label>
+        <div id="we_tags_container" onclick="document.getElementById('we_tag_input').focus()" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;border:1px solid #30363d;border-radius:6px;padding:6px;background:#0d1117;align-items:center;cursor:text;">
+          <input type="text" id="we_tag_input" placeholder="Tìm hoặc tạo tag..." autocomplete="off" style="border:none;background:transparent;color:#c9d1d9;outline:none;flex:1;min-width:120px;padding:0;height:20px;font-size:12px;">
+        </div>
+        <div id="we_tag_suggestions" style="display:none;position:absolute;z-index:100;background:#161b22;border:1px solid #30363d;border-radius:6px;max-height:150px;overflow-y:auto;width:100%;box-shadow:0 8px 16px rgba(0,0,0,0.5);top:100%;left:0;margin-top:4px;">
+        </div>
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1;"><label>Ghi chú</label><textarea id="we_note" rows="2" style="width:100%">${w.note||''}</textarea></div>
+      <div style="grid-column:1/-1;display:flex;gap:6px;margin-top:8px;">
         <button class="btn btn-primary" onclick="saveWebsiteFromModal(${w.id})" style="flex:1">✓ Lưu</button>
         <button class="btn btn-danger btn-sm" onclick="deleteWebsiteFromModal(${w.id})">🗑</button>
       </div>
     </div>`;
+  
+  _weFormTags = (w && Array.isArray(w.tags)) ? [...w.tags] : [];
+  if (typeof initWeTagsUI === 'function') initWeTagsUI();
+  if (typeof renderWeTags === 'function') renderWeTags();
   document.getElementById('wiBtnEdit').style.display='none';
 }
 
@@ -6887,6 +6901,7 @@ function saveWebsiteFromModal(id){
       status:document.getElementById('we_status')?.value||'Tốt',
       difficulty:document.getElementById('we_difficulty')?.value||'',
       note:document.getElementById('we_note')?.value||'',
+      tags: (typeof _weFormTags !== 'undefined') ? [..._weFormTags] : [],
     };
     // Đồng bộ thông tin từ website gốc vừa được sửa sang các website con 301 liên kết với nó
     wstSync301Children(websites[idx]);
@@ -15383,3 +15398,88 @@ function renderCurrentTags() {
 }
 
 document.addEventListener('DOMContentLoaded', initTagsUI);
+
+// --- TAGS LOGIC FOR EDIT MODAL ---
+let _weFormTags = [];
+
+function initWeTagsUI() {
+  const input = document.getElementById('we_tag_input');
+  if(!input) return;
+  input.addEventListener('input', handleWeTagInput);
+  input.addEventListener('focus', handleWeTagInput);
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') {
+      e.preventDefault();
+      const val = input.value.trim();
+      if(val) {
+        addWeTag(val);
+      }
+    }
+  });
+  
+  document.addEventListener('click', (e) => {
+    const sugg = document.getElementById('we_tag_suggestions');
+    const container = document.getElementById('we_tags_container');
+    if(sugg && container && !container.contains(e.target) && !sugg.contains(e.target)) {
+      sugg.style.display = 'none';
+    }
+  });
+}
+
+function handleWeTagInput() {
+  const val = document.getElementById('we_tag_input').value.trim().toLowerCase();
+  const sugg = document.getElementById('we_tag_suggestions');
+  const available = getAllAvailableTags();
+  
+  let matches = available.filter(t => t.toLowerCase().includes(val) && !_weFormTags.includes(t));
+  
+  let html = '';
+  matches.forEach(t => {
+    html += `<div class="tag-sugg-item" onclick="addWeTag('${t.replace(/'/g, "\\'")}')" onmouseover="this.style.background='#30363d'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:#c9d1d9;border-bottom:1px solid #30363d;transition:background 0.2s;">${t}</div>`;
+  });
+  
+  const rawVal = document.getElementById('we_tag_input').value.trim();
+  if(rawVal && !available.find(t => t.toLowerCase() === rawVal.toLowerCase()) && !_weFormTags.find(t => t.toLowerCase() === rawVal.toLowerCase())) {
+    html += `<div class="tag-sugg-item" onclick="addWeTag('${rawVal.replace(/'/g, "\\'")}')" onmouseover="this.style.background='#30363d'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:#58a6ff;transition:background 0.2s;">+ Tạo tag: <b>${rawVal}</b></div>`;
+  }
+  
+  if(html) {
+    sugg.innerHTML = html;
+    sugg.style.display = 'block';
+  } else {
+    sugg.style.display = 'none';
+  }
+}
+
+function addWeTag(tag) {
+  if(!_weFormTags.includes(tag)) {
+    _weFormTags.push(tag);
+    if (typeof renderWeTags === 'function') renderWeTags();
+  }
+  document.getElementById('we_tag_input').value = '';
+  document.getElementById('we_tag_input').focus();
+  document.getElementById('we_tag_suggestions').style.display = 'none';
+}
+
+function removeWeTag(tag) {
+  _weFormTags = _weFormTags.filter(t => t !== tag);
+  if (typeof renderWeTags === 'function') renderWeTags();
+}
+
+function renderWeTags() {
+  const container = document.getElementById('we_tags_container');
+  if(!container) return;
+  const inputEl = document.getElementById('we_tag_input');
+  
+  Array.from(container.children).forEach(child => {
+    if(child.id !== 'we_tag_input') container.removeChild(child);
+  });
+  
+  _weFormTags.forEach(t => {
+    const pill = document.createElement('div');
+    pill.style.cssText = 'background:#1f6feb;color:#ffffff;padding:2px 8px;border-radius:12px;font-size:11px;display:flex;align-items:center;gap:6px;font-weight:500;';
+    pill.innerHTML = `<span>${t}</span><span style="cursor:pointer;font-weight:bold;font-size:14px;line-height:1;opacity:0.8;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'" onclick="removeWeTag('${t.replace(/'/g, "\\'")}')">&times;</span>`;
+    container.insertBefore(pill, inputEl);
+  });
+}
+// --- END TAGS LOGIC FOR EDIT MODAL ---
