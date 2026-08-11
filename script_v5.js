@@ -1860,10 +1860,10 @@ function renderTasksOverview(){
             ${getTaskStatusBadge(t)}
             ${t.person?`<span class="tag-person" style="font-size:10px">${getTaskOwnerLabel(t.person)}</span>`:''}
             ${t.team==='Team 02'?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#555">M7</span>':'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>'}
-            <span style="font-weight:600;font-size:13px${isDone?';text-decoration:line-through;color:var(--text-muted)':''}">${t.name}</span>
+            <span style="font-weight:600;font-size:13px${isDone?';text-decoration:line-through;color:var(--text-muted)':''}">${wstColorizeDomainText(t.name)}</span>
           </div>
           ${isPendingTask?`<div style="font-size:11px;color:#e67e22;margin-top:3px">⏸ Pending: ${(t.pendingReason||'').slice(0,80)}</div>`:''}
-          ${t.desc?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4">${t.desc.slice(0,100)}${t.desc.length>100?'…':''}</div>`:''}
+          ${t.desc?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4">${wstColorizeDomainText(t.desc.slice(0,100))}${t.desc.length>100?'…':''}</div>`:''}
         </div>
         <div class="task-row-meta">
           <span style="font-size:11px;color:var(--text-muted)" title="Nhận ${t.from?fmtDate(t.from):'?'}">📅 ${ageLabel}</span>
@@ -2028,9 +2028,9 @@ function renderSubBoard(task){
         <div style="display:flex;align-items:center;gap:6px">
           <div style="flex:1;min-width:0;overflow:hidden">
             <div style="font-size:13px;font-weight:500;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isLastCol?'text-decoration:line-through;color:var(--text-muted)':''}">
-              ${task.dang==='url' ? wsInlineIcon(card.name) : ''}<span class="kb-card-name" style="cursor:pointer" onclick="event.stopPropagation();openAddCardModal('${col.id}','${card.id}')" title="${(card.name||'').replace(/"/g,'&quot;')}">${card.name}</span>
+              ${task.dang==='url' ? wsInlineIcon(card.name) : ''}<span class="kb-card-name" style="cursor:pointer" onclick="event.stopPropagation();openAddCardModal('${col.id}','${card.id}')" title="${(card.name||'').replace(/"/g,'&quot;')}">${wstColorizeDomainText(card.name)}</span>
             </div>
-            ${card.desc?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer" onclick="event.stopPropagation();openAddCardModal('${col.id}','${card.id}')">${card.desc}</div>`:''}
+            ${card.desc?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer" onclick="event.stopPropagation();openAddCardModal('${col.id}','${card.id}')">${wstColorizeDomainText(card.desc)}</div>`:''}
             ${card.pendingReason?`<div class="kb-card-pending">\u2759\u2759 ${card.pendingReason}</div>`:''}
           </div>
           ${task.dang==='url'?`
@@ -3724,6 +3724,25 @@ function wstUrlHtml(w, fallbackColor) {
   const color = wstGetDiffColor(w.difficulty);
   if (color) return `<span style="color:${color}">${url}</span>`;
   return fallbackColor ? `<span style="color:${fallbackColor}">${url}</span>` : url;
+}
+
+function wstColorizeDomainText(text) {
+  if (!text) return text;
+  let res = text;
+  const sorted = websites
+    .filter(w => w.url && w.difficulty && w.difficulty !== 'Chưa xác định')
+    .sort((a,b) => (b.url||'').length - (a.url||'').length);
+  sorted.forEach(w => {
+    let url = (w.url||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
+    if (!url) return;
+    const safeUrl = url.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+    const regex = new RegExp(`\\b${safeUrl}\\b`, 'gi');
+    const color = wstGetDiffColor(w.difficulty);
+    if(color) {
+      res = res.replace(regex, match => `<span style="color:${color}">${match}</span>`);
+    }
+  });
+  return res;
 }
 
 function renderWsTrack(){
@@ -7703,7 +7722,7 @@ function renderIndexTasks(){
 
     return `<tr class="${isDone?'it-row-done':''}" style="${isDue&&!isDone?'background:#fffde7':isOverdue&&!isDone?'background:#fdf2f2':''}">
       <td style="white-space:nowrap">${renderItId(t.taskId)}${subBadge||''}</td>
-      <td style="font-size:13px;font-weight:500">${t.name||'<span style="color:var(--text-muted)">—</span>'}</td>
+      <td style="font-size:13px;font-weight:500">${wstColorizeDomainText(t.name)||'<span style="color:var(--text-muted)">—</span>'}</td>
       <td style="font-size:12px">${fmtDate(t.createdDate)||'—'}</td>
       <td style="font-size:12px;font-weight:600">${t.stt}</td>
       <td>${teamBadge}</td>
