@@ -3780,9 +3780,23 @@ function renderWsTrack(){
       wstUpdateAPIUsage();
   }
 
+  const tagSel = document.getElementById('wst_filter_tag');
+  if(tagSel) {
+    const curTag = tagSel.value;
+    const allTags = new Set();
+    const curTeam = document.getElementById('wst_filter_team')?.value || '';
+    websites.forEach(w => { if(!curTeam || w.team === curTeam) (w.tags || []).forEach(t => allTags.add(t)); });
+    const tagsArr = Array.from(allTags).sort();
+    tagSel.innerHTML = '<option value="">Tất cả tag</option>' + tagsArr.map(t => `<option value="${t.replace(/"/g, '&quot;')}">${t}</option>`).join('');
+    if (tagsArr.includes(curTag)) tagSel.value = curTag;
+  }
+
   const q=(document.getElementById('wst_search')?.value||'').toLowerCase();
   const fTeam = document.getElementById('wst_filter_team')?.value || '';
   const fStatus = document.getElementById('wst_filter_status')?.value || '';
+  const fDifficulty = document.getElementById('wst_filter_difficulty')?.value || '';
+  const fTag = document.getElementById('wst_filter_tag')?.value || '';
+  const sortDifficulty = document.getElementById('wst_sort_difficulty')?.value || '';
   const fRedirect301 = document.getElementById('wst_filter_redirect301')?.value || '';
   const fGsc = document.getElementById('wst_filter_gsc')?.value || '';
   const fClicks = document.getElementById('wst_filter_clicks')?.value || '';
@@ -3797,7 +3811,8 @@ function renderWsTrack(){
   let list = allTrackedWs.filter(w=>{
     if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
     if(fTeam && w.team !== fTeam) return false;
-
+    if(fDifficulty && w.difficulty !== fDifficulty) return false;
+    if(fTag && !(w.tags || []).includes(fTag)) return false;
 
     const site = getWstSite(w.id);
 
@@ -3979,6 +3994,19 @@ function renderWsTrack(){
         comp = String(valA).localeCompare(String(valB), 'vi', { sensitivity: 'base' });
       }
       return _wstSortDir === 'asc' ? comp : -comp;
+    });
+  }
+
+  if (sortDifficulty) {
+    list.sort((a, b) => {
+      const diffScores = { 'Rất Khó': 5, 'Khó': 4, 'Trung Bình': 3, 'Dễ': 2, 'Rất Dễ': 1 };
+      const scoreA = diffScores[a.difficulty] || 0;
+      const scoreB = diffScores[b.difficulty] || 0;
+      if (sortDifficulty === 'hard_to_easy') {
+        return scoreB - scoreA;
+      } else {
+        return scoreA - scoreB;
+      }
     });
   }
 

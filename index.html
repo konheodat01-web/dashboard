@@ -840,13 +840,27 @@
           <option value="Team 01">Chaewon</option>
           <option value="Team 02">M7</option>
         </select>
-        <span id="wstToolsSeo" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        <select id="wst_filter_index" onchange="renderWsTrack()" style="height:32px;font-size:12px">
-          <option value="">Tất cả index</option>
-          <option value="Đã index">✅ Đã index</option>
-          <option value="Một phần">⚠️ Một phần</option>
-          <option value="Chưa index">❌ Chưa index</option>
+        <!-- 1. Sắp xếp độ khó -->
+        <select id="wst_sort_difficulty" onchange="renderWsTrack()" style="height:32px;font-size:12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
+          <option value="">Sắp xếp mặc định</option>
+          <option value="hard_to_easy">Độ khó: Khó ➔ Dễ</option>
+          <option value="easy_to_hard">Độ khó: Dễ ➔ Khó</option>
         </select>
+        <!-- 2. Lọc độ khó -->
+        <select id="wst_filter_difficulty" onchange="renderWsTrack()" style="height:32px;font-size:12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
+          <option value="">Tất cả độ khó</option>
+          <option value="Rất Khó" style="color:#ff4d4f">Rất Khó</option>
+          <option value="Khó" style="color:#fa8c16">Khó</option>
+          <option value="Trung Bình" style="color:#1890ff">Trung Bình</option>
+          <option value="Dễ" style="color:#52c41a">Dễ</option>
+          <option value="Rất Dễ" style="color:#ffffff">Rất Dễ</option>
+        </select>
+        <!-- 4. Lọc tag -->
+        <select id="wst_filter_tag" onchange="renderWsTrack()" style="height:32px;font-size:12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:0 8px;outline:none;cursor:pointer;max-width:150px;">
+          <option value="">Tất cả tag</option>
+        </select>
+
+        <span id="wstToolsSeo" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
         <button onclick="openWstApiSettings()" class="btn btn-outline btn-sm">🔑 API Rank</button>
         <button onclick="wstBulkCheckRank()" class="btn btn-sm" style="background:#e67e22;color:#fff;border:none">Check Rank</button>
         <select id="wst_gsc_period" onchange="wstChangeGscPeriod(this.value)" style="height:32px;font-size:12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
@@ -875,6 +889,16 @@
           <option value="Lỗi">⚠️ Lỗi</option>
           <option value="Chết">❌ Chết</option>
           <option value="Bị phạt">⚠️ Bị phạt</option>
+        </select>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:11px; color:#8b949e;">Trạng thái Index:</span>
+        <select id="wst_filter_index" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+          <option value="">Tất cả index</option>
+          <option value="Đã index">✅ Đã index</option>
+          <option value="Một phần">⚠️ Một phần</option>
+          <option value="Chưa index">❌ Chưa index</option>
         </select>
       </div>
 
@@ -1655,7 +1679,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260811_v38"></script>
+  <script src="script_v5.js?v=20260811_v39"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">
