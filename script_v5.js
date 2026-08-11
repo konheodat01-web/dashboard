@@ -1234,7 +1234,7 @@ function saveAppData(){
       }
     } catch(e) { /* guard khong duoc lam vo luong chinh */ }
 
-    const dbPath = currentMember === 'admin' ? 'appData' : `appData_${currentMember}`;
+    const dbPath = 'appData';
     return window._fbDb.ref(dbPath).set(fbPayload(ts)).then(()=>{
       console.log('Firebase push OK');
       if(ind){
@@ -1337,7 +1337,7 @@ function initFirebaseListener(){
   // Đồng bộ trạng thái check index từ nhánh riêng contentIndex (tách khỏi appData)
   wstInitContentIndexSync();
 
-  const dbPath = currentMember === 'admin' ? 'appData' : `appData_${currentMember}`;
+  const dbPath = 'appData';
   window._fbActiveListenerPath = dbPath; // Track for cleanup
   console.log('[Firebase] Listening on path:', dbPath, 'currentMember:', currentMember);
   window._fbDb.ref(dbPath).on('value', (snapshot)=>{
@@ -14791,7 +14791,7 @@ async function restoreBackupVersion(source, timestamp) {
     // 4. Đồng bộ đè lên nhánh chính Firebase /appData
     if (window._fbReady && window._fbDb) {
       const cleanTs = Date.now();
-      const dbPath = currentMember === 'admin' ? 'appData' : `appData_${currentMember}`;
+      const dbPath = 'appData';
       await window._fbDb.ref(dbPath).set(fbPayload(cleanTs));
     }
     
