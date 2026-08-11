@@ -1234,7 +1234,7 @@ function saveAppData(){
       }
     } catch(e) { /* guard khong duoc lam vo luong chinh */ }
 
-    const dbPath = 'appData';
+    const dbPath = currentMember === 'admin' ? 'appData' : 'appData_staff';
     return window._fbDb.ref(dbPath).set(fbPayload(ts)).then(()=>{
       console.log('Firebase push OK');
       if(ind){
@@ -1337,7 +1337,7 @@ function initFirebaseListener(){
   // Đồng bộ trạng thái check index từ nhánh riêng contentIndex (tách khỏi appData)
   wstInitContentIndexSync();
 
-  const dbPath = 'appData';
+  const dbPath = currentMember === 'admin' ? 'appData' : 'appData_staff';
   window._fbActiveListenerPath = dbPath; // Track for cleanup
   console.log('[Firebase] Listening on path:', dbPath, 'currentMember:', currentMember);
   window._fbDb.ref(dbPath).on('value', (snapshot)=>{
@@ -9364,7 +9364,8 @@ function autoBackupDaily(){
 
 function restoreFromBackup(dateKey){
   if(!confirm('Khôi phục backup ngày '+dateKey+'?\nDữ liệu hiện tại sẽ bị ghi đè.')) return;
-  window._fbDb.ref('backups/'+dateKey).once('value', snap=>{
+  const bPath = currentMember === 'admin' ? 'backups' : 'backups_staff';
+  window._fbDb.ref(bPath+'/'+dateKey).once('value', snap=>{
     const s = snap.val();
     if(!s){ toast('Không tìm thấy backup '+dateKey,'#e74c3c'); return; }
     if(Array.isArray(s.hai))  data.hai  = s.hai;
@@ -9396,7 +9397,8 @@ function openBackupModal(){
     <div style="font-size:11px;color:var(--text-muted);margin-top:12px">✅ Backup lưu trên Firebase — dùng được mọi thiết bị</div>
   </div>`;
   document.body.appendChild(overlay);
-  window._fbDb.ref('backups').once('value', snap=>{
+  const bPath = currentMember === 'admin' ? 'backups' : 'backups_staff';
+  window._fbDb.ref(bPath).once('value', snap=>{
     const val = snap.val()||{};
     const dates = Object.keys(val).sort().reverse();
     const el = document.getElementById('backupList');
@@ -14566,7 +14568,7 @@ function dbGetBackups() {
 function cloudSaveBackup(payload) {
   if (!window._fbReady || !window._fbDb) return Promise.resolve();
   const ts = payload._ts || Date.now();
-  const bPath = currentMember === 'admin' ? 'backups' : `backups_${currentMember}`;
+  const bPath = currentMember === 'admin' ? 'backups' : 'backups_staff';
   
   // 1. Ghi bản sao lưu mới
   return window._fbDb.ref(`${bPath}/${ts}`).set(payload).then(() => {
@@ -14629,7 +14631,7 @@ async function openBackupModal() {
     // Lấy backups từ Cloud (Firebase)
     let cloudBackups = [];
     if (window._fbReady && window._fbDb) {
-      const bPath = currentMember === 'admin' ? 'backups' : `backups_${currentMember}`;
+      const bPath = currentMember === 'admin' ? 'backups' : 'backups_staff';
       const snap = await window._fbDb.ref(bPath).once("value");
       const val = snap.val();
       if (val && typeof val === "object") {
@@ -14756,7 +14758,7 @@ async function restoreBackupVersion(source, timestamp) {
     // Fallback sang Cloud nếu Local bị lỗi hoặc chỉ có Cloud
     if (!payload && (source === "Cloud" || source === "Local + Cloud")) {
       if (window._fbReady && window._fbDb) {
-        const bPath = currentMember === 'admin' ? 'backups' : `backups_${currentMember}`;
+        const bPath = currentMember === 'admin' ? 'backups' : 'backups_staff';
         const snap = await window._fbDb.ref(`${bPath}/${timestamp}`).once("value");
         payload = snap.val();
       }
@@ -14791,7 +14793,7 @@ async function restoreBackupVersion(source, timestamp) {
     // 4. Đồng bộ đè lên nhánh chính Firebase /appData
     if (window._fbReady && window._fbDb) {
       const cleanTs = Date.now();
-      const dbPath = 'appData';
+      const dbPath = currentMember === 'admin' ? 'appData' : 'appData_staff';
       await window._fbDb.ref(dbPath).set(fbPayload(cleanTs));
     }
     
