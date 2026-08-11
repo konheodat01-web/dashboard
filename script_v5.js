@@ -4063,7 +4063,7 @@ function renderWsTrack(){
               <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${wstUrlHtml(dW)}</div>
               <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px">
                 <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
-                ${(dW.tags||[]).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:#58a6ff;border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
+                ${(dW.tags?.length ? dW.tags : w.tags || []).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:#58a6ff;border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
               </div>
             </div>
           </div>`;
@@ -6829,6 +6829,7 @@ function wstSync301Children(parentWs) {
       w.status = parentWs.status;
       w.owner = parentWs.owner;
       w.difficulty = parentWs.difficulty || '';
+      w.tags = parentWs.tags ? [...parentWs.tags] : [];
     }
   });
 }
