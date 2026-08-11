@@ -3933,19 +3933,13 @@ function renderWsTrack(){
     </tr>`;
   }
 
-  function wstRenderStatusIconHtml(status, diff) {
-    let color = '#8b949e'; // Xám mặc định
-    if (diff === 'Rất Khó') color = '#ff4d4f';
-    else if (diff === 'Khó') color = '#fa8c16';
-    else if (diff === 'Trung Bình') color = '#faad14';
-    else if (diff === 'Dễ') color = '#52c41a';
-    else if (diff === 'Rất Dễ') color = '#13c2c2';
-
-    let iconClass = 'fa fa-check-square';
-    if (status === 'Chờ cấp lại mật khẩu') iconClass = 'fa fa-exclamation-triangle';
-    if (status === 'Lỗi web') iconClass = 'fa fa-minus-square';
-    
-    return `<i class="${iconClass}" style="color:${color};font-size:16px;"></i>`;
+  function wstGetDiffColor(diff) {
+    if (diff === 'Rất Khó') return '#ff4d4f';
+    if (diff === 'Khó') return '#fa8c16';
+    if (diff === 'Trung Bình') return '#faad14';
+    if (diff === 'Dễ') return '#52c41a';
+    if (diff === 'Rất Dễ') return '#13c2c2';
+    return ''; // Mặc định theo theme (sẽ để trống để dùng color mặc định hoặc màu xám nếu muốn)
   }
 
   tbody.innerHTML = list.map(w=>{
@@ -3979,10 +3973,11 @@ function renderWsTrack(){
           const dW = isSameAsSource ? w : latest301;
           const dColor = isSameAsSource ? 'var(--blue)' : '#6c5ce7';
           const sc = WS_STATUS_COLOR[dW.status]||'#999';
+          const diffColor = wstGetDiffColor(dW.difficulty) || 'var(--text-color)';
           return `<div style="display:flex;align-items:center;gap:6px">
-            <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${wstRenderStatusIconHtml(dW.status, dW.difficulty)}</button>
+            <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
             <div style="min-width:0">
-              <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dW.brand}</div>
+              <div style="font-weight:600;font-size:12px;color:${diffColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dW.brand}</div>
               <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${dW.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
             </div>
@@ -3992,10 +3987,11 @@ function renderWsTrack(){
       <td style="padding:8px 6px;overflow:hidden">
         ${(()=>{
           const sc = WS_STATUS_COLOR[w.status]||'#999';
+          const diffColor = wstGetDiffColor(w.difficulty) || 'var(--text-color)';
           return `<div style="display:flex;align-items:center;gap:6px">
-            <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${wstRenderStatusIconHtml(w.status, w.difficulty)}</button>
+            <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
             <div style="min-width:0">
-              <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.brand}</div>
+              <div style="font-weight:600;font-size:12px;color:${diffColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${w.brand}</div>
               <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${w.url||''}</div>
               <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
             </div>
