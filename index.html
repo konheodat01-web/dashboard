@@ -237,8 +237,7 @@
     <!-- Guideline Cây Sub-menu con -->
     <div id="workspace-submenu" class="sidebar-sub-container" style="display: block;">
       <button type="button" class="sidebar-sub-item active" onclick="showPage('dashboard')"><i class="fa fa-pie-chart"></i> Báo cáo</button>
-      <button type="button" class="sidebar-sub-item" onclick="showPage('recurring')"><i class="fa fa-clock-o"></i> <span style="flex:1; overflow:hidden; text-overflow:ellipsis; text-align:left">Task định kỳ</span> <span id="navBadgeRecurring" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;line-height:1.4"></span></button>
-      <button type="button" class="sidebar-sub-item" onclick="showPage('tasks')"><i class="fa fa-list-ul"></i> <span style="flex:1; overflow:hidden; text-overflow:ellipsis; text-align:left">Công việc khác</span> <span id="navBadgeTasks" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;line-height:1.4"></span></button>
+      <button type="button" class="sidebar-sub-item" onclick="showPage('tasks')"><i class="fa fa-list-ul"></i> <span style="flex:1; overflow:hidden; text-overflow:ellipsis; text-align:left">Công việc</span> <span id="navBadgeTasks" style="display:none;background:#e74c3c;color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;line-height:1.4"></span></button>
       <button type="button" class="sidebar-sub-item" onclick="showPage('prompts')"><i class="fa fa-code"></i> Prompt</button>
       <button type="button" class="sidebar-sub-item" onclick="showPage('links')"><i class="fa fa-link"></i> Link quan trọng</button>
       <button type="button" class="sidebar-sub-item" onclick="showPage('wstrack')"><i class="fa fa-desktop"></i> Theo dõi web</button>
@@ -448,33 +447,30 @@
   </div>
 </div>
 
-<!-- CÔNG VIỆC KHÁC -->
-<div id="page-recurring" class="page">
-  <div class="panel">
-    <div class="panel-header">
+<div id="page-tasks" class="page">
+  <!-- TAB BAR -->
+  <div style="display:flex;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-border);border-bottom:none;width:fit-content;margin-bottom:0;overflow:hidden">
+    <button class="gv-tab active" id="tab-mytasks" onclick="switchTasksTab('mytasks')">📋 Task khác</button>
+    <button class="gv-tab" id="tab-recurring" onclick="switchTasksTab('recurring')">🔁 Task định kỳ</button>
+  </div>
+
+  <!-- PANEL: TASK ĐỊNH KỲ -->
+  <div id="panel-recurring" style="display:none;border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;padding:0">
+    <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border);margin-bottom:0">
       <div class="panel-title">🔁 Task định kỳ</div>
       <div class="toolbar">
         <button class="btn btn-primary btn-sm" onclick="openNewRecurringModal()">+ Thêm task định kỳ</button>
       </div>
     </div>
     <div id="recurringList" style="padding:14px;display:flex;flex-direction:column;gap:10px"></div>
-    <div id="recurringEmpty" class="empty" style="display:none"><div class="icon">🔁</div>Chưa có task định kỳ nào.</div>
-  </div>
-</div>
-
-<div id="page-tasks" class="page">
-
-  <!-- TAB BAR -->
-  <div style="display:flex;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-border);border-bottom:none;width:fit-content;margin-bottom:0;overflow:hidden">
-    <button class="gv-tab active" id="tab-mytasks" onclick="switchTasksTab('mytasks')">📋 Task của tôi</button>
-    
+    <div id="recurringEmpty" class="empty" style="display:none"><div class="icon">💬</div>Chưa có task định kỳ nào.</div>
   </div>
 
-  <!-- PANEL: TASK CỦA TÔI -->
+  <!-- PANEL: TASK KHÁC -->
   <div id="panel-mytasks" style="border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;padding:0">
   <div id="tasksOverview">
     <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border);margin-bottom:0">
-      <div class="panel-title">&#128203; Công việc khác</div>
+      <div class="panel-title">&#128203; Task khác</div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
         <select id="tkFilterPerson" onchange="renderTasksOverview()" style="display:none"><option value="">Tất cả</option><option value="admin">Admin</option><option value="Khác">Khác</option></select>
         <select id="tkFilterDate" onchange="renderTasksOverview()" style="height:32px;font-size:12px">
@@ -1679,7 +1675,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260811_v43"></script>
+  <script src="script_v5.js?v=20260811_v44"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">

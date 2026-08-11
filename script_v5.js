@@ -8339,18 +8339,27 @@ let _gvTaskRef = null; // task being assigned
 
 function switchTasksTab(tab){
   try{ sessionStorage.setItem('wt_activeSubPage', tab); } catch(e){}
-  document.getElementById('panel-mytasks').style.display = tab==='mytasks' ? 'block' : 'none';
-  document.getElementById('panel-giaoviec').style.display = tab==='giaoviec' ? 'block' : 'none';
-  document.getElementById('tab-mytasks').classList.toggle('active', tab==='mytasks');
-  document.getElementById('tab-giaoviec').classList.toggle('active', tab==='giaoviec');
-  // Ẩn taskSubBoard khi chuyển sang giao việc
-  if(tab==='giaoviec'){
+  const panMyTasks = document.getElementById('panel-mytasks');
+  const panRecur = document.getElementById('panel-recurring');
+  if(panMyTasks) panMyTasks.style.display = tab==='mytasks' ? 'block' : 'none';
+  if(panRecur) panRecur.style.display = tab==='recurring' ? 'block' : 'none';
+  
+  const tabMyTasks = document.getElementById('tab-mytasks');
+  const tabRecur = document.getElementById('tab-recurring');
+  if(tabMyTasks) tabMyTasks.classList.toggle('active', tab==='mytasks');
+  if(tabRecur) tabRecur.classList.toggle('active', tab==='recurring');
+  
+  if (tab === 'mytasks') {
     const sub = document.getElementById('taskSubBoard');
-    if(sub) sub.style.display='none';
-    const ov = document.getElementById('tasksOverview');
-    if(ov) ov.style.display='block';
-    document.querySelector('main')?.classList.remove('board-mode');
-    renderGiaoViec();
+    if(sub && sub.style.display==='block') {
+      // Đang trong mode chi tiết, giữ nguyên
+    } else {
+      const ov = document.getElementById('tasksOverview');
+      if(ov) ov.style.display='block';
+      renderTasksOverview();
+    }
+  } else if (tab === 'recurring') {
+    renderRecurringTasks();
   }
 }
 
@@ -10164,28 +10173,26 @@ function updateNavBadges() {
   
   // (Tính năng 'viewWebsites' và 'editWebsites' sẽ được check ở mức nút bấm thao tác trong render)
 
-  const badgeRecur = document.getElementById('navBadgeRecurring');
-  if (badgeRecur) {
+  const badgeTasks = document.getElementById('navBadgeTasks');
+  if (badgeTasks) {
     let doneIds = new Set();
     try { doneIds = new Set(getRecurDoneToday().map(d => d.taskId)); } catch(e) {}
     const today = todayVN();
-    // Only count recurring tasks that are due or overdue today and not completed today
+    // Count recurring tasks that are due or overdue today and not completed today
     const activeRecurs = (recurringTasks || []).filter(t => {
       const isDue = t.nextDate && t.nextDate <= today;
       return isDue && !doneIds.has(t.id);
     }).length;
-    badgeRecur.textContent = activeRecurs || '';
-    badgeRecur.style.display = activeRecurs ? 'inline-block' : 'none';
-  }
-  const badgeTasks = document.getElementById('navBadgeTasks');
-  if (badgeTasks) {
-    // Only count active (unfinished) tasks
+
+    // Count active (unfinished) tasks
     const activeTasksCount = (tasks || []).filter(t => {
       const isDone = calcProjectProgress(t) >= 100 || calcTaskAutoStatus(t) === 'Hoàn thành';
       return !isDone;
     }).length;
-    badgeTasks.textContent = activeTasksCount || '';
-    badgeTasks.style.display = activeTasksCount ? 'inline-block' : 'none';
+    
+    const totalCount = activeRecurs + activeTasksCount;
+    badgeTasks.textContent = totalCount || '';
+    badgeTasks.style.display = totalCount ? 'inline-block' : 'none';
   }
   const badgeGv = document.getElementById('gvBadge');
   if (badgeGv) {
