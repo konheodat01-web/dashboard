@@ -1787,6 +1787,67 @@ function openTask(id){
   openProjectBoard(t.id);
 }
 
+function createTaskCardHTML(t, mode) {
+  const isRecur = mode === 'recurring';
+  const pct = calcProjectProgress(t);
+  const pcolor = pct>=100?'#27ae60':pct>=50?'#2980b9':'#e67e22';
+  const age = daysSince(t.from || todayVN());
+  const ageLabel = age===0?'Hôm nay':age===1?'Hôm qua':`${age} ngày trước`;
+  const cols = getProjectCols(t);
+  const lastCol = cols[cols.length-1];
+  const doneCards = (t.cards||[]).filter(c=>c.colId===lastCol.id||c.colId==='done').length;
+  const totalCards = (t.cards||[]).length;
+  const isDone = pct>=100 || calcTaskAutoStatus(t)==='Hoàn thành';
+  const isPendingTask = !!t.pendingReason;
+  const priClass = t.priority==='Cao'?'priority-cao':t.priority==='Thấp'?'priority-thap':'priority-binh';
+  const priBadge = t.priority==='Cao'
+    ? '<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#fdf2f2;color:#e74c3c;border:1px solid #f5c6c6;font-weight:600">🔴 Cao</span>'
+    : t.priority==='Thấp'
+    ? '<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#f0faf4;color:#27ae60;border:1px solid #a8deba;font-weight:600">🟢 Thấp</span>'
+    : '<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#fff4e5;color:#e67e22;border:1px solid #fce0b0;font-weight:600">🟠 Bình thường</span>';
+  
+  let recurBadge = '';
+  if (isRecur) {
+    const cycleNames = {daily:'Hàng ngày', weekly:'Hàng tuần', monthly:'Hàng tháng', custom:`Mỗi ${t.days} ngày`};
+    recurBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#eef0f4;color:#555;border:1px solid #ddd">🔁 ${cycleNames[t.type]||t.type}</span>`;
+  }
+  const typeValue = t.type_task || t.type;
+  
+  return `<div class="task-row ${isDone?'task-row-done':''} ${priClass}${isPendingTask?' task-row-pending':''}" style="display:flex;align-items:center;gap:0;${isPendingTask?'border-left:3px solid #e67e22 !important;':''}" data-tid="${t.id}" onclick="event.stopPropagation()">
+    <div style="padding:0 6px;flex-shrink:0" onclick="event.stopPropagation()">
+      <input type="checkbox" class="task-chk" data-tid="${t.id}" onchange="${isRecur ? `onRecurTaskCheck(${t.id},this)` : `onTaskCheck(${t.id},this)`}" style="width:16px;height:16px;cursor:pointer;accent-color:var(--red)" ${isDone ? 'checked' : ''}>
+    </div>
+    <div style="flex:1;min-width:0;cursor:pointer" onclick="event.stopPropagation();${isRecur ? `openRecurringTask(${t.id})` : `openTask(${t.id})`}">
+      <div class="task-row-main">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+          <span class="badge ${TASK_TYPE_COLORS[typeValue]||'badge-gray'}" style="font-size:10px">${typeValue}</span>
+          ${priBadge}
+          ${recurBadge}
+          ${getTaskStatusBadge(t)}
+          ${t.person?`<span class="tag-person" style="font-size:10px">${getTaskOwnerLabel(t.person)}</span>`:''}
+          ${t.team==='Team 02'?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#555">M7</span>':(t.team==='Team 01'?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>':'')}
+          <span style="font-weight:600;font-size:13px${isDone?';text-decoration:line-through;color:var(--text-muted)':''}">${wstColorizeDomainText(t.name)}</span>
+        </div>
+        ${isPendingTask?`<div style="font-size:11px;color:#e67e22;margin-top:3px">⏸ Pending: ${(t.pendingReason||'').slice(0,80)}</div>`:''}
+        ${t.desc?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4">${wstColorizeDomainText(t.desc.slice(0,100))}${t.desc.length>100?'…':''}</div>`:''}
+      </div>
+      <div class="task-row-meta">
+        <span style="font-size:11px;color:var(--text-muted)" title="Nhận ${t.from?fmtDate(t.from):'?'}">📅 ${ageLabel}</span>
+        ${!isRecur ? (t.deadline ? `<span style="font-size:11px">${daysLeft(t.deadline)||`<span style='color:var(--text-muted);font-size:11px'>DL: ${fmtDate(t.deadline)}</span>`}</span>` : '<span style="font-size:11px;color:var(--gray-border)">Không có deadline</span>') : `<span style="font-size:11px;color:var(--blue)">Làm mới: ${t.nextDate?fmtDate(t.nextDate):'-'}</span>`}
+        ${totalCards?`<span style="font-size:11px;color:var(--text-muted)">${doneCards}/${totalCards} thẻ</span>`:''}
+        <div style="display:flex;align-items:center;gap:5px;min-width:80px">
+          <div style="flex:1;height:5px;background:var(--gray-border);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${pcolor};border-radius:3px"></div></div>
+          <span style="font-size:11px;color:var(--text-muted);min-width:28px">${pct}%</span>
+        </div>
+      </div>
+    </div>
+    ${isRecur && isDone ? `<button onclick="event.stopPropagation();renewRecurringTask(${t.id})" title="Làm mới chu kỳ" style="cursor:pointer;font-size:11px;flex-shrink:0;background:#27ae60;color:#fff;border:none;border-radius:4px;padding:4px 8px;margin-right:4px">Làm mới</button>` : ''}
+    <button onclick="event.stopPropagation();${isRecur ? `openRecurPendingModal(${t.id})` : `openTaskPendingModal(${t.id})`}" title="${isPendingTask?'Sửa / xoá pending':'Pending task này'}" class="${isPendingTask?'btn-pending-active':''}" style="cursor:pointer;font-size:11px;flex-shrink:0">⏸</button>
+    ${(currentMember==='admin'||currentMember==='hieu')?``:''}
+    <button onclick="event.stopPropagation();${isRecur ? `confirmDeleteRecurring(${t.id})` : `confirmDeleteTask(${t.id})`}" title="Xoá task" style="cursor:pointer;font-size:15px;flex-shrink:0">🗑</button>
+  </div>`;
+}
+
 function renderTasksOverview(){
   updateTrashBadge();
   renderPendingSummary();
