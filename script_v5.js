@@ -4849,6 +4849,21 @@ function openNewRecurringModal(id){
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group"><label>Độ ưu tiên</label>
+          <select id="rm_priority" style="width:100%">
+            <option value="Thấp" ${r?.priority==='Thấp'?'selected':''}>🟢 Thấp</option>
+            <option value="Bình thường" ${(!r || r?.priority==='Bình thường')?'selected':''}>🟠 Bình thường</option>
+            <option value="Cao" ${r?.priority==='Cao'?'selected':''}>🔴 Cao</option>
+          </select>
+        </div>
+        <div class="form-group" id="rm_team_row" style="display:${currentMember==='hai'?'none':'block'}"><label>Team</label>
+          <select id="rm_team" style="width:100%">
+            <option value="Team 01" ${(!r || r?.team==='Team 01')?'selected':''}>Team 01</option>
+            <option value="Team 02" ${r?.team==='Team 02'?'selected':''}>Team 02 (M7)</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="form-group"><label>Chu kỳ</label>
           <select id="rm_recur_type" style="width:100%" onchange="rmToggleSchedule(this.value)">
             <option value="daily" ${!r||r?.type==='daily'?'selected':''}>Hàng ngày</option>
@@ -4980,6 +4995,8 @@ function saveRecurringModal(id){
     name,
     person: document.getElementById('rm_person').value,
     type_task: document.getElementById('rm_type').value,
+    priority: document.getElementById('rm_priority')?.value || 'Bình thường',
+    team: document.getElementById('rm_team')?.value || 'Team 01',
     type: document.getElementById('rm_recur_type').value,
     days: parseInt(document.getElementById('rm_days').value||7),
     nextDate: document.getElementById('rm_next').value||todayVN(),
