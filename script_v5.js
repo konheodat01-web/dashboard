@@ -3086,7 +3086,7 @@ function _wstKwChips(p){
 function wstRenderProcPopup(){
   var pop = document.getElementById('procPopup'); if (!pop || !_procPopupMode) return;
   var running = _procPopupMode === 'running';
-  var list = (_swProc.processes||[]).filter(function(p){ return running ? p.status==='running' : p.status==='done'; });
+  var list = (_swProc.processes||[]).filter(function(p){ return running ? p.status==='running' : (p.status==='done'||p.status==='cancelled'); });
   var head = running ? ('🔄 Đang chạy ngầm (' + list.length + ')') : ('🔔 Tiến trình & Báo cáo');
   var rows = list.length ? list.map(function(p){
     var prog = (p.done||0) + '/' + (p.total||0) + ' bài';
@@ -3094,7 +3094,9 @@ function wstRenderProcPopup(){
     var siteLine = site ? '<div style="font-size:11px;color:#58a6ff;font-weight:600;margin-bottom:1px">🌐 ' + site + '</div>' : '';
     var kwLine = _wstKwChips(p);
     if (running)
-      return '<div style="padding:9px 12px;border-top:1px solid #21262d">' + siteLine + '<div style="font-size:11px;color:#8b949e">⏳ ' + prog + ' · bắt đầu ' + (p.created_at||'').slice(5,16) + '</div>' + kwLine + '</div>';
+      return '<div style="padding:9px 12px;border-top:1px solid #21262d">' + siteLine + '<div style="font-size:11px;color:#8b949e;display:flex;justify-content:space-between;align-items:center;gap:8px"><span>⏳ ' + prog + ' · bắt đầu ' + (p.created_at||'').slice(5,16) + '</span><button onclick="event.stopPropagation();wstCancelProcess(&quot;' + p.id + '&quot;)" style="background:#3d1518;color:#f85149;border:1px solid #f85149;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;white-space:nowrap">⏸ Tạm ngưng</button></div>' + kwLine + '</div>';
+    if (p.status === 'cancelled')
+      return '<div style="padding:9px 12px;border-top:1px solid #21262d">' + siteLine + '<div style="font-size:11px;color:#f85149">🚫 Đã hủy · ' + prog + ' xong trước khi dừng</div>' + kwLine + '</div>';
     return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:#7c5cff">✅ ' + prog + ' xong · bấm mở Lịch sử thêm ảnh →</div>' + kwLine + '</div>';
   }).join('') : '<div style="padding:16px;text-align:center;color:#8b949e">Không có</div>';
   
@@ -3117,6 +3119,15 @@ function wstRenderProcPopup(){
   
   pop.innerHTML = '<div style="padding:10px 12px;font-weight:700;border-bottom:1px solid #30363d;display:flex;justify-content:space-between">'
     + '<span>' + head + '</span><span onclick="wstToggleProcPopup(&quot;' + _procPopupMode + '&quot;)" style="cursor:pointer;color:#8b949e">✕</span></div>' + rows;
+}
+
+async function wstCancelProcess(pid){
+  if(!confirm('Hủy các bài CÒN LẠI (chưa chạy) của tiến trình này?\nBài ĐÃ XONG giữ nguyên, không mất gì.\nKhông thể hoàn tác. Tiếp tục?')) return;
+  try{
+    var r = await fetch('/api/sw-cancel-process/'+encodeURIComponent(pid), {method:'POST'});
+    await r.json();
+  }catch(e){}
+  wstPollProcesses();
 }
 
 function wstShowGscReportDetails(idx) {

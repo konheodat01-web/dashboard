@@ -200,6 +200,33 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── POST /api/sw-cancel-process/:pid ──────────────────────────────────────
+  // Proxy sang SEO Writer — hủy các bài CÒN LẠI (pending) của 1 tiến trình chạy ngầm.
+  if (req.method === "POST" && url.startsWith("/api/sw-cancel-process/")) {
+    const pid = decodeURIComponent(url.slice("/api/sw-cancel-process/".length));
+    let swKey = "";
+    try { swKey = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
+    const pr = http.request({
+      hostname: "127.0.0.1", port: 8501,
+      path: "/api/autopilot/cancel-process/" + encodeURIComponent(pid),
+      method: "POST",
+      headers: { "x-access-key": swKey, "Content-Type": "application/json" },
+    }, (pres) => {
+      let body = "";
+      pres.on("data", (c) => { body += c; });
+      pres.on("end", () => {
+        res.writeHead(pres.statusCode === 200 ? 200 : 502, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(pres.statusCode === 200 ? body : JSON.stringify({ cancelled: 0 }));
+      });
+    });
+    pr.on("error", () => {
+      res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ cancelled: 0 }));
+    });
+    pr.end();
+    return;
+  }
+
   // ── GET /api/wp-posts?domain=&type=&per_page= ────────────────────────────
   // Proxy lay danh sach bai viet tu WordPress REST. Fetch tu VPS nen qua duoc
   // lop bao mat chan IP la cua cac site .fashion/.io/.health.
