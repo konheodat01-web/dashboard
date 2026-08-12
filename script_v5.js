@@ -2169,9 +2169,11 @@ function moveCardByCheck(event, taskId, cardId, currentColId){
 }
 
 
-function openNewProjectModal(){
-  editingProjectId=null;
-  document.getElementById('npmTitle').textContent='+ Thêm task mới';
+let isAddingRecurringTask = false;
+function openNewProjectModal(isRecurring = false, id = null){
+  isAddingRecurringTask = isRecurring;
+  editingProjectId=id;
+  document.getElementById('npmTitle').textContent= isRecurring ? (id ? '✎ Sửa task định kỳ' : '+ Thêm task định kỳ') : (id ? '✎ Sửa task' : '+ Thêm task mới');
   document.getElementById('npm_name').value='';
   populateTaskTypeSelect('npm_type', 'Nội dung');
   // Person: auto-fill from member
@@ -2186,13 +2188,82 @@ function openNewProjectModal(){
   document.getElementById('npm_deadline').value='';
   document.getElementById('npm_desc').value='';
   document.getElementById('npm_steps').value='';
-  const _rec=document.getElementById('npm_recurring'); if(_rec){_rec.checked=false;}
-  const _rf=document.getElementById('npm_recurring_fields'); if(_rf) _rf.style.display='none';
+  
+  // Recurring logic
+  const _rec=document.getElementById('npm_recurring');
+  if(_rec){
+    _rec.checked = isRecurring;
+    _rec.disabled = isRecurring; // Disable unchecking if launched from recurring tab
+    _rec.parentElement.style.display = isRecurring ? 'none' : 'flex'; // Hide checkbox label if forced
+  }
+  
+  // Reset recurring fields
+  const recurType = document.getElementById('npm_recur_type');
+  if(recurType) recurType.value = 'daily';
+  const recurNext = document.getElementById('npm_recur_next');
+  if(recurNext) recurNext.value = todayVN();
+  
+  // Render weekdays/monthdays
+  const wdContainer = document.getElementById('npm_weekdays_container');
+  if(wdContainer) {
+    wdContainer.innerHTML = ['CN','T2','T3','T4','T5','T6','T7'].map((d,i)=>\`<label style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border:1px solid var(--gray-border);border-radius:6px;font-size:12px;"><input type="checkbox" value="\${i}" name="npm_weekday" style="cursor:pointer;accent-color:var(--red)">\${d}</label>\`).join('');
+  }
+  const mdContainer = document.getElementById('npm_monthdays_container');
+  if(mdContainer) {
+    mdContainer.innerHTML = Array.from({length:31},(_,i)=>\`<label style="cursor:pointer;width:30px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--gray-border);border-radius:4px;font-size:11px;"><input type="checkbox" value="\${i+1}" name="npm_monthday" style="display:none">\${i+1}</label>\`).join('');
+    setTimeout(() => {
+      document.querySelectorAll('input[name="npm_monthday"]').forEach(chk=>{
+        const lbl = chk.parentElement;
+        lbl.onclick = ()=>{
+          chk.checked = !chk.checked;
+          lbl.style.background = chk.checked ? 'var(--red)' : '';
+          lbl.style.color = chk.checked ? '#fff' : '';
+          lbl.style.borderColor = chk.checked ? 'var(--red)' : 'var(--gray-border)';
+        };
+      });
+    }, 50);
+  }
+  
+  toggleRecurringFields();
+  if (isRecurring) { npmToggleSchedule('daily'); }
+
   // Team
   const teamSel=document.getElementById('npm_team'); if(teamSel) teamSel.value='Team 01';
   const teamRow=document.getElementById('npm_team_row');
   if(teamRow) teamRow.style.display = currentMember==='hai'?'none':'block';
   document.getElementById('npm_delete_btn').style.display='none';
+  
+  if(id && isRecurring) {
+    const r = recurringTasks.find(x=>x.id===id);
+    if(r) {
+      document.getElementById('npm_name').value = r.name;
+      if(npmPerson) npmPerson.value = r.person || '';
+      document.getElementById('npm_type').value = r.type_task || 'Nội dung';
+      if(pri) pri.value = r.priority || 'Bình thường';
+      if(dang0) dang0.value = r.dang || 'url';
+      document.getElementById('npm_from').value = r.from || todayVN();
+      document.getElementById('npm_deadline').value = r.deadline || '';
+      document.getElementById('npm_desc').value = r.desc || '';
+      if(teamSel) teamSel.value = r.team || 'Team 01';
+      
+      recurType.value = r.type || 'daily';
+      document.getElementById('npm_recur_days').value = r.days || 7;
+      if(recurNext) recurNext.value = r.nextDate || todayVN();
+      
+      setTimeout(() => {
+        (r.weekdays || []).forEach(w => {
+          const chk = document.querySelector(\`input[name="npm_weekday"][value="\${w}"]\`);
+          if(chk) chk.checked = true;
+        });
+        (r.monthdays || []).forEach(m => {
+          const chk = document.querySelector(\`input[name="npm_monthday"][value="\${m}"]\`);
+          if(chk) { chk.checked = true; const l=chk.parentElement; l.style.background='var(--red)'; l.style.color='#fff'; l.style.borderColor='var(--red)'; }
+        });
+      }, 100);
+      npmToggleSchedule(r.type || 'daily');
+    }
+  }
+  
   document.getElementById('newProjectModal').classList.add('open');
   setTimeout(()=>document.getElementById('npm_name').focus(),100);
 }
@@ -4818,126 +4889,10 @@ function renderRecurPendingSummary(){
 }
 
 
-function openNewRecurringModal(id){
-  const r = id ? recurringTasks.find(x=>x.id===id) : null;
-  const overlay = document.createElement('div');
-  overlay.id = 'recurringModal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.2);width:420px;max-width:95vw">
-    <div style="font-weight:700;font-size:15px;margin-bottom:16px">${r?'✎ Sửa':'+ Thêm'} task định kỳ</div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="form-group"><label>Tên task *</label>
-        <input type="text" id="rm_name" style="width:100%" value="${r?.name||''}" placeholder="VD: Check backlink tháng...">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="form-group"><label>Người thực hiện</label>
-          ${currentMember==='admin'
-            ? `<select id="rm_person" style="width:100%">
-                <option value="">--</option>
-                <option ${(r?.person==='Hải')?'selected':''}>Hải</option>
-                <option ${(r?.person==='Hiếu')?'selected':''}>Hiếu</option>
-                <option ${(r?.person==='Khác')?'selected':''}>Khác</option>
-              </select>`
-            : `<input type="text" id="rm_person" style="width:100%;background:#f8f9fa" value="${''}" readonly>`
-          }
-        </div>
-        <div class="form-group"><label>Loại</label>
-          <div style="display:flex;gap:6px;align-items:center">
-            <select id="rm_type" style="flex:1"></select>
-            <button type="button" onclick="openTaskTypeManager()" style="background:none;border:1px solid var(--gray-border);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:11px;color:var(--text-muted)" title="Quản lý loại task">⚙</button>
-          </div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="form-group"><label>Độ ưu tiên</label>
-          <select id="rm_priority" style="width:100%">
-            <option value="Thấp" ${r?.priority==='Thấp'?'selected':''}>🟢 Thấp</option>
-            <option value="Bình thường" ${(!r || r?.priority==='Bình thường')?'selected':''}>🟠 Bình thường</option>
-            <option value="Cao" ${r?.priority==='Cao'?'selected':''}>🔴 Cao</option>
-          </select>
-        </div>
-        <div class="form-group" id="rm_team_row" style="display:${currentMember==='hai'?'none':'block'}"><label>Team</label>
-          <select id="rm_team" style="width:100%">
-            <option value="Team 01" ${(!r || r?.team==='Team 01')?'selected':''}>Team 01</option>
-            <option value="Team 02" ${r?.team==='Team 02'?'selected':''}>Team 02 (M7)</option>
-          </select>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="form-group"><label>Chu kỳ</label>
-          <select id="rm_recur_type" style="width:100%" onchange="rmToggleSchedule(this.value)">
-            <option value="daily" ${!r||r?.type==='daily'?'selected':''}>Hàng ngày</option>
-            <option value="weekly" ${r?.type==='weekly'?'selected':''}>Hàng tuần</option>
-            <option value="monthly" ${r?.type==='monthly'?'selected':''}>Hàng tháng</option>
-            <option value="custom" ${r?.type==='custom'?'selected':''}>Tùy chỉnh (ngày)</option>
-          </select>
-        </div>
-        <div class="form-group" id="rm_days_wrap" style="display:${r?.type==='custom'?'block':'none'}"><label>Số ngày</label>
-          <input type="number" id="rm_days" min="1" value="${r?.days||7}" style="width:100%">
-        </div>
-      </div>
-      <!-- Weekly: chọn thứ -->
-      <div class="form-group" id="rm_weekdays_wrap" style="display:${r?.type==='weekly'||!r?'block':'none'}">
-        <label style="font-size:12px">Các thứ trong tuần</label>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-          ${['CN','T2','T3','T4','T5','T6','T7'].map((d,i)=>`<label style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border:1px solid var(--gray-border);border-radius:6px;font-size:12px;${(r?.weekdays||[]).includes(i)?'background:#fdf2f2;border-color:var(--red);color:var(--red)':''}">
-            <input type="checkbox" value="${i}" name="rm_weekday" ${(r?.weekdays||[]).includes(i)?'checked':''} style="cursor:pointer;accent-color:var(--red)">${d}</label>`).join('')}
-        </div>
-      </div>
-      <!-- Monthly: chọn ngày -->
-      <div class="form-group" id="rm_monthdays_wrap" style="display:${r?.type==='monthly'?'block':'none'}">
-        <label style="font-size:12px">Các ngày trong tháng</label>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
-          ${Array.from({length:31},(_,i)=>`<label style="cursor:pointer;width:30px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--gray-border);border-radius:4px;font-size:11px;${(r?.monthdays||[]).includes(i+1)?'background:var(--red);color:#fff;border-color:var(--red)':''}">
-            <input type="checkbox" value="${i+1}" name="rm_monthday" ${(r?.monthdays||[]).includes(i+1)?'checked':''} style="display:none">${i+1}</label>`).join('')}
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Click để chọn/bỏ ngày</div>
-      </div>
-      <div class="form-group"><label>Ngày bắt đầu tính (lần tới)</label>
-        <input type="date" id="rm_next" style="width:100%" value="${r?.nextDate||todayVN()}">
-      </div>
-      <div class="form-group"><label>Mô tả</label>
-        <textarea id="rm_desc" rows="2" style="width:100%">${r?.desc||''}</textarea>
-      </div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:16px">
-      <button onclick="document.getElementById('recurringModal').remove()" class="btn btn-outline">Huỷ</button>
-      <button onclick="saveRecurringModal(${r?r.id:'null'})" class="btn btn-primary">✓ Lưu</button>
-    </div>
-  </div>`;
-  document.body.appendChild(overlay);
-  populateTaskTypeSelect('rm_type', r?.type_task||'Nội dung');
-  // Init monthday click handlers
-  document.querySelectorAll('input[name="rm_monthday"]').forEach(chk=>{
-    const lbl=chk.parentElement;
-    lbl.onclick=()=>{ chk.checked=!chk.checked; lbl.style.background=chk.checked?'var(--red)':''; lbl.style.color=chk.checked?'#fff':''; lbl.style.borderColor=chk.checked?'var(--red)':'var(--gray-border)'; };
-  });
-  setTimeout(()=>document.getElementById('rm_name').focus(),100);
-}
 
 
-function rmToggleSchedule(type){
-  const d = document.getElementById('rm_days_wrap');
-  const w = document.getElementById('rm_weekdays_wrap');
-  const m = document.getElementById('rm_monthdays_wrap');
-  if(d) d.style.display = type==='custom'?'block':'none';
-  if(w) w.style.display = type==='weekly'?'block':'none';
-  if(m) m.style.display = type==='monthly'?'block':'none';
-  // Toggle monthday labels click handler
-  if(type==='monthly'){
-    setTimeout(()=>{
-      document.querySelectorAll('input[name="rm_monthday"]').forEach(chk=>{
-        const lbl = chk.parentElement;
-        lbl.onclick = ()=>{
-          chk.checked=!chk.checked;
-          lbl.style.background=chk.checked?'var(--red)':'';
-          lbl.style.color=chk.checked?'#fff':'';
-          lbl.style.borderColor=chk.checked?'var(--red)':'var(--gray-border)';
-        };
-      });
-    },50);
-  }
-}
+
+
 
 
 function doneRecurringToday(id){
@@ -4985,36 +4940,9 @@ function undoDoneRecurring(id){
   toast('↩ Đã hoàn tác — task trở lại chưa done', '#e67e22', 3000);
 }
 
-function editRecurring(id){ openNewRecurringModal(id); }
+function editRecurring(id){ openNewProjectModal(true, id); }
 
-function saveRecurringModal(id){
-  const name = (document.getElementById('rm_name').value||'').trim();
-  if(!name){toast('Nhập tên task!','#e74c3c'); return; }
-  const obj = {
-    id: id||recurNextId++,
-    name,
-    person: document.getElementById('rm_person').value,
-    type_task: document.getElementById('rm_type').value,
-    priority: document.getElementById('rm_priority')?.value || 'Bình thường',
-    team: document.getElementById('rm_team')?.value || 'Team 01',
-    type: document.getElementById('rm_recur_type').value,
-    days: parseInt(document.getElementById('rm_days').value||7),
-    nextDate: document.getElementById('rm_next').value||todayVN(),
-    desc: document.getElementById('rm_desc').value.trim(),
-    weekdays: [...document.querySelectorAll('input[name="rm_weekday"]:checked')].map(x=>parseInt(x.value)),
-    monthdays: [...document.querySelectorAll('input[name="rm_monthday"]:checked')].map(x=>parseInt(x.value)),
-  };
-  if(id){
-    const idx = recurringTasks.findIndex(x=>x.id===id);
-    if(idx>=0) recurringTasks[idx]=obj;
-  } else {
-    recurringTasks.push(obj);
-  }
-  saveRecurring();
-  document.getElementById('recurringModal').remove();
-  renderRecurringTasks();
-  toast('✓ Đã lưu task định kỳ');
-}
+
 
 function deleteRecurring(id){
   if(!confirm('Xoá task định kỳ này?')) return;
@@ -5043,6 +4971,18 @@ function toggleRecurringFields(){
   const checked = document.getElementById('npm_recurring')?.checked;
   const el = document.getElementById('npm_recurring_fields');
   if(el) el.style.display = checked ? 'grid' : 'none';
+  if(checked) {
+    npmToggleSchedule(document.getElementById('npm_recur_type')?.value || 'daily');
+  }
+}
+
+function npmToggleSchedule(type){
+  const d = document.getElementById('npm_recur_custom_wrap');
+  const w = document.getElementById('npm_weekdays_wrap');
+  const m = document.getElementById('npm_monthdays_wrap');
+  if(d) d.style.display = type==='custom'?'block':'none';
+  if(w) w.style.display = type==='weekly'?'block':'none';
+  if(m) m.style.display = type==='monthly'?'block':'none';
 }
 
 function calcNextDate(fromDate, recurring){
