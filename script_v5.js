@@ -2206,11 +2206,11 @@ function openNewProjectModal(isRecurring = false, id = null){
   // Render weekdays/monthdays
   const wdContainer = document.getElementById('npm_weekdays_container');
   if(wdContainer) {
-    wdContainer.innerHTML = ['CN','T2','T3','T4','T5','T6','T7'].map((d,i)=>\`<label style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border:1px solid var(--gray-border);border-radius:6px;font-size:12px;"><input type="checkbox" value="\${i}" name="npm_weekday" style="cursor:pointer;accent-color:var(--red)">\${d}</label>\`).join('');
+    wdContainer.innerHTML = ['CN','T2','T3','T4','T5','T6','T7'].map((d,i)=>`<label style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:3px 8px;border:1px solid var(--gray-border);border-radius:6px;font-size:12px;"><input type="checkbox" value="${i}" name="npm_weekday" style="cursor:pointer;accent-color:var(--red)">${d}</label>`).join('');
   }
   const mdContainer = document.getElementById('npm_monthdays_container');
   if(mdContainer) {
-    mdContainer.innerHTML = Array.from({length:31},(_,i)=>\`<label style="cursor:pointer;width:30px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--gray-border);border-radius:4px;font-size:11px;"><input type="checkbox" value="\${i+1}" name="npm_monthday" style="display:none">\${i+1}</label>\`).join('');
+    mdContainer.innerHTML = Array.from({length:31},(_,i)=>`<label style="cursor:pointer;width:30px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--gray-border);border-radius:4px;font-size:11px;"><input type="checkbox" value="${i+1}" name="npm_monthday" style="display:none">${i+1}</label>`).join('');
     setTimeout(() => {
       document.querySelectorAll('input[name="npm_monthday"]').forEach(chk=>{
         const lbl = chk.parentElement;
@@ -2252,11 +2252,11 @@ function openNewProjectModal(isRecurring = false, id = null){
       
       setTimeout(() => {
         (r.weekdays || []).forEach(w => {
-          const chk = document.querySelector(\`input[name="npm_weekday"][value="\${w}"]\`);
+          const chk = document.querySelector(`input[name="npm_weekday"][value="${w}"]`);
           if(chk) chk.checked = true;
         });
         (r.monthdays || []).forEach(m => {
-          const chk = document.querySelector(\`input[name="npm_monthday"][value="\${m}"]\`);
+          const chk = document.querySelector(`input[name="npm_monthday"][value="${m}"]`);
           if(chk) { chk.checked = true; const l=chk.parentElement; l.style.background='var(--red)'; l.style.color='#fff'; l.style.borderColor='var(--red)'; }
         });
       }, 100);
