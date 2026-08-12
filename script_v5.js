@@ -4639,7 +4639,7 @@ function checkAndResetRecurringTasks() {
        if(r.cards) r.cards.forEach(c => { if(c.colId !== 'col_new') c.colId = firstColId; });
        delete r.pendingReason; delete r.pendingNote; delete r.pendingDate; delete r.pendingStatus;
        changed = true;
-       toast(🔁 Auto-renewed: );
+       toast(`🔁 Auto-renewed: ${r.name}`);
     }
   });
   if (changed) { saveRecurring(); renderRecurringTasks(); }
