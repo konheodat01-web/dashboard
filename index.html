@@ -450,28 +450,77 @@
 <div id="page-tasks" class="page">
   <!-- TAB BAR -->
   <div style="display:flex;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-border);border-bottom:none;width:fit-content;margin-bottom:0;overflow:hidden">
-    <button class="gv-tab active" id="tab-mytasks" onclick="switchTasksTab('mytasks')">📋 Task khác</button>
-    <button class="gv-tab" id="tab-recurring" onclick="switchTasksTab('recurring')">🔁 Task định kỳ</button>
+    <button class="gv-tab active" id="tab-recurring" onclick="switchTasksTab('recurring')">🔁 Task định kỳ</button>
+    <button class="gv-tab" id="tab-mytasks" onclick="switchTasksTab('mytasks')">📋 Task khác</button>
   </div>
 
   <!-- PANEL: TASK ĐỊNH KỲ -->
-  <div id="panel-recurring" style="display:none;border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;padding:0">
-    <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border);margin-bottom:0">
-      <div class="panel-title">🔁 Task định kỳ</div>
-      <div class="toolbar">
-        <button class="btn btn-primary btn-sm" onclick="openNewRecurringModal()">+ Thêm task định kỳ</button>
+  <div id="panel-recurring" style="border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;padding:0">
+    <div id="recurringOverview">
+      <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border);margin-bottom:0">
+        <div class="panel-title">🔁 Task định kỳ</div>
+        <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+          <select id="tkRecurFilterSort" onchange="renderRecurringTasks()" style="height:32px;font-size:12px">
+            <option value="time-desc">⏳ Mới nhất</option>
+            <option value="time-asc">⏳ Cũ nhất</option>
+            <option value="prio-desc">🔥 Ưu tiên Cao -> Thấp</option>
+            <option value="prio-asc">🔥 Ưu tiên Thấp -> Cao</option>
+          </select>
+          <select id="tkRecurFilterPriority" onchange="renderRecurringTasks()" style="height:32px;font-size:12px">
+            <option value="">🎯 Tất cả ưu tiên</option>
+            <option value="Cao">🔴 Cao</option>
+            <option value="Bình thường">🟠 Bình thường</option>
+            <option value="Thấp">🟢 Thấp</option>
+          </select>
+          <select id="tkRecurFilterType" onchange="renderRecurringTasks()" style="height:32px;font-size:12px">
+            <option value="">🏷️ Tất cả loại</option>
+          </select>
+          <select id="tkRecurFilterStatus" onchange="renderRecurringTasks()" style="height:32px;font-size:12px">
+            <option value="">📊 Tất cả trạng thái</option>
+            <option value="active">Đang làm</option>
+            <option value="done">Đã hoàn thành</option>
+            <option value="pending">Pending</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="openNewRecurringModal()">+ Thêm task định kỳ</button>
+        </div>
       </div>
-    </div>
+      
+      <!-- RECURRING PENDING SUMMARY PANEL -->
+      <div id="recurPendingSummaryPanel" style="display:none;background:#fff8ee;border:none;border-bottom:1px solid #fce0b0;margin-bottom:0;overflow:hidden">
+        <div style="padding:10px 14px;border-bottom:1px solid #fce0b0;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-weight:600;font-size:13px;color:#e67e22">&#9646;&#9646; Đang Pending (<span id="recurPendingCount">0</span> thẻ)</div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="recurPendingSummaryTable">
+          <thead>
+            <tr style="background:#fff3e0">
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Task gốc</th>
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Thẻ đang pending</th>
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Ngày pending</th>
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Lý do</th>
+              <th style="padding:7px 12px;text-align:left;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Tình trạng xử lý</th>
+              <th style="padding:7px 12px;text-align:center;font-weight:600;color:#b7770d;font-size:11px;border-bottom:1px solid #fce0b0">Hành động</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     <div id="recurringList" style="padding:14px;display:flex;flex-direction:column;gap:10px"></div>
     <div id="recurringEmpty" class="empty" style="display:none"><div class="icon">💬</div>Chưa có task định kỳ nào.</div>
+    </div>
   </div>
 
   <!-- PANEL: TASK KHÁC -->
-  <div id="panel-mytasks" style="border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;padding:0">
+  <div id="panel-mytasks" style="display:none;border:1px solid var(--gray-border);border-radius:0 8px 8px 8px;background:#fff;padding:0">
   <div id="tasksOverview">
     <div class="panel-header" style="border-radius:0;border:none;border-bottom:1px solid var(--gray-border);margin-bottom:0">
       <div class="panel-title">&#128203; Task khác</div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+        <select id="tkFilterSort" onchange="renderTasksOverview()" style="height:32px;font-size:12px">
+          <option value="time-desc">⏳ Mới nhất</option>
+          <option value="time-asc">⏳ Cũ nhất</option>
+          <option value="prio-desc">🔥 Ưu tiên Cao -> Thấp</option>
+          <option value="prio-asc">🔥 Ưu tiên Thấp -> Cao</option>
+        </select>
         <select id="tkFilterPerson" onchange="renderTasksOverview()" style="display:none"><option value="">Tất cả</option><option value="admin">Admin</option><option value="Khác">Khác</option></select>
         <select id="tkFilterDate" onchange="renderTasksOverview()" style="height:32px;font-size:12px">
           <option value="">📅 Tất cả ngày</option>

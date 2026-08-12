@@ -1164,7 +1164,7 @@ function showPage(name) {
   if (currentSubItem) currentSubItem.classList.add('active');
   if (name === 'dashboard' && typeof renderDashboard === 'function') renderDashboard();
   if (name === 'staff' && typeof renderStaffList === 'function') renderStaffList();
-  if (name === 'tasks' && typeof renderTasksOverview === 'function') renderTasksOverview();
+  if (name === 'tasks' && typeof renderTasksOverview === 'function') renderTasksOverview(); checkAndResetRecurringTasks(); renderRecurringTasks();
   if (name === 'recurring' && typeof renderRecurringTasks === 'function') renderRecurringTasks();
   if (name === 'wstrack' && typeof renderWsTrack === 'function') renderWsTrack();
   if (name === 'billing' && typeof renderBilling === 'function') {
@@ -1267,7 +1267,7 @@ function fbPayload(ts){
     tasks, taskOrder: tasks.map(t=>t.id),
     deletedTasks, links, linkCategories,
     websites, wsGroups,
-    assignees, prompts, recurringTasks, khoId: khoIdList,
+    assignees, prompts, recurringTasksV2: recurringTasks, khoId: khoIdList,
     staffProfiles,
     recurDoneToday: getRecurDoneToday(),
     siteTracking,
@@ -1363,7 +1363,7 @@ function initFirebaseListener(){
       // Own push — skip data reload but still update badges and active renders
       console.log('Skipped own push');
       updateNavBadges();
-      renderTasksOverview();
+      renderTasksOverview(); renderRecurringTasks();
       if(document.querySelector('.page.active')?.id==='page-tasks'){
                       }
       // Update recurDoneToday even on own push
@@ -1378,7 +1378,7 @@ function initFirebaseListener(){
       if(Array.isArray(r.recurDoneToday)){
         setRecurDoneToday(r.recurDoneToday.filter(d=>d.date===todayVN()));
       }
-      if(Array.isArray(r.recurringTasks)) recurringTasks = r.recurringTasks;
+      if(Array.isArray(r.recurringTasksV2)) { recurringTasks = r.recurringTasksV2; } else { recurringTasks = []; }
       if(document.querySelector('.page.active')?.id==='page-recurring') renderRecurringTasks();
       return;
     }
@@ -1481,7 +1481,7 @@ if(!_settings.avatars) _settings.avatars = {}; // local fills gaps, fb overrides
 
       // Mirror everything to localStorage
       localStorage.setItem('wt_tasks',           JSON.stringify(tasks));
-      if(r.recurringTasks && Array.isArray(r.recurringTasks)){ recurringTasks=r.recurringTasks; recurNextId=Math.max(1,...recurringTasks.map(x=>x.id||0))+1; localStorage.setItem('wt_recurring',JSON.stringify(recurringTasks)); if(document.querySelector('.page.active')?.id==='page-recurring') renderRecurringTasks(); }
+      if(r.recurringTasksV2 && Array.isArray(r.recurringTasksV2)){ recurringTasks=r.recurringTasksV2; recurNextId=Math.max(1,...recurringTasks.map(x=>x.id||0))+1; localStorage.setItem('wt_recurring',JSON.stringify(recurringTasks)); if(document.querySelector('.page.active')?.id==='page-recurring') renderRecurringTasks(); } else { recurringTasks = []; recurNextId=1; localStorage.removeItem('wt_recurring'); if(document.querySelector('.page.active')?.id==='page-recurring') renderRecurringTasks(); }
       localStorage.setItem('wt_recurring',       JSON.stringify(recurringTasks));
       localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
       localStorage.setItem('wt_deleted_tasks',   JSON.stringify(deletedTasks));
@@ -1501,10 +1501,10 @@ if(!_settings.avatars) _settings.avatars = {}; // local fills gaps, fb overrides
 
       if (isAdminLoggedIn()) {
         renderDashboard();
-        renderTasksOverview();
+        renderTasksOverview(); renderRecurringTasks();
         // Fix: also re-render sub-board if currently open
         if(currentProjectId){
-          const openTask = tasks.find(t=>t.id===currentProjectId);
+          const openTask = getCurrentProject();
           if(openTask){
             // Normalize cards array (Firebase may return object instead of array)
             normalizeTaskCards(openTask);
@@ -1610,6 +1610,17 @@ let taskNextId = 10;
 let deletedTasks = []; // trash bin
 let cardNextId = 100;
 let currentProjectId = null;
+let isCurrentProjectRecurring = false;
+function getCurrentProject() {
+  if (!currentProjectId) return null;
+  if (isCurrentProjectRecurring) return recurringTasks.find(x=>x.id===currentProjectId);
+  return tasks.find(x=>x.id===currentProjectId);
+}
+function saveCurrentProject() {
+  if (isCurrentProjectRecurring) { saveRecurring(); }
+  else { saveAppData(); renderTasksOverview(); renderRecurringTasks(); }
+}
+
 let dragCardId = null;
 let pendingDragCard = null;
 let editingCardId = null;
@@ -1705,7 +1716,7 @@ function taskMove(id, dir){
   const [m]=tasks.splice(idx,1);
   tasks.splice(ni,0,m);
   _saveTaskOrder();
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
 }
 
 // Save order+tasks to localStorage AND Firebase
@@ -1829,65 +1840,17 @@ function renderTasksOverview(){
   const withDeadline = list.filter(t=>t.deadline);
   const noDeadline   = list.filter(t=>!t.deadline);
 
-  const renderRow = t => {
-    const pct = calcProjectProgress(t);
-    const pcolor = pct>=100?'#27ae60':pct>=50?'#2980b9':'#e67e22';
-    const age = daysSince(t.from);
-    const ageLabel = age===0?'Hôm nay':age===1?'Hôm qua':`${age} ngày trước`;
-    const cols = getProjectCols(t);
-    const lastCol = cols[cols.length-1];
-    const doneCards = (t.cards||[]).filter(c=>c.colId===lastCol.id||c.colId==='done').length;
-    const totalCards = (t.cards||[]).length;
-    const isDone = pct>=100 || calcTaskAutoStatus(t)==='Hoàn thành';
-    const isPendingTask = !!t.pendingReason;
-    const priClass = t.priority==='Cao'?'priority-cao':t.priority==='Thấp'?'priority-thap':'priority-binh';
-    const priBadge = t.priority==='Cao'
-      ? '<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#fdf2f2;color:#e74c3c;border:1px solid #f5c6c6;font-weight:600">🔴 Cao</span>'
-      : t.priority==='Thấp'
-      ? '<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#f0faf4;color:#27ae60;border:1px solid #a8deba;font-weight:600">🟢 Thấp</span>'
-      : '<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:#fff4e5;color:#e67e22;border:1px solid #fce0b0;font-weight:600">🟠 Bình thường</span>';
-    return `<div class="task-row ${isDone?'task-row-done':''} ${priClass}${isPendingTask?' task-row-pending':''}" style="display:flex;align-items:center;gap:0;${isPendingTask?'border-left:3px solid #e67e22 !important;':''}" data-tid="${t.id}" onclick="event.stopPropagation()">
-
-      <div style="padding:0 6px;flex-shrink:0" onclick="event.stopPropagation()">
-        <input type="checkbox" class="task-chk" data-tid="${t.id}" onchange="onTaskCheck(${t.id},this)"
-          style="width:16px;height:16px;cursor:pointer;accent-color:var(--red)">
-      </div>
-      <div style="flex:1;min-width:0;cursor:pointer" onclick="event.stopPropagation();openTask(${t.id})">
-        <div class="task-row-main">
-          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-            <span class="badge ${TASK_TYPE_COLORS[t.type]||'badge-gray'}" style="font-size:10px">${t.type}</span>
-            ${priBadge}
-            ${getTaskStatusBadge(t)}
-            ${t.person?`<span class="tag-person" style="font-size:10px">${getTaskOwnerLabel(t.person)}</span>`:''}
-            ${t.team==='Team 02'?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#555">M7</span>':'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>'}
-            <span style="font-weight:600;font-size:13px${isDone?';text-decoration:line-through;color:var(--text-muted)':''}">${wstColorizeDomainText(t.name)}</span>
-          </div>
-          ${isPendingTask?`<div style="font-size:11px;color:#e67e22;margin-top:3px">⏸ Pending: ${(t.pendingReason||'').slice(0,80)}</div>`:''}
-          ${t.desc?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4">${wstColorizeDomainText(t.desc.slice(0,100))}${t.desc.length>100?'…':''}</div>`:''}
-        </div>
-        <div class="task-row-meta">
-          <span style="font-size:11px;color:var(--text-muted)" title="Nhận ${t.from?fmtDate(t.from):'?'}">📅 ${ageLabel}</span>
-          ${t.deadline
-            ?`<span style="font-size:11px">${daysLeft(t.deadline)||`<span style='color:var(--text-muted);font-size:11px'>DL: ${fmtDate(t.deadline)}</span>`}</span>`
-            :'<span style="font-size:11px;color:var(--gray-border)">Không có deadline</span>'}
-          ${totalCards?`<span style="font-size:11px;color:var(--text-muted)">${doneCards}/${totalCards} thẻ</span>`:''}
-          <div style="display:flex;align-items:center;gap:5px;min-width:80px">
-            <div style="flex:1;height:5px;background:var(--gray-border);border-radius:3px;overflow:hidden">
-              <div style="width:${pct}%;height:100%;background:${pcolor};border-radius:3px"></div>
-            </div>
-            <span style="font-size:11px;color:var(--text-muted);min-width:28px">${pct}%</span>
-          </div>
-        </div>
-      </div>
-
-      <button onclick="event.stopPropagation();openTaskPendingModal(${t.id})" title="${isPendingTask?'Sửa / xoá pending':'Pending task này'}"
-        class="${isPendingTask?'btn-pending-active':''}"
-        style="cursor:pointer;font-size:11px;flex-shrink:0">⏸</button>
-      ${(currentMember==='admin'||currentMember==='hieu')?``:''}
-      <button onclick="event.stopPropagation();confirmDeleteTask(${t.id})" title="Xoá task"
-        style="cursor:pointer;font-size:15px;flex-shrink:0">🗑</button>
-    </div>`;
+  const sortVal=(document.getElementById('tkFilterSort')||{}).value||'time-desc';
+  const getPri = (p) => p==='Cao'?3 : p==='Bình thường'?2 : p==='Thấp'?1 : 0;
+  const sortFn = (a, b) => {
+    if (sortVal === 'time-desc') return (b.id||0) - (a.id||0);
+    if (sortVal === 'time-asc') return (a.id||0) - (b.id||0);
+    if (sortVal === 'prio-desc') return getPri(b.priority) - getPri(a.priority) || ((b.id||0) - (a.id||0));
+    if (sortVal === 'prio-asc') return getPri(a.priority) - getPri(b.priority) || ((a.id||0) - (b.id||0));
+    return 0;
   };
+
+  const renderRow = (t) => createTaskCardHTML(t, 'other');
 
   // Separate done vs active
   const isTaskDone = t => calcProjectProgress(t)>=100 || calcTaskAutoStatus(t)==='Hoàn thành';
@@ -1899,13 +1862,14 @@ function renderTasksOverview(){
 
   let html = '';
   if(withDeadlineActive.length){
-    const sorted = [...withDeadlineActive].sort((a,b)=>a.deadline.localeCompare(b.deadline));
+    const sorted = [...withDeadlineActive].sort(sortFn);
     html += `<div class="task-group-label">&#128198; Có deadline <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(${sorted.length})</span></div>`;
     html += sorted.map(renderRow).join('');
   }
   if(noDeadlineActive.length){
+    const sorted = [...noDeadlineActive].sort(sortFn);
     html += `<div class="task-group-label" style="margin-top:${withDeadlineActive.length?16:0}px">&#8734; Không có deadline <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(${noDeadlineActive.length})</span></div>`;
-    html += noDeadlineActive.map(renderRow).join('');
+    html += sorted.map(renderRow).join('');
   }
 
   // Done section — collapsible
@@ -1916,7 +1880,8 @@ function renderTasksOverview(){
       <span id="tkDoneChevron" style="font-size:11px;color:#27ae60;margin-left:auto;transition:transform .2s;display:inline-block;transform:${doneOpen?'rotate(180deg)':'rotate(0deg)'}">▼</span>
     </div>`;
     if(doneOpen){
-      html += `<div id="tkDoneList">${doneList.map(renderRow).join('')}</div>`;
+      const sorted = [...doneList].sort(sortFn);
+      html += `<div id="tkDoneList">${sorted.map(renderRow).join('')}</div>`;
     } else {
       html += `<div id="tkDoneList" style="display:none"></div>`;
     }
@@ -1930,32 +1895,48 @@ function renderTasksOverview(){
 function toggleTaskDoneSection(){
   const cur = (localStorage.getItem('tk_done_open')||'0')==='1';
   localStorage.setItem('tk_done_open', cur?'0':'1');
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
 }
 
-function openProjectBoard(id){
+function openProjectBoard(id, isRecur=false){
   currentProjectId = id;
+  isCurrentProjectRecurring = isRecur;
   try{ sessionStorage.setItem('wt_activeProject', String(id)); } catch(e){}
-  const t = tasks.find(x=>x.id===id);
+  const t = getCurrentProject();
   if(!t) return;
   document.getElementById('tasksOverview').style.display='none';
+  const recOv = document.getElementById('recurringOverview');
+  if(recOv) recOv.style.display='none';
+  
   document.getElementById('taskSubBoard').style.display='block';
   document.querySelector('main').classList.add('board-mode');
-  document.getElementById('subBoardTitle').textContent = t.name;
+  document.getElementById('subBoardTitle').textContent = (isRecur?'🔁 ':'') + t.name;
   const pEl = document.getElementById('subBoardPerson');
   pEl.innerHTML = t.person?`<span class="tag-person ${t.person==='Hải'?'tag-hai':t.person==='Hiếu'?'tag-hieu':''}" style="font-size:12px">${t.person}</span>`:'';
   renderSubBoard(t);
 }
 
 function backToOverview(){
+  const wasRecur = isCurrentProjectRecurring;
   currentProjectId=null;
+  isCurrentProjectRecurring=false;
   _selectedCardIds.clear();
   try{ sessionStorage.removeItem('wt_activeProject'); } catch(e){}
   document.getElementById('taskSubBoard').style.display='none';
-  document.getElementById('tasksOverview').style.display='block';
+  
+  if (wasRecur) {
+    const recOv = document.getElementById('recurringOverview');
+    if(recOv) recOv.style.display='block';
+    renderRecurringTasks();
+  } else {
+    document.getElementById('tasksOverview').style.display='block';
+    renderTasksOverview(); renderRecurringTasks();
+  }
   document.querySelector('main').classList.remove('board-mode');
-  renderTasksOverview();
 }
+
+function openTask(id){ openProjectBoard(id, false); }
+function openRecurringTask(id){ openProjectBoard(id, true); }
 
 // ---- SUB KANBAN BOARD ----
 function renderSubBoard(task){
@@ -1997,7 +1978,7 @@ function renderSubBoard(task){
         if(card){card.colId=col.id;delete card.pendingReason;}
         saveAppData();
         renderSubBoard(task);
-        renderTasksOverview();
+        renderTasksOverview(); renderRecurringTasks();
         toast('Đã chuyển thẻ');
       }
       dragCardId=null;
@@ -2108,7 +2089,7 @@ function moveCardByCheck(event, taskId, cardId, currentColId){
     // Already last col — uncheck moves back
     if(!event.target.checked && curIdx>0) card.colId=cols[curIdx-1].id;
     saveAppData();
-    renderSubBoard(task); renderTasksOverview(); return;
+    renderSubBoard(task); renderTasksOverview(); renderRecurringTasks(); return;
   }
   if(nextCol.id==='pending' || nextCol.id==='col_pending'){
     // Going to pending needs reason
@@ -2121,7 +2102,7 @@ function moveCardByCheck(event, taskId, cardId, currentColId){
     if(card.pendingReason) delete card.pendingReason;
     saveAppData();
     renderSubBoard(task);
-    renderTasksOverview();
+    renderTasksOverview(); renderRecurringTasks();
     toast(`→ ${nextCol.label}`);
   }
 }
@@ -2156,7 +2137,7 @@ function openNewProjectModal(){
 }
 
 function openEditProjectModal(){
-  const t=tasks.find(x=>x.id===currentProjectId);
+  const t=getCurrentProject();
   if(!t) return;
   editingProjectId=t.id;
   document.getElementById('npmTitle').textContent='✎ Sửa task';
@@ -4644,7 +4625,28 @@ function wstDeleteEntry(wsId, entryId){
   renderWsTrack();
 }
 
+
+function checkAndResetRecurringTasks() {
+  let changed = false;
+  const today = todayVN();
+  recurringTasks.forEach(r => {
+    const isDone = calcProjectProgress(r) >= 100 || calcTaskAutoStatus(r) === 'Hoàn thành';
+    if (isDone && r.nextDate && r.nextDate <= today) {
+       r.lastDone = today;
+       r.nextDate = calcNextDate(today, r);
+       const cols = getProjectCols(r);
+       const firstColId = cols && cols.length ? cols[0].id : 'todo';
+       if(r.cards) r.cards.forEach(c => { if(c.colId !== 'col_new') c.colId = firstColId; });
+       delete r.pendingReason; delete r.pendingNote; delete r.pendingDate; delete r.pendingStatus;
+       changed = true;
+       toast(🔁 Auto-renewed: );
+    }
+  });
+  if (changed) { saveRecurring(); renderRecurringTasks(); }
+}
+
 function renderRecurringTasks(){
+  renderRecurPendingSummary();
   const list = document.getElementById('recurringList');
   const empty = document.getElementById('recurringEmpty');
   if(!list) return;
@@ -4652,69 +4654,108 @@ function renderRecurringTasks(){
   empty.style.display='none';
   const today = todayVN();
 
-  const _today = todayVN();
-  // Done today section
-  const _allDoneToday = getRecurDoneToday();
-  const doneTodayList = _allDoneToday.filter(d=>d.date===_today && (currentMember==='admin'||d.person===('')));
+  const sortVal=(document.getElementById('tkRecurFilterSort')||{}).value||'time-desc';
+  const fType=(document.getElementById('tkRecurFilterType')||{}).value||'';
+  const fPri=(document.getElementById('tkRecurFilterPriority')||{}).value||'';
+  const fStatus=(document.getElementById('tkRecurFilterStatus')||{}).value||'';
 
-  const visibleRecurring = currentMember==='admin' ? recurringTasks : recurringTasks.filter(r=>r.person===(''));
-  if(!visibleRecurring.length){ list.innerHTML=''; empty.style.display='block'; return; }
-  empty.style.display='none';
-  // Tách task chưa done và task đã done hôm nay
-  const notDoneList = visibleRecurring.filter(r=>!doneTodayList.some(d=>d.id===r.id));
-  list.innerHTML = notDoneList.map(r=>{
-    const today = _today;
-    const typeLabel = {daily:'Hàng ngày', weekly:'Hàng tuần', monthly:'Hàng tháng', custom:`Mỗi ${r.days} ngày`}[r.type]||r.type;
-    const nextDate = r.nextDate||'—';
-    const isDue = nextDate<=today;
-    const isDoneToday = doneTodayList.some(d=>d.id===r.id);
-    let cardClass = 'task-recur-card';
-    if(isDoneToday) cardClass += ' task-recur-done';
-    else if(isDue) cardClass += ' task-recur-due';
-    return `<div class="${cardClass}" style="border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:8px;">
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:14px;margin-bottom:4px;${isDoneToday?'text-decoration:line-through;color:var(--text-muted)':''}">
-          ${isDoneToday?'✅':'🔁'} ${r.name}
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <span style="font-size:11px;background:#21262d;color:#c9d1d9;padding:2px 8px;border-radius:10px;border:1px solid #30363d">${typeLabel}</span>
-          ${r.person?`<span style="font-size:11px;color:var(--text-muted)">👤 ${r.person}</span>`:''}
-          ${isDoneToday
-            ? `<span style="font-size:11px;color:#27ae60;font-weight:600">✓ Đã xong hôm nay</span><span style="font-size:11px;color:var(--text-muted)">📅 Lần tới: ${nextDate}</span>`
-            : `<span style="font-size:11px;color:${isDue?'var(--red)':'var(--text-muted)'}">📅 Lần tới: <b>${nextDate}</b>${isDue?' ⚠️ Đến hạn!':''}</span>`
-          }
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        ${isDoneToday
-          ?`<button onclick="undoDoneRecurring(${r.id})" class="btn btn-sm btn-outline" style="font-size:11px;color:#e67e22;border-color:#e67e22" title="Hoàn tác done">↩ Hoàn tác</button>`
-          :`<button onclick="doneRecurringToday(${r.id})" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none;font-size:11px">✓ Done</button>`
-        }
-        <button onclick="editRecurring(${r.id})" class="btn btn-sm btn-outline" style="font-size:11px">✎</button>
-        <button onclick="deleteRecurring(${r.id})" class="btn btn-sm btn-outline" style="font-size:11px;">🗑</button>
-      </div>
-    </div>`;
-  }).join('');
-
-  // Done today section
-  const today2 = _today;
-  if(doneTodayList.length){
-    const doneOpen = (localStorage.getItem('recur_done_open')||'1')==='1';
-    list.innerHTML += `<div style="margin-top:16px">
-      <div onclick="toggleRecurDoneSection()" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;background:#f0faf4;border-radius:8px;border:1px solid #a8deba;user-select:none">
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#27ae60">✅ Đã hoàn thành hôm nay (${doneTodayList.length})</span>
-        <span id="recurDoneChevron" style="margin-left:auto;font-size:11px;color:#27ae60;transform:${doneOpen?'rotate(0deg)':'rotate(-90deg)'};transition:transform .2s;display:inline-block">▼</span>
-      </div>
-      <div id="recurDoneList" style="display:${doneOpen?'block':'none'};margin-top:6px">
-        ${doneTodayList.map(d=>`<div style="padding:8px 14px;border:1px solid #a8deba;border-radius:8px;background:#f0faf4;display:flex;align-items:center;gap:10px;margin-bottom:6px">
-          <span style="font-size:13px;font-weight:600">✅ ${d.name}</span>
-          <span style="font-size:11px;color:var(--text-muted)">${d.doneAt||today2}</span>
-          <button onclick="undoDoneRecurring(${d.id})" class="btn btn-sm btn-outline" style="font-size:11px;color:#e67e22;border-color:#e67e22;margin-left:auto">↩ Hoàn tác</button>
-        </div>`).join('')}
-      </div>
-    </div>`;
+  const typeSel = document.getElementById('tkRecurFilterType');
+  if(typeSel){
+    const types = [...new Set(recurringTasks.map(t=>t.type_task||t.type).filter(Boolean))].sort();
+    const curType = typeSel.value;
+    typeSel.innerHTML = '<option value="">🏷️ Tất cả loại</option>' + types.map(t=>`<option value="${t}" ${t===curType?'selected':''}>${t}</option>`).join('');
   }
+
+  let filtered = recurringTasks.filter(t=>{
+    if(currentMember!=='admin' && t.person!==('')) return false;
+    if(fType && (t.type_task||t.type||'')!==fType) return false;
+    if(fPri && (t.priority||'Bình thường')!==fPri) return false;
+    if(fStatus){
+      const isDone = calcProjectProgress(t)>=100 || calcTaskAutoStatus(t)==='Hoàn thành';
+      const isPending = !!t.pendingReason;
+      if(fStatus==='done' && !isDone) return false;
+      if(fStatus==='active' && (isDone||isPending)) return false;
+      if(fStatus==='pending' && !isPending) return false;
+    }
+    return true;
+  });
+
+  if(!filtered.length){ list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  const getPri = (p) => p==='Cao'?3 : p==='Bình thường'?2 : p==='Thấp'?1 : 0;
+  const sortFn = (a, b) => {
+    if (sortVal === 'time-desc') return (b.id||0) - (a.id||0);
+    if (sortVal === 'time-asc') return (a.id||0) - (b.id||0);
+    if (sortVal === 'prio-desc') return getPri(b.priority) - getPri(a.priority) || ((b.id||0) - (a.id||0));
+    if (sortVal === 'prio-asc') return getPri(a.priority) - getPri(b.priority) || ((a.id||0) - (b.id||0));
+    return 0;
+  };
+
+  const isTaskDone = t => calcProjectProgress(t)>=100 || calcTaskAutoStatus(t)==='Hoàn thành';
+  const activeList = filtered.filter(t=>!isTaskDone(t));
+  const doneList   = filtered.filter(t=>isTaskDone(t));
+
+  let html = '';
+  if(activeList.length){
+    const sorted = [...activeList].sort(sortFn);
+    html += sorted.map(r => createTaskCardHTML(r, 'recurring')).join('');
+  }
+
+  if(doneList.length){
+    const doneOpen = (localStorage.getItem('recur_done_open')||'0')==='1';
+    html += `<div onclick="toggleRecurDoneSection()" style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;background:#f0faf4;border-top:2px solid #a8deba;border-radius:6px;margin-top:16px;user-select:none">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#27ae60">✅ Đã hoàn thành (${doneList.length})</span>
+      <span id="recurDoneChevron" style="margin-left:auto;font-size:11px;color:#27ae60;transform:${doneOpen?'rotate(180deg)':'rotate(0deg)'};transition:transform .2s;display:inline-block">▼</span>
+    </div>`;
+    if(doneOpen){
+      const sorted = [...doneList].sort(sortFn);
+      html += `<div id="recurDoneList">${sorted.map(r => createTaskCardHTML(r, 'recurring')).join('')}</div>`;
+    } else {
+      html += `<div id="recurDoneList" style="display:none"></div>`;
+    }
+  }
+  
+  list.innerHTML = html;
+  updateNavBadges();
 }
+
+function renderRecurPendingSummary(){
+  const summaryPanel = document.getElementById('recurPendingSummaryPanel');
+  const summaryTable = document.getElementById('recurPendingSummaryTable');
+  const countEl = document.getElementById('recurPendingCount');
+  if(!summaryPanel || !summaryTable) return;
+  
+  const pendingTasks = recurringTasks.filter(t=>!!t.pendingReason && (currentMember==='admin'||t.person===('')));
+  if(pendingTasks.length === 0){
+    summaryPanel.style.display = 'none';
+    return;
+  }
+  
+  summaryPanel.style.display = 'block';
+  countEl.textContent = pendingTasks.length;
+  const tbody = summaryTable.querySelector('tbody');
+  tbody.innerHTML = pendingTasks.map(t=>`
+    <tr style="border-bottom:1px solid #fce0b0;background:#fffaf0">
+      <td style="padding:8px 12px;font-weight:600">${t.name}</td>
+      <td style="padding:8px 12px;color:var(--text-muted)">-</td>
+      <td style="padding:8px 12px;color:var(--text-muted)">${t.pendingDate||''}</td>
+      <td style="padding:8px 12px;color:#e67e22;font-weight:500">${t.pendingReason||''}</td>
+      <td style="padding:8px 12px;font-size:11px">
+        <select onchange="updateTaskPendingStatus(${t.id}, this.value, true)" style="border:1px solid #fce0b0;background:#fff;border-radius:4px;padding:2px">
+          <option value="Chờ xử lý" ${t.pendingStatus==='Chờ xử lý'||!t.pendingStatus?'selected':''}>Chờ xử lý</option>
+          <option value="Đang giải quyết" ${t.pendingStatus==='Đang giải quyết'?'selected':''}>Đang giải quyết</option>
+          <option value="Cần Admin confirm" ${t.pendingStatus==='Cần Admin confirm'?'selected':''}>Cần Admin confirm</option>
+        </select>
+      </td>
+      <td style="padding:8px 12px;text-align:center">
+        <button onclick="openRecurPendingModal(${t.id})" class="btn-sm" style="background:#e67e22;color:#fff;border:none;border-radius:4px;cursor:pointer">Sửa</button>
+        <button onclick="resolveTaskPending(${t.id}, true)" class="btn-sm" style="background:#27ae60;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:4px">Xong</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
 
 function openNewRecurringModal(id){
   const r = id ? recurringTasks.find(x=>x.id===id) : null;
@@ -5039,10 +5080,10 @@ function saveProject(){
   }
   closeNewProjectModal();
   if(currentProjectId){
-    const t=tasks.find(x=>x.id===currentProjectId);
+    const t=getCurrentProject();
     if(t) renderSubBoard(t);
   }
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   saveAppData();
   toast('&#10003; Đã lưu!');
 }
@@ -5060,7 +5101,7 @@ function deleteProject(){
 
 // ---- CARD MODAL ----
 function openAddCardModal(defaultColId, cardId=null){
-  const task=tasks.find(t=>t.id===currentProjectId);
+  const task=getCurrentProject();
   if(!task) return;
   editingCardId=cardId;
   const cols=getProjectCols(task);
@@ -5086,7 +5127,7 @@ function closeAddCardModal(){document.getElementById('addCardModal').classList.r
 function saveCard(){
   const name=(document.getElementById('ac_name').value||'').trim();
   if(!name){toast('Nhập tên thẻ!','#e74c3c');return;}
-  const task=tasks.find(t=>t.id===currentProjectId);
+  const task=getCurrentProject();
   if(!task) return;
   const colId=document.getElementById('ac_col').value;
   const desc=document.getElementById('ac_desc').value.trim();
@@ -5105,13 +5146,13 @@ function saveCard(){
   }
   closeAddCardModal();
   renderSubBoard(task);
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   saveAppData();
   toast('&#10003; Đã lưu thẻ!');
 }
 
 function deleteCard(){
-  const task=tasks.find(t=>t.id===currentProjectId);
+  const task=getCurrentProject();
   if(!task||!editingCardId) return;
   if(!confirm('Xoá thẻ này?')) return;
   task.cards=task.cards.filter(c=>c.id!==editingCardId);
@@ -5154,7 +5195,7 @@ function confirmPending(){
       pendingDragCard=null;
       clearCardSelection();
       if(task) renderSubBoard(task);
-      renderTasksOverview();
+      renderTasksOverview(); renderRecurringTasks();
       saveAppData();
     }
     toast('❙❙ Đã chuyển sang Pending');
@@ -5276,7 +5317,7 @@ function resolvePending(taskId,cardId){
   const firstCol=getProjectCols(task)[0];
   card.colId=firstCol.id;
   delete card.pendingReason; delete card.pendingDate; delete card.pendingStatus;
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   if(currentProjectId===taskId) renderSubBoard(task);
   saveAppData();
   toast(`&#10003; Đã resolve → "${firstCol.label}"`);
@@ -5448,7 +5489,7 @@ function onAdminLoginSuccess() {
   switchWorkspace('job', document.querySelector('.sidebar-nav-item'));
   restorePosition();
   renderDashboard();
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
 }
 
 // ===== CHANGE PASSWORD =====
@@ -5569,7 +5610,7 @@ let promptNextId = 1;
       }
       if (typeof restorePosition === 'function') restorePosition();
       if (typeof renderDashboard === 'function') renderDashboard();
-      if (typeof renderTasksOverview === 'function') renderTasksOverview();
+      if (typeof renderTasksOverview === 'function') renderTasksOverview(); renderRecurringTasks();
       // NOTE: initFirebaseListener is called by autoStartFirebase() — no need to call here
     });
   }catch(e){ console.error('restoreMember error:', e); }
@@ -6796,7 +6837,7 @@ function saveWebsiteFromPopup(){
   saveAppData();
   closeWebsiteInfo();
   if (typeof renderWsTrack === 'function') renderWsTrack();
-  if (typeof renderTasksOverview === 'function') renderTasksOverview();
+  if (typeof renderTasksOverview === 'function') renderTasksOverview(); renderRecurringTasks();
   if (typeof renderIndexTasks === 'function') renderIndexTasks();
   // Re-render websites panel if visible
   if(document.getElementById('websitesPanel')?.style.display!=='none') renderWebsites();
@@ -6945,7 +6986,7 @@ function saveWebsiteFromModal(id){
   closeWebsiteInfo();
   if(document.getElementById('websitesPanel')?.style.display!=='none') renderWebsites();
   if (typeof renderWsTrack === 'function') renderWsTrack();
-  if (typeof renderTasksOverview === 'function') renderTasksOverview();
+  if (typeof renderTasksOverview === 'function') renderTasksOverview(); renderRecurringTasks();
   if (typeof renderIndexTasks === 'function') renderIndexTasks();
   toast('✓ Đã cập nhật!');
 }
@@ -7216,7 +7257,7 @@ function restoreTask(idx){
   tasks.unshift(t);
   saveAppData();
   renderTrash();
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   updateTrashBadge();
   toast('✓ Đã khôi phục: '+t.name);
 }
@@ -7354,7 +7395,7 @@ function confirmDeleteTask(id){
   tasks = tasks.filter(x=>x.id!==id);
   selectedTaskIds.delete(id);
   saveAppData();
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   toast('🗑 Đã xoá task. <a onclick="undoDeleteTask('+id+')" style="color:#fff;text-decoration:underline;cursor:pointer;font-weight:600">Hoàn tác</a>', '#2c3e50', 6000);
 }
 
@@ -7366,7 +7407,7 @@ function undoDeleteTask(id){
   deletedTasks.splice(idx,1);
   tasks.unshift(t);
   saveAppData();
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   toast('✓ Đã khôi phục task!');
 }
 
@@ -7378,7 +7419,7 @@ function bulkTaskDelete(){
   tasks = tasks.filter(t=>!ids.has(parseInt(t.id)));
   selectedTaskIds.clear();
   saveAppData();
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   toast('🗑 Đã xoá '+n+' task. <a onclick="undoDeleteBulk()" style="color:#fff;text-decoration:underline;cursor:pointer;font-weight:600">Hoàn tác</a>', '#2c3e50', 5000);
 }
 
@@ -7394,7 +7435,7 @@ function bulkTaskDone(){
   });
   selectedTaskIds.clear();
   saveAppData();
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   toast('✓ Đã Done ' + n + ' task!');
 }
 
@@ -8305,7 +8346,7 @@ function saveTaskPending(){
     const t = tasks.find(x=>x.id===parseInt(rawId));
     if(!t) return;
     t.pendingReason=reason; t.pendingNote=note; t.pendingDate=todayVN(); t.pendingStatus="Chờ xử lý";
-    saveAppData(); closeTaskPendingModal(); renderTasksOverview();
+    saveAppData(); closeTaskPendingModal(); renderTasksOverview(); renderRecurringTasks();
     toast("⏸ Đã pending task: "+t.name);
   }
 }
@@ -8314,7 +8355,7 @@ function resolveTaskPending(taskId){
   const t = tasks.find(x=>x.id===taskId);
   if(!t) return;
   delete t.pendingReason; delete t.pendingNote; delete t.pendingDate; delete t.pendingStatus;
-  saveAppData(); renderTasksOverview();
+  saveAppData(); renderTasksOverview(); renderRecurringTasks();
   toast("✓ Đã bỏ pending task: "+t.name);
 }
 
@@ -8356,7 +8397,7 @@ function switchTasksTab(tab){
     } else {
       const ov = document.getElementById('tasksOverview');
       if(ov) ov.style.display='block';
-      renderTasksOverview();
+      renderTasksOverview(); renderRecurringTasks();
     }
   } else if (tab === 'recurring') {
     renderRecurringTasks();
@@ -8824,7 +8865,7 @@ function onCardCheck(event){
   const card = row ? row.querySelector(".kb-card") : null;
   if(chk.checked){
     _selectedCardIds.add(cardId); if(card) card.classList.add("card-selected");
-    const task = tasks.find(x=>x.id===currentProjectId);
+    const task = getCurrentProject();
     const c = task?.cards?.find(x=>x.id===cardId);
     if(c){ _lastSelectedColId=c.colId; updateSelColBtn(); }
   } else {
@@ -8836,7 +8877,7 @@ function onCardCheck(event){
 function updateSelColBtn(){
   const btn = document.getElementById("btnSelCol");
   if(!btn||!_lastSelectedColId) return;
-  const task = tasks.find(x=>x.id===currentProjectId);
+  const task = getCurrentProject();
   const cols = task ? getProjectCols(task) : [];
   const col = cols.find(c=>c.id===_lastSelectedColId);
   btn.textContent = col ? `u2611 Cu1ea3 "${col.label}"` : "u2611 Cu1ea3 cu1ed9t";
@@ -8860,7 +8901,7 @@ function toggleSelectAllMenu(){
   const isOpen = menu.style.display!=='none';
   if(isOpen){ menu.style.display='none'; return; }
   // Populate column items
-  const task = tasks.find(x=>x.id===currentProjectId);
+  const task = getCurrentProject();
   const colItems = document.getElementById('selectColItems');
   if(task && colItems){
     const cols = getProjectCols(task);
@@ -8893,7 +8934,7 @@ function closeSelectAllMenu(){
 }
 
 function selectColCards(colId){
-  const task = tasks.find(x=>x.id===currentProjectId);
+  const task = getCurrentProject();
   if(!task) return;
   const colCards = (task.cards||[]).filter(c=>c.colId===colId||(colId==='col_new'&&c.colId==='todo'));
   const colCardIds = new Set(colCards.map(c=>c.id));
@@ -8910,7 +8951,7 @@ function selectColCards(colId){
 }
 
 function selectAllCards(){
-  const task = tasks.find(x=>x.id===currentProjectId);
+  const task = getCurrentProject();
   if(!task) return;
   task.cards.forEach(c=>_selectedCardIds.add(c.id));
   document.querySelectorAll('.card-chk').forEach(chk=>{
@@ -8934,7 +8975,7 @@ function toggleBulkMoveToMenu(){
   if(!menu) return;
   if(menu.style.display !== 'none'){ menu.style.display='none'; return; }
   // Populate with current task's columns
-  const task = tasks.find(t=>t.id===currentProjectId);
+  const task = getCurrentProject();
   if(!task){ menu.style.display='none'; return; }
   const cols = getProjectCols(task);
   menu.innerHTML = cols.map(col=>`
@@ -8958,7 +8999,7 @@ function toggleBulkMoveToMenu(){
 
 function bulkMoveToCol(colId){
   document.getElementById('bulkMoveToMenu').style.display='none';
-  const task = tasks.find(t=>t.id===currentProjectId);
+  const task = getCurrentProject();
   if(!task||!_selectedCardIds.size) return;
   const isPending = colId==='pending'||colId==='col_pending';
   if(isPending){
@@ -8979,7 +9020,7 @@ function bulkMoveToCol(colId){
   saveAppData();
   clearCardSelection();
   renderSubBoard(task);
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   const cols = getProjectCols(task);
   const col = cols.find(c=>c.id===colId);
   toast(`⇒ Đã chuyển ${_selectedCardIds.size||'các'} thẻ → ${col?.label||colId}`);
@@ -9008,7 +9049,7 @@ function toggleBulkDropdown(key){
 }
 
 function bulkCardMove(dir){
-  const task = tasks.find(x=>x.id===currentProjectId);
+  const task = getCurrentProject();
   if(!task||!_selectedCardIds.size) return;
   const cols = getProjectCols(task);
   task.cards.forEach(card=>{
@@ -9020,19 +9061,19 @@ function bulkCardMove(dir){
   saveAppData();
   clearCardSelection();
   renderSubBoard(task);
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   toast(`→ Đã chuyển ${_selectedCardIds.size||'các'} thẻ`);
 }
 
 function bulkCardCopyUrls(btn){
-  const task = tasks.find(x=>x.id===currentProjectId);
+  const task = getCurrentProject();
   if(!task||!_selectedCardIds.size) return;
   const urls = task.cards.filter(c=>_selectedCardIds.has(c.id)).map(c=>c.name).join('\n');
   copyText(urls, btn);
 }
 
 function bulkCardCopyVidco(btn){
-  const task = tasks.find(x=>x.id===currentProjectId);
+  const task = getCurrentProject();
   if(!task||!_selectedCardIds.size) return;
   const selected = task.cards.filter(c=>_selectedCardIds.has(c.id));
   const found = [], notFound = [];
@@ -9068,14 +9109,14 @@ function bulkCardCopyVidco(btn){
 }
 
 function bulkCardDelete(){
-  const task = tasks.find(x=>x.id===currentProjectId);
+  const task = getCurrentProject();
   if(!task||!_selectedCardIds.size) return;
   const n = _selectedCardIds.size;
   task.cards = task.cards.filter(c=>!_selectedCardIds.has(c.id));
   saveAppData();
   clearCardSelection();
   renderSubBoard(task);
-  renderTasksOverview();
+  renderTasksOverview(); renderRecurringTasks();
   toast('🗑 Đã xoá '+n+' thẻ');
 }
 
@@ -9377,7 +9418,7 @@ function restoreFromBackup(dateKey){
     if(Array.isArray(s.links))        links        = s.links;
     if(Array.isArray(s.prompts))      prompts      = s.prompts;
     saveAppData();
-    renderDashboard(); renderTasksOverview();
+    renderDashboard(); renderTasksOverview(); renderRecurringTasks();
     const el=document.getElementById('backupOverlay'); if(el) el.remove();
     toast('✅ Đã khôi phục backup '+dateKey, '#27ae60', 5000);
   });
@@ -9980,7 +10021,7 @@ function _saveFlexSalary(){ try{localStorage.setItem('wt_flex_salary',JSON.strin
       clearInterval(checker);
       // Chạy Offline cứu hộ
       if (typeof renderDashboard === 'function') renderDashboard();
-      if (typeof renderTasksOverview === 'function') renderTasksOverview();
+      if (typeof renderTasksOverview === 'function') renderTasksOverview(); renderRecurringTasks();
     }
   }, 500);
 })();
@@ -10584,7 +10625,7 @@ const TaskImporter = {
     document.getElementById('quickImportModal').classList.remove('open');
     document.getElementById('quickImportModal').style.display = 'none';
     this.resetForm();
-    renderTasksOverview();
+    renderTasksOverview(); renderRecurringTasks();
     saveAppData();
     toast(`&#10003; Đã thêm task "${newTask.name}" với ${newTask.cards.length} thẻ con!`);
   }
@@ -14787,7 +14828,7 @@ async function restoreBackupVersion(source, timestamp) {
     if (Array.isArray(payload.linkCategories)) linkCategories = payload.linkCategories;
     if (Array.isArray(payload.assignees)) assignees = payload.assignees;
     if (Array.isArray(payload.prompts)) prompts = payload.prompts;
-    if (Array.isArray(payload.recurringTasks)) recurringTasks = payload.recurringTasks;
+    if (Array.isArray(payload.recurringTasksV2)) recurringTasks = payload.recurringTasksV2;
     if (Array.isArray(payload.khoId)) khoIdList = payload.khoId;
     if (Array.isArray(payload.siteTracking)) siteTracking = payload.siteTracking;
     if (Array.isArray(payload.billings)) billings = payload.billings;
