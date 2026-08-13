@@ -5032,7 +5032,7 @@ function saveProject(){
   if(!name){toast('Nhập tên task!','#e74c3c');return;}
   const stepsText=document.getElementById('npm_steps').value||'';
   const cols=parseSteps(stepsText);
-  if(editingProjectId){
+  if(editingProjectId && !isAddingRecurringTask){
     const t=tasks.find(x=>x.id===editingProjectId);
     if(t){
       t.name=name;t.person=currentMember==='hai'?'Hải':currentMember==='hieu'?'Hiếu':(document.getElementById('npm_person').value||t.person||'');
@@ -5100,21 +5100,43 @@ function saveProject(){
       _cards = [{ id: 'card_' + Date.now(), title: name, name: name, colId: _taskCols[0].id, note: '', deadline: '', link: '' }];
     }
 
-    const t={id:taskNextId++,name,person:_personVal,
+    const t={id:isAddingRecurringTask ? recurNextId++ : taskNextId++,name,person:_personVal,
       type:document.getElementById('npm_type').value,from:document.getElementById('npm_from').value,
       deadline:document.getElementById('npm_deadline').value,desc:_desc,
       cols,cards:_cards,priority:document.getElementById('npm_priority')?.value||'Bình thường',dang:_dang,team:document.getElementById('npm_team')?.value||'Team 01',
       recurring:recurOn?{type:document.getElementById('npm_recur_type')?.value||'weekly',days:parseInt(document.getElementById('npm_recur_days')?.value||7)}:null};
-    tasks.push(t);
+    
+    if (isAddingRecurringTask) {
+      t.type_task = t.type;
+      t.type = document.getElementById('npm_recur_type').value;
+      t.days = parseInt(document.getElementById('npm_recur_days').value||7);
+      t.nextDate = document.getElementById('npm_recur_next').value || todayVN();
+      t.weekdays = [...document.querySelectorAll('input[name="npm_weekday"]:checked')].map(x=>parseInt(x.value));
+      t.monthdays = [...document.querySelectorAll('input[name="npm_monthday"]:checked')].map(x=>parseInt(x.value));
+      delete t.recurring;
+      if(editingProjectId) {
+         const idx = recurringTasks.findIndex(x=>x.id===editingProjectId);
+         if(idx>=0) recurringTasks[idx] = t;
+      } else {
+         recurringTasks.push(t);
+      }
+      saveRecurring();
+      renderRecurringTasks();
+      toast('✅ Đã lưu task định kỳ');
+    } else {
+      tasks.push(t);
+    }
   }
   closeNewProjectModal();
-  if(currentProjectId){
-    const t=getCurrentProject();
-    if(t) renderSubBoard(t);
+  if (!isAddingRecurringTask) {
+    if(currentProjectId){
+      const t=getCurrentProject();
+      if(t) renderSubBoard(t);
+    }
+    renderTasksOverview(); renderRecurringTasks();
+    saveAppData();
+    toast('&#10003; Đã lưu!');
   }
-  renderTasksOverview(); renderRecurringTasks();
-  saveAppData();
-  toast('&#10003; Đã lưu!');
 }
 
 function deleteProject(){
