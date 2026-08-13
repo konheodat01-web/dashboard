@@ -5028,6 +5028,10 @@ function calcNextDate(fromDate, recurring){
 
 
 function saveProject(){
+  if (window._fbDb && !window._fbDataLoaded) {
+    toast('Đang đồng bộ dữ liệu với máy chủ, vui lòng đợi vài giây rồi bấm Lưu lại!', '#e74c3c');
+    return;
+  }
   const name=(document.getElementById('npm_name').value||'').trim();
   if(!name){toast('Nhập tên task!','#e74c3c');return;}
   const stepsText=document.getElementById('npm_steps').value||'';
