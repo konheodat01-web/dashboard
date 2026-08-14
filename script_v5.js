@@ -11260,6 +11260,12 @@ async function wstSyncGscRealtime(token, force = false) {
   // Hiện Badge trạng thái đang đồng bộ
   wstSetGscBadge('syncing', '...');
 
+  let waitCount = 0;
+  while (!window._fbDataLoaded && waitCount < 30) {
+    await new Promise(r => setTimeout(r, 500));
+    waitCount++;
+  }
+
   try {
     // Bước 1: Lấy danh sách tất cả site trong tài khoản GSC của người dùng
     const sitesRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
@@ -11284,6 +11290,7 @@ async function wstSyncGscRealtime(token, force = false) {
 
     if (gscSites.length === 0) {
       wstSetGscBadge('nomatch');
+      localStorage.setItem('gsc_last_global_sync_date', todayVN());
       return;
     }
 
@@ -11343,6 +11350,7 @@ async function wstSyncGscRealtime(token, force = false) {
 
     if (matched.length === 0) {
       wstSetGscBadge('nomatch');
+      localStorage.setItem('gsc_last_global_sync_date', todayVN());
       return;
     }
 
