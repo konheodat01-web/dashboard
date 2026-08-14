@@ -5184,6 +5184,7 @@ function saveCard(){
   if(!name){toast('Nhập tên thẻ!','#e74c3c');return;}
   const task=getCurrentProject();
   if(!task) return;
+  if(!task.cards) task.cards = [];
   const colId=document.getElementById('ac_col').value;
   const desc=document.getElementById('ac_desc').value.trim();
 
@@ -9008,6 +9009,7 @@ function selectColCards(colId){
 function selectAllCards(){
   const task = getCurrentProject();
   if(!task) return;
+  if(!task.cards) task.cards = [];
   task.cards.forEach(c=>_selectedCardIds.add(c.id));
   document.querySelectorAll('.card-chk').forEach(chk=>{
     chk.checked=true;
