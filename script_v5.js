@@ -5155,7 +5155,7 @@ function deleteProject(){
 }
 
 // ---- CARD MODAL ----
-function openAddCardModal(defaultColId, cardId=null){
+function openAddCardModal(defaultColId, cardId=null){ try {
   const task=getCurrentProject();
   if(!task) return;
   editingCardId=cardId;
@@ -5174,7 +5174,7 @@ function openAddCardModal(defaultColId, cardId=null){
     document.getElementById('ac_delete_btn').style.display='none';
   }
   document.getElementById('addCardModal').classList.add('open');
-  setTimeout(()=>document.getElementById('ac_name').focus(),100);
+  setTimeout(()=>document.getElementById('ac_name').focus(),100); } catch(e) { alert('L?i openAddCardModal: ' + e.message); console.error(e); }
 }
 
 function closeAddCardModal(){document.getElementById('addCardModal').classList.remove('open');editingCardId=null;}
