@@ -11208,37 +11208,12 @@ async function wstTriggerGscReauth() {
     }
   }
 
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
-    provider.addScope('https://www.googleapis.com/auth/webmasters');
-    provider.addScope('https://www.googleapis.com/auth/siteverification');
-    provider.setCustomParameters({ prompt: 'consent' });
-    
-    const result = await firebase.auth().signInWithPopup(provider);
-    if (result.credential && result.credential.accessToken) {
-      sessionStorage.setItem('gsc_access_token', result.credential.accessToken);
-      if (result.user && result.user.email) {
-        sessionStorage.setItem('gsc_user_email', result.user.email);
-      }
-      
-      const today = todayVN();
-      const lastSync = localStorage.getItem('gsc_last_global_sync_date');
-      if (lastSync === today) {
-        if (confirm('Dữ liệu GSC hôm nay đã được đồng bộ trước đó. Bạn có muốn đồng bộ lại không?')) {
-          await wstSyncGscRealtime(result.credential.accessToken, true);
-        } else {
-          wstSetGscBadge('done');
-        }
-      } else {
-        await wstSyncGscRealtime(result.credential.accessToken);
-      }
-    }
-  } catch (e) {
-    console.warn('[GSC Reauth] Failed:', e.message);
-    alert('Lỗi kết nối Google GSC:\n' + e.message + '\n\nVui lòng kiểm tra xem trình duyệt có chặn cửa sổ bật lên (popup blocker) hay không.');
-    wstSetGscBadge('error');
-  }
+  // Trigger login via redirect to avoid popup blockers in AdsPower
+  wstInitiateDirectGoogleOAuth([
+    'https://www.googleapis.com/auth/webmasters.readonly',
+    'https://www.googleapis.com/auth/webmasters',
+    'https://www.googleapis.com/auth/siteverification'
+  ], { type: 'global_sync' });
 }
 
 // Hàm đồng bộ chính — chạy tự động sau khi đăng nhập Google
