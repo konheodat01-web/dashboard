@@ -4926,12 +4926,9 @@ function doneRecurringToday(id){
 }
 
 function toggleRecurDoneSection(){
-  const cur = (localStorage.getItem('recur_done_open')||'1')==='1';
+  const cur = (localStorage.getItem('recur_done_open')||'0')==='1';
   localStorage.setItem('recur_done_open', cur?'0':'1');
-  const list = document.getElementById('recurDoneList');
-  const chevron = document.getElementById('recurDoneChevron');
-  if(list) list.style.display = cur?'none':'block';
-  if(chevron) chevron.style.transform = cur?'rotate(-90deg)':'rotate(0deg)';
+  renderRecurringTasks();
 }
 
 function undoDoneRecurring(id){
