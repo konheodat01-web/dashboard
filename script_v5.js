@@ -3933,7 +3933,9 @@ function renderWsTrack(){
   }
 
   let list = allTrackedWs.filter(w=>{
-    if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
+    let kids301 = getW301Children(w);
+    let match301 = kids301.some(k => k.brand.toLowerCase().includes(q) || (k.url||'').toLowerCase().includes(q));
+    if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q) && !match301) return false;
     if(fTeam && w.team !== fTeam) return false;
     if(fDifficulty && w.difficulty !== fDifficulty) return false;
     if(fTag && !(w.tags || []).includes(fTag)) return false;
