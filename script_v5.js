@@ -3053,6 +3053,10 @@ async function wstPollProcesses(){
   
   let gscReports = [];
   try { gscReports = JSON.parse(localStorage.getItem('wst_gsc_reports')||'[]'); } catch(e){}
+  if (gscReports.length > 3) {
+    gscReports = gscReports.slice(0, 3);
+    localStorage.setItem('wst_gsc_reports', JSON.stringify(gscReports));
+  }
   var gscUnseen = gscReports.filter(rep => !rep.seen).length;
   var totalUnseen = (_swProc.unseen||0) + gscUnseen;
   
@@ -3103,6 +3107,10 @@ function wstRenderProcPopup(){
   if (!running) {
     let gscReports = [];
     try { gscReports = JSON.parse(localStorage.getItem('wst_gsc_reports')||'[]'); } catch(e){}
+    if (gscReports.length > 3) {
+      gscReports = gscReports.slice(0, 3);
+      localStorage.setItem('wst_gsc_reports', JSON.stringify(gscReports));
+    }
     if (gscReports.length > 0) {
        var gscRows = gscReports.map(function(r, idx){
          var time = new Date(r.date).toLocaleString('vi-VN');
@@ -11501,7 +11509,7 @@ async function wstSyncGscRealtime(token, force = false) {
     let storedReports = [];
     try { storedReports = JSON.parse(localStorage.getItem('wst_gsc_reports')||'[]'); } catch(e){}
     storedReports.unshift(report);
-    if (storedReports.length > 30) storedReports = storedReports.slice(0, 30);
+    if (storedReports.length > 3) storedReports = storedReports.slice(0, 3);
     localStorage.setItem('wst_gsc_reports', JSON.stringify(storedReports));
     wstPollProcesses(); // Kích hoạt chấm đỏ ngay lập tức
 
