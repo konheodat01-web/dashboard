@@ -2793,11 +2793,15 @@ function wstRowRightContent(w, site){
 // Nếu w chính là bản ghi 301 (is301) hoặc chưa có child -> dùng chính w.
 function wstCurrent301Site(w){
   if (!w) return w;
-  var kids = websites.filter(function(x){
-    return x.is301 && x.sourceUrl &&
-      (x.sourceUrl === w.url || x.sourceUrl === (w.url||'').replace(/\/$/, ''));
-  });
-  return kids.length ? kids[kids.length - 1] : w;
+  let current = w;
+  let visited = new Set();
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    const kids = websites.filter(x => x.is301 && x.sourceUrl && wstNormalizeUrl(x.sourceUrl) === wstNormalizeUrl(current.url));
+    if (!kids.length) break;
+    current = kids[kids.length - 1];
+  }
+  return current;
 }
 
 // URL hiện tại (site WordPress thật) = url của bản ghi 301.
@@ -4163,10 +4167,16 @@ function renderWsTrack(){
     const site = getWstSite(w.id);
     const entries = (site?.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
     const last = entries[0];
-    // FIX: Sửa lỗi ReferenceError bằng cách tự lọc trực tiếp link 301 tại đây
-  const kids = websites.filter(x => x.is301 && x.sourceUrl && (x.sourceUrl === w.url || x.sourceUrl === (w.url || '').replace(/\/$/, '')));
-    // Latest 301: sort by added order (last in array), use url or sourceUrl
-    const latest301 = kids.length ? kids[kids.length-1] : null;
+    // FIX: Sửa lỗi hiển thị URL 301 bằng cách duyệt qua toàn bộ chuỗi 301 (forward chain) và chuẩn hóa URL
+    let current301 = w;
+    let visited301 = new Set();
+    while (current301 && !visited301.has(current301.id)) {
+      visited301.add(current301.id);
+      const nextKids = websites.filter(x => x.is301 && x.sourceUrl && wstNormalizeUrl(x.sourceUrl) === wstNormalizeUrl(current301.url));
+      if (!nextKids.length) break;
+      current301 = nextKids[nextKids.length - 1]; // Lấy thằng 301 mới nhất
+    }
+    const latest301 = (current301 && current301.id !== w.id) ? current301 : null;
     const display301Url = latest301 ? (latest301.url||latest301.sourceUrl||'—') : (w.url||'—');
     const isSameAsSource = !latest301;
     const isSelected = _wstSelected.has(w.id);
