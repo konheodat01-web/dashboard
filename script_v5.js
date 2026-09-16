@@ -6322,6 +6322,22 @@ function renderWebsites(){
 
   const ftr=(document.getElementById('websiteFilterTracked')||{}).value||'';
   const ftype=(document.getElementById('websiteFilterType')||{}).value||'';
+  
+  const tagSel = document.getElementById('websiteFilterTag');
+  let fTag = '';
+  if (tagSel) {
+    fTag = tagSel.value;
+    const allTags = new Set();
+    websites.forEach(w => {
+      if (!ft || w.team === ft) {
+        (w.tags || []).forEach(t => allTags.add(t));
+      }
+    });
+    const tagsArr = Array.from(allTags).sort();
+    tagSel.innerHTML = '<option value="">Tất cả tag</option>' + tagsArr.map(t => `<option value="${t.replace(/"/g, '&quot;')}">${t}</option>`).join('');
+    if (tagsArr.includes(fTag)) tagSel.value = fTag;
+  }
+
   let list=getFilteredWebsites().filter(w=>{
     if(q && !w.brand.toLowerCase().includes(q) && !(w.url||'').toLowerCase().includes(q)) return false;
     if(fs && w.status!==fs) return false;
@@ -6333,6 +6349,7 @@ function renderWebsites(){
     if(ftr==='untracked' && siteTracking.some(s=>s.wsId===w.id)) return false;
     if(ftype==='goc' && w.is301) return false;
     if(ftype==='301' && !w.is301) return false;
+    if(fTag && !(w.tags || []).includes(fTag)) return false;
     return true;
   });
 
@@ -6361,7 +6378,7 @@ function renderWebsites(){
           <span style="font-weight:600;font-size:13px">${wstBrandHtml(w)}</span>
           ${w.team==='Team 02'?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#666">M7</span>`:`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>`}
           ${w.group?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fff3cd;color:#856404">${w.group}</span>`:''}
-          
+          ${(w.tags||[]).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:#58a6ff;border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
         </div>
         <div style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${wstUrlHtml(w)}</div>
         ${w.note?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${w.note}</div>`:''}
