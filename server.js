@@ -257,6 +257,42 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── /api/sw-expert/* → SEO Writer /api/expert/* (Chuyên gia SEO ở tab Báo cáo) ──
+  // Chuyen nguyen method + body + status; key SEO Writer gan o server, khong lo ra browser.
+  if (url.startsWith("/api/sw-expert/") && ["GET", "POST", "DELETE"].includes(req.method)) {
+    const sub = url.slice("/api/sw-expert/".length);
+    if (!/^[a-z]+(\/[a-z0-9]{1,40})?$/i.test(sub)) {
+      res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ detail: "Đường dẫn không hợp lệ" }));
+      return;
+    }
+    let swKey = "";
+    try { swKey = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
+    const reqBody = req.method === "POST" ? await readBody(req) : "";
+    const pr = http.request({
+      hostname: "127.0.0.1", port: 8501,
+      path: "/api/expert/" + sub,
+      method: req.method,
+      timeout: 180000,
+      headers: { "x-access-key": swKey, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(reqBody) },
+    }, (pres) => {
+      let body = "";
+      pres.on("data", (c) => { body += c; });
+      pres.on("end", () => {
+        res.writeHead(pres.statusCode, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(body);
+      });
+    });
+    pr.on("timeout", () => pr.destroy(new Error("timeout")));
+    pr.on("error", (e) => {
+      if (res.headersSent) return;
+      res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ detail: "Không kết nối được SEO Writer: " + e.message }));
+    });
+    pr.end(reqBody);
+    return;
+  }
+
   // ── GET /api/wp-posts?domain=&type=&per_page= ────────────────────────────
   // Proxy lay danh sach bai viet tu WordPress REST. Fetch tu VPS nen qua duoc
   // lop bao mat chan IP la cua cac site .fashion/.io/.health.

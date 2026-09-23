@@ -328,6 +328,7 @@ function renderDashboard() {
       </div>
     </div>
   `;
+  if (typeof sxMount === 'function') sxMount(container); // Van phong Chuyen gia SEO (seo_expert.js)
 }
 
 function statusBadge(s){
