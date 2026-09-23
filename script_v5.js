@@ -12476,6 +12476,7 @@ function wstOpenDashboard(wsId) {
       <button class="tb-btn" onclick="wstSwitchTab(this,'dichvu')">🛠️ Dịch vụ</button>
       <button class="tb-btn" onclick="wstSwitchTab(this,'anphat')">⚠️ Án phạt GSC</button>
       <button class="tb-btn" onclick="wstSwitchTab(this,'plan')">📝 Kế hoạch & Strategy</button>
+      <button class="tb-btn" onclick="wstSwitchTab(this,'expert')">🧠 Chuyên gia SEO</button>
     </div>
 
     <!-- CONTAINER PANELS -->
@@ -12620,6 +12621,9 @@ function wstOpenDashboard(wsId) {
         </div>
       </div>
 
+      <!-- 4.8. PANEL CHUYÊN GIA SEO (seo_expert.js — sxSiteMount) -->
+      <div class="tp-panel" id="wst-tab-expert"></div>
+
       <!-- 5. PANEL PLAN & KANBAN -->
       <div class="tp-panel" id="wst-tab-plan">
         <div class="plan-container">
@@ -12684,6 +12688,9 @@ function wstSwitchTab(btn, tabId) {
 
   if (tabId === 'anphat') {
     wstLoadManualActions();
+  }
+  if (tabId === 'expert' && typeof sxSiteMount === 'function') {
+    sxSiteMount(document.getElementById('wst-tab-expert'), _wstActiveSiteId);
   }
 }
 

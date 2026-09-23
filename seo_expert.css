@@ -57,3 +57,34 @@
   .sx-side { border-right:0; border-bottom:1px solid #30363d; max-height:150px; }
   .sx-msg { max-width:100%; }
 }
+
+/* ── Chuyên gia theo website: tab "🧠 Chuyên gia SEO" trong modal Dashboard site (Theo dõi web) ── */
+.sx-site { position:absolute; inset:0; display:flex; flex-direction:column; background:#161b22; color:#c9d1d9; }
+.sx-site-head { display:flex; align-items:center; justify-content:space-between; gap:10px; border-bottom:1px solid #30363d; flex-wrap:wrap; }
+.sx-site-t { font-size:13px; font-weight:700; color:#f0f6fc; min-width:0; }
+.sx-site-sub { font-weight:400; }
+.sx-ctx-box { max-height:230px; overflow:auto; background:#0d1117; border-bottom:1px solid #30363d; font-size:11px; line-height:1.5; color:#8b949e; white-space:pre-wrap; word-break:break-word; }
+.sx-ctx-box[hidden] { display:none; }
+.sx-site .sx-msgs { flex:1; min-height:0; }
+/* modal đặt margin/padding = 0 cho MỌI phần tử con bằng selector ID -> trả lại khoảng cách ở đây */
+#wstDashboardModalContainer .sx-site-head { padding:10px 16px; }
+#wstDashboardModalContainer .sx-ctx-box { padding:10px 16px; }
+#wstDashboardModalContainer .sx-site .sx-btn { padding:5px 10px; }
+#wstDashboardModalContainer .sx-site .sx-msgs { padding:16px 18px; }
+#wstDashboardModalContainer .sx-site .sx-msg-user { padding:9px 13px; }
+#wstDashboardModalContainer .sx-site .sx-msg-ai { padding:12px 16px; }
+#wstDashboardModalContainer .sx-site .sx-msg-ai h1, #wstDashboardModalContainer .sx-site .sx-msg-ai h2, #wstDashboardModalContainer .sx-site .sx-msg-ai h3 { margin:12px 0 6px; }
+#wstDashboardModalContainer .sx-site .sx-msg-ai p { margin:6px 0; }
+#wstDashboardModalContainer .sx-site .sx-msg-ai ul, #wstDashboardModalContainer .sx-site .sx-msg-ai ol { margin:6px 0; padding-left:20px; }
+#wstDashboardModalContainer .sx-site .sx-msg-ai code { padding:1px 5px; }
+#wstDashboardModalContainer .sx-site .sx-msg-ai pre { padding:10px; margin:6px 0; }
+#wstDashboardModalContainer .sx-site .sx-msg-ai pre code { padding:0; }
+#wstDashboardModalContainer .sx-site .sx-cite a { padding:0 4px; margin-left:1px; }
+#wstDashboardModalContainer .sx-site .sx-sources { margin-top:10px; padding-top:8px; }
+#wstDashboardModalContainer .sx-site .sx-sources div { margin:2px 0; }
+#wstDashboardModalContainer .sx-site .sx-welcome { margin:auto; }
+#wstDashboardModalContainer .sx-site .sx-welcome-t { margin-bottom:6px; }
+#wstDashboardModalContainer .sx-site .sx-chips { margin-top:14px; }
+#wstDashboardModalContainer .sx-site .sx-chip { padding:6px 12px; }
+#wstDashboardModalContainer .sx-site .sx-input { padding:12px 16px; }
+#wstDashboardModalContainer .sx-site .sx-input textarea { padding:9px 12px; }
