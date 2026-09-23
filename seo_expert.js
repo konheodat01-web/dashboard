@@ -132,7 +132,11 @@
     st.busy = false; el.send.disabled = false; scrollBottom();
   }
 
-  function autosize() { el.ta.style.height = 'auto'; el.ta.style.height = Math.min(el.ta.scrollHeight, 140) + 'px'; }
+  function autosize() {
+    el.ta.style.height = 'auto';
+    el.ta.style.height = Math.min(el.ta.scrollHeight, 140) + 'px';
+    el.ta.style.overflowY = el.ta.scrollHeight > 140 ? 'auto' : 'hidden';
+  }
 
   function setCollapsed(c) {
     el.root.classList.toggle('sx-collapsed', c);
@@ -180,6 +184,7 @@
     let collapsed = false;
     try { collapsed = localStorage.getItem('sx_collapsed') === '1'; } catch (e) {}
     setCollapsed(collapsed);
+    autosize();
     renderWelcome(); loadStatus(); loadList();
     return root;
   }
