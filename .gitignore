@@ -1,3 +1,4 @@
 # Bảo vệ file cấu hình khỏi bị Git ghi đè
 config.json
 node_modules/
+admin_auth.json

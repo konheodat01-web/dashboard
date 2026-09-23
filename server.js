@@ -7,7 +7,7 @@
  *   POST /api/config        → Receive JSON body, overwrite config.json
  *   GET  /admin             → Serve admin.html
  *   GET  /                  → Serve index.html
- *   GET  /*                 → Serve static files (css, js, config.json)
+ *   GET  /*                 → Serve static files o thu muc goc (html, css, js, anh) — khong phuc vu config/.git/server.js
  *
  * Usage on VPS:
  *   node server.js
@@ -23,6 +23,13 @@ const { exec } = require("child_process");
 const PORT        = process.env.PORT || 3050;
 const CONFIG_FILE = path.join(__dirname, "config.json");
 const STATIC_DIR  = __dirname;
+// Mat khau trang admin: file admin_auth.json {user, pass} tren VPS (gitignore).
+// Thieu file → /admin, /api/config, /api/git-pull-deploy bi khoa hoan toan.
+const ADMIN_AUTH_FILE = path.join(__dirname, "admin_auth.json");
+
+// Static chi phuc vu file o thu muc goc, dung duoi an toan, tru cac file noi bo.
+const STATIC_EXT  = new Set([".html", ".css", ".js", ".png", ".ico", ".svg", ".jpg", ".jpeg", ".webp", ".gif", ".woff", ".woff2"]);
+const STATIC_DENY = new Set(["server.js", "admin.html", "fix_gsc.js", "temp_old.js"]);
 
 // ── MIME types ────────────────────────────────────────────────────────────────
 const MIME = {
@@ -88,6 +95,24 @@ function setCORS(res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
+// ── Basic Auth cho khu vuc admin (tra ve true neu da xac thuc) ───────────────
+function checkAdminAuth(req, res) {
+  let cred = null;
+  try { cred = JSON.parse(fs.readFileSync(ADMIN_AUTH_FILE, "utf8")); } catch (e) {}
+  if (!cred || !cred.user || !cred.pass) {
+    res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("403 Forbidden");
+    return false;
+  }
+  const expected = "Basic " + Buffer.from(cred.user + ":" + cred.pass).toString("base64");
+  const got = req.headers["authorization"] || "";
+  const a = Buffer.from(got), b = Buffer.from(expected);
+  if (a.length === b.length && require("crypto").timingSafeEqual(a, b)) return true;
+  res.writeHead(401, { "WWW-Authenticate": 'Basic realm="admin", charset="UTF-8"', "Content-Type": "text/plain; charset=utf-8" });
+  res.end("401 Unauthorized");
+  return false;
+}
+
 // ── Main request handler ──────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
   setCORS(res);
@@ -100,6 +125,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   const url = req.url.split("?")[0]; // strip query string
+
+  // ── Khu vuc admin: bat buoc Basic Auth ───────────────────────────────────
+  if (url === "/admin" || url === "/admin/" || url === "/api/config" || url.startsWith("/api/git-pull-deploy")) {
+    if (!checkAdminAuth(req, res)) return;
+  }
 
   // ── GET /api/config ──────────────────────────────────────────────────────
   if (req.method === "GET" && url === "/api/config") {
@@ -410,7 +440,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET") {
     const safePath = path.join(STATIC_DIR, path.normalize(url));
     // Security: ensure path is still inside STATIC_DIR
-    if (!safePath.startsWith(STATIC_DIR)) {
+    const base = path.basename(safePath);
+    if (path.dirname(safePath) !== STATIC_DIR || base.startsWith(".") ||
+        !STATIC_EXT.has(path.extname(base).toLowerCase()) || STATIC_DENY.has(base)) {
       res.writeHead(403);
       res.end("403 Forbidden");
       return;
