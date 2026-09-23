@@ -79,7 +79,7 @@
     try {
       const s = await api('status');
       el.sub.textContent = s.pages
-        ? `${s.pages} trang tài liệu Google · cập nhật ${s.fetched} · hôm nay ${s.used_today}/${s.daily_cap} câu hỏi`
+        ? `${s.pages} trang tài liệu Google · cập nhật ${s.fetched} · hôm nay ${s.used_today} câu hỏi`
         : 'Kho kiến thức chưa có dữ liệu';
     } catch (e) { el.sub.textContent = 'Không kết nối được SEO Writer: ' + e.message; }
   }
