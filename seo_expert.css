@@ -163,3 +163,11 @@
 .sx-integ-bar a { color:#3fb950; font-weight:700; }
 .sx-warn { color:#d29922; }
 #wstDashboardModalContainer .sx-integ-bar { padding:8px 16px; }
+/* Bước 2 · Lập kế hoạch */
+.sx-ftable { width:100%; border-collapse:collapse; font-size:12px; }
+.sx-ftable th, .sx-ftable td { border:1px solid #30363d; text-align:left; vertical-align:top; }
+.sx-sum ul { list-style:disc; }
+.sx-progress-big { height:10px; max-width:600px; }
+#wstDashboardModalContainer .sx-site .sx-ftable th, #wstDashboardModalContainer .sx-site .sx-ftable td { padding:5px 8px; }
+#wstDashboardModalContainer .sx-site .sx-sum ul { padding-left:20px; margin:4px 0; }
+#wstDashboardModalContainer .sx-site .sx-sum details { margin-top:4px; }

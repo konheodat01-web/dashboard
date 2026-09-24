@@ -512,6 +512,50 @@
     return out.join('\n\n');
   }
 
+  // Đọc file CSV xuất từ Google Keyword Planner: UTF-16 LE/BE (mặc định của Google) hoặc UTF-8; tab hoặc dấu phẩy;
+  // tiêu đề cột tiếng Anh hoặc tiếng Việt; bỏ các dòng mô tả phía trên dòng tiêu đề.
+  async function sxParseKeywordPlanner(file) {
+    if (!file) throw new Error('Chưa chọn file');
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const enc = buf[0] === 0xFF && buf[1] === 0xFE ? 'utf-16le' : buf[0] === 0xFE && buf[1] === 0xFF ? 'utf-16be' : 'utf-8';
+    const text = new TextDecoder(enc).decode(buf).replace(/^﻿/, '');
+    const lines = text.split(/\r?\n/);
+    const hi = lines.findIndex(l => /^"?(keyword|từ khóa|từ khoá)"?[\t,]/i.test(l.trim()));
+    if (hi < 0) throw new Error('Không thấy dòng tiêu đề có cột "Keyword" / "Từ khóa" — file có phải xuất từ Keyword Planner?');
+    const delim = lines[hi].includes('\t') ? '\t' : ',';
+    const split = l => {                                    // tách 1 dòng CSV có dấu ngoặc kép
+      const out = []; let cur = '', qt = false;
+      for (let i = 0; i < l.length; i++) {
+        const ch = l[i];
+        if (ch === '"') { if (qt && l[i + 1] === '"') { cur += '"'; i++; } else qt = !qt; }
+        else if (ch === delim && !qt) { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      out.push(cur); return out.map(x => x.trim());
+    };
+    const H = split(lines[hi]).map(h => h.toLowerCase());
+    const col = re => H.findIndex(h => re.test(h));
+    const cK = col(/^(keyword|từ khóa|từ khoá)$/), cV = col(/avg\.? monthly searches|trung bình.*tìm kiếm|số lượt tìm kiếm/);
+    const cC = col(/^(competition|mức độ cạnh tranh|cạnh tranh)$/), cI = col(/competition \(indexed value\)|chỉ số cạnh tranh/);
+    if (cK < 0 || cV < 0) throw new Error('Thiếu cột từ khóa hoặc cột lượng tìm kiếm trung bình hàng tháng');
+    const numOf = v => {                                    // "5000" | "5.000" | "1K – 10K" (lấy cận dưới) | ""
+      const m = String(v || '').replace(/\s/g, '').match(/([\d.,]+)\s*([kKmM]?)/);
+      if (!m) return 0;
+      const n = parseFloat(m[1].replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.')) || 0;
+      return Math.round(n * (/k/i.test(m[2]) ? 1000 : /m/i.test(m[2]) ? 1e6 : 1));
+    };
+    const out = [];
+    for (let i = hi + 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const c = split(lines[i]);
+      const kw = (c[cK] || '').trim();
+      if (!kw) continue;
+      out.push({ kw, vol: numOf(c[cV]), comp: cC >= 0 ? c[cC] : '', comp_idx: cI >= 0 ? numOf(c[cI]) : 0 });
+    }
+    if (!out.length) throw new Error('File không có từ khóa nào');
+    return out;
+  }
+
   function sxReadFile(file) {
     return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result || '')); fr.onerror = () => rej(new Error('Không đọc được file')); fr.readAsText(file, 'utf-8'); });
   }
@@ -528,6 +572,7 @@
         <div class="sx-site-t">🧠 Chuyên gia SEO phụ trách site này <span class="sx-sub sx-site-sub"></span></div>
         <div class="sx-head-actions">
           <button class="sx-btn sx-prof" hidden title="Xem / sửa hồ sơ và báo cáo tích hợp đã xác nhận">🧩 Hồ sơ tích hợp</button>
+          <button class="sx-btn sx-btn-primary sx-planbtn" hidden title="Bước 2: lập kế hoạch nội dung từ file Keyword Planner, khung = hồ sơ tích hợp">📐 Lập kế hoạch</button>
           <button class="sx-btn sx-diag" title="Đọc robots.txt, sitemap, noindex, canonical, link nội bộ, Google URL Inspection của các bài chưa index">🔎 Chẩn đoán index</button>
           <button class="sx-btn sx-ctx">📋 Dữ liệu chuyên gia đọc</button>
           <button class="sx-btn sx-reset" hidden title="Xoá tin nhắn của site này (giữ hồ sơ tích hợp và báo cáo chẩn đoán)">🗑 Làm mới</button>
@@ -574,7 +619,12 @@
         · <a href="#" class="sx-integ-link">${inReview ? '↩ Về hội thoại' : '📑 Xem hồ sơ tích hợp'}</a>`;
       integBar.querySelector('.sx-integ-link').onclick = e => { e.preventDefault(); if (s.busy) return; inReview ? enterChat() : renderReview(); };
     }
-    const setHeadButtons = () => { q('.sx-prof').hidden = !unlocked(); q('.sx-reset').hidden = !(unlocked() && s.mode === 'chat'); showIntegBar(); };
+    const setHeadButtons = () => {
+      q('.sx-prof').hidden = !unlocked(); q('.sx-planbtn').hidden = !unlocked();
+      q('.sx-reset').hidden = !(unlocked() && s.mode === 'chat');
+      if (s.mode !== 'plan' && s.planTimer) { clearInterval(s.planTimer); s.planTimer = null; }
+      showIntegBar();
+    };
     async function saveDraft() {
       s.integ = await api('integration/' + cid, { method: 'POST', body: JSON.stringify({ site_title: await title(), type: s.type, answers: s.answers }) });
     }
@@ -915,6 +965,163 @@
         (s.diag ? `\n(+ Báo cáo chẩn đoán index lúc ${s.diag.at} — xem ở thanh 🔎 phía trên)` : '');
     };
     q('.sx-prof').onclick = () => { if (!s.busy) renderReview(); };
+    q('.sx-planbtn').onclick = () => { if (!s.busy) renderPlan(); };
+
+    // ══ BƯỚC 2 · LẬP KẾ HOẠCH TỪ KHÓA (khung = hồ sơ tích hợp; server: seo_expert_plan.py) ══
+    const PLAN_COLS = [['STT', 'stt', 6], ['Tháng', 'month', 7], ['Mốc lộ trình', 'milestone', 14], ['Nguồn', 'src', 22],
+      ['Silo (danh mục)', 'silo', 20], ['Nhóm bài con', 'sub', 26], ['Vai trò', 'role', 9], ['Dạng bài', 'type', 20],
+      ['Từ khóa chính', 'main', 32], ['Từ khóa phụ (→ H2/H3)', 'child', 60], ['Tổng lượng TK cụm/tháng', 'vol', 12],
+      ['Lượng TK từ khóa chính', 'main_vol', 11], ['Số từ khóa', 'n', 8], ['Search intent', 'intent', 11], ['Link về trụ cột', 'pillar', 32],
+      ['Đối thủ trong hồ sơ đang top', 'comp', 26], ['Ghi chú', 'note', 50], ['Mã cụm', 'cid', 9], ['Trạng thái', null, 12], ['URL sau khi đăng', null, 30]];
+
+    async function planLoad() { try { return await api('plan/' + cid); } catch (e) { return {}; } }
+
+    async function renderPlan() {
+      s.mode = 'plan'; setHeadButtons();
+      msgs.innerHTML = '<div class="sx-thinking">Đang tải…</div>';
+      const p = await planLoad();
+      if (s.mode !== 'plan') return;
+      if (p.running || p.status === 'running') return renderPlanRunning(p);
+      if (p.status === 'done') return renderPlanDone();
+      renderPlanFrame(p);
+    }
+
+    function frameHtml(f) {
+      if (!f) return '';
+      const silos = (f.silos || []).map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.pillar || '')}</td><td>${esc((x.subgroups || []).join(' · '))}</td></tr>`).join('');
+      const pace = (f.pace || []).map(x => `<li><b>${esc(x.label || '')}</b>: ${x.count || 0} bài${(x.silos || []).length ? ' · ưu tiên ' + esc(x.silos.join(', ')) : ''}${(x.subgroups || []).length ? ' › ' + esc(x.subgroups.join(', ')) : ''}${x.note ? ' — <i>' + esc(x.note) + '</i>' : ''}</li>`).join('');
+      const first = (f.first_articles || []).map((a, i) => `${i + 1}. ${esc(a.kw)} <span class="sx-sub">(${esc(a.silo)} · ${esc(a.type)})</span>`).join('<br>');
+      return `${!(f.silos || []).length ? `<div class="sx-err">⚠️ Hồ sơ chưa có cây danh mục nên chưa lập được kế hoạch${f.missing ? ': ' + esc(f.missing) : ''}. Bổ sung câu "Kiến trúc site" trong form tích hợp rồi tạo lại và xác nhận báo cáo.</div>`
+        : (f.missing ? `<div class="sx-sub">📝 Ghi chú của chuyên gia về hồ sơ: ${esc(f.missing)}</div>` : '')}
+        <table class="sx-ftable"><thead><tr><th>Silo</th><th>Trụ cột</th><th>Nhóm bài con</th></tr></thead><tbody>${silos || '<tr><td colspan="3">Không có silo nào</td></tr>'}</tbody></table>
+        <div><b>Dạng bài:</b> ${esc((f.types || []).join(', '))}</div>
+        <div><b>Lộ trình:</b><ul>${pace || '<li>Hồ sơ không nêu mốc — xếp theo lượng tìm kiếm</li>'}</ul>Sau các mốc: <b>${f.monthly_after || '?'}</b> bài/tháng${f.short_head_later ? ' · từ khóa lớn (brand/model, short-head) làm sau' : ''}</div>
+        <details><summary><b>${(f.first_articles || []).length} bài đầu tiên theo hồ sơ</b> (đặt đầu kế hoạch, đúng thứ tự)</summary><div class="sx-fdig">${first || 'Hồ sơ không có danh sách bài đầu'}</div></details>
+        ${(f.tech_tasks || []).length ? `<div><b>Việc kỹ thuật trước khi xuất bản:</b><ul>${f.tech_tasks.map(t => `<li>${esc(t.task)} <span class="sx-sub">(${esc(t.source || '')})</span></li>`).join('')}</ul></div>` : ''}
+        ${(f.competitors || []).length ? `<div><b>Đối thủ trong hồ sơ:</b> ${esc(f.competitors.join(', '))}</div>` : ''}`;
+    }
+
+    function renderPlanFrame(p) {
+      const f = p.frame;
+      msgs.innerHTML = `<div class="sx-form">
+        <div class="sx-form-sec">Bước 2 · Lập kế hoạch từ khóa</div>
+        <div class="sx-form-q">${f ? 'Khung kế hoạch đọc từ hồ sơ tích hợp' : 'Đọc khung từ hồ sơ tích hợp'}</div>
+        <div class="sx-form-help">KHUNG lấy từ báo cáo tích hợp đã xác nhận (silo, trụ cột, nhóm bài con, dạng bài, bài đầu tiên, lộ trình).
+          Từ khóa trong file Keyword Planner chỉ được <b>xếp vào khung</b>: gom theo search intent + trùng SERP ≥ 3 URL (top 10 Google) + từ khóa chính/phụ. Cụm không vừa khung để riêng, không tạo danh mục mới.</div>
+        ${p.status === 'error' ? `<div class="sx-err">⚠️ Lần chạy trước lỗi: ${esc(p.error || '')}</div>` : ''}
+        ${f ? `<div class="sx-sum">${frameHtml(f)}<div class="sx-sub">Đọc lúc ${esc(p.frame_at || '')} từ hồ sơ xác nhận lúc ${esc(f.from_report_at || '')}.</div></div>` : ''}
+        <div><button class="sx-btn ${f ? '' : 'sx-btn-primary'} sx-pframe">${f ? '↺ Đọc lại khung' : '📖 Đọc khung từ hồ sơ'}</button> <span class="sx-sub sx-pmsg"></span></div>
+        ${f && (f.silos || []).length ? `<div class="sx-up"><b>File Keyword Planner:</b> <input type="file" class="sx-kpfile" accept=".csv,.tsv,.txt">
+          <span class="sx-sub">Keyword Planner → Tải xuống ý tưởng từ khóa → .csv</span></div><div class="sx-kpinfo"></div>` : ''}
+      </div>`;
+      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button></div><div class="sx-nav-r"><button class="sx-btn sx-btn-primary sx-pstart" disabled>▶ Chạy lập kế hoạch</button></div>`);
+      bar.querySelector('.sx-tochat').onclick = enterChat;
+      msgs.querySelector('.sx-pframe').onclick = async () => {
+        const b = msgs.querySelector('.sx-pframe'), m = msgs.querySelector('.sx-pmsg');
+        b.disabled = true; m.textContent = '⏳ Chuyên gia đang đọc hồ sơ tích hợp (khoảng 20–60 giây)…';
+        try { renderPlanFrame(await api('planframe/' + cid, { method: 'POST', body: '{}' })); }
+        catch (e) { m.textContent = '⚠️ ' + e.message; b.disabled = false; }
+      };
+      const fi = msgs.querySelector('.sx-kpfile');
+      if (fi) fi.onchange = async () => {
+        const info = msgs.querySelector('.sx-kpinfo'), go = bar.querySelector('.sx-pstart');
+        go.disabled = true; info.textContent = 'Đang đọc file…';
+        try {
+          const kw = await sxParseKeywordPlanner(fi.files[0]);
+          const est = await api('planest/' + cid, { method: 'POST', body: JSON.stringify({ keywords: kw }) });
+          info.innerHTML = `✅ Đọc được <b>${num(kw.length)}</b> từ khóa (${num(est.keywords)} có lượng tìm kiếm).
+            Cần tra Google <b>${num(est.serp_needed)}</b> từ khóa (= ${num(est.serp_needed)} credit Serper), ${num(est.serp_cached)} đã có sẵn trong bộ nhớ đệm.
+            Chạy ngầm khoảng ${Math.ceil(est.serp_needed / 600) + 1}–${Math.ceil(est.serp_needed / 300) + 3} phút — đóng cửa sổ vẫn chạy tiếp.`;
+          go.disabled = false;
+          go.onclick = async () => {
+            if (!confirm(`Chạy lập kế hoạch cho ${num(kw.length)} từ khóa?\n\nTốn khoảng ${num(est.serp_needed)} credit Serper + chi phí AI xếp cụm vào khung.`)) return;
+            go.disabled = true;
+            try { renderPlanRunning(await api('planstart/' + cid, { method: 'POST', body: JSON.stringify({ keywords: kw, file_name: fi.files[0].name }) })); }
+            catch (e) { info.insertAdjacentHTML('beforeend', `<div class="sx-err">⚠️ ${esc(e.message)}</div>`); go.disabled = false; }
+          };
+        } catch (e) { info.innerHTML = `<div class="sx-err">⚠️ ${esc(e.message)}</div>`; }
+      };
+    }
+
+    function renderPlanRunning(p) {
+      const pr = p.progress || {};
+      const pct = pr.total ? Math.round(100 * (pr.done || 0) / pr.total) : 0;
+      const STAGES = { start: 'Bắt đầu', serp: '1/4 Tra Google', cluster: '2/4 Gom cụm', classify: '3/4 Xếp vào khung', order: '4/4 Sắp lộ trình' };
+      msgs.innerHTML = `<div class="sx-form"><div class="sx-form-sec">Bước 2 · Đang lập kế hoạch (chạy ngầm trên server)</div>
+        <div class="sx-form-q">${esc(STAGES[pr.stage] || pr.stage || '')}</div>
+        <div class="sx-progress sx-progress-big"><div style="width:${pct}%"></div></div>
+        <div class="sx-sub">${esc(pr.msg || '')}${pr.at ? ' · cập nhật ' + esc(pr.at) : ''}</div>
+        <div class="sx-form-help">File: ${esc(p.file_name || '')} · bắt đầu ${esc(p.started_at || '')}. Có thể đóng cửa sổ, quay lại xem sau.</div></div>`;
+      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button></div>`);
+      bar.querySelector('.sx-tochat').onclick = enterChat;
+      if (!s.planTimer) s.planTimer = setInterval(async () => {
+        if (!document.body.contains(panel) || s.mode !== 'plan') { clearInterval(s.planTimer); s.planTimer = null; return; }
+        const np = await planLoad();
+        if (np.status === 'done') { clearInterval(s.planTimer); s.planTimer = null; renderPlanDone(); }
+        else if (np.status === 'error') { clearInterval(s.planTimer); s.planTimer = null; renderPlanFrame(np); }
+        else if (s.mode === 'plan') renderPlanRunning(np);
+      }, 3000);
+    }
+
+    async function renderPlanDone() {
+      msgs.innerHTML = '<div class="sx-thinking">Đang tải kế hoạch…</div>';
+      let p;
+      try { p = await api('planfull/' + cid); } catch (e) { msgs.innerHTML = `<div class="sx-err">⚠️ ${esc(e.message)}</div>`; return; }
+      if (s.mode !== 'plan') return;
+      s.plan = p;
+      const st = p.stats || {}, rows = p.rows || [];
+      const bySilo = {};
+      rows.forEach(r => { bySilo[r.silo] = (bySilo[r.silo] || 0) + 1; });
+      const byMonth = {};
+      rows.forEach(r => { byMonth[r.month] = (byMonth[r.month] || 0) + 1; });
+      msgs.innerHTML = `<div class="sx-report">
+        <div class="sx-report-h">📐 Kế hoạch nội dung · lập lúc ${esc(p.done_at || '')} từ file ${esc(p.file_name || '')}${p.confirmed ? ' · <span class="sx-ok">✅ đã xác nhận ' + esc(p.confirmed_at || '') + '</span>' : ''}</div>
+        <div class="sx-sum">
+          <div><b>${num(st.rows)}</b> bài · ${num(st.first)} bài theo hồ sơ (trụ cột + bài đầu) · ${num(st.rows - st.first)} bài từ bộ từ khóa xếp vào khung · tổng ${num(st.volume)} lượt tìm kiếm/tháng</div>
+          <div>${num(st.keywords)} từ khóa → ${num(st.clusters)} cụm · ${num(st.excluded)} cụm/từ ngoài khung hoặc bị loại · tra Google ${num(st.serp_fetched)} từ (phần còn lại dùng bộ nhớ đệm) · ${num(st.seconds)} giây</div>
+          <div><b>Theo silo:</b> ${Object.entries(bySilo).map(([k, v]) => esc(k) + ' ' + v).join(' · ')}</div>
+          <div><b>Theo tháng:</b> ${Object.entries(byMonth).slice(0, 8).map(([k, v]) => 'T' + k + ': ' + v).join(' · ')}${Object.keys(byMonth).length > 8 ? ' · …' : ''} (tổng ${Object.keys(byMonth).length} tháng)</div>
+        </div>
+        <div class="sx-msg-ai sx-report-body"><table><thead><tr><th>STT</th><th>Tháng</th><th>Silo</th><th>Nhóm bài con</th><th>Dạng bài</th><th>Từ khóa chính</th><th>TK cụm</th><th>Ghi chú</th></tr></thead><tbody>
+          ${rows.slice(0, 60).map(r => `<tr><td>${r.stt}</td><td>${r.month}</td><td>${esc(r.silo)}</td><td>${esc(r.sub)}</td><td>${esc(r.type)}</td><td><b>${esc(r.main)}</b></td><td>${r.vol ? num(r.vol) : '—'}</td><td>${esc(clip(r.note, 90))}</td></tr>`).join('')}
+        </tbody></table><div class="sx-sub">Hiện 60/${num(rows.length)} bài đầu — tải Excel để xem đủ.</div></div>
+      </div>`;
+      msgs.scrollTop = 0;
+      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button><button class="sx-btn sx-prerun">↺ Lập lại (khung / file mới)</button></div>
+        <div class="sx-nav-r"><span class="sx-sub sx-pdmsg"></span><button class="sx-btn sx-pxlsx">⬇ Tải Excel</button>
+        ${p.confirmed ? '<span class="sx-ok">✅ Chuyên gia đang dùng kế hoạch này</span>' : '<button class="sx-btn sx-btn-primary sx-pconfirm">✅ Xác nhận kế hoạch</button>'}</div>`);
+      bar.querySelector('.sx-tochat').onclick = enterChat;
+      bar.querySelector('.sx-prerun').onclick = () => renderPlanFrame(p);
+      bar.querySelector('.sx-pxlsx').onclick = () => sxPlanXlsx(p, bar.querySelector('.sx-pdmsg'));
+      const cf = bar.querySelector('.sx-pconfirm');
+      if (cf) cf.onclick = async () => {
+        cf.disabled = true;
+        try { await api('planconfirm/' + cid, { method: 'POST', body: '{}' }); renderPlanDone(); }
+        catch (e) { bar.querySelector('.sx-pdmsg').textContent = '⚠️ ' + e.message; cf.disabled = false; }
+      };
+    }
+
+    async function sxPlanXlsx(p, msgEl) {
+      try {
+        if (!window.XLSX) {
+          msgEl.textContent = 'Đang tải thư viện Excel…';
+          await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('Không tải được thư viện Excel')); document.head.appendChild(sc); });
+        }
+        const aoa = [PLAN_COLS.map(c => c[0])].concat((p.rows || []).map(r => PLAN_COLS.map(([h, k]) => {
+          if (!k) return h === 'Trạng thái' ? 'Chưa viết' : '';
+          const v = r[k];
+          return Array.isArray(v) ? v.join('; ') : (v === 0 && (k === 'vol' || k === 'main_vol') ? '' : v);
+        })));
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = PLAN_COLS.map(c => ({ wch: c[2] }));
+        ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: PLAN_COLS.length - 1 } }) };
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Kế hoạch nội dung');
+        const site = ((ctxTitle || cid).replace(/^🌐\s*/, '').split('—').pop() || cid).trim().replace(/[^\w.-]+/g, '-');
+        XLSX.writeFile(wb, `Ke-hoach-noi-dung-${site}.xlsx`);
+        msgEl.textContent = '✅ Đã tải file';
+      } catch (e) { msgEl.textContent = '⚠️ ' + e.message; }
+    }
     q('.sx-reset').onclick = async () => {
       if (s.busy || !confirm('Xoá toàn bộ tin nhắn chuyên gia của site này? (Hồ sơ tích hợp và báo cáo chẩn đoán vẫn giữ.)')) return;
       try { await api('chats/' + cid, { method: 'DELETE' }); } catch (e) {}
