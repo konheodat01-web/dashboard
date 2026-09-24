@@ -352,6 +352,9 @@
     const hasNoindex = x => /noindex/i.test([x.metaRobots, x.metaGooglebot, x.xRobots].join(' '));
     const F = [];
     if (d.crossDomain) F.push(`Cả domain đang redirect sang **${d.crossDomain}** — Google sẽ index domain đích, không index ${host}.`);
+    if (d.robots && d.robots.blocksAll) F.push('**robots.txt đang chặn TOÀN BỘ site** (Disallow: /) — Google không thu thập được trang nào.');
+    if (d.home && /noindex/i.test([d.home.metaRobots, d.home.xRobots].join(' '))) F.push('**Trang chủ đang noindex** — thường do bật "Ngăn chặn các công cụ tìm kiếm đánh chỉ mục" (Cài đặt → Đọc) của WordPress hoặc plugin SEO.');
+    if (d.home && d.home.status === 200 && !(d.home.schemaTypes || []).length) F.push('Trang chủ **không có dữ liệu có cấu trúc** (JSON-LD/microdata).');
     const nBlock = S.filter(x => x.robotsTxt && x.robotsTxt.blocked).length;
     if (nBlock) F.push(`${nBlock}/${S.length} bài mẫu bị **robots.txt chặn**.`);
     const nNoidx = S.filter(hasNoindex).length;
@@ -385,6 +388,12 @@
     const smp = d.sitemap || {};
     L.push('\n### Sitemap');
     L.push(`- Đọc ${(smp.used || []).length} file, ${smp.urlCount} URL.` + (smp.missingCount == null ? ' Không đọc được sitemap nào.' : ` Bài KHÔNG có trong sitemap: ${smp.missingCount}/${smp.checkedLinks}${smp.missingSample && smp.missingSample.length ? ' (vd: ' + smp.missingSample.slice(0, 5).map(shortUrl).join(', ') + ')' : ''}`));
+    L.push('\n### Dữ liệu có cấu trúc (schema)');
+    L.push(`- Trang chủ: ${(h.schemaTypes || []).join(', ') || 'không có'}`);
+    const stc = {};
+    (d.samples || []).forEach(x => (x.schemaTypes || []).forEach(t => { stc[t] = (stc[t] || 0) + 1; }));
+    const nS = (d.samples || []).filter(x => !x.error).length;
+    L.push(`- Bài mẫu (${nS} bài): ${Object.keys(stc).length ? Object.entries(stc).sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t} ${c}/${nS}`).join(', ') : 'không có schema'}`);
     const il = d.inlinks || {};
     L.push('\n### Link nội bộ trong nội dung bài');
     L.push(il.ok ? `- Quét ${il.scannedPosts} bài/trang: ${il.orphanCount}/${il.totalLinks} bài KHÔNG được bài nào khác link tới trong nội dung (chưa tính menu/sidebar/chuyên mục).` : '- Không quét được nội dung qua REST.');
@@ -417,8 +426,66 @@
     'Site này đang có vấn đề gì cần ưu tiên xử lý?',
     'Phân tích xu hướng GSC của site so với kỳ trước',
     'Vì sao từ khóa chính chưa lên top?',
-    'Nên làm gì với các bài chưa index?',
+    'Tuần này nên làm gì theo lộ trình đã thống nhất?',
   ];
+
+  // ══ FORM TÍCH HỢP — hỏi từng câu. id câu hỏi phải khớp LABELS ở seo_expert_integrate.py ══
+  const SITE_TYPES = [
+    ['moi', '🌱 Website mới hoàn toàn', 'Domain mới, chưa có lịch sử, chưa hoặc mới có ít nội dung'],
+    ['nhan301', '🔀 Domain mới nhận 301', 'Site cũ đã 301 sang domain này — thừa hưởng lịch sử site cũ'],
+    ['dangchay', '🚀 Website đang chạy', 'Đã có nội dung, có dữ liệu Search Console'],
+    ['muallai', '♻️ Domain mua lại', 'Domain từng được người khác sử dụng trước đây'],
+  ];
+  const ALL = ['moi', 'nhan301', 'dangchay', 'muallai'], OLD = ['nhan301', 'dangchay', 'muallai'];
+  const QUESTIONS = [
+    { id: 'a1', sec: 'Tổng quan', types: ALL, req: true, label: 'Mục tiêu kinh doanh của website là gì?', help: 'VD: kéo người chơi đăng ký nhà cái X qua link; xây thương hiệu; bán dịch vụ…' },
+    { id: 'a2', sec: 'Tổng quan', types: ALL, req: true, label: 'Mục tiêu SEO cụ thể?', help: 'Muốn lên top từ khóa nào, đạt bao nhiêu traffic, trong bao lâu.' },
+    { id: 'a3', sec: 'Tổng quan', types: ALL, req: true, label: 'Ngách / chủ đề chính, thị trường và ngôn ngữ?', help: 'VD: cá cược bóng đá — Việt Nam — tiếng Việt.' },
+    { id: 'a4', sec: 'Tổng quan', types: ALL, req: true, label: 'Đối tượng người dùng mục tiêu là ai?', help: 'Độ tuổi, nhu cầu, mức hiểu biết, họ thường tìm gì trên Google.' },
+    { id: 'a5', sec: 'Tổng quan', types: ALL, label: 'Hành động chuyển đổi chính trên site?', help: 'VD: bấm link đăng ký, nạp tiền, để lại số điện thoại, đọc bài…' },
+    { id: 'b1', sec: 'Đối thủ & từ khóa', types: ALL, label: 'Đối thủ cạnh tranh chính?', help: 'Mỗi dòng 1 domain. Bấm "Gợi ý từ Google" để lấy các domain đang đứng top từ khóa mục tiêu (tốn 1 credit Serper).', suggest: true },
+    { id: 'b2', sec: 'Đối thủ & từ khóa', types: ALL, req: true, label: 'Từ khóa mục tiêu?', help: 'Mỗi dòng 1 từ khóa, quan trọng nhất ở trên.' },
+    { id: 'b3', sec: 'Đối thủ & từ khóa', types: OLD, label: 'Từ khóa đang có traffic / đang top?', help: 'Có thể để trống nếu đã kết nối GSC — chuyên gia tự đọc số liệu.' },
+    { id: 'c1', sec: 'Lịch sử', types: ['nhan301'], req: true, label: 'Thông tin 301: từ domain nào, ngày nào, vì sao?', help: 'Đã điền sẵn chuỗi domain từ dashboard — bổ sung lý do (bị chặn nhà mạng, dính án phạt, đổi thương hiệu…).' },
+    { id: 'c2', sec: 'Lịch sử', types: OLD, label: 'Những thay đổi lớn đã làm trên site?', help: 'Đổi theme, đổi cấu trúc URL, xoá hàng loạt bài, đổi plugin SEO, đổi domain… kèm thời điểm.' },
+    { id: 'c3', sec: 'Lịch sử', types: OLD, label: 'Đã từng gặp án phạt / sự cố với Google chưa?', help: 'Manual action, tụt hạng mạnh sau core update, mất index hàng loạt… kèm thời điểm.' },
+    { id: 'c4', sec: 'Lịch sử', types: ['muallai'], req: true, label: 'Lịch sử domain đã biết?', help: 'Trước đây domain dùng làm gì, có từng làm PBN / spam không, mua từ đâu, lúc nào.' },
+    { id: 'd1', sec: 'Chiến lược', types: ALL, req: true, label: 'Chiến lược nội dung?', help: 'Số bài mỗi tuần, dạng bài, ai viết, có dùng AI / SEO Writer không.' },
+    { id: 'd2', sec: 'Chiến lược', types: ALL, label: 'Chiến lược backlink / 301 / PBN đang dùng?', help: 'Để trống nếu chưa làm.' },
+    { id: 'd3', sec: 'Chiến lược', types: ALL, label: 'Kiến trúc site / các danh mục (hiện tại hoặc dự kiến)?', help: 'Danh mục chính, trang trụ cột, cách liên kết giữa các bài.' },
+    { id: 'd4', sec: 'Chiến lược', types: ALL, label: 'Ràng buộc: điều chuyên gia KHÔNG được đề xuất?', help: 'VD: không đổi domain, không xoá bài cũ, không nhắc tên thương hiệu khác…' },
+    { id: 'd5', sec: 'Chiến lược', types: ALL, label: 'Ghi chú khác cho chuyên gia?', help: 'Bất cứ điều gì chuyên gia cần biết để hiểu site.' },
+  ];
+  const COPYABLE = ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'd1', 'd2', 'd3', 'd4', 'd5'];
+  const FILE_KINDS = ['GSC · Lập chỉ mục trang', 'GSC · Crawl stats', 'GSC · Hiệu suất', 'GSC · Trải nghiệm / CWV', 'GA4', 'Khác'];
+
+  function sxSteps(type) {
+    const st = [{ k: 'type' }];
+    if (!type) return st;
+    QUESTIONS.filter(x => x.types.includes(type)).forEach(x => st.push({ k: 'q', q: x }));
+    if (type !== 'moi') st.push({ k: 'files' });
+    st.push({ k: 'auto' }, { k: 'gen' });
+    return st;
+  }
+
+  // Gợi ý đối thủ: Serper top 10 cho từ khóa mục tiêu, loại các domain trong mạng site của mình
+  async function sxSuggestCompetitors(kw) {
+    if (typeof wtApiKey === 'undefined' || !wtApiKey) throw new Error('Chưa có Serper API Key (thiết lập ở Theo dõi web)');
+    const r = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': wtApiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: kw, gl: 'vn', hl: 'vi', num: 10 }) });
+    const d = await r.json();
+    if (d.message === 'Unauthorized.' || d.statusCode === 403) throw new Error('Serper API Key sai hoặc hết lượt');
+    try { wtSerperCredits = Math.max(0, wtSerperCredits - (d.credits || 1)); localStorage.setItem('wt_serper_credits_left', wtSerperCredits); } catch (e) {}
+    const own = new Set((typeof websites !== 'undefined' ? websites : []).map(w => wstNormalizeUrl(w.url || '').split('/')[0]).filter(Boolean));
+    return (d.organic || []).map((o, i) => {
+      let h = ''; try { h = new URL(o.link).hostname.replace(/^www\./, ''); } catch (e) {}
+      return { host: h, pos: o.position || i + 1, own: own.has(h) };
+    }).filter(x => x.host);
+  }
+
+  function sxReadFile(file) {
+    return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result || '')); fr.onerror = () => rej(new Error('Không đọc được file')); fr.readAsText(file, 'utf-8'); });
+  }
 
   window.sxSiteMount = function (panel, wsId) {
     if (!panel) return;
@@ -426,27 +493,36 @@
     panel.dataset.sxWs = String(wsId);
     panel.style.padding = '0';
     const cid = 'ws' + String(wsId).replace(/\D/g, '');
-    const s = { busy: false };
+    const s = { busy: false, diag: null, integ: {}, answers: {}, type: '', step: 0, mode: 'loading' };
     panel.innerHTML = `<div class="sx-site">
       <div class="sx-site-head">
         <div class="sx-site-t">🧠 Chuyên gia SEO phụ trách site này <span class="sx-sub sx-site-sub"></span></div>
-        <div class="sx-head-actions"><button class="sx-btn sx-btn-primary sx-diag" title="Đọc robots.txt, sitemap, noindex, canonical, link nội bộ, Google URL Inspection của các bài chưa index">🔎 Chẩn đoán index</button><button class="sx-btn sx-ctx">📋 Dữ liệu chuyên gia đọc</button><button class="sx-btn sx-reset" title="Xoá toàn bộ hội thoại của site này">🗑 Làm mới</button></div>
+        <div class="sx-head-actions">
+          <button class="sx-btn sx-prof" hidden title="Xem / sửa hồ sơ và báo cáo tích hợp đã xác nhận">🧩 Hồ sơ tích hợp</button>
+          <button class="sx-btn sx-diag" title="Đọc robots.txt, sitemap, noindex, canonical, link nội bộ, Google URL Inspection của các bài chưa index">🔎 Chẩn đoán index</button>
+          <button class="sx-btn sx-ctx">📋 Dữ liệu chuyên gia đọc</button>
+          <button class="sx-btn sx-reset" hidden title="Xoá tin nhắn của site này (giữ hồ sơ tích hợp và báo cáo chẩn đoán)">🗑 Làm mới</button>
+        </div>
       </div>
       <div class="sx-diag-bar" hidden></div>
       <div class="sx-diag-box sx-msg-ai" hidden></div>
       <pre class="sx-ctx-box" hidden></pre>
       <div class="sx-msgs"></div>
-      <div class="sx-input"><textarea rows="1" placeholder="Hỏi về site này… (Enter gửi, Shift+Enter xuống dòng)"></textarea><button class="sx-btn sx-btn-primary sx-send">Gửi</button></div>
+      <div class="sx-input" hidden><textarea rows="1" placeholder="Hỏi về site này… (Enter gửi, Shift+Enter xuống dòng)"></textarea><button class="sx-btn sx-btn-primary sx-send">Gửi</button></div>
+      <div class="sx-bar" hidden></div>
     </div>`;
     const q = sel => panel.querySelector(sel);
-    const msgs = q('.sx-msgs'), ta = q('textarea'), btn = q('.sx-send'), ctxBox = q('.sx-ctx-box');
+    const msgs = q('.sx-msgs'), ta = q('textarea'), btn = q('.sx-send'), ctxBox = q('.sx-ctx-box'), inputBar = q('.sx-input'), bar = q('.sx-bar');
     const diagBar = q('.sx-diag-bar'), diagBox = q('.sx-diag-box'), diagBtn = q('.sx-diag');
-    s.diag = null;
+    const unlocked = () => !!(s.integ && s.integ.confirmed_report);
+    let ctxTitle = '';
+    const title = async () => ctxTitle || (ctxTitle = (await sxSiteContext(wsId)).title || cid);
+
     function showDiagBar(msg) {
       diagBar.hidden = false;
       if (msg) { diagBar.textContent = msg; return; }
       if (!s.diag) { diagBar.hidden = true; return; }
-      diagBar.innerHTML = `🔎 Chẩn đoán index gần nhất: <b>${esc(s.diag.at)}</b> — chuyên gia tự đọc báo cáo này khi trả lời · <a href="#" class="sx-diag-view">${diagBox.hidden ? 'Xem báo cáo' : 'Ẩn báo cáo'}</a>`;
+      diagBar.innerHTML = `🔎 Chẩn đoán index gần nhất: <b>${esc(s.diag.at)}</b> — chuyên gia tự đọc báo cáo này · <a href="#" class="sx-diag-view">${diagBox.hidden ? 'Xem báo cáo' : 'Ẩn báo cáo'}</a>`;
       diagBar.querySelector('.sx-diag-view').onclick = e => {
         e.preventDefault();
         diagBox.hidden = !diagBox.hidden;
@@ -456,31 +532,286 @@
     }
     const size = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; ta.style.overflowY = ta.scrollHeight > 120 ? 'auto' : 'hidden'; };
     const bottom = () => { msgs.scrollTop = msgs.scrollHeight; };
+    const setBar = html => { inputBar.hidden = true; bar.hidden = false; bar.innerHTML = html; };
+    const setHeadButtons = () => { q('.sx-prof').hidden = !unlocked(); q('.sx-reset').hidden = !(unlocked() && s.mode === 'chat'); };
+    async function saveDraft() {
+      s.integ = await api('integration/' + cid, { method: 'POST', body: JSON.stringify({ site_title: await title(), type: s.type, answers: s.answers }) });
+    }
+
+    // ── 1) CỔNG KHOÁ: chưa tích hợp -> nút thay chỗ ô chat ──
+    function renderGate() {
+      s.mode = 'gate'; setHeadButtons();
+      const st = s.integ.status || '';
+      const steps = sxSteps(s.type), done = QUESTIONS.filter(x => (s.answers[x.id] || '').trim()).length;
+      msgs.innerHTML = `<div class="sx-welcome sx-gate">
+        <div class="sx-welcome-t">🔒 Chuyên gia chưa được tích hợp với website này</div>
+        Để chuyên gia hiểu site từ GỐC (mục tiêu, đối tượng, đối thủ, lịch sử, chiến lược) thay vì chỉ nhìn số liệu bề nổi,
+        bạn trả lời vài câu hỏi, tải file Search Console (nếu có). Chuyên gia tự kiểm tra kỹ thuật rồi viết <b>báo cáo tích hợp</b> để bạn xác nhận.
+        Xác nhận xong mới mở hỏi đáp.
+        ${st === 'review' ? '<div class="sx-gate-note">📑 Báo cáo tích hợp đã tạo — đang chờ bạn xác nhận.</div>' :
+          (s.type ? `<div class="sx-gate-note">✍️ Đã lưu nháp: ${done} câu trả lời${(s.integ.files || []).length ? ', ' + s.integ.files.length + ' file' : ''}.</div>` : '')}
+      </div>`;
+      const label = st === 'review' ? '📑 Xem & xác nhận báo cáo tích hợp' : s.type ? `🧩 Tiếp tục tích hợp chuyên gia AI` : '🧩 Tích hợp chuyên gia AI';
+      setBar(`<button class="sx-btn sx-btn-primary sx-cta">${label}</button>`);
+      bar.querySelector('.sx-cta').onclick = () => st === 'review' ? renderReview() : renderStep(s.type ? Math.min(s.step || 1, steps.length - 1) : 0);
+    }
+
+    // ── 2) FORM TỪNG CÂU ──
+    function navHtml(i, n, nextLabel) {
+      const known = n > 1;                       // chưa chọn loại site thì chưa biết tổng số bước
+      return `<div class="sx-nav-l">${i > 0 ? '<button class="sx-btn sx-back">← Quay lại</button>' : '<button class="sx-btn sx-exit">✕ Để sau</button>'}</div>
+        <div class="sx-progress"><div style="width:${known ? Math.round((i + 1) * 100 / n) : 3}%"></div></div>
+        <div class="sx-nav-r"><span class="sx-sub">${known ? `Bước ${i + 1}/${n}` : 'Bắt đầu'}</span><button class="sx-btn sx-btn-primary sx-next">${nextLabel || 'Tiếp →'}</button></div>`;
+    }
+    function bindNav(i, onNext) {
+      const b = bar.querySelector('.sx-back'), x = bar.querySelector('.sx-exit');
+      if (b) b.onclick = () => renderStep(i - 1);
+      if (x) x.onclick = () => (unlocked() ? enterChat() : renderGate());
+      bar.querySelector('.sx-next').onclick = onNext;
+    }
+    async function renderStep(i) {
+      s.mode = 'form'; setHeadButtons();
+      const steps = sxSteps(s.type);
+      i = Math.max(0, Math.min(i, steps.length - 1));
+      s.step = i;
+      const stp = steps[i], n = steps.length;
+      if (stp.k === 'type') return renderTypeStep(i, n);
+      if (stp.k === 'q') return renderQuestion(i, n, stp.q);
+      if (stp.k === 'files') return renderFiles(i, n);
+      if (stp.k === 'auto') return renderAuto(i, n);
+      if (stp.k === 'gen') return renderGen(i, n);
+    }
+
+    function renderTypeStep(i, n) {
+      msgs.innerHTML = `<div class="sx-form">
+        <div class="sx-form-sec">Bắt đầu</div>
+        <div class="sx-form-q">Website này thuộc loại nào?</div>
+        <div class="sx-form-help">Câu trả lời quyết định bộ câu hỏi và loại báo cáo chuyên gia sẽ viết.</div>
+        <div class="sx-types">${SITE_TYPES.map(([k, lb, d]) => `<label class="sx-type${s.type === k ? ' on' : ''}"><input type="radio" name="sxtype-${cid}" value="${k}" ${s.type === k ? 'checked' : ''}><b>${lb}</b><span>${d}</span></label>`).join('')}</div>
+        <div class="sx-copy"><a href="#" class="sx-copy-link">📋 Sao chép câu trả lời từ hồ sơ site khác</a><div class="sx-copy-box" hidden></div></div>
+      </div>`;
+      msgs.querySelectorAll('.sx-type input').forEach(r => r.onchange = () => {
+        s.type = r.value;
+        msgs.querySelectorAll('.sx-type').forEach(l => l.classList.toggle('on', l.contains(r)));
+      });
+      msgs.querySelector('.sx-copy-link').onclick = async e => {
+        e.preventDefault();
+        const box = msgs.querySelector('.sx-copy-box');
+        box.hidden = false; box.textContent = 'Đang tải danh sách…';
+        try {
+          const sites = ((await api('integlist')).sites || []).filter(x => x.id !== cid);
+          if (!sites.length) { box.textContent = 'Chưa có site nào có hồ sơ tích hợp.'; return; }
+          box.innerHTML = `<select class="sx-sel">${sites.map((x, k) => `<option value="${k}">${esc(x.title)}${x.status === 'confirmed' ? ' ✅' : ''}</option>`).join('')}</select>
+            <button class="sx-btn sx-copy-go">Sao chép</button><div class="sx-sub">Chỉ chép phần Tổng quan, Đối thủ, Từ khóa mục tiêu, Chiến lược — KHÔNG chép Lịch sử và file.</div>`;
+          box.querySelector('.sx-copy-go').onclick = async () => {
+            const src = sites[Number(box.querySelector('.sx-sel').value)];
+            COPYABLE.forEach(k => { if (src.answers[k]) s.answers[k] = src.answers[k]; });
+            if (!s.type && src.type) s.type = src.type;
+            await saveDraft();
+            box.innerHTML = `✅ Đã chép từ <b>${esc(src.title)}</b> — kiểm tra và sửa lại ở các câu tiếp theo.`;
+            renderStep(0);
+          };
+        } catch (err) { box.textContent = '⚠️ ' + err.message; }
+      };
+      setBar(navHtml(i, n));
+      bindNav(i, async () => {
+        if (!s.type) { alert('Chọn loại website trước.'); return; }
+        await saveDraft();
+        renderStep(1);
+      });
+    }
+
+    function prefill(qid) {
+      const w = websites.find(x => x.id === wsId);
+      const site = (typeof getWstSite === 'function' && getWstSite(wsId)) || {};
+      if (qid === 'b2') return site.mainKeyword || (w && w.brand) || '';
+      if (qid === 'c1' && w) {
+        const ch = sx301Chain(w);
+        const cmds = (site.redirectCommands || []).map(c => `${c.createdAt || c.dateText}: → ${c.destUrl} [${c.status}]`).join('; ');
+        return (ch.length > 1 ? 'Chuỗi domain (cũ → mới): ' + ch.map(x => x.url).join(' → ') : '') + (cmds ? '\nLệnh 301: ' + cmds : '') + '\nLý do: ';
+      }
+      return '';
+    }
+
+    function renderQuestion(i, n, qq) {
+      if (!(s.answers[qq.id] || '').trim()) { const p = prefill(qq.id); if (p) s.answers[qq.id] = p; }
+      msgs.innerHTML = `<div class="sx-form">
+        <div class="sx-form-sec">${esc(qq.sec)}</div>
+        <div class="sx-form-q">${esc(qq.label)} ${qq.req ? '<span class="sx-req">*</span>' : '<span class="sx-sub">(không bắt buộc)</span>'}</div>
+        <div class="sx-form-help">${esc(qq.help)}</div>
+        <textarea class="sx-form-ta" rows="6">${esc(s.answers[qq.id] || '')}</textarea>
+        ${qq.suggest ? '<div><button class="sx-btn sx-sugg">🔍 Gợi ý từ Google</button> <span class="sx-sub sx-sugg-msg"></span></div>' : ''}
+      </div>`;
+      const fta = msgs.querySelector('.sx-form-ta');
+      fta.focus();
+      if (qq.suggest) msgs.querySelector('.sx-sugg').onclick = async () => {
+        const kw = ((s.answers.b2 || prefill('b2')).split('\n')[0] || '').trim();
+        const m = msgs.querySelector('.sx-sugg-msg');
+        if (!kw) { m.textContent = 'Chưa có từ khóa mục tiêu.'; return; }
+        m.textContent = `Đang tìm "${kw}"…`;
+        try {
+          const rows = await sxSuggestCompetitors(kw);
+          const have = new Set(fta.value.split('\n').map(x => x.trim().split(/\s/)[0]).filter(Boolean));
+          const add = rows.filter(x => !x.own && !have.has(x.host)).map(x => `${x.host}  (top ${x.pos} "${kw}")`);
+          fta.value = (fta.value.trim() ? fta.value.trim() + '\n' : '') + add.join('\n');
+          const own = rows.filter(x => x.own).map(x => x.host);
+          m.textContent = `Đã thêm ${add.length} domain.` + (own.length ? ` Bỏ qua site của mình: ${own.join(', ')}` : '') + ' Xoá bớt những domain không phải đối thủ.';
+        } catch (err) { m.textContent = '⚠️ ' + err.message; }
+      };
+      setBar(navHtml(i, n));
+      bindNav(i, async () => {
+        s.answers[qq.id] = fta.value.trim();
+        if (qq.req && !s.answers[qq.id]) { fta.classList.add('sx-invalid'); fta.focus(); return; }
+        await saveDraft();
+        renderStep(i + 1);
+      });
+    }
+
+    function renderFiles(i, n) {
+      const files = s.integ.files || [];
+      msgs.innerHTML = `<div class="sx-form">
+        <div class="sx-form-sec">File dữ liệu</div>
+        <div class="sx-form-q">Tải file Search Console / GA4 <span class="sx-sub">(không bắt buộc, nên có)</span></div>
+        <div class="sx-form-help">Những báo cáo Google KHÔNG có API: <b>Lập chỉ mục trang</b>, <b>Crawl stats</b> (Cài đặt → Thống kê thu thập dữ liệu), <b>Hiệu suất</b>.
+          Trong GSC bấm "Xuất" → "Tải xuống CSV" → giải nén file ZIP → tải lên các file .csv bên trong. Chuyên gia đọc và tóm tắt 1 lần.</div>
+        <div class="sx-up"><select class="sx-sel sx-kind">${FILE_KINDS.map(k => `<option>${k}</option>`).join('')}</select>
+          <input type="file" class="sx-file" multiple accept=".csv,.tsv,.txt,.json"><span class="sx-sub sx-up-msg"></span></div>
+        <div class="sx-files">${files.length ? files.map(f => `<details class="sx-filei"><summary>📄 <b>${esc(f.name)}</b> · ${num(f.size)} ký tự · ${esc(f.at || '')} <a href="#" class="sx-frm" data-n="${esc(f.name)}">xoá</a></summary><div class="sx-fdig">${renderMd(f.digest || '', [])}</div></details>`).join('') : '<div class="sx-sub">Chưa có file nào.</div>'}</div>
+      </div>`;
+      msgs.querySelectorAll('.sx-frm').forEach(a => a.onclick = async e => {
+        e.preventDefault();
+        s.integ = await api('integfile/' + cid, { method: 'POST', body: JSON.stringify({ name: a.dataset.n, remove: true }) });
+        renderFiles(i, n);
+      });
+      msgs.querySelector('.sx-file').onchange = async e => {
+        const m = msgs.querySelector('.sx-up-msg'), kind = msgs.querySelector('.sx-kind').value;
+        for (const f of Array.from(e.target.files || [])) {
+          m.textContent = `Đang đọc & tóm tắt ${f.name}…`;
+          try {
+            let text = await sxReadFile(f);
+            if (text.length > 400000) text = text.slice(0, 400000);
+            s.integ = await api('integfile/' + cid, { method: 'POST', body: JSON.stringify({ site_title: await title(), name: `${kind} — ${f.name}`, text }) });
+          } catch (err) { m.textContent = `⚠️ ${f.name}: ${err.message}`; return; }
+        }
+        renderFiles(i, n);
+      };
+      setBar(navHtml(i, n));
+      bindNav(i, () => renderStep(i + 1));
+    }
+
+    function renderAuto(i, n) {
+      const d = s.diag;
+      const quick = d ? ((d.text.split('### Phát hiện nhanh')[1] || '').split('\n### ')[0] || '').trim() : '';
+      msgs.innerHTML = `<div class="sx-form">
+        <div class="sx-form-sec">Kiểm tra kỹ thuật tự động</div>
+        <div class="sx-form-q">Chuyên gia tự đọc site từ bên ngoài (như Googlebot)</div>
+        <div class="sx-form-help">robots.txt, sitemap, noindex, canonical, link nội bộ, dữ liệu có cấu trúc, trang chủ, bài mẫu, Google URL Inspection (nếu đang đăng nhập GSC). Không đăng nhập hay sửa gì trên WordPress.</div>
+        ${d ? `<div class="sx-auto-ok">✅ Đã có kết quả kiểm tra lúc <b>${esc(d.at)}</b>${quick ? renderMd('**Phát hiện nhanh**\n' + quick, []) : ''}</div>` : '<div class="sx-sub">Chưa chạy kiểm tra. Nên chạy để báo cáo có phần kỹ thuật chính xác.</div>'}
+        <button class="sx-btn sx-btn-primary sx-run">${d ? '↺ Chạy lại kiểm tra' : '▶ Chạy kiểm tra kỹ thuật'}</button> <span class="sx-sub sx-run-msg"></span>
+      </div>`;
+      msgs.querySelector('.sx-run').onclick = async () => {
+        const m = msgs.querySelector('.sx-run-msg'), b = msgs.querySelector('.sx-run');
+        b.disabled = true;
+        try { await runDiagnosis(t => { m.textContent = t; }); renderAuto(i, n); }
+        catch (err) { m.textContent = '⚠️ ' + err.message; b.disabled = false; }
+      };
+      setBar(navHtml(i, n));
+      bindNav(i, () => { if (!s.diag && !confirm('Chưa chạy kiểm tra kỹ thuật — báo cáo sẽ thiếu phần kỹ thuật. Vẫn tiếp tục?')) return; renderStep(i + 1); });
+    }
+
+    function renderGen(i, n) {
+      const tlabel = (SITE_TYPES.find(x => x[0] === s.type) || [, s.type])[1];
+      const qs = QUESTIONS.filter(x => x.types.includes(s.type));
+      msgs.innerHTML = `<div class="sx-form">
+        <div class="sx-form-sec">Tổng hợp</div>
+        <div class="sx-form-q">Kiểm tra lại rồi tạo báo cáo tích hợp</div>
+        <div class="sx-sum"><div><b>Loại website:</b> ${esc(tlabel)}</div>
+          ${qs.map(x => `<div><b>${esc(x.label)}</b> ${s.answers[x.id] ? esc(clip(s.answers[x.id], 220)) : '<span class="sx-sub">— bỏ trống —</span>'}</div>`).join('')}
+          <div><b>File:</b> ${(s.integ.files || []).map(f => esc(f.name)).join(', ') || '<span class="sx-sub">không có</span>'}</div>
+          <div><b>Kiểm tra kỹ thuật:</b> ${s.diag ? 'có (' + esc(s.diag.at) + ')' : '<span class="sx-sub">chưa chạy</span>'}</div></div>
+        <div class="sx-form-help">Chuyên gia sẽ viết báo cáo: Tổng quan · Phân tích kỹ thuật · Nội dung · Hiệu suất · Vấn đề & đề xuất & lộ trình · Thông tin còn thiếu (khoảng 30–90 giây).</div>
+        <span class="sx-sub sx-gen-msg"></span>
+      </div>`;
+      setBar(navHtml(i, n, '✨ Tạo báo cáo tích hợp'));
+      bindNav(i, async () => {
+        const b = bar.querySelector('.sx-next'), m = msgs.querySelector('.sx-gen-msg');
+        b.disabled = true; m.textContent = '⏳ Chuyên gia đang đọc toàn bộ dữ liệu và viết báo cáo…';
+        try {
+          const ctx = await sxSiteContext(wsId);
+          s.integ = await api('integgen/' + cid, { method: 'POST', body: JSON.stringify({ site_title: ctx.title, site_context: ctx.text }) });
+          renderReview();
+        } catch (err) { m.textContent = '⚠️ ' + err.message; b.disabled = false; }
+      });
+    }
+
+    // ── 3) XEM & XÁC NHẬN BÁO CÁO ──
+    function renderReview(editing) {
+      s.mode = 'review'; setHeadButtons();
+      const it = s.integ || {}, rep = it.report || '';
+      const isConfirmedView = it.status === 'confirmed' && rep === it.confirmed_report;
+      msgs.innerHTML = `<div class="sx-report">
+        <div class="sx-report-h">📑 Báo cáo tích hợp · tạo lúc ${esc(it.generated_at || '?')}${it.confirmed_at ? ' · xác nhận lúc ' + esc(it.confirmed_at) : ''}</div>
+        ${editing ? `<textarea class="sx-report-ta">${esc(rep)}</textarea>` : `<div class="sx-msg-ai sx-report-body">${renderMd(rep, it.sources || [])}${sourcesHtml((it.sources || []).filter(x => new RegExp('\\[' + x.n + '\\]').test(rep)))}</div>`}
+      </div>`;
+      msgs.scrollTop = 0;
+      if (editing) {
+        setBar(`<div class="sx-nav-l"><button class="sx-btn sx-cancel">Huỷ</button></div><div class="sx-nav-r"><button class="sx-btn sx-btn-primary sx-save">💾 Lưu nội dung sửa</button></div>`);
+        bar.querySelector('.sx-cancel').onclick = () => renderReview(false);
+        bar.querySelector('.sx-save').onclick = () => { s.integ.report = msgs.querySelector('.sx-report-ta').value; renderReview(false); };
+        return;
+      }
+      setBar(`<div class="sx-nav-l">
+          ${unlocked() ? '<button class="sx-btn sx-tochat">↩ Về hội thoại</button>' : ''}
+          <button class="sx-btn sx-editform">← Sửa câu trả lời form</button>
+          <button class="sx-btn sx-editrep">✏️ Sửa báo cáo</button>
+          <button class="sx-btn sx-regen">↺ Tạo lại</button></div>
+        <div class="sx-nav-r"><span class="sx-sub sx-rv-msg"></span>${isConfirmedView ? '<span class="sx-ok">✅ Đang dùng làm gốc</span>' : '<button class="sx-btn sx-btn-primary sx-confirm">✅ Xác nhận — chuyên gia đã hiểu đúng</button>'}</div>`);
+      const tc = bar.querySelector('.sx-tochat'); if (tc) tc.onclick = enterChat;
+      bar.querySelector('.sx-editform').onclick = () => renderStep(1);
+      bar.querySelector('.sx-editrep').onclick = () => renderReview(true);
+      bar.querySelector('.sx-regen').onclick = async () => {
+        if (!confirm('Tạo lại báo cáo từ dữ liệu hiện tại? (Nội dung đã sửa tay trong báo cáo sẽ mất.)')) return;
+        const m = bar.querySelector('.sx-rv-msg'); m.textContent = '⏳ Đang viết lại báo cáo…';
+        try { const ctx = await sxSiteContext(wsId); s.integ = await api('integgen/' + cid, { method: 'POST', body: JSON.stringify({ site_title: ctx.title, site_context: ctx.text }) }); renderReview(); }
+        catch (err) { m.textContent = '⚠️ ' + err.message; }
+      };
+      const cf = bar.querySelector('.sx-confirm');
+      if (cf) cf.onclick = async () => {
+        const m = bar.querySelector('.sx-rv-msg'); cf.disabled = true; m.textContent = 'Đang lưu…';
+        try { s.integ = await api('integconfirm/' + cid, { method: 'POST', body: JSON.stringify({ report: s.integ.report }) }); enterChat(true); }
+        catch (err) { m.textContent = '⚠️ ' + err.message; cf.disabled = false; }
+      };
+    }
+
+    // ── 4) HỎI ĐÁP (chỉ khi đã xác nhận) ──
     function welcome() {
-      msgs.innerHTML = `<div class="sx-welcome"><div class="sx-welcome-t">Chưa có hội thoại cho site này</div>
-        Mỗi câu hỏi, chuyên gia tự đọc số liệu mới nhất của site (GSC, rank, index, nội dung, 301, dịch vụ, kế hoạch).
+      msgs.innerHTML = `<div class="sx-welcome"><div class="sx-welcome-t">✅ Chuyên gia đã tích hợp với site này</div>
+        Mỗi câu trả lời dựa trên hồ sơ tích hợp đã xác nhận + số liệu mới nhất của site.
         <div class="sx-chips">${SITE_SUGGEST.map(t => `<button class="sx-chip">${esc(t)}</button>`).join('')}</div></div>`;
       msgs.querySelectorAll('.sx-chip').forEach(b => { b.onclick = () => { ta.value = b.textContent; ask(); }; });
     }
-    async function load() {
+    async function enterChat(justConfirmed) {
+      s.mode = 'chat'; setHeadButtons();
+      bar.hidden = true; inputBar.hidden = false;
       msgs.innerHTML = '<div class="sx-thinking">Đang tải…</div>';
       try {
         const c = await api('chats/' + cid);
-        if (c.diagnosis && c.diagnosis.text) { s.diag = c.diagnosis; showDiagBar(); }
-        if (!(c.messages || []).length) { welcome(); return; }
-        msgs.innerHTML = (c.messages || []).map(msgHtml).join(''); bottom();
+        if (!(c.messages || []).length) welcome();
+        else { msgs.innerHTML = (c.messages || []).map(msgHtml).join(''); bottom(); }
       } catch (e) { welcome(); }
+      if (justConfirmed) msgs.insertAdjacentHTML('afterbegin', '<div class="sx-gate-note">✅ Đã xác nhận hồ sơ tích hợp — chuyên gia dùng báo cáo này làm gốc cho mọi câu trả lời.</div>');
+      size(); ta.focus();
     }
     async function ask() {
       const text = ta.value.trim();
-      if (!text || s.busy) return;
+      if (!text || s.busy || !unlocked()) return;
       s.busy = true; btn.disabled = true;
       if (msgs.querySelector('.sx-welcome')) msgs.innerHTML = '';
       ta.value = ''; size();
       msgs.insertAdjacentHTML('beforeend', msgHtml({ role: 'user', content: text }));
       const pending = document.createElement('div');
       pending.className = 'sx-msg sx-msg-ai sx-thinking';
-      pending.textContent = '📊 Đang đọc số liệu site + tài liệu Google…';
+      pending.textContent = '📊 Đang đọc hồ sơ site + số liệu mới + tài liệu Google…';
       msgs.appendChild(pending); bottom();
       try {
         const ctx = await sxSiteContext(wsId);
@@ -498,39 +829,59 @@
     btn.onclick = ask;
     ta.addEventListener('input', size);
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); } });
-    q('.sx-ctx').onclick = async () => {
-      if (!ctxBox.hidden) { ctxBox.hidden = true; return; }
-      ctxBox.hidden = false; ctxBox.textContent = 'Đang gom dữ liệu…';
-      ctxBox.textContent = ((await sxSiteContext(wsId)).text || 'Không tìm thấy dữ liệu site.') +
-        (s.diag ? `\n\n(+ Báo cáo chẩn đoán index lúc ${s.diag.at} — xem ở thanh 🔎 phía trên)` : '');
-    };
+
+    // ── Chẩn đoán index (dùng cả trong form tích hợp lẫn khi đã tích hợp) ──
+    async function runDiagnosis(progress) {
+      const text = await sxDiagnose(wsId, m => { showDiagBar('⏳ ' + m); if (progress) progress('⏳ ' + m); });
+      s.diag = await api('diagnosis/' + cid, { method: 'POST', body: JSON.stringify({ text, site_title: await title() }) });
+      diagBox.hidden = true; showDiagBar();
+      return text;
+    }
     diagBtn.onclick = async () => {
       if (s.busy) return;
       if (!confirm('Chạy chẩn đoán index cho site này?\n\nĐọc robots.txt, sitemap, HTML của tối đa 10 bài (ưu tiên bài chưa index theo check Serper), link nội bộ, và Google URL Inspection nếu token GSC còn hạn. Không đăng nhập hay sửa gì trên WordPress. Mất khoảng 10–60 giây.')) return;
       s.busy = true; btn.disabled = true; diagBtn.disabled = true;
       try {
-        const text = await sxDiagnose(wsId, m => showDiagBar('⏳ ' + m));
-        const ctx = await sxSiteContext(wsId);
-        s.diag = await api('diagnosis/' + cid, { method: 'POST', body: JSON.stringify({ text, site_title: ctx.title }) });
-        diagBox.hidden = true; showDiagBar();
-        if (msgs.querySelector('.sx-welcome')) msgs.innerHTML = '';
-        msgs.insertAdjacentHTML('beforeend', `<div class="sx-msg sx-msg-ai sx-diag-card"><div class="sx-welcome-t">🔎 Báo cáo chẩn đoán index</div>${renderMd(text, [])}
-          <div class="sx-chips"><button class="sx-chip">Dựa vào báo cáo chẩn đoán, nguyên nhân chính khiến bài chưa index là gì và nên sửa gì trước?</button></div></div>`);
-        const chip = msgs.querySelector('.sx-diag-card:last-child .sx-chip');
-        if (chip) chip.onclick = () => { ta.value = chip.textContent; s.busy = false; ask(); };
-        bottom();
-      } catch (e) {
-        showDiagBar('⚠️ Chẩn đoán lỗi: ' + e.message);
-      }
+        const text = await runDiagnosis();
+        if (s.mode === 'chat') {
+          if (msgs.querySelector('.sx-welcome')) msgs.innerHTML = '';
+          msgs.insertAdjacentHTML('beforeend', `<div class="sx-msg sx-msg-ai sx-diag-card"><div class="sx-welcome-t">🔎 Báo cáo chẩn đoán index</div>${renderMd(text, [])}
+            <div class="sx-chips"><button class="sx-chip">Dựa vào báo cáo chẩn đoán, nguyên nhân chính khiến bài chưa index là gì và nên sửa gì trước?</button></div></div>`);
+          const chip = msgs.querySelector('.sx-diag-card:last-child .sx-chip');
+          if (chip) chip.onclick = () => { ta.value = chip.textContent; ask(); };
+          bottom();
+        } else if (s.mode === 'form' && sxSteps(s.type)[s.step] && sxSteps(s.type)[s.step].k === 'auto') renderStep(s.step);
+      } catch (e) { showDiagBar('⚠️ Chẩn đoán lỗi: ' + e.message); }
       s.busy = false; btn.disabled = false; diagBtn.disabled = false;
     };
+    q('.sx-ctx').onclick = async () => {
+      if (!ctxBox.hidden) { ctxBox.hidden = true; return; }
+      ctxBox.hidden = false; ctxBox.textContent = 'Đang gom dữ liệu…';
+      ctxBox.textContent = ((await sxSiteContext(wsId)).text || 'Không tìm thấy dữ liệu site.') +
+        (unlocked() ? `\n\n(+ Hồ sơ tích hợp đã xác nhận lúc ${s.integ.confirmed_at} — xem bằng nút 🧩 Hồ sơ tích hợp)` : '\n\n(Chưa có hồ sơ tích hợp)') +
+        (s.diag ? `\n(+ Báo cáo chẩn đoán index lúc ${s.diag.at} — xem ở thanh 🔎 phía trên)` : '');
+    };
+    q('.sx-prof').onclick = () => { if (!s.busy) renderReview(); };
     q('.sx-reset').onclick = async () => {
-      if (s.busy || !confirm('Xoá toàn bộ hội thoại chuyên gia của site này? (Báo cáo chẩn đoán index vẫn giữ.)')) return;
+      if (s.busy || !confirm('Xoá toàn bộ tin nhắn chuyên gia của site này? (Hồ sơ tích hợp và báo cáo chẩn đoán vẫn giữ.)')) return;
       try { await api('chats/' + cid, { method: 'DELETE' }); } catch (e) {}
       welcome();
     };
-    sxSiteContext(wsId).then(c => { const sub = q('.sx-site-sub'); if (sub && c.title) sub.textContent = '· ' + c.title.replace(/^🌐\s*/, ''); });
-    size(); load();
+
+    // ── Khởi động: đọc trạng thái tích hợp ──
+    async function boot() {
+      msgs.innerHTML = '<div class="sx-thinking">Đang tải…</div>';
+      try {
+        const c = await api('chats/' + cid);
+        if (c.diagnosis && c.diagnosis.text) { s.diag = c.diagnosis; showDiagBar(); }
+        s.integ = c.integration || {};
+      } catch (e) { s.integ = {}; }
+      s.type = s.integ.type || '';
+      s.answers = Object.assign({}, s.integ.answers || {});
+      if (unlocked()) enterChat(); else renderGate();
+    }
+    sxSiteContext(wsId).then(c => { ctxTitle = c.title || ''; const sub = q('.sx-site-sub'); if (sub && c.title) sub.textContent = '· ' + c.title.replace(/^🌐\s*/, ''); });
+    size(); boot();
   };
 
   // Phòng khi renderDashboard() chạy trước khi file này nạp xong
