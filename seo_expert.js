@@ -450,13 +450,16 @@
     { id: 'c2', sec: 'Lịch sử', types: OLD, label: 'Những thay đổi lớn đã làm trên site?', help: 'Đổi theme, đổi cấu trúc URL, xoá hàng loạt bài, đổi plugin SEO, đổi domain… kèm thời điểm.' },
     { id: 'c3', sec: 'Lịch sử', types: OLD, label: 'Đã từng gặp án phạt / sự cố với Google chưa?', help: 'Manual action, tụt hạng mạnh sau core update, mất index hàng loạt… kèm thời điểm.' },
     { id: 'c4', sec: 'Lịch sử', types: ['muallai'], req: true, label: 'Lịch sử domain đã biết?', help: 'Trước đây domain dùng làm gì, có từng làm PBN / spam không, mua từ đâu, lúc nào.' },
-    { id: 'd1', sec: 'Chiến lược', types: ALL, req: true, label: 'Chiến lược nội dung?', help: 'Số bài mỗi tuần, dạng bài, ai viết, có dùng AI / SEO Writer không.' },
+    // Site đang chạy: d1/d3 là HIỆN TRẠNG để chuyên gia đánh giá. Site mới: chuyên gia tự lập chiến lược + kiến trúc
+    // từ báo cáo và nghiên cứu Google -> chỉ hỏi NGUỒN LỰC (d6) để kế hoạch vừa sức.
+    { id: 'd1', sec: 'Chiến lược', types: OLD, req: true, label: 'Chiến lược nội dung đang làm?', help: 'Số bài mỗi tuần, dạng bài, ai viết, có dùng AI / SEO Writer không. Chuyên gia sẽ đánh giá và đề xuất cải thiện.' },
+    { id: 'd6', sec: 'Chiến lược', types: ['moi'], req: true, label: 'Nguồn lực làm nội dung?', help: 'Mỗi tuần làm được bao nhiêu bài, ai viết, có dùng SEO Writer không. Chuyên gia tự lập chiến lược nội dung và kiến trúc site — bạn chỉ cho biết nguồn lực để kế hoạch vừa sức.' },
     { id: 'd2', sec: 'Chiến lược', types: ALL, label: 'Chiến lược backlink / 301 / PBN đang dùng?', help: 'Để trống nếu chưa làm.' },
-    { id: 'd3', sec: 'Chiến lược', types: ALL, label: 'Kiến trúc site / các danh mục (hiện tại hoặc dự kiến)?', help: 'Danh mục chính, trang trụ cột, cách liên kết giữa các bài.' },
+    { id: 'd3', sec: 'Chiến lược', types: OLD, label: 'Kiến trúc site / các danh mục hiện tại?', help: 'Danh mục chính, trang trụ cột, cách liên kết giữa các bài. Chuyên gia sẽ đánh giá.' },
     { id: 'd4', sec: 'Chiến lược', types: ALL, label: 'Ràng buộc: điều chuyên gia KHÔNG được đề xuất?', help: 'VD: không đổi domain, không xoá bài cũ, không nhắc tên thương hiệu khác…' },
     { id: 'd5', sec: 'Chiến lược', types: ALL, label: 'Ghi chú khác cho chuyên gia?', help: 'Bất cứ điều gì chuyên gia cần biết để hiểu site.' },
   ];
-  const COPYABLE = ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'd1', 'd2', 'd3', 'd4', 'd5'];
+  const COPYABLE = ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6'];
   const FILE_KINDS = ['GSC · Lập chỉ mục trang', 'GSC · Crawl stats', 'GSC · Hiệu suất', 'GSC · Trải nghiệm / CWV', 'GA4', 'Khác'];
 
   function sxSteps(type) {
@@ -481,6 +484,32 @@
       let h = ''; try { h = new URL(o.link).hostname.replace(/^www\./, ''); } catch (e) {}
       return { host: h, pos: o.position || i + 1, own: own.has(h) };
     }).filter(x => x.host);
+  }
+
+  // Nghiên cứu Google cho SITE MỚI (chuyên gia tự lập chiến lược nội dung + kiến trúc): mỗi từ khóa mục tiêu
+  // (tối đa 5, 1 credit Serper/từ) -> top 10 (đánh dấu site trong mạng), "Mọi người cũng hỏi", tìm kiếm liên quan.
+  async function sxResearch(keywords, progress) {
+    if (typeof wtApiKey === 'undefined' || !wtApiKey) throw new Error('Chưa có Serper API Key');
+    const own = new Set((typeof websites !== 'undefined' ? websites : []).map(w => wstNormalizeUrl(w.url || '').split('/')[0]).filter(Boolean));
+    const out = [];
+    for (let i = 0; i < keywords.length; i++) {
+      const kw = keywords[i];
+      if (progress) progress(`🔍 Nghiên cứu Google ${i + 1}/${keywords.length}: "${kw}"…`);
+      const r = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': wtApiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: kw, gl: 'vn', hl: 'vi', num: 10 }) });
+      const d = await r.json();
+      if (d.message === 'Unauthorized.' || d.statusCode === 403) throw new Error('Serper API Key sai hoặc hết lượt');
+      try { wtSerperCredits = Math.max(0, wtSerperCredits - (d.credits || 1)); localStorage.setItem('wt_serper_credits_left', wtSerperCredits); } catch (e) {}
+      const L = [`### Từ khóa "${kw}"`, 'Top kết quả:'];
+      (d.organic || []).slice(0, 10).forEach((o, k) => {
+        let h = ''; try { h = new URL(o.link).hostname.replace(/^www\./, ''); } catch (e) {}
+        L.push(`${o.position || k + 1}. ${h}${own.has(h) ? ' (SITE TRONG MẠNG CỦA MÌNH)' : ''} — ${clip(o.title, 90)} — ${clip(o.snippet, 140)}`);
+      });
+      if ((d.peopleAlsoAsk || []).length) L.push('Mọi người cũng hỏi: ' + d.peopleAlsoAsk.map(x => clip(x.question, 100)).join(' | '));
+      if ((d.relatedSearches || []).length) L.push('Tìm kiếm liên quan: ' + d.relatedSearches.map(x => x.query).join(', '));
+      out.push(L.join('\n'));
+    }
+    return out.join('\n\n');
   }
 
   function sxReadFile(file) {
@@ -719,6 +748,9 @@
       bindNav(i, () => { if (!s.diag && !confirm('Chưa chạy kiểm tra kỹ thuật — báo cáo sẽ thiếu phần kỹ thuật. Vẫn tiếp tục?')) return; renderStep(i + 1); });
     }
 
+    // từ khóa để nghiên cứu Google (site mới): các dòng của câu "Từ khóa mục tiêu", tối đa 5
+    const researchKws = () => (s.answers.b2 || '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 5);
+
     function renderGen(i, n) {
       const tlabel = (SITE_TYPES.find(x => x[0] === s.type) || [, s.type])[1];
       const qs = QUESTIONS.filter(x => x.types.includes(s.type));
@@ -729,16 +761,25 @@
           ${qs.map(x => `<div><b>${esc(x.label)}</b> ${s.answers[x.id] ? esc(clip(s.answers[x.id], 220)) : '<span class="sx-sub">— bỏ trống —</span>'}</div>`).join('')}
           <div><b>File:</b> ${(s.integ.files || []).map(f => esc(f.name)).join(', ') || '<span class="sx-sub">không có</span>'}</div>
           <div><b>Kiểm tra kỹ thuật:</b> ${s.diag ? 'có (' + esc(s.diag.at) + ')' : '<span class="sx-sub">chưa chạy</span>'}</div></div>
-        <div class="sx-form-help">Chuyên gia sẽ viết báo cáo: Tổng quan · Phân tích kỹ thuật · Nội dung · Hiệu suất · Vấn đề & đề xuất & lộ trình · Thông tin còn thiếu (khoảng 30–90 giây).</div>
+        ${s.type === 'moi'
+          ? `<div class="sx-form-help">Site mới: chuyên gia <b>tự lập chiến lược nội dung và kiến trúc site</b>. Trước khi viết, hệ thống nghiên cứu Google cho ${researchKws().length} từ khóa mục tiêu (${researchKws().length} credit Serper): ai đang top, dạng bài, câu hỏi người dùng hay tìm.<br>
+             Báo cáo gồm: Tổng quan · Checklist kỹ thuật trước khi index · Nghiên cứu đối thủ & từ khóa · Chiến lược nội dung, cây danh mục, 30 bài đầu tiên, liên kết nội bộ, lịch 30/60/90 ngày · Vấn đề & lộ trình (khoảng 1–2 phút).</div>`
+          : '<div class="sx-form-help">Chuyên gia sẽ viết báo cáo: Tổng quan · Phân tích kỹ thuật · Nội dung · Hiệu suất · Vấn đề & đề xuất & lộ trình · Thông tin còn thiếu (khoảng 30–90 giây).</div>'}
         <span class="sx-sub sx-gen-msg"></span>
       </div>`;
       setBar(navHtml(i, n, '✨ Tạo báo cáo tích hợp'));
       bindNav(i, async () => {
         const b = bar.querySelector('.sx-next'), m = msgs.querySelector('.sx-gen-msg');
-        b.disabled = true; m.textContent = '⏳ Chuyên gia đang đọc toàn bộ dữ liệu và viết báo cáo…';
+        b.disabled = true;
         try {
+          let research = '';
+          if (s.type === 'moi' && researchKws().length) {
+            try { research = await sxResearch(researchKws(), t => { m.textContent = t; }); }
+            catch (err) { research = ''; m.textContent = '⚠️ Không nghiên cứu được Google (' + err.message + ') — vẫn tạo báo cáo.'; }
+          }
+          m.textContent = '⏳ Chuyên gia đang đọc toàn bộ dữ liệu và viết báo cáo…';
           const ctx = await sxSiteContext(wsId);
-          s.integ = await api('integgen/' + cid, { method: 'POST', body: JSON.stringify({ site_title: ctx.title, site_context: ctx.text }) });
+          s.integ = await api('integgen/' + cid, { method: 'POST', body: JSON.stringify({ site_title: ctx.title, site_context: ctx.text, research }) });
           renderReview();
         } catch (err) { m.textContent = '⚠️ ' + err.message; b.disabled = false; }
       });
