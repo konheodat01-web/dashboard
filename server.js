@@ -46,6 +46,7 @@ const MIME = {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = "";
+    req.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
     req.on("data", chunk => (data += chunk));
     req.on("end",  ()    => resolve(data));
     req.on("error", reject);
@@ -167,6 +168,7 @@ const server = http.createServer(async (req, res) => {
 
     const clientReq = https.request(options, (clientRes) => {
       let body = "";
+      clientRes.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
       clientRes.on("data", (chunk) => {
         body += chunk;
       });
@@ -216,6 +218,7 @@ const server = http.createServer(async (req, res) => {
       headers: { "x-access-key": swKey, "Content-Type": "application/json" },
     }, (pres) => {
       let body = "";
+      pres.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
       pres.on("data", (c) => { body += c; });
       pres.on("end", () => {
         res.writeHead(pres.statusCode === 200 ? 200 : 502, { "Content-Type": "application/json; charset=utf-8" });
@@ -243,6 +246,7 @@ const server = http.createServer(async (req, res) => {
       headers: { "x-access-key": swKey, "Content-Type": "application/json" },
     }, (pres) => {
       let body = "";
+      pres.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
       pres.on("data", (c) => { body += c; });
       pres.on("end", () => {
         res.writeHead(pres.statusCode === 200 ? 200 : 502, { "Content-Type": "application/json; charset=utf-8" });
@@ -277,6 +281,7 @@ const server = http.createServer(async (req, res) => {
       headers: { "x-access-key": swKey, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(reqBody) },
     }, (pres) => {
       let body = "";
+      pres.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
       pres.on("data", (c) => { body += c; });
       pres.on("end", () => {
         res.writeHead(pres.statusCode, { "Content-Type": "application/json; charset=utf-8" });
@@ -361,6 +366,7 @@ const server = http.createServer(async (req, res) => {
           return;
         }
         let body = "";
+        cres.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
         cres.on("data", (c) => { body += c; });
         cres.on("end", () => {
           res.writeHead(cres.statusCode === 200 ? 200 : 502,
@@ -417,6 +423,7 @@ const server = http.createServer(async (req, res) => {
 
       const clientReq = https.request(options, (clientRes) => {
         let resBody = "";
+        clientRes.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
         clientRes.on("data", (chunk) => {
           resBody += chunk;
         });

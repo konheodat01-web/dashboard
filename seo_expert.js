@@ -533,6 +533,7 @@
           <button class="sx-btn sx-reset" hidden title="Xoá tin nhắn của site này (giữ hồ sơ tích hợp và báo cáo chẩn đoán)">🗑 Làm mới</button>
         </div>
       </div>
+      <div class="sx-integ-bar" hidden></div>
       <div class="sx-diag-bar" hidden></div>
       <div class="sx-diag-box sx-msg-ai" hidden></div>
       <pre class="sx-ctx-box" hidden></pre>
@@ -562,7 +563,18 @@
     const size = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; ta.style.overflowY = ta.scrollHeight > 120 ? 'auto' : 'hidden'; };
     const bottom = () => { msgs.scrollTop = msgs.scrollHeight; };
     const setBar = html => { inputBar.hidden = true; bar.hidden = false; bar.innerHTML = html; };
-    const setHeadButtons = () => { q('.sx-prof').hidden = !unlocked(); q('.sx-reset').hidden = !(unlocked() && s.mode === 'chat'); };
+    const integBar = q('.sx-integ-bar');
+    // Dải trạng thái tích hợp: luôn hiện khi đã xác nhận, 1 bấm để xem hồ sơ / quay lại hội thoại
+    function showIntegBar() {
+      if (!unlocked()) { integBar.hidden = true; return; }
+      integBar.hidden = false;
+      const inReview = s.mode === 'review';
+      integBar.innerHTML = `🧩 Chuyên gia đã tích hợp · hồ sơ xác nhận lúc <b>${esc(s.integ.confirmed_at || '?')}</b>
+        ${s.integ.status && s.integ.status !== 'confirmed' ? ' · <span class="sx-warn">có thay đổi chưa xác nhận lại</span>' : ''}
+        · <a href="#" class="sx-integ-link">${inReview ? '↩ Về hội thoại' : '📑 Xem hồ sơ tích hợp'}</a>`;
+      integBar.querySelector('.sx-integ-link').onclick = e => { e.preventDefault(); if (s.busy) return; inReview ? enterChat() : renderReview(); };
+    }
+    const setHeadButtons = () => { q('.sx-prof').hidden = !unlocked(); q('.sx-reset').hidden = !(unlocked() && s.mode === 'chat'); showIntegBar(); };
     async function saveDraft() {
       s.integ = await api('integration/' + cid, { method: 'POST', body: JSON.stringify({ site_title: await title(), type: s.type, answers: s.answers }) });
     }
@@ -789,7 +801,7 @@
     function renderReview(editing) {
       s.mode = 'review'; setHeadButtons();
       const it = s.integ || {}, rep = it.report || '';
-      const isConfirmedView = it.status === 'confirmed' && rep === it.confirmed_report;
+      const isConfirmedView = it.status === 'confirmed' && rep.trim() === (it.confirmed_report || '').trim();
       msgs.innerHTML = `<div class="sx-report">
         <div class="sx-report-h">📑 Báo cáo tích hợp · tạo lúc ${esc(it.generated_at || '?')}${it.confirmed_at ? ' · xác nhận lúc ' + esc(it.confirmed_at) : ''}</div>
         ${editing ? `<textarea class="sx-report-ta">${esc(rep)}</textarea>` : `<div class="sx-msg-ai sx-report-body">${renderMd(rep, it.sources || [])}${sourcesHtml((it.sources || []).filter(x => new RegExp('\\[' + x.n + '\\]').test(rep)))}</div>`}
