@@ -293,6 +293,21 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── POST /api/site-diagnose → chan doan index 1 site tu ben ngoai (lib/site_diagnose.js) ──
+  // Body {domain, urls:[bai mau], all_links:[moi bai]}. Dung cho tab Chuyen gia SEO (seo_expert.js).
+  if (req.method === "POST" && url === "/api/site-diagnose") {
+    try {
+      const input = JSON.parse((await readBody(req)) || "{}");
+      const out = await require("./lib/site_diagnose").run(input, getLevel1Auth);
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(out));
+    } catch (e) {
+      res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // ── GET /api/wp-posts?domain=&type=&per_page= ────────────────────────────
   // Proxy lay danh sach bai viet tu WordPress REST. Fetch tu VPS nen qua duoc
   // lop bao mat chan IP la cua cac site .fashion/.io/.health.

@@ -290,6 +290,129 @@
     return { title: `🌐 ${cur.brand || w.brand} — ${cur.url || w.url}`, text: L.join('\n') };
   }
 
+  // ══ CHẨN ĐOÁN INDEX — đọc site TỪ BÊN NGOÀI (không đăng nhập WP) ══
+  // Mẫu = bài "chưa index" theo check Serper (_wstIndexCache của chế độ Quản lý nội dung) + 2 bài đã index đối chứng.
+  // VPS (/api/site-diagnose) đọc robots/sitemap/HTML/link nội bộ; trình duyệt gọi GSC URL Inspection (token ở browser).
+  const shortUrl = u => { try { const x = new URL(u); return x.pathname.length > 1 ? decodeURIComponent(x.pathname) : x.host + '/'; } catch (e) { return u; } };
+  const tcell = s => String(s == null ? '' : s).replace(/\|/g, '/').replace(/\n/g, ' ');
+
+  async function sxDiagnose(wsId, progress) {
+    const w = websites.find(x => x.id === wsId);
+    if (!w) throw new Error('Không tìm thấy website');
+    const host = wstCurrentUrl(w);
+    if (!host) throw new Error('Website chưa có URL');
+    progress('Đang lấy danh sách bài qua WordPress REST…');
+    const content = await wstFetchAllContent(host);
+    const items = content.ok ? content.items : [];
+    const ic = it => (typeof _wstIndexCache !== 'undefined' && _wstIndexCache[_wstUrlKey(it.link)]) || null;
+    const notIdx = items.filter(it => { const c = ic(it); return c && !c.indexed; });
+    const idx = items.filter(it => { const c = ic(it); return c && c.indexed; });
+    const unchecked = items.filter(it => !ic(it));
+    const spread = (arr, n) => arr.length <= n ? arr : arr.slice(0, Math.ceil(n / 2)).concat(arr.slice(-Math.floor(n / 2)));
+    const title = it => clip(it.title && (it.title.rendered || it.title), 70);
+    let sample = spread(notIdx, 8).map(it => ({ link: it.link, title: title(it), serper: 'chưa index' }));
+    if (!sample.length) sample = unchecked.slice(0, 8).map(it => ({ link: it.link, title: title(it), serper: 'chưa check' }));
+    sample = sample.concat(idx.slice(0, 2).map(it => ({ link: it.link, title: title(it), serper: 'đã index (đối chứng)' })));
+
+    progress('VPS đang đọc robots.txt, sitemap, HTML từng bài, link nội bộ…');
+    const r = await fetch('/api/site-diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: host, urls: sample.map(x => x.link), all_links: items.map(it => it.link) }) });
+    let d = {};
+    try { d = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error(d.error || ('Lỗi chẩn đoán ' + r.status));
+
+    // Google URL Inspection (quota ~2000/ngày/property — chỉ kiểm bài mẫu)
+    const insp = {};
+    let inspNote = '';
+    const token = sessionStorage.getItem('gsc_access_token');
+    if (!token) inspNote = 'KHÔNG chạy: chưa đăng nhập Google / token GSC hết hạn (đăng nhập lại qua badge GSC rồi chẩn đoán lại để có dữ liệu mạnh nhất).';
+    else {
+      let prop = '';
+      try { prop = await wstGetExactGscPropertyUrl(w.gscPropertyUrl || host); } catch (e) { prop = 'sc-domain:' + host.replace(/^www\./, ''); }
+      for (let i = 0; i < sample.length; i++) {
+        progress(`Google URL Inspection ${i + 1}/${sample.length}…`);
+        try {
+          const rr = await fetch('/api/gsc-inspect', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, siteUrl: prop, inspectionUrl: sample[i].link }) });
+          const j = await rr.json().catch(() => ({}));
+          if (rr.status === 401) { inspNote = 'dừng giữa chừng: token GSC hết hạn'; break; }
+          if (rr.status === 403) { inspNote = `tài khoản Google đang đăng nhập không có quyền property ${prop}`; break; }
+          insp[sample[i].link] = rr.ok ? ((j.inspectionResult || {}).indexStatusResult || {}) : { err: (j.error && j.error.message) || ('HTTP ' + rr.status) };
+        } catch (e) { insp[sample[i].link] = { err: e.message }; }
+      }
+    }
+
+    // ── Báo cáo (Markdown: vừa hiển thị, vừa gửi kèm cho chuyên gia) ──
+    const L = [];
+    L.push(`**Site theo dõi:** ${host}${d.base ? ` · đọc thực tế tại ${d.base}` : ''} · chạy lúc ${new Date().toLocaleString('vi-VN')}`);
+    L.push(`**Bài viết (REST, tối đa 100 post + 100 page):** ${items.length}${content.ok ? '' : ' — KHÔNG lấy được danh sách bài: ' + (content.error || '')} · theo check Serper: ${idx.length} đã index, ${notIdx.length} chưa index, ${unchecked.length} chưa check`);
+    if (d.crossDomain) L.push(`\n⚠️ **Trang chủ redirect sang domain khác:** ${(d.home.chain || []).map(c => `${c.status} ${c.url}`).join(' → ')}`);
+    // ── Phát hiện nhanh: luật cứng rút từ số liệu (để người đọc & chuyên gia thấy ngay nguyên nhân khả dĩ) ──
+    const S = (d.samples || []).filter(x => !x.error);
+    const hasNoindex = x => /noindex/i.test([x.metaRobots, x.metaGooglebot, x.xRobots].join(' '));
+    const F = [];
+    if (d.crossDomain) F.push(`Cả domain đang redirect sang **${d.crossDomain}** — Google sẽ index domain đích, không index ${host}.`);
+    const nBlock = S.filter(x => x.robotsTxt && x.robotsTxt.blocked).length;
+    if (nBlock) F.push(`${nBlock}/${S.length} bài mẫu bị **robots.txt chặn**.`);
+    const nNoidx = S.filter(hasNoindex).length;
+    if (nNoidx) F.push(`${nNoidx}/${S.length} bài mẫu có **noindex** (meta robots / X-Robots-Tag).`);
+    const nBadStatus = S.filter(x => x.status !== 200).length;
+    if (nBadStatus) F.push(`${nBadStatus}/${S.length} bài mẫu không trả HTTP 200 (lỗi hoặc redirect).`);
+    const canonOther = S.filter(x => x.canonical && !x.canonicalSelf);
+    if (canonOther.length) {
+      const dead = canonOther.filter(x => x.canonicalTarget && x.canonicalTarget.status && x.canonicalTarget.status !== 200);
+      F.push(`${canonOther.length}/${S.length} bài mẫu khai báo **canonical sang URL khác** (vd ${shortUrl(canonOther[0].url)} → ${canonOther[0].canonical}) → Google chỉ index URL canonical; check index theo URL gốc sẽ báo "chưa index" dù bản canonical có thể đã index.` +
+        (dead.length ? ` ⚠️ **${dead.length} URL canonical đích trả HTTP ${dead.map(x => x.canonicalTarget.status).join('/')}** — trỏ canonical vào trang lỗi thì Google không index được bản nào.` : ''));
+    }
+    const nNoSm = S.filter(x => x.inSitemap === false).length;
+    if (nNoSm) F.push(`${nNoSm}/${S.length} bài mẫu **không có trong sitemap**.`);
+    const nOrph = S.filter(x => x.inlinksContent === 0 && !x.fromHome).length;
+    if (nOrph) F.push(`${nOrph}/${S.length} bài mẫu **không có link nội bộ** nào trỏ tới (cả trong nội dung bài lẫn trang chủ).`);
+    const nThin = S.filter(x => x.status === 200 && x.words > 0 && x.words < 300).length;
+    if (nThin) F.push(`${nThin}/${S.length} bài mẫu **mỏng** (dưới 300 từ).`);
+    L.push('\n### Phát hiện nhanh');
+    L.push(F.length ? F.map(f => '- ' + f).join('\n') : '- Không thấy lỗi kỹ thuật rõ ràng ở bài mẫu (robots, noindex, canonical, sitemap, link đều ổn) → nghiêng về vấn đề chất lượng/độ tin cậy nội dung; xem kết quả URL Inspection.');
+
+    const h = d.home || {};
+    L.push('\n### Trang chủ');
+    L.push(`- HTTP ${h.status} · ${h.ms} ms · meta robots: ${h.metaRobots || '(không có)'}${h.xRobots ? ' · X-Robots-Tag: ' + h.xRobots : ''} · canonical: ${h.canonical || '(không có)'} · link nội bộ: ${h.internalLinks}`);
+    const rb = d.robots || {};
+    L.push('\n### robots.txt');
+    L.push(`- HTTP ${rb.status}${rb.error ? ' (' + rb.error + ')' : ''} · Sitemap khai báo: ${(rb.sitemaps || []).join(', ') || 'không có'}`);
+    const blocked = (d.samples || []).filter(x => x.robotsTxt && x.robotsTxt.blocked);
+    L.push(`- Bài mẫu bị robots.txt chặn: ${blocked.length ? blocked.map(x => shortUrl(x.url) + ' (' + x.robotsTxt.rule + ')').join('; ') : 'không có'}`);
+    if (rb.text) L.push('```\n' + rb.text.slice(0, 1200) + '\n```');
+    const smp = d.sitemap || {};
+    L.push('\n### Sitemap');
+    L.push(`- Đọc ${(smp.used || []).length} file, ${smp.urlCount} URL.` + (smp.missingCount == null ? ' Không đọc được sitemap nào.' : ` Bài KHÔNG có trong sitemap: ${smp.missingCount}/${smp.checkedLinks}${smp.missingSample && smp.missingSample.length ? ' (vd: ' + smp.missingSample.slice(0, 5).map(shortUrl).join(', ') + ')' : ''}`));
+    const il = d.inlinks || {};
+    L.push('\n### Link nội bộ trong nội dung bài');
+    L.push(il.ok ? `- Quét ${il.scannedPosts} bài/trang: ${il.orphanCount}/${il.totalLinks} bài KHÔNG được bài nào khác link tới trong nội dung (chưa tính menu/sidebar/chuyên mục).` : '- Không quét được nội dung qua REST.');
+    if (il.polluted) L.push('- ⚠️ REST API trả JSON bị chèn HTML/CSS phía trước (plugin/theme in ra output) — nên sửa.');
+    L.push('\n### Bài mẫu (đọc như Googlebot từ bên ngoài)');
+    L.push('| # | Bài | Serper | HTTP | robots.txt | meta robots / X-Robots | Canonical | Số từ | Bài khác link tới | Có ở trang chủ | Có trong sitemap |');
+    L.push('|---|---|---|---|---|---|---|---|---|---|---|');
+    (d.samples || []).forEach((x, i) => {
+      const sm = sample.find(s => s.link === x.url) || {};
+      const redir = (x.chain || []).length > 1 ? ' (redirect: ' + x.chain.join(' → ') + ')' : '';
+      const ct = x.canonicalTarget;
+      const canon = x.canonical ? (x.canonicalSelf ? 'tự trỏ' : '→ ' + x.canonical +
+        (ct ? (ct.error ? ' (không kiểm được)' : ` (đích HTTP ${ct.status}${ct.status !== 200 ? ' ⚠️' : ''}${ct.selfCanonical === false ? ', đích lại canonical tiếp' : ''})`) : '')) : '(không có)';
+      const yn = v => v == null ? '?' : v ? 'có' : 'KHÔNG';
+      L.push(`| ${i + 1} | ${tcell(shortUrl(x.url))} | ${sm.serper || ''} | ${x.error ? 'lỗi: ' + tcell(x.error) : x.status + tcell(redir)} | ${x.robotsTxt ? (x.robotsTxt.blocked ? 'CHẶN ' + tcell(x.robotsTxt.rule) : 'cho phép') : '?'} | ${tcell([x.metaRobots, x.metaGooglebot && 'googlebot: ' + x.metaGooglebot, x.xRobots && 'X-Robots: ' + x.xRobots].filter(Boolean).join(' · ') || '(không có)')} | ${tcell(canon)} | ${x.words || 0} | ${x.inlinksContent == null ? '?' : x.inlinksContent} | ${yn(x.fromHome)} | ${yn(x.inSitemap)} |`);
+    });
+    L.push('\n### Google URL Inspection (GSC)');
+    if (inspNote) L.push('- ' + inspNote);
+    sample.forEach((s, i) => {
+      const x = insp[s.link];
+      if (!x) return;
+      if (x.err) { L.push(`- ${i + 1}. ${shortUrl(s.link)}: lỗi ${x.err}`); return; }
+      const canonDiff = x.googleCanonical && x.userCanonical && x.googleCanonical !== x.userCanonical ? ` · ⚠️ Google chọn canonical KHÁC: ${x.googleCanonical} (site khai báo ${x.userCanonical})` : '';
+      L.push(`- ${i + 1}. ${shortUrl(s.link)}: **${x.coverageState || x.verdict || '?'}** · verdict ${x.verdict || '?'} · crawl lần cuối: ${x.lastCrawlTime || 'chưa từng'} · robots: ${x.robotsTxtState || '?'} · indexing: ${x.indexingState || '?'} · fetch: ${x.pageFetchState || '?'}${x.crawledAs ? ' · crawl bằng ' + x.crawledAs : ''}${canonDiff}${(x.referringUrls || []).length ? ' · được link từ ' + x.referringUrls.length + ' URL' : ''}`);
+    });
+    return L.join('\n');
+  }
+
   const SITE_SUGGEST = [
     'Site này đang có vấn đề gì cần ưu tiên xử lý?',
     'Phân tích xu hướng GSC của site so với kỳ trước',
@@ -307,14 +430,30 @@
     panel.innerHTML = `<div class="sx-site">
       <div class="sx-site-head">
         <div class="sx-site-t">🧠 Chuyên gia SEO phụ trách site này <span class="sx-sub sx-site-sub"></span></div>
-        <div class="sx-head-actions"><button class="sx-btn sx-ctx">📋 Dữ liệu chuyên gia đọc</button><button class="sx-btn sx-reset" title="Xoá toàn bộ hội thoại của site này">🗑 Làm mới</button></div>
+        <div class="sx-head-actions"><button class="sx-btn sx-btn-primary sx-diag" title="Đọc robots.txt, sitemap, noindex, canonical, link nội bộ, Google URL Inspection của các bài chưa index">🔎 Chẩn đoán index</button><button class="sx-btn sx-ctx">📋 Dữ liệu chuyên gia đọc</button><button class="sx-btn sx-reset" title="Xoá toàn bộ hội thoại của site này">🗑 Làm mới</button></div>
       </div>
+      <div class="sx-diag-bar" hidden></div>
+      <div class="sx-diag-box sx-msg-ai" hidden></div>
       <pre class="sx-ctx-box" hidden></pre>
       <div class="sx-msgs"></div>
       <div class="sx-input"><textarea rows="1" placeholder="Hỏi về site này… (Enter gửi, Shift+Enter xuống dòng)"></textarea><button class="sx-btn sx-btn-primary sx-send">Gửi</button></div>
     </div>`;
     const q = sel => panel.querySelector(sel);
     const msgs = q('.sx-msgs'), ta = q('textarea'), btn = q('.sx-send'), ctxBox = q('.sx-ctx-box');
+    const diagBar = q('.sx-diag-bar'), diagBox = q('.sx-diag-box'), diagBtn = q('.sx-diag');
+    s.diag = null;
+    function showDiagBar(msg) {
+      diagBar.hidden = false;
+      if (msg) { diagBar.textContent = msg; return; }
+      if (!s.diag) { diagBar.hidden = true; return; }
+      diagBar.innerHTML = `🔎 Chẩn đoán index gần nhất: <b>${esc(s.diag.at)}</b> — chuyên gia tự đọc báo cáo này khi trả lời · <a href="#" class="sx-diag-view">${diagBox.hidden ? 'Xem báo cáo' : 'Ẩn báo cáo'}</a>`;
+      diagBar.querySelector('.sx-diag-view').onclick = e => {
+        e.preventDefault();
+        diagBox.hidden = !diagBox.hidden;
+        if (!diagBox.hidden) diagBox.innerHTML = renderMd(s.diag.text, []);
+        showDiagBar();
+      };
+    }
     const size = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; ta.style.overflowY = ta.scrollHeight > 120 ? 'auto' : 'hidden'; };
     const bottom = () => { msgs.scrollTop = msgs.scrollHeight; };
     function welcome() {
@@ -327,6 +466,8 @@
       msgs.innerHTML = '<div class="sx-thinking">Đang tải…</div>';
       try {
         const c = await api('chats/' + cid);
+        if (c.diagnosis && c.diagnosis.text) { s.diag = c.diagnosis; showDiagBar(); }
+        if (!(c.messages || []).length) { welcome(); return; }
         msgs.innerHTML = (c.messages || []).map(msgHtml).join(''); bottom();
       } catch (e) { welcome(); }
     }
@@ -360,10 +501,31 @@
     q('.sx-ctx').onclick = async () => {
       if (!ctxBox.hidden) { ctxBox.hidden = true; return; }
       ctxBox.hidden = false; ctxBox.textContent = 'Đang gom dữ liệu…';
-      ctxBox.textContent = (await sxSiteContext(wsId)).text || 'Không tìm thấy dữ liệu site.';
+      ctxBox.textContent = ((await sxSiteContext(wsId)).text || 'Không tìm thấy dữ liệu site.') +
+        (s.diag ? `\n\n(+ Báo cáo chẩn đoán index lúc ${s.diag.at} — xem ở thanh 🔎 phía trên)` : '');
+    };
+    diagBtn.onclick = async () => {
+      if (s.busy) return;
+      if (!confirm('Chạy chẩn đoán index cho site này?\n\nĐọc robots.txt, sitemap, HTML của tối đa 10 bài (ưu tiên bài chưa index theo check Serper), link nội bộ, và Google URL Inspection nếu token GSC còn hạn. Không đăng nhập hay sửa gì trên WordPress. Mất khoảng 10–60 giây.')) return;
+      s.busy = true; btn.disabled = true; diagBtn.disabled = true;
+      try {
+        const text = await sxDiagnose(wsId, m => showDiagBar('⏳ ' + m));
+        const ctx = await sxSiteContext(wsId);
+        s.diag = await api('diagnosis/' + cid, { method: 'POST', body: JSON.stringify({ text, site_title: ctx.title }) });
+        diagBox.hidden = true; showDiagBar();
+        if (msgs.querySelector('.sx-welcome')) msgs.innerHTML = '';
+        msgs.insertAdjacentHTML('beforeend', `<div class="sx-msg sx-msg-ai sx-diag-card"><div class="sx-welcome-t">🔎 Báo cáo chẩn đoán index</div>${renderMd(text, [])}
+          <div class="sx-chips"><button class="sx-chip">Dựa vào báo cáo chẩn đoán, nguyên nhân chính khiến bài chưa index là gì và nên sửa gì trước?</button></div></div>`);
+        const chip = msgs.querySelector('.sx-diag-card:last-child .sx-chip');
+        if (chip) chip.onclick = () => { ta.value = chip.textContent; s.busy = false; ask(); };
+        bottom();
+      } catch (e) {
+        showDiagBar('⚠️ Chẩn đoán lỗi: ' + e.message);
+      }
+      s.busy = false; btn.disabled = false; diagBtn.disabled = false;
     };
     q('.sx-reset').onclick = async () => {
-      if (s.busy || !confirm('Xoá toàn bộ hội thoại chuyên gia của site này?')) return;
+      if (s.busy || !confirm('Xoá toàn bộ hội thoại chuyên gia của site này? (Báo cáo chẩn đoán index vẫn giữ.)')) return;
       try { await api('chats/' + cid, { method: 'DELETE' }); } catch (e) {}
       welcome();
     };
