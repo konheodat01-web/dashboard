@@ -890,10 +890,7 @@
     <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
         <div class="panel-title" style="margin:0">📈 Theo dõi web</div>
-        <div style="display:inline-flex;border:1px solid #30363d;border-radius:6px;overflow:hidden;height:32px;flex-shrink:0">
-          <button type="button" id="wstModeBtn_seo" onclick="wstSetMode('seo')" style="border:none;border-right:1px solid #30363d;background:#e74c3c;color:#fff;font-weight:700;font-size:11px;padding:0 12px;cursor:default;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25);white-space:nowrap">📈 Theo dõi SEO</button>
-          <button type="button" id="wstModeBtn_content" onclick="wstSetMode('content')" style="border:none;background:#161b22;color:#8b949e;font-weight:500;font-size:11px;padding:0 12px;cursor:pointer;opacity:.75;white-space:nowrap">✍️ Quản lý nội dung</button>
-        </div>
+        <!-- Chế độ "Quản lý nội dung" đã chuyển thành tab ✍️ trong Dashboard từng site (nút 📊) -->
         <input type="text" id="wst_search" placeholder="🔍 Tìm website..." oninput="renderWsTrack()" style="width:170px;height:32px;font-size:12px;flex-shrink:0">
       </div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
@@ -932,6 +929,7 @@
           <option value="3m">📅 GSC: 3 tháng qua</option>
         </select>
         <button onclick="wstToggleAdvancedFilters()" class="btn btn-outline btn-sm">⚙️ Lọc nâng cao</button>
+        <button onclick="wstScanNotIndexed()" class="btn btn-outline btn-sm" title="Quét các bài đã đăng chưa được Google index (tất cả site)">🚫 Quét bài chưa index</button>
         </span>
         <span id="wstToolsContent" style="display:none;flex-wrap:wrap;gap:6px;align-items:center">
           <button onclick="wstOpenWriter('')" class="btn btn-sm" style="background:#7c5cff;color:#fff;border:none">✍️ Mở SEO Writer</button>
@@ -1744,7 +1742,7 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260923_v57"></script>
+  <script src="script_v5.js?v=20260926_v58"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   <script src="seo_expert.js?v=20260924_6"></script>
@@ -2758,10 +2756,7 @@
     }
     #wstDashboardModalContainer .wst-modal {
       position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 980px;
-      height: 720px;
+      top: 8px; left: 8px; right: 8px; bottom: 8px;
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 14px;
@@ -2770,6 +2765,12 @@
       display: flex;
       flex-direction: column;
     }
+    /* Tab ✍️ Quản lý nội dung: khôi phục padding cho control bị reset bởi rule * ở trên */
+    #wstDashboardModalContainer .wst-cm-host .btn { padding: 5px 10px; }
+    #wstDashboardModalContainer .wst-cm-host input[type=text],
+    #wstDashboardModalContainer .wst-cm-host select { padding: 0 8px; }
+    #wstDashboardModalContainer .wst-cm-host .modal-body { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+    #wstWriterOverlay { z-index: 100001; }
     #wstDashboardModalContainer .mh {
       flex-shrink: 0; padding: 14px 18px; background: #0d1117; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 12px;
     }

@@ -2401,7 +2401,8 @@ let siteTracking = []; // [{wsId, entries:[{id,date,rank,backlinks,indexed,note}
 
 // ══ CHẾ ĐỘ HIỂN THỊ tab Theo dõi web: 'seo' (mặc định) | 'content' (quản lý nội dung) ══
 // Chỉ đổi TOOLBAR PHẢI + CÁC CỘT PHẢI của bảng; phần trái (URL/Website/Team/Từ khóa) giữ nguyên.
-let _wstMode = localStorage.getItem('wst_mode') || 'seo';
+// Chế độ "Quản lý nội dung" đã chuyển thành tab ✍️ trong Dashboard từng site -> bảng luôn ở chế độ SEO.
+let _wstMode = 'seo';
 
 function wstApplyModeUI(){
   var isC = _wstMode === 'content';
@@ -2818,6 +2819,7 @@ var _wstPosts = { wsId: null, domain: '', items: [], sel: {} };   // sel: {urlKe
 function wstOpenPostsModal(wsId){
   var w = websites.find(function(x){ return x.id === wsId; });
   if (!w) return;
+  wstRestorePostsBody();
   _wstPosts.wsId = wsId;
   _wstPosts.domain = wstCurrentUrl(w);   // site WordPress thật, không phải domain gốc
   _wstPosts.items = [];
@@ -2897,6 +2899,7 @@ async function wstCheckSelectedIndex(){
   wstRecomputeSiteStats(w, _wstPosts.items);
   wstRenderPosts();
   if (typeof renderWsTrack === 'function') renderWsTrack();
+  wstRenderContentCards();
   var st = _wstContentStats[w.id];
   if (info && st) info.textContent = 'Đã check ' + (st.checked||0) + '/' + st.postCount + ' bài · index ' + st.indexed + ' · chưa index ' + st.notIndexed;
   if (btn){ btn.disabled = false; btn.innerHTML = btn.dataset.old || '✅ Check index (Serper)'; wstUpdateSelInfo(); }
@@ -3711,7 +3714,7 @@ function wstRenderBulkBar(){
       <button onclick="wstExecuteBulk301()" class="btn btn-sm btn-outline" style="font-size:11px;color:#10b981;border-color:#10b981">Thực hiện 301</button>
     </div>
     <button onclick="wstTriggerAddGscBulk()" class="btn btn-sm btn-outline" style="font-size:11px;color:#f2a154;border-color:#e5893c">Thêm GSC</button>
-    ${_wstMode==='content' ? '<button onclick="wstCheckSelectedSites()" class="btn btn-sm" style="font-size:11px;background:#3fb950;color:#fff;border:none">🔎 Check index (Serper)</button>' : ''}
+    <button onclick="wstCheckSelectedSites()" class="btn btn-sm" style="font-size:11px;background:#3fb950;color:#fff;border:none">🔎 Check index (Serper)</button>
     <button onclick="_wstSelected.clear();renderWsTrack()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;margin-left:auto">×</button>`;
 }
 
@@ -12383,6 +12386,7 @@ function wstOpenDashboard(wsId) {
     toast('Không tìm thấy dữ liệu tracking của website!', '#e74c3c');
     return;
   }
+  wstRestorePostsBody();   // render lại modal sẽ xoá tab cũ -> trả khối danh sách bài về popup trước
   _wstActiveSiteId = wsId;
 
   // Lấy dòng lịch sử kiểm tra gần nhất
@@ -12477,6 +12481,7 @@ function wstOpenDashboard(wsId) {
       <button class="tb-btn" onclick="wstSwitchTab(this,'anphat')">⚠️ Án phạt GSC</button>
       <button class="tb-btn" onclick="wstSwitchTab(this,'plan')">📝 Kế hoạch & Strategy</button>
       <button class="tb-btn" onclick="wstSwitchTab(this,'expert')">🧠 Chuyên gia SEO</button>
+      <button class="tb-btn" onclick="wstSwitchTab(this,'content')">✍️ Quản lý nội dung</button>
     </div>
 
     <!-- CONTAINER PANELS -->
@@ -12624,6 +12629,9 @@ function wstOpenDashboard(wsId) {
       <!-- 4.8. PANEL CHUYÊN GIA SEO (seo_expert.js — sxSiteMount) -->
       <div class="tp-panel" id="wst-tab-expert"></div>
 
+      <!-- 4.9. PANEL QUẢN LÝ NỘI DUNG (wstRenderContentTab) -->
+      <div class="tp-panel" id="wst-tab-content"></div>
+
       <!-- 5. PANEL PLAN & KANBAN -->
       <div class="tp-panel" id="wst-tab-plan">
         <div class="plan-container">
@@ -12674,6 +12682,7 @@ function wstOpenDashboard(wsId) {
 }
 
 function wstCloseDashboard() {
+  wstRestorePostsBody();
   document.getElementById('wstDashboardModalContainer').style.display = 'none';
   _wstActiveSiteId = null;
 }
@@ -12692,6 +12701,82 @@ function wstSwitchTab(btn, tabId) {
   if (tabId === 'expert' && typeof sxSiteMount === 'function') {
     sxSiteMount(document.getElementById('wst-tab-expert'), _wstActiveSiteId);
   }
+  if (tabId === 'content') {
+    wstRenderContentTab(_wstActiveSiteId);
+  }
+}
+
+// --- TAB ✍️ QUẢN LÝ NỘI DUNG (thay cho chế độ "Quản lý nội dung" cũ ở bảng Theo dõi web) ---
+// Danh sách bài dùng lại nguyên khối .modal-body của popup #wstPostsOverlay (chuyển node sang tab,
+// đóng Dashboard thì trả về) -> giữ nguyên mọi id/hàm lọc, check index, copy URL.
+var _wstPostsBodyHome = null;   // { parent, next } vị trí gốc của .modal-body trong popup
+
+function wstRenderContentCards(){
+  var box = document.getElementById('wstCmCards');
+  if (!box || !_wstActiveSiteId) return;
+  var c = _wstContentStats[_wstActiveSiteId] || {};
+  var has = function(v){ return v === 0 || v > 0; };
+  var total = has(c.postCount) ? c.postCount : null;
+  var idx = has(c.indexed) ? c.indexed : null;
+  var noIdx = (total !== null && idx !== null) ? Math.max(0, total - idx) : null;
+  var pct = (total && idx !== null) ? Math.round(idx / total * 100) : null;
+  var pcol = pct === null ? '#8b949e' : (pct >= 80 ? '#3fb950' : (pct >= 50 ? '#d29922' : '#f85149'));
+  var card = function(label, val, col, tip){
+    return '<div title="' + (tip || '') + '" style="flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px 14px">'
+      + '<div style="font-size:11px;color:#8b949e;margin-bottom:6px">' + label + '</div>'
+      + '<div style="font-size:22px;font-weight:700;color:' + col + '">' + val + '</div></div>';
+  };
+  box.innerHTML = card('Tổng bài', total === null ? '—' : total, '#58a6ff')
+    + card('Đã index', idx === null ? '—' : idx, idx ? '#3fb950' : '#8b949e')
+    + card('Chưa index', noIdx === null ? '—' : noIdx, noIdx ? '#f85149' : '#8b949e', 'Gồm cả bài chưa kiểm tra (Tổng − Đã index)')
+    + card('Tỷ lệ index', pct === null ? '—' : pct + '%', pcol)
+    + card('Cập nhật nội dung', c.lastContentUpdate || '—', '#c9d1d9');
+}
+
+function wstRenderContentTab(wsId){
+  var panel = document.getElementById('wst-tab-content');
+  var w = websites.find(function(x){ return x.id === wsId; });
+  if (!panel || !w) return;
+  var dom = wstCurrentUrl(w);
+  panel.innerHTML = ''
+    + '<div style="display:flex;flex-direction:column;gap:12px;height:100%;min-height:0">'
+    +   '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    +     '<span style="font-size:13px;color:#8b949e">Site WordPress hiện tại: <b style="color:#58a6ff">' + dom + '</b></span>'
+    +     '<button onclick="wstWriteForSite(' + wsId + ')" class="btn btn-sm" style="margin-left:auto;padding:6px 14px;background:#7c5cff;color:#fff;border:none;border-radius:6px;font-weight:600">✍️ Viết bài</button>'
+    +   '</div>'
+    +   '<div id="wstCmCards" style="display:flex;gap:10px;flex-wrap:wrap"></div>'
+    +   '<div id="wstCmPostsHost" class="wst-cm-host" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>'
+    + '</div>';
+  wstRenderContentCards();
+
+  // Chuyển khối danh sách bài từ popup sang tab
+  var body = document.querySelector('#wstPostsOverlay .modal-body') || document.querySelector('.wst-cm-host .modal-body');
+  if (!body) return;
+  if (!_wstPostsBodyHome && body.closest('#wstPostsOverlay')) _wstPostsBodyHome = { parent: body.parentNode, next: body.nextSibling };
+  document.getElementById('wstCmPostsHost').appendChild(body);
+  var scroller = body.querySelector('div[style*="max-height"]');
+  if (scroller){ scroller.style.maxHeight = 'none'; scroller.style.flex = '1'; scroller.style.minHeight = '0'; }
+
+  // Nạp bài của site này (giống wstOpenPostsModal, không mở popup)
+  _wstPosts.wsId = wsId;
+  _wstPosts.domain = dom;
+  _wstPosts.items = [];
+  _wstPosts.sel = {};
+  ['wstFltType','wstFltIndex','wstFltCat'].forEach(function(id){ var e = document.getElementById(id); if (e) e.value = ''; });
+  var q = document.getElementById('wstPostsSearch'); if (q) q.value = '';
+  Promise.resolve(wstLoadPosts()).then(wstRenderContentCards);
+}
+
+// Trả khối danh sách bài về popup gốc (khi đóng Dashboard)
+function wstRestorePostsBody(){
+  if (!_wstPostsBodyHome) return;
+  var body = document.querySelector('.wst-cm-host .modal-body');
+  if (body){
+    var scroller = body.querySelector('div[style*="overflow:auto"]');
+    if (scroller){ scroller.style.maxHeight = '58vh'; scroller.style.flex = ''; scroller.style.minHeight = ''; }
+    _wstPostsBodyHome.parent.insertBefore(body, _wstPostsBodyHome.next);
+  }
+  _wstPostsBodyHome = null;
 }
 
 // --- RENDER DỊCH VỤ NHẬP TAY ---
