@@ -865,6 +865,9 @@
       const isConfirmedView = it.status === 'confirmed' && rep.trim() === (it.confirmed_report || '').trim();
       msgs.innerHTML = `<div class="sx-report">
         <div class="sx-report-h">📑 Báo cáo tích hợp · tạo lúc ${esc(it.generated_at || '?')}${it.confirmed_at ? ' · xác nhận lúc ' + esc(it.confirmed_at) : ''}</div>
+        ${it.structure && it.structure.text && !editing ? `<div class="sx-msg-ai" style="border:1px solid #238636;border-radius:8px;padding:10px 12px;margin:8px 0">
+          <b>🌳 Cấu trúc danh mục hiện hành</b> <span class="sx-sub">— chốt qua kế hoạch nội dung lúc ${esc(it.structure.at)}; thay thế mục 4.2 bên dưới nếu khác</span>
+          <pre style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;margin:6px 0 0">${esc(it.structure.text)}</pre></div>` : ''}
         ${editing ? `<textarea class="sx-report-ta">${esc(rep)}</textarea>` : `<div class="sx-msg-ai sx-report-body">${renderMd(rep, it.sources || [])}${sourcesHtml((it.sources || []).filter(x => new RegExp('\\[' + x.n + '\\]').test(rep)))}</div>`}
       </div>`;
       msgs.scrollTop = 0;
@@ -1074,38 +1077,152 @@
       }, 3000);
     }
 
+    // ══ KẾ HOẠCH: xem + SỬA REALTIME ngay trên cây danh mục (mỗi thao tác lưu ngay qua planop) ══
+    // Chuyên gia + hồ sơ tích hợp chỉ nhận thay đổi khi bấm ✅ Xác nhận (server chụp ảnh kế hoạch + ghi cây danh mục vào hồ sơ).
     async function renderPlanDone() {
       msgs.innerHTML = '<div class="sx-thinking">Đang tải kế hoạch…</div>';
       let p;
       try { p = await api('planfull/' + cid); } catch (e) { msgs.innerHTML = `<div class="sx-err">⚠️ ${esc(e.message)}</div>`; return; }
       if (s.mode !== 'plan') return;
       s.plan = p;
-      const st = p.stats || {}, rows = p.rows || [];
-      const bySilo = {};
-      rows.forEach(r => { bySilo[r.silo] = (bySilo[r.silo] || 0) + 1; });
-      const byMonth = {};
-      rows.forEach(r => { byMonth[r.month] = (byMonth[r.month] || 0) + 1; });
-      msgs.innerHTML = `<div class="sx-report">
-        <div class="sx-report-h">📐 Kế hoạch nội dung · lập lúc ${esc(p.done_at || '')} từ file ${esc(p.file_name || '')}${p.confirmed ? ' · <span class="sx-ok">✅ đã xác nhận ' + esc(p.confirmed_at || '') + '</span>' : ''}</div>
-        <div class="sx-sum">
-          <div><b>${num(st.rows)}</b> bài · ${num(st.first)} bài theo hồ sơ (trụ cột + bài đầu) · ${num(st.rows - st.first)} bài từ bộ từ khóa xếp vào khung · tổng ${num(st.volume)} lượt tìm kiếm/tháng</div>
-          <div>${num(st.keywords)} từ khóa → ${num(st.clusters)} cụm · ${num(st.excluded)} cụm/từ ngoài khung hoặc bị loại · tra Google ${num(st.serp_fetched)} từ (phần còn lại dùng bộ nhớ đệm) · ${num(st.seconds)} giây</div>
-          <div><b>Theo silo:</b> ${Object.entries(bySilo).map(([k, v]) => esc(k) + ' ' + v).join(' · ')}</div>
-          <div><b>Theo tháng:</b> ${Object.entries(byMonth).slice(0, 8).map(([k, v]) => 'T' + k + ': ' + v).join(' · ')}${Object.keys(byMonth).length > 8 ? ' · …' : ''} (tổng ${Object.keys(byMonth).length} tháng)</div>
-        </div>
-        <div style="display:flex;gap:6px;margin:8px 0">
-          <button class="sx-btn sx-pv" data-v="tree" style="${s.planView !== 'list' ? 'border-color:#58a6ff;color:#e6edf3' : ''}">🌳 Theo danh mục</button>
-          <button class="sx-btn sx-pv" data-v="list" style="${s.planView === 'list' ? 'border-color:#58a6ff;color:#e6edf3' : ''}">📋 Theo thứ tự đăng</button>
-        </div>
-        ${s.planView === 'list' ? `<div class="sx-msg-ai sx-report-body"><table><thead><tr><th>STT</th><th>Tháng</th><th>Silo</th><th>Nhóm bài con</th><th>Dạng bài</th><th>Từ khóa chính</th><th>TK cụm</th><th>Ghi chú</th></tr></thead><tbody>
-          ${rows.slice(0, 60).map(r => `<tr><td>${r.stt}</td><td>${r.month}</td><td>${esc(r.silo)}</td><td>${esc(r.sub)}</td><td>${esc(r.type)}</td><td><b>${esc(r.main)}</b></td><td>${r.vol ? num(r.vol) : '—'}</td><td>${esc(clip(r.note, 90))}</td></tr>`).join('')}
-        </tbody></table><div class="sx-sub">Hiện 60/${num(rows.length)} bài đầu — tải Excel để xem đủ.</div></div>` : planTreeHtml(p)}
-      </div>`;
-      msgs.querySelectorAll('.sx-pv').forEach(b => { b.onclick = () => { s.planView = b.dataset.v; renderPlanDone(); }; });
-      msgs.scrollTop = 0;
+      s.planOpen = s.planOpen || new Set();
+      s.kidsOpen = s.kidsOpen || new Set();
+      s.inline = null;
+      drawPlanDone(true);
+    }
+
+    const btnA = 'background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:1px 6px;font-size:11px;cursor:pointer;margin-left:3px';
+    const edIn = 'background:transparent;color:#c9d1d9;border:1px solid transparent;border-radius:4px;padding:2px 4px;font-size:12px;width:100%;box-sizing:border-box;font-family:inherit';
+
+    function planSubsOf(p, silo) {
+      const f = ((p.frame || {}).silos || []).find(x => x.name === silo) || {};
+      const out = (f.subgroups || []).slice();
+      (p.rows || []).forEach(r => { if (r.silo === silo && r.sub && !out.includes(r.sub)) out.push(r.sub); });
+      return out;
+    }
+
+    function planGroups(p) {
+      const rows = p.rows || [], frame = p.frame || {};
+      const order = (frame.silos || []).map(x => x.name);
+      rows.forEach(r => { if (!order.includes(r.silo)) order.push(r.silo); });
+      return order.map(silo => {
+        const f = (frame.silos || []).find(x => x.name === silo) || {};
+        const rs = rows.filter(r => r.silo === silo);
+        const subs = {};
+        (f.subgroups || []).forEach(g => { subs[g] = {}; });
+        rs.filter(r => r.role !== 'Trụ cột').forEach(r => {
+          const i = String(r.sub || '(chưa có nhóm)').indexOf(': ');
+          const base = i < 0 ? (r.sub || '(chưa có nhóm)') : r.sub.slice(0, i), lv2 = i < 0 ? '' : r.sub.slice(i + 2);
+          ((subs[base] = subs[base] || {})[lv2] = subs[base][lv2] || []).push(r);
+        });
+        return { silo, pillar: f.pillar || '', rows: rs, pillars: rs.filter(r => r.role === 'Trụ cột'), subs };
+      });
+    }
+
+    function planRowHtml(r) {
+      const kids = r.child || [];
+      let h = `<tr data-id="${r.id}">
+        <td style="width:40px" class="sx-sub">${r.stt}</td>
+        <td style="width:52px"><input type="number" min="1" class="sx-ed" data-f="month" value="${esc(r.month)}" style="${edIn}" title="Tháng"></td>
+        <td><input class="sx-ed" data-f="main" value="${esc(r.main)}" style="${edIn};font-weight:700" title="Từ khóa chính — sửa rồi Enter">
+          <a href="#" data-a="kids" class="sx-sub" style="white-space:nowrap">${s.kidsOpen.has(r.id) ? '▾' : '▸'} ${kids.length} từ phụ</a></td>
+        <td style="width:160px"><input class="sx-ed" data-f="type" list="sx-dl-type" value="${esc(r.type)}" style="${edIn}"></td>
+        <td style="width:72px"><input type="number" min="0" class="sx-ed" data-f="vol" value="${esc(r.vol || 0)}" style="${edIn}" title="Tổng lượng tìm kiếm cụm"></td>
+        <td style="width:150px;white-space:nowrap;text-align:right">
+          <button data-a="move" style="${btnA}" title="Chuyển sang danh mục / nhóm con khác">⇄</button><button data-a="merge" style="${btnA}" title="Gộp bài này vào bài khác (thành từ khóa phụ)">🔗</button><button data-a="up" style="${btnA}" title="Lên">↑</button><button data-a="down" style="${btnA}" title="Xuống">↓</button><button data-a="delrow" style="${btnA};color:#f85149" title="Xoá bài">🗑</button>
+        </td></tr>`;
+      if (s.inline && s.inline.id === r.id) {
+        if (s.inline.kind === 'move') {
+          const opts = planGroups(s.plan).map(g => planSubsOf(s.plan, g.silo).map(sb => `<option value="${esc(g.silo + '\u0001' + sb)}" ${g.silo === r.silo && sb === r.sub ? 'selected' : ''}>${esc(g.silo)} › ${esc(sb)}</option>`).join('')).join('');
+          h += `<tr data-id="${r.id}"><td></td><td colspan="5">⇄ Chuyển tới: <select class="sx-in-move" style="${edIn};width:auto;border-color:#30363d">${opts}</select>
+            <button data-a="move-ok" style="${btnA}">✓ Chuyển</button><button data-a="inline-x" style="${btnA}">Huỷ</button></td></tr>`;
+        } else {
+          h += `<tr data-id="${r.id}"><td></td><td colspan="5">🔗 Gộp <b>${esc(r.main)}</b> (cùng ${kids.length} từ phụ) thành từ khóa phụ của bài:
+            <input class="sx-in-merge" list="sx-dl-main" placeholder="gõ để tìm từ khóa chính của bài đích…" style="${edIn};width:320px;border-color:#30363d">
+            <button data-a="merge-ok" style="${btnA}">✓ Gộp</button><button data-a="inline-x" style="${btnA}">Huỷ</button></td></tr>`;
+        }
+      }
+      if (s.kidsOpen.has(r.id)) {
+        h += `<tr data-id="${r.id}"><td></td><td colspan="5" style="padding:4px 0 8px">
+          ${kids.map(k => `<span class="sx-kid" style="display:inline-block;background:#21262d;border:1px solid #30363d;border-radius:12px;padding:2px 8px;margin:2px;font-size:11.5px">${esc(k)}
+            <a href="#" data-a="setmain" data-kw="${esc(k)}" title="Đặt làm TỪ KHÓA CHÍNH (từ khóa chính hiện tại thành từ phụ)" style="text-decoration:none">⭐</a>
+            <a href="#" data-a="delchild" data-kw="${esc(k)}" title="Bỏ từ phụ này" style="text-decoration:none;color:#f85149">✕</a></span>`).join('')}
+          <input class="sx-addkid" placeholder="+ thêm từ phụ, Enter" style="${edIn};width:200px;border-color:#30363d"></td></tr>`;
+      }
+      return h;
+    }
+    const planTable = rs => `<table style="margin:4px 0 8px;width:100%">${rs.map(planRowHtml).join('')}</table>`;
+
+    function planTreeHtml(p) {
+      const vol = rs => rs.reduce((a, r) => a + (r.vol || 0), 0);
+      const isOpen = k => s.planOpen.has(k);
+      const sum = (icon, name, rs, extra, acts) => `<summary style="cursor:pointer;padding:5px 0"><span style="font-weight:700">${icon} ${esc(name)}</span> <span class="sx-sub">— ${rs.length} bài · ${num(vol(rs))} lượt/tháng${extra || ''}</span><span style="margin-left:8px">${acts || ''}</span></summary>`;
+      const a = (act, label, title, data) => `<button data-a="${act}" ${data || ''} style="${btnA}" title="${esc(title)}">${label}</button>`;
+      const other = k => /^(Hãng khác|Khác)/.test(k);
+      return `<div class="sx-msg-ai sx-report-body sx-ptree" style="line-height:1.5">
+        <datalist id="sx-dl-type">${((p.frame || {}).types || []).map(t => `<option value="${esc(t)}">`).join('')}</datalist>
+        <datalist id="sx-dl-main">${(p.rows || []).map(r => `<option value="${esc(r.main)}">#${r.stt} · ${esc(r.silo)}</option>`).join('')}</datalist>
+        <div style="margin-bottom:8px">${a('addsilo', '＋ Thêm danh mục', 'Thêm danh mục mới')}</div>` +
+        planGroups(p).map(g => {
+          const sd = `data-silo="${esc(g.silo)}"`, ks = 's|' + g.silo;
+          const bases = Object.keys(g.subs);
+          return `<details data-key="${esc(ks)}" ${isOpen(ks) || !s.planOpen.size ? 'open' : ''} style="border:1px solid #30363d;border-radius:8px;padding:4px 12px;margin-bottom:10px">
+            ${sum('📁', g.silo, g.rows, '', a('renamesilo', '✏️', 'Đổi tên danh mục', sd) + a('setpillar', '🏛', 'Đổi tên trang trụ cột', sd) + a('addsub', '＋ nhóm con', 'Thêm nhóm bài con', sd) + a('delsilo', '🗑', 'Xoá danh mục (chuyển bài sang danh mục khác)', sd))}
+            <div style="margin:2px 0 6px 4px">🏛 <b>Trụ cột:</b> ${esc(g.pillar || '—')}${g.pillars.length ? '' : ' <span class="sx-sub">(chưa có bài trụ cột trong kế hoạch)</span>'}</div>
+            ${g.pillars.length ? planTable(g.pillars) : ''}
+            ${bases.map(b => {
+              const lv = g.subs[b], all = Object.values(lv).flat(), kb = 'g|' + g.silo + '|' + b;
+              const keys = Object.keys(lv).sort((x, y) => other(x) - other(y) || lv[y].length - lv[x].length);
+              const sb = `${sd} data-sub="${esc(b)}"`;
+              const inner = !isOpen(kb) ? '' : (keys.length <= 1 && !keys[0] ? planTable(lv[''] || []) : keys.map(k => {
+                const kk = 'b|' + g.silo + '|' + b + ': ' + k, sk = `${sd} data-sub="${esc(k ? b + ': ' + k : b)}"`;
+                return `<details data-key="${esc(kk)}" ${isOpen(kk) ? 'open' : ''} style="margin-left:14px">${sum('🏷', k || '(chung)', lv[k], '', a('addrow', '＋ bài', 'Thêm bài vào nhóm này', sk) + (k ? a('renamesub', '✏️', 'Đổi tên nhóm cấp 2', sk) : ''))}${isOpen(kk) ? planTable(lv[k]) : ''}</details>`;
+              }).join(''));
+              return `<details data-key="${esc(kb)}" ${isOpen(kb) ? 'open' : ''} style="margin-left:14px">${sum('📂', b, all, keys.length > 1 || keys[0] ? ' · ' + keys.length + ' nhóm cấp 2' : '',
+                a('addrow', '＋ bài', 'Thêm bài vào nhóm này', sb) + a('renamesub', '✏️', 'Đổi tên nhóm con', sb) + a('movesub', '⇄', 'Chuyển cả nhóm sang danh mục khác', sb) + a('delsub', '🗑', 'Xoá nhóm (chuyển bài sang nhóm khác)', sb))}${inner}</details>`;
+            }).join('')}
+          </details>`;
+        }).join('') + `</div>`;
+    }
+
+    // chọn 1 mục trong danh sách bằng prompt đánh số
+    function pickFrom(title, list) {
+      if (!list.length) { alert('Không có lựa chọn nào khác'); return null; }
+      const ans = prompt(title + '\n' + list.map((x, i) => `${i + 1}. ${x}`).join('\n'), '1');
+      if (ans === null) return null;
+      const v = list[parseInt(ans, 10) - 1];
+      if (!v) alert('Số không hợp lệ');
+      return v || null;
+    }
+
+    async function planOp(op, redraw = true) {
+      const m = bar.querySelector('.sx-pdmsg');
+      if (m) m.textContent = '💾 Đang lưu…';
+      try {
+        const r = await api('planop/' + cid, { method: 'POST', body: JSON.stringify(op) });
+        const p = s.plan, byId = {};
+        (p.rows || []).forEach(x => { byId[x.id] = x; });
+        (r.rows || []).forEach(x => { byId[x.id] = x; });
+        p.rows = (r.order || []).map(id => byId[id]).filter(Boolean);
+        Object.assign(p, { frame: r.frame, pending: r.pending, confirmed: r.confirmed, confirmed_at: r.confirmed_at, edited_at: r.edited_at });
+        p.stats = Object.assign(p.stats || {}, r.stats || {});
+        if (redraw) drawPlanDone(); else drawPlanBar();
+        const m2 = bar.querySelector('.sx-pdmsg');
+        if (m2) m2.textContent = '✓ Đã lưu ' + new Date().toLocaleTimeString('vi-VN');
+        return true;
+      } catch (e) {
+        drawPlanDone();
+        const m2 = bar.querySelector('.sx-pdmsg');
+        if (m2) m2.textContent = '⚠️ ' + e.message;
+        return false;
+      }
+    }
+
+    function drawPlanBar() {
+      const p = s.plan, need = !p.confirmed || p.pending;
       setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button><button class="sx-btn sx-prerun">↺ Lập lại (khung / file mới)</button></div>
-        <div class="sx-nav-r"><span class="sx-sub sx-pdmsg">${p.edited_at ? '✏️ sửa tay lần cuối ' + esc(p.edited_at) : ''}</span><button class="sx-btn sx-pedit">✏️ Sửa kế hoạch</button><button class="sx-btn sx-pxlsx">⬇ Tải Excel</button>
-        ${p.confirmed ? '<span class="sx-ok">✅ Chuyên gia đang dùng kế hoạch này</span>' : '<button class="sx-btn sx-btn-primary sx-pconfirm">✅ Xác nhận kế hoạch</button>'}</div>`);
+        <div class="sx-nav-r"><span class="sx-sub sx-pdmsg">${p.edited_at ? 'sửa lần cuối ' + esc(p.edited_at) : ''}</span><button class="sx-btn sx-pedit" title="Sắp xếp / sửa nhiều bài cùng lúc dạng bảng">↕ Sửa hàng loạt</button><button class="sx-btn sx-pxlsx">⬇ Tải Excel</button>
+        ${need ? `<button class="sx-btn sx-btn-primary sx-pconfirm">✅ ${p.confirmed ? 'Xác nhận thay đổi' : 'Xác nhận kế hoạch'}</button>` : '<span class="sx-ok">✅ Chuyên gia đang dùng kế hoạch này</span>'}</div>`);
       bar.querySelector('.sx-tochat').onclick = enterChat;
       bar.querySelector('.sx-pedit').onclick = () => renderPlanEdit(p);
       bar.querySelector('.sx-prerun').onclick = () => {
@@ -1116,47 +1233,148 @@
       const cf = bar.querySelector('.sx-pconfirm');
       if (cf) cf.onclick = async () => {
         cf.disabled = true;
-        try { await api('planconfirm/' + cid, { method: 'POST', body: '{}' }); renderPlanDone(); }
-        catch (e) { bar.querySelector('.sx-pdmsg').textContent = '⚠️ ' + e.message; cf.disabled = false; }
+        try {
+          await api('planconfirm/' + cid, { method: 'POST', body: '{}' });
+          try { const c = await api('chats/' + cid); s.integ = c.integration || s.integ; } catch (e) {}
+          await renderPlanDone();
+          const m = bar.querySelector('.sx-pdmsg');
+          if (m) m.textContent = '✓ Đã cập nhật vào hồ sơ tích hợp + dữ liệu chuyên gia';
+        } catch (e) { bar.querySelector('.sx-pdmsg').textContent = '⚠️ ' + e.message; cf.disabled = false; }
       };
     }
 
-    // 🌳 Kế hoạch dạng cây theo cấu trúc site của hồ sơ: Danh mục → Trụ cột → Nhóm bài con → (cấp 2 "Nhóm: Hãng") → bài.
-    // Thứ tự danh mục / nhóm con theo khung hồ sơ; bài trong nhóm theo STT (thứ tự đăng).
-    function planTreeHtml(p) {
-      const rows = p.rows || [], frame = p.frame || {};
-      const order = (frame.silos || []).map(x => x.name);
-      rows.forEach(r => { if (!order.includes(r.silo)) order.push(r.silo); });
-      const subOrder = {};
-      (frame.silos || []).forEach(x => { subOrder[x.name] = x.subgroups || []; });
-      const pillarOf = {};
-      (frame.silos || []).forEach(x => { pillarOf[x.name] = x.pillar; });
-      const vol = rs => rs.reduce((a, r) => a + (r.vol || 0), 0);
-      const art = r => `<tr><td style="width:44px">${r.stt}</td><td style="width:44px">T${r.month}</td><td><b>${esc(r.main)}</b>${(r.child || []).length ? `<span class="sx-sub"> +${r.child.length} từ phụ</span>` : ''}</td><td style="width:150px">${esc(r.type)}</td><td style="width:70px">${r.vol ? num(r.vol) : '—'}</td></tr>`;
-      const table = rs => `<table style="margin:4px 0 8px">${rs.map(art).join('')}</table>`;
-      const sum = (icon, name, rs, extra) => `<summary style="cursor:pointer;padding:5px 0"><span style="font-weight:700">${icon} ${esc(name)}</span> <span class="sx-sub">— ${rs.length} bài · ${num(vol(rs))} lượt/tháng${extra || ''}</span></summary>`;
-      return `<div class="sx-msg-ai sx-report-body" style="line-height:1.5">` + order.map(silo => {
-        const rs = rows.filter(r => r.silo === silo);
-        if (!rs.length) return '';
-        const pillars = rs.filter(r => r.role === 'Trụ cột');
-        const subs = {};
-        rs.filter(r => r.role !== 'Trụ cột').forEach(r => {
-          const [base, lv2] = String(r.sub || '(chưa có nhóm)').split(': ');
-          ((subs[base] = subs[base] || {})[lv2 || ''] = subs[base][lv2 || ''] || []).push(r);
-        });
-        const bases = (subOrder[silo] || []).filter(b => subs[b]).concat(Object.keys(subs).filter(b => !(subOrder[silo] || []).includes(b)));
-        return `<details open style="border:1px solid #30363d;border-radius:8px;padding:4px 12px;margin-bottom:10px">
-          ${sum('📁', silo, rs)}
-          <div style="margin:2px 0 6px 4px">🏛 <b>Trụ cột:</b> ${esc(pillarOf[silo] || '—')}${pillars.length ? ' — ' + pillars.map(r => `#${r.stt} <b>${esc(r.main)}</b>`).join(', ') : ' <span class="sx-sub">(chưa có bài trụ cột trong kế hoạch)</span>'}</div>
-          ${bases.map(b => {
-            const lv = subs[b], all = Object.values(lv).flat();
-            const other = k => /^(Hãng khác|Khác)/.test(k);   // nhóm gom bài lẻ luôn đứng cuối
-            const keys = Object.keys(lv).sort((x, y) => other(x) - other(y) || lv[y].length - lv[x].length);
-            const inner = keys.length === 1 && keys[0] === '' ? table(lv['']) : keys.map(k => `<details style="margin-left:14px">${sum('🏷', k || '(chung)', lv[k])}${table(lv[k])}</details>`).join('');
-            return `<details style="margin-left:14px">${sum('📂', b, all, keys.length > 1 || keys[0] ? ' · ' + keys.length + ' nhóm cấp 2' : '')}${inner}</details>`;
-          }).join('')}
-        </details>`;
-      }).join('') + `</div>`;
+    function drawPlanDone(resetScroll) {
+      const p = s.plan, st = p.stats || {}, rows = p.rows || [];
+      const keepScroll = msgs.scrollTop;
+      const bySilo = {}, byMonth = {};
+      rows.forEach(r => { bySilo[r.silo] = (bySilo[r.silo] || 0) + 1; byMonth[r.month] = (byMonth[r.month] || 0) + 1; });
+      const status = !p.confirmed
+        ? '<div class="sx-warn" style="margin:6px 0">● Kế hoạch CHƯA xác nhận — chuyên gia chưa dùng. Sửa trực tiếp bên dưới (tự lưu), xong bấm ✅ Xác nhận kế hoạch.</div>'
+        : p.pending
+          ? `<div class="sx-warn" style="margin:6px 0">● Có thay đổi CHƯA xác nhận (sửa lúc ${esc(p.edited_at || '')}). Chuyên gia và hồ sơ tích hợp vẫn dùng bản xác nhận lúc ${esc(p.confirmed_at || '')} — bấm ✅ Xác nhận thay đổi để cập nhật.</div>`
+          : '';
+      msgs.innerHTML = `<div class="sx-report sx-proot">
+        <div class="sx-report-h">📐 Kế hoạch nội dung · lập lúc ${esc(p.done_at || '')} từ file ${esc(p.file_name || '')}${p.confirmed ? ' · <span class="sx-ok">✅ xác nhận ' + esc(p.confirmed_at || '') + '</span>' : ''}</div>
+        <div class="sx-sum">
+          <div><b>${num(rows.length)}</b> bài · tổng ${num(rows.reduce((a, r) => a + (r.vol || 0), 0))} lượt tìm kiếm/tháng · ${num(st.keywords)} từ khóa → ${num(st.clusters)} cụm · ${num(st.excluded)} cụm/từ ngoài khung hoặc bị loại</div>
+          <div><b>Theo danh mục:</b> ${Object.entries(bySilo).map(([k, v]) => esc(k) + ' ' + v).join(' · ')}</div>
+          <div><b>Theo tháng:</b> ${Object.entries(byMonth).slice(0, 8).map(([k, v]) => 'T' + k + ': ' + v).join(' · ')}${Object.keys(byMonth).length > 8 ? ' · …' : ''} (tổng ${Object.keys(byMonth).length} tháng)</div>
+        </div>
+        ${status}
+        <div style="display:flex;gap:6px;margin:8px 0;align-items:center">
+          <button class="sx-btn sx-pv" data-v="tree" style="${s.planView !== 'list' ? 'border-color:#58a6ff;color:#e6edf3' : ''}">🌳 Theo danh mục (sửa trực tiếp)</button>
+          <button class="sx-btn sx-pv" data-v="list" style="${s.planView === 'list' ? 'border-color:#58a6ff;color:#e6edf3' : ''}">📋 Theo thứ tự đăng</button>
+          <span class="sx-sub">Sửa ô rồi Enter là lưu · ▸ từ phụ: ⭐ đặt làm từ khóa chính · 🔗 gộp bài thành từ phụ của bài khác · ⇄ chuyển nhóm</span>
+        </div>
+        ${s.planView === 'list' ? `<div class="sx-msg-ai sx-report-body"><table><thead><tr><th>STT</th><th>Tháng</th><th>Danh mục</th><th>Nhóm bài con</th><th>Dạng bài</th><th>Từ khóa chính</th><th>TK cụm</th><th>Ghi chú</th></tr></thead><tbody>
+          ${rows.slice(0, 100).map(r => `<tr><td>${r.stt}</td><td>${r.month}</td><td>${esc(r.silo)}</td><td>${esc(r.sub)}</td><td>${esc(r.type)}</td><td><b>${esc(r.main)}</b></td><td>${r.vol ? num(r.vol) : '—'}</td><td>${esc(clip(r.note, 90))}</td></tr>`).join('')}
+        </tbody></table><div class="sx-sub">Hiện 100/${num(rows.length)} bài đầu — sửa ở chế độ 🌳 Theo danh mục; tải Excel để xem đủ.</div></div>` : planTreeHtml(p)}
+      </div>`;
+      msgs.scrollTop = resetScroll ? 0 : keepScroll;
+      const root = msgs.querySelector('.sx-proot');
+      root.querySelectorAll('.sx-pv').forEach(b => { b.onclick = () => { s.planView = b.dataset.v; drawPlanDone(true); }; });
+      bindPlanTree(root);
+      drawPlanBar();
+    }
+
+    function bindPlanTree(root) {
+      const rowOf = el => { const tr = el.closest('tr[data-id]'); return tr && (s.plan.rows || []).find(r => r.id === tr.dataset.id); };
+      // mở/đóng nhóm: nhớ trạng thái + vẽ bảng bài khi mở lần đầu (không render sẵn ~1.000 dòng)
+      root.addEventListener('toggle', e => {
+        const d = e.target;
+        if (!d.dataset || !d.dataset.key) return;
+        const had = s.planOpen.has(d.dataset.key);
+        if (d.open) s.planOpen.add(d.dataset.key); else s.planOpen.delete(d.dataset.key);
+        if (d.open && !had && !d.dataset.key.startsWith('s|')) drawPlanDone();
+      }, true);
+      root.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        if (e.target.classList.contains('sx-ed')) { e.preventDefault(); e.target.blur(); }
+        else if (e.target.classList.contains('sx-addkid')) {
+          e.preventDefault();
+          const r = rowOf(e.target), kw = e.target.value.trim();
+          if (r && kw) planOp({ op: 'addchild', id: r.id, kw });
+        } else if (e.target.classList.contains('sx-in-merge')) { e.preventDefault(); root.querySelector('[data-a="merge-ok"]').click(); }
+      });
+      root.addEventListener('change', e => {
+        if (!e.target.classList.contains('sx-ed')) return;
+        const r = rowOf(e.target), f = e.target.dataset.f, v = e.target.value;
+        if (!r || String(r[f] ?? '') === v) return;
+        if (f === 'main' && !v.trim()) { e.target.value = r.main; return; }
+        planOp({ op: 'set', id: r.id, field: f, value: v }, false);
+      });
+      root.addEventListener('click', async e => {
+        const el = e.target.closest('[data-a]');
+        if (!el) return;
+        e.preventDefault(); e.stopPropagation();
+        const act = el.dataset.a, silo = el.dataset.silo, sub = el.dataset.sub, r = rowOf(el);
+        const p = s.plan, silos = ((p.frame || {}).silos || []).map(x => x.name);
+        switch (act) {
+          case 'kids': s.kidsOpen.has(r.id) ? s.kidsOpen.delete(r.id) : s.kidsOpen.add(r.id); return drawPlanDone();
+          case 'setmain':
+            if (confirm(`Đặt "${el.dataset.kw}" làm TỪ KHÓA CHÍNH?\n"${r.main}" sẽ chuyển thành từ khóa phụ.`)) planOp({ op: 'setmain', id: r.id, kw: el.dataset.kw });
+            return;
+          case 'delchild': return planOp({ op: 'delchild', id: r.id, kw: el.dataset.kw });
+          case 'move': s.inline = { id: r.id, kind: 'move' }; return drawPlanDone();
+          case 'merge': s.inline = { id: r.id, kind: 'merge' }; drawPlanDone(); { const i = msgs.querySelector('.sx-in-merge'); if (i) i.focus(); } return;
+          case 'inline-x': s.inline = null; return drawPlanDone();
+          case 'move-ok': {
+            const [ts, tsub] = root.querySelector('.sx-in-move').value.split('\u0001');
+            s.inline = null;
+            return planOp({ op: 'move', id: r.id, silo: ts, sub: tsub });
+          }
+          case 'merge-ok': {
+            const v = root.querySelector('.sx-in-merge').value.trim();
+            const t = (p.rows || []).find(x => x.main === v && x.id !== r.id);
+            if (!t) { alert('Chọn đúng từ khóa chính của 1 bài có trong kế hoạch (gõ rồi chọn trong danh sách gợi ý)'); return; }
+            if (!confirm(`Gộp "${r.main}" (và ${(r.child || []).length} từ phụ) vào bài #${t.stt} "${t.main}"?\nBài "${r.main}" sẽ bị bỏ khỏi kế hoạch.`)) return;
+            s.inline = null;
+            return planOp({ op: 'merge', id: r.id, into: t.id });
+          }
+          case 'up': case 'down': return planOp({ op: 'reorder', id: r.id, dir: act });
+          case 'delrow': if (confirm(`Xoá bài "${r.main}" khỏi kế hoạch?`)) planOp({ op: 'delrow', id: r.id }); return;
+          case 'addsilo': {
+            const name = (prompt('Tên danh mục mới:') || '').trim(); if (!name) return;
+            const pillar = (prompt('Tên trang trụ cột của danh mục "' + name + '":', name) || '').trim();
+            return planOp({ op: 'addsilo', name, pillar });
+          }
+          case 'renamesilo': { const name = (prompt('Đổi tên danh mục:', silo) || '').trim(); if (name && name !== silo) planOp({ op: 'renamesilo', silo, name }); return; }
+          case 'setpillar': {
+            const cur = (((p.frame || {}).silos || []).find(x => x.name === silo) || {}).pillar || '';
+            const v = (prompt('Tên trang trụ cột của "' + silo + '":', cur) || '').trim(); if (v && v !== cur) planOp({ op: 'setpillar', silo, pillar: v }); return;
+          }
+          case 'delsilo': {
+            const n = (p.rows || []).filter(x => x.silo === silo).length;
+            if (!n) { if (confirm('Xoá danh mục "' + silo + '"?')) planOp({ op: 'delsilo', silo }); return; }
+            const to = pickFrom(`Danh mục "${silo}" có ${n} bài. Chuyển hết sang danh mục nào? Nhập số:`, silos.filter(x => x !== silo));
+            if (to && confirm(`Xoá "${silo}", chuyển ${n} bài sang "${to}"?`)) planOp({ op: 'delsilo', silo, to });
+            return;
+          }
+          case 'addsub': { const name = (prompt('Tên nhóm bài con mới trong "' + silo + '":') || '').trim(); if (name) { s.planOpen.add('s|' + silo); planOp({ op: 'addsub', silo, name }); } return; }
+          case 'renamesub': {
+            const name = (prompt('Đổi tên nhóm:', sub) || '').trim();
+            if (name && name !== sub) planOp({ op: 'renamesub', silo, sub, name });
+            return;
+          }
+          case 'movesub': { const to = pickFrom(`Chuyển cả nhóm "${sub}" sang danh mục nào? Nhập số:`, silos.filter(x => x !== silo)); if (to) planOp({ op: 'movesub', silo, sub, to }); return; }
+          case 'delsub': {
+            const n = (p.rows || []).filter(x => x.silo === silo && (x.sub === sub || String(x.sub).startsWith(sub + ': '))).length;
+            if (!n) { if (confirm('Xoá nhóm "' + sub + '"?')) planOp({ op: 'delsub', silo, sub }); return; }
+            const others = planSubsOf(p, silo).filter(x => x !== sub && !x.startsWith(sub + ': '));
+            const to = pickFrom(`Nhóm "${sub}" có ${n} bài. Chuyển sang nhóm nào (cùng danh mục)? Nhập số:`, others);
+            if (to && confirm(`Xoá nhóm "${sub}", chuyển ${n} bài sang "${to}"?`)) planOp({ op: 'delsub', silo, sub, to });
+            return;
+          }
+          case 'addrow': {
+            const main = (prompt(`Từ khóa chính của bài mới (nhóm "${sub}"):`) || '').trim(); if (!main) return;
+            const i = sub.indexOf(': ');
+            s.planOpen.add('g|' + silo + '|' + (i < 0 ? sub : sub.slice(0, i)));
+            if (i >= 0) s.planOpen.add('b|' + silo + '|' + sub);
+            const last = (p.rows || []).filter(x => x.silo === silo && x.sub === sub).pop();
+            return planOp({ op: 'addrow', silo, sub, main, after: last ? last.id : undefined });
+          }
+        }
+      });
     }
 
     // ✏️ SỬA KẾ HOẠCH THỦ CÔNG: sửa ô, thêm / xoá / đổi thứ tự bài, rồi lưu (planrows).
