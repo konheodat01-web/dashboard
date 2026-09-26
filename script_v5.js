@@ -13766,7 +13766,7 @@ async function wstGetGscHtmlCodesBulk() {
       verifiedSites = listData.items || [];
     } else if (listRes.status === 401 || listRes.status === 403) {
       sessionStorage.removeItem('gsc_access_token');
-      alert('Phiên làm việc Google GSC đã hết hạn. Vui lòng bấm nút "Lấy mã" lần nữa để đăng nhập lại.');
+      alert(listRes.status === 401 ? 'Phiên làm việc Google GSC đã hết hạn. Vui lòng bấm nút "Lấy mã" lần nữa để đăng nhập lại.' : 'Tài khoản Google đang đăng nhập CHƯA cấp quyền xác minh / thêm site GSC.\nBấm "Lấy mã" lần nữa và đồng ý cấp quyền (chỉ cần 1 lần).');
       if (getBtn) {
         getBtn.disabled = false;
         getBtn.innerHTML = 'Lấy mã';
@@ -13853,7 +13853,7 @@ async function wstGetGscHtmlCodesBulk() {
         const errText = await tokenRes.text().catch(() => '');
         console.error('[GSC Token Error 401/403]', errText);
         sessionStorage.removeItem('gsc_access_token');
-        alert('Phiên làm việc Google GSC đã hết hạn. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.');
+        alert(tokenRes.status === 401 ? 'Phiên làm việc Google GSC đã hết hạn. Vui lòng bấm nút "Lấy mã" lần nữa để kết nối lại Google.' : 'Tài khoản Google đang đăng nhập CHƯA cấp quyền xác minh / thêm site GSC.\nBấm "Lấy mã" lần nữa và đồng ý cấp quyền (chỉ cần 1 lần).');
         if (getBtn) {
           getBtn.disabled = false;
           getBtn.innerHTML = 'Lấy mã';
@@ -14022,7 +14022,7 @@ async function wstVerifyIndividualGsc(btn, domain) {
     // Case 3: Hết phiên đăng nhập (401 hoặc 403)
     if (res.status === 401 || res.status === 403) {
       sessionStorage.removeItem('gsc_access_token');
-      toast('❌ Hết phiên đăng nhập Google GSC! Vui lòng đăng nhập lại.', '#e74c3c', 3000);
+      toast(res.status === 401 ? '❌ Hết phiên đăng nhập Google GSC! Vui lòng đăng nhập lại.' : '❌ Tài khoản Google chưa cấp quyền xác minh site — bấm Xác minh lần nữa và đồng ý cấp quyền.', '#e74c3c', 4000);
       btn.disabled = false;
       btn.style.background = originalBg;
       btn.style.borderColor = '#2ea44f';
