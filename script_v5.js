@@ -12482,6 +12482,11 @@ async function wstOpenDashboard(wsId) {
   var acc = await wstGscAccessFor(wsId);
   if (!acc.ok) { wstShowGscGate(wsId, acc); return; }
   wstOpenDashboardUI(wsId);
+  // Đồng bộ GSC tự động mỗi ngày 1 lần (trước đây chỉ chạy khi bấm badge) -> chuyên gia luôn có số liệu mới
+  if (localStorage.getItem('gsc_last_global_sync_date') !== todayVN() && !window._wstGscSyncing) {
+    window._wstGscSyncing = true;
+    wstSyncGscRealtime().finally(() => { window._wstGscSyncing = false; });
+  }
 }
 
 function wstOpenDashboardUI(wsId) {

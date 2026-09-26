@@ -251,6 +251,15 @@
     L.push('\n## GOOGLE SEARCH CONSOLE (cùng số trên bảng Theo dõi web; kỳ trước = khoảng liền trước cùng độ dài)');
     const gscSt = site.gscConnectionStatus || 'not_connected';
     L.push(`- Kết nối GSC: ${gscSt === 'connected' ? 'đã kết nối' : gscSt === 'disconnected' ? 'MẤT kết nối' : 'chưa ghi nhận'} · đồng bộ lần cuối: ${((typeof _gscCache !== 'undefined' && _gscCache[wsId]) || {}).syncedAt || 'chưa rõ'}`);
+    if (typeof wstGscAccessFor === 'function') {
+      // Trạng thái đăng nhập kiểm tra NGAY lúc hỏi (cổng quyền của nút 📊) — đè mọi ghi chú token cũ
+      let acc = null;
+      try { acc = await wstGscAccessFor(wsId); } catch (e) {}
+      const lv = acc && acc.level ? ((typeof WST_GSC_LEVEL_TXT !== 'undefined' && WST_GSC_LEVEL_TXT[acc.level]) || acc.level) : '';
+      L.push(`- Đăng nhập GSC hiện tại (kiểm tra lúc hỏi): ${!acc ? 'không kiểm tra được'
+        : acc.ok ? `CÒN HẠN, đủ quyền — tài khoản ${acc.email || '—'}, quyền ${lv} với property ${acc.property}`
+        : ({ notoken: 'chưa đăng nhập', expired: 'token hết hạn', noscope: 'thiếu scope Search Console', noproperty: `tài khoản ${acc.email || '—'} không có property khớp`, lowperm: `chỉ có quyền ${lv}`, error: 'lỗi kiểm tra' }[acc.reason] || acc.reason)}`);
+    }
     if (typeof wstGetGscPeriodData === 'function') {
       [['7d', '7 ngày'], ['28d', '28 ngày'], ['3m', '3 tháng']].forEach(([p, lb]) => {
         const g = wstGetGscPeriodData(wsId, p);
