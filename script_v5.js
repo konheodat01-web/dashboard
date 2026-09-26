@@ -11436,12 +11436,43 @@ async function wstTriggerGscReauth() {
     }
   }
 
-  // Trigger login via redirect to avoid popup blockers in AdsPower
-  wstInitiateDirectGoogleOAuth([
+  // Đăng nhập Firebase popup (giống đăng nhập dashboard — client OAuth này đã khai báo domain);
+  // chỉ khi trình duyệt chặn popup (AdsPower) mới quay về luồng chuyển trang.
+  const tk = await wstGscPopupLogin({ type: 'global_sync' });
+  if (tk) await wstSyncGscRealtime(tk, true);
+}
+
+// Đăng nhập Google lấy token GSC (đủ 3 quyền) bằng Firebase signInWithPopup.
+// Trả token, hoặc null (người dùng đóng popup / lỗi). Popup bị chặn -> chuyển sang luồng redirect cũ với pendingState.
+// PHẢI gọi ngay trong sự kiện click (trước mọi await) để trình duyệt không chặn popup.
+async function wstGscPopupLogin(pendingState) {
+  const scopes = [
     'https://www.googleapis.com/auth/webmasters.readonly',
     'https://www.googleapis.com/auth/webmasters',
     'https://www.googleapis.com/auth/siteverification'
-  ], { type: 'global_sync' });
+  ];
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    scopes.forEach(sc => provider.addScope(sc));
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const result = await firebase.auth().signInWithPopup(provider);
+    const tk = result && result.credential && result.credential.accessToken;
+    if (!tk) return null;
+    sessionStorage.setItem('gsc_access_token', tk);
+    sessionStorage.removeItem('gsc_user_sites');
+    if (result.user && result.user.email) sessionStorage.setItem('gsc_user_email', result.user.email);
+    if (typeof _wstGscSitesMemo !== 'undefined') _wstGscSitesMemo = null;
+    wstSetGscBadge('done');
+    return tk;
+  } catch (e) {
+    if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
+      wstInitiateDirectGoogleOAuth(scopes, pendingState);
+      return null;
+    }
+    if (e && (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request')) return null;
+    alert('Lỗi đăng nhập Google: ' + (e && e.message || e));
+    return null;
+  }
 }
 
 // Hàm đồng bộ chính — chạy tự động sau khi đăng nhập Google
@@ -12613,13 +12644,10 @@ function wstCloseGscGate(){
   if (el) el.remove();
 }
 
-function wstGscGateLogin(wsId){
+async function wstGscGateLogin(wsId){
   wstCloseGscGate();
-  wstInitiateDirectGoogleOAuth([
-    'https://www.googleapis.com/auth/webmasters.readonly',
-    'https://www.googleapis.com/auth/webmasters',
-    'https://www.googleapis.com/auth/siteverification'
-  ], { type: 'open_dashboard', wsId: wsId });
+  const tk = await wstGscPopupLogin({ type: 'open_dashboard', wsId: wsId });
+  if (tk) wstOpenDashboard(wsId);   // kiểm tra quyền lại với token mới
 }
 
 function wstShowGscGate(wsId, acc){
