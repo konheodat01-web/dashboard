@@ -292,9 +292,11 @@
     });
     L.push(`- Chiến lược: ${clip(site.strategyNote, 1500) || 'chưa ghi'}`);
 
-    const logs = (site.changelog || []).slice(0, 15);
-    L.push('\n## LỊCH SỬ THAY ĐỔI DỮ LIỆU (mới nhất trước)');
-    L.push(logs.length ? logs.map(l => `- ${l.date}: [${l.type}] ${clip(l.detail, 150)}`).join('\n') : '- chưa có');
+    // Cùng nguồn với tab 🕒 Lịch sử trong Dashboard (changelog + 301 / entries khôi phục)
+    const logs = (typeof wstBuildHistoryLogs === 'function' ? wstBuildHistoryLogs(wsId) : (site.changelog || [])).slice(0, 30);
+    const typeTxt = (typeof WST_HISTORY_TYPE_TXT !== 'undefined' && WST_HISTORY_TYPE_TXT) || {};
+    L.push('\n## LỊCH SỬ THAY ĐỔI DỮ LIỆU (tab 🕒 Lịch sử — mới nhất trước; Web 301 = đổi domain, GSC Sync = đồng bộ GSC, Serper Rank = check rank, Thủ công = nhập tay)');
+    L.push(logs.length ? logs.map(l => `- ${l.date}: [${typeTxt[l.type] || l.type}] ${clip(String(l.detail || '').replace(/<[^>]+>/g, ''), 200)}`).join('\n') : '- chưa có');
 
     return { title: `🌐 ${cur.brand || w.brand} — ${cur.url || w.url}`, text: L.join('\n') };
   }

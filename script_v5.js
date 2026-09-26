@@ -4350,9 +4350,7 @@ function renderWsTrack(){
             return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;display:inline-block;vertical-align:middle" title="chưa ghi nhận email sở hữu">GSC</span>`;
           }
         })()}
-        <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>
-        <button onclick="wstOpenHistoryModal(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;color:#8b949e;border-color:#30363d;vertical-align:middle" title="Lịch sử thay đổi dữ liệu">🕒</button>
-        <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c;vertical-align:middle" title="Bỏ theo dõi">×</button>
+        <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>        <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c;vertical-align:middle" title="Bỏ theo dõi">×</button>
       </td>`}
     </tr>`;
   }).join('');
@@ -12593,6 +12591,7 @@ function wstOpenDashboardUI(wsId) {
       <button class="tb-btn" onclick="wstSwitchTab(this,'plan')">📝 Kế hoạch & Strategy</button>
       <button class="tb-btn" onclick="wstSwitchTab(this,'expert')">🧠 Chuyên gia SEO</button>
       <button class="tb-btn" onclick="wstSwitchTab(this,'content')">✍️ Quản lý nội dung</button>
+      <button class="tb-btn" data-tab="history" onclick="wstSwitchTab(this,'history')">🕒 Lịch sử</button>
     </div>
 
     <!-- CONTAINER PANELS -->
@@ -12743,6 +12742,9 @@ function wstOpenDashboardUI(wsId) {
       <!-- 4.9. PANEL QUẢN LÝ NỘI DUNG (wstRenderContentTab) -->
       <div class="tp-panel" id="wst-tab-content"></div>
 
+      <!-- 4.10. PANEL LỊCH SỬ THAY ĐỔI (wstRenderHistoryTab) -->
+      <div class="tp-panel" id="wst-tab-history"></div>
+
       <!-- 5. PANEL PLAN & KANBAN -->
       <div class="tp-panel" id="wst-tab-plan">
         <div class="plan-container">
@@ -12814,6 +12816,9 @@ function wstSwitchTab(btn, tabId) {
   }
   if (tabId === 'content') {
     wstRenderContentTab(_wstActiveSiteId);
+  }
+  if (tabId === 'history') {
+    wstRenderHistoryTab(_wstActiveSiteId);
   }
 }
 
@@ -13392,11 +13397,12 @@ function wstAddChangelog(wsId, type, detail) {
   }
 }
 
-// Mở modal lịch sử thay đổi dữ liệu
-function wstOpenHistoryModal(wsId) {
+// Danh sách lịch sử thay đổi của 1 site (changelog + khôi phục từ entries/cache/301 cũ), mới nhất trước.
+// Dùng chung cho tab 🕒 Lịch sử trong Dashboard và ngữ cảnh chuyên gia SEO.
+function wstBuildHistoryLogs(wsId) {
   const w = websites.find(x => x.id === wsId);
   const site = getWstSite(wsId);
-  if (!w || !site) return;
+  if (!w || !site) return [];
 
   const logs = site.changelog || [];
   const displayLogs = [...logs];
@@ -13430,19 +13436,14 @@ function wstOpenHistoryModal(wsId) {
     const db = b.date === 'Trước đây' ? '1970-01-01 00:00:00' : b.date;
     return db.localeCompare(da);
   });
+  return displayLogs;
+}
 
-  // Tạo overlay modal hiển thị lịch sử
-  const overlay = document.createElement('div');
-  overlay.id = 'wstHistoryOverlay';
-  overlay.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:10001;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `
-    <div style="background:#161b22;width:550px;max-height:85%;border:1px solid #30363d;border-radius:12px;padding:20px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #30363d;padding-bottom:12px;margin-bottom:16px">
-        <h3 style="margin:0;color:#c9d1d9;font-size:16px;display:flex;align-items:center;gap:8px">🕒 Lịch sử thay đổi dữ liệu: ${wstBrandHtml(w)}</h3>
-        <button onclick="document.getElementById('wstHistoryOverlay').remove()" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:24px;line-height:20px;padding:0">&times;</button>
-      </div>
-      <div style="overflow-y:auto;flex:1;padding-right:8px" class="custom-scroll">
-        ${displayLogs.length === 0 ? '<div style="color:#8b949e;text-align:center;padding:24px">Chưa có lịch sử ghi nhận thay đổi nào.</div>' : `
+const WST_HISTORY_TYPE_TXT = { '301_received': 'Web 301', gsc_synced: 'GSC Sync', rank_check: 'Serper Rank', manual_entry: 'Thủ công' };
+
+// HTML danh sách lịch sử (tab 🕒 Lịch sử trong Dashboard)
+function wstHistoryListHtml(displayLogs) {
+  return displayLogs.length === 0 ? '<div style="color:#8b949e;text-align:center;padding:24px">Chưa có lịch sử ghi nhận thay đổi nào.</div>' : `
           <div style="display:flex;flex-direction:column;gap:12px">
             ${displayLogs.map(l => {
               let icon = '📝';
@@ -13468,14 +13469,23 @@ function wstOpenHistoryModal(wsId) {
               `;
             }).join('')}
           </div>
-        `}
-      </div>
-      <div style="text-align:right;border-top:1px solid #30363d;padding-top:12px;margin-top:16px">
-        <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="document.getElementById('wstHistoryOverlay').remove()">Đóng</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
+        `;
+}
+
+// Tab 🕒 Lịch sử trong Dashboard từng site (thay nút 🕒 ở bảng Theo dõi web)
+function wstRenderHistoryTab(wsId) {
+  const panel = document.getElementById('wst-tab-history');
+  if (!panel) return;
+  panel.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:#c9d1d9;margin-bottom:12px">🕒 Lịch sử thay đổi dữ liệu</div>
+    <div style="max-width:900px">${wstHistoryListHtml(wstBuildHistoryLogs(wsId))}</div>`;
+}
+
+// Giữ tên hàm cũ cho tương thích: mở Dashboard ở tab Lịch sử
+async function wstOpenHistoryModal(wsId) {
+  await wstOpenDashboard(wsId);
+  const btn = document.querySelector('#wstDashboardModalContainer .tb-btn[data-tab="history"]');
+  if (btn && _wstActiveSiteId === wsId) wstSwitchTab(btn, 'history');
 }
 
 
