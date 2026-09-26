@@ -12395,7 +12395,8 @@ var WST_GSC_LEVEL_TXT = { siteOwner: 'Chủ sở hữu', siteFullUser: 'Toàn qu
 async function wstGscAccessFor(wsId){
   var w = websites.find(function(x){ return x.id === wsId; });
   var domain = w ? wstCurrentUrl(w) : '';
-  var email = sessionStorage.getItem('gsc_user_email') || '';
+  var email = sessionStorage.getItem('gsc_user_email')
+    || (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser ? firebase.auth().currentUser.email : '') || '';
   var token = sessionStorage.getItem('gsc_access_token');
   if (!token) return { ok: false, reason: 'notoken', domain: domain };
   var memo = _wstGscSitesMemo;
