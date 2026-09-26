@@ -16,7 +16,8 @@ function wstInitiateDirectGoogleOAuth(scopes, pendingState) {
     `&redirect_uri=${encodeURIComponent(redirectUri)}` + 
     `&response_type=token` + 
     `&scope=${encodeURIComponent(scopes.join(' '))}` + 
-    `&prompt=consent` + 
+    // Cổng GSC của Dashboard: luôn hiện màn chọn tài khoản (có thể cần đổi sang tài khoản khác có quyền)
+    `&prompt=${(pendingState && pendingState.type === 'open_dashboard') ? 'select_account%20consent' : 'consent'}` +
     `&include_granted_scopes=true`;
     
   window.location.href = authUrl;
@@ -28,7 +29,8 @@ if (window.location.hash) {
   const accessToken = params.get('access_token');
   if (accessToken) {
     sessionStorage.setItem('gsc_access_token', accessToken);
-    
+    sessionStorage.removeItem('gsc_user_sites');   // có thể vừa đổi tài khoản Google -> bỏ danh sách property cũ
+
     // Xóa hash để giữ URL sạch và bảo mật
     window.history.replaceState(null, null, window.location.pathname + window.location.search);
     
@@ -56,6 +58,13 @@ if (window.location.hash) {
           setTimeout(() => {
             wstSelectAddGscType(state.bulkType);
           }, 800);
+        } else if (state.type === 'open_dashboard') {
+          // Đăng nhập từ popup cổng GSC -> chờ dữ liệu Firebase rồi mở lại Dashboard của site đó
+          (async () => {
+            let n = 0;
+            while (!window._fbDataLoaded && n < 60) { await new Promise(r => setTimeout(r, 500)); n++; }
+            if (window._fbDataLoaded) wstOpenDashboard(state.wsId);
+          })();
         } else if (state.type === 'global_sync') {
           setTimeout(async () => {
             await wstSyncGscRealtime(accessToken);
@@ -4776,7 +4785,7 @@ function wstSaveEntry(){
   document.getElementById('wstAddOverlay').remove();
   
   renderWsTrack();
-  wstOpenDashboard(wsId); 
+  wstOpenDashboardUI(wsId);   // đang ở trong Dashboard (đã qua cổng GSC) -> vẽ lại luôn
   toast('✓ Đã lưu và cập nhật dữ liệu lịch sử');
 }
 
@@ -12378,8 +12387,104 @@ function wstCleanOldDoneTasks() {
   }
 }
 
-// Mở Dashboard cho một website
-function wstOpenDashboard(wsId) {
+// ══ CỔNG QUYỀN GSC: phải có quyền Chủ sở hữu / Toàn quyền với property của site (URL 301 hiện tại)
+// thì mới mở Dashboard -> chuyên gia luôn đọc được đủ dữ liệu GSC. Thiếu quyền -> popup đăng nhập.
+var _wstGscSitesMemo = null;   // { token, at, sites:[{siteUrl, level, normalized}] } — nhớ 5 phút
+var WST_GSC_LEVEL_TXT = { siteOwner: 'Chủ sở hữu', siteFullUser: 'Toàn quyền', siteRestrictedUser: 'Hạn chế', siteUnverifiedUser: 'Chưa xác minh' };
+
+async function wstGscAccessFor(wsId){
+  var w = websites.find(function(x){ return x.id === wsId; });
+  var domain = w ? wstCurrentUrl(w) : '';
+  var email = sessionStorage.getItem('gsc_user_email') || '';
+  var token = sessionStorage.getItem('gsc_access_token');
+  if (!token) return { ok: false, reason: 'notoken', domain: domain };
+  var memo = _wstGscSitesMemo;
+  if (!memo || memo.token !== token || Date.now() - memo.at > 5 * 60 * 1000){
+    var res;
+    try {
+      res = await fetch('https://www.googleapis.com/webmasters/v3/sites', { headers: { Authorization: 'Bearer ' + token } });
+    } catch(e){ return { ok: false, reason: 'error', domain: domain, email: email, msg: e.message }; }
+    if (res.status === 401){
+      sessionStorage.removeItem('gsc_access_token');
+      wstSetGscBadge('expired');
+      return { ok: false, reason: 'expired', domain: domain, email: email };
+    }
+    if (res.status === 403) return { ok: false, reason: 'noscope', domain: domain, email: email };
+    if (!res.ok) return { ok: false, reason: 'error', domain: domain, email: email, msg: 'HTTP ' + res.status };
+    var data = await res.json();
+    var sites = (data.siteEntry || []).map(function(s){ return { siteUrl: s.siteUrl, level: s.permissionLevel, normalized: wstNormalizeUrl(s.siteUrl) }; });
+    memo = _wstGscSitesMemo = { token: token, at: Date.now(), sites: sites };
+    try { sessionStorage.setItem('gsc_user_sites', JSON.stringify(sites.map(function(s){ return { siteUrl: s.siteUrl, normalized: s.normalized }; }))); } catch(e){}
+  }
+  var norm = wstNormalizeUrl(domain);
+  var hits = memo.sites.filter(function(g){ return g.normalized === norm || g.normalized.endsWith('.' + norm) || norm.endsWith('.' + g.normalized); });
+  if (!hits.length) return { ok: false, reason: 'noproperty', domain: domain, email: email };
+  var rank = { siteOwner: 3, siteFullUser: 2, siteRestrictedUser: 1, siteUnverifiedUser: 0 };
+  hits.sort(function(a, b){ return (rank[b.level] || 0) - (rank[a.level] || 0); });
+  var best = hits[0];
+  if ((rank[best.level] || 0) >= 2) return { ok: true, domain: domain, email: email, property: best.siteUrl, level: best.level };
+  return { ok: false, reason: 'lowperm', domain: domain, email: email, property: best.siteUrl, level: best.level };
+}
+
+function wstCloseGscGate(){
+  var el = document.getElementById('wstGscGateOverlay');
+  if (el) el.remove();
+}
+
+function wstGscGateLogin(wsId){
+  wstCloseGscGate();
+  wstInitiateDirectGoogleOAuth([
+    'https://www.googleapis.com/auth/webmasters.readonly',
+    'https://www.googleapis.com/auth/webmasters',
+    'https://www.googleapis.com/auth/siteverification'
+  ], { type: 'open_dashboard', wsId: wsId });
+}
+
+function wstShowGscGate(wsId, acc){
+  wstCloseGscGate();
+  var w = websites.find(function(x){ return x.id === wsId; }) || {};
+  var who = acc.email ? '<b>' + acc.email + '</b>' : 'Tài khoản Google hiện tại';
+  var dom = '<b style="color:#58a6ff">' + (acc.domain || '—') + '</b>';
+  var msg = {
+    notoken:    'Bạn chưa đăng nhập Google Search Console trong phiên này.',
+    expired:    'Phiên đăng nhập Google Search Console đã hết hạn.',
+    noscope:    'Lần đăng nhập trước chưa cấp quyền Search Console cho dashboard.',
+    noproperty: who + ' không có property Search Console nào khớp với ' + dom + '.',
+    lowperm:    who + ' chỉ có quyền <b style="color:#d29922">' + (WST_GSC_LEVEL_TXT[acc.level] || acc.level) + '</b> với property <code>' + (acc.property || '') + '</code>.',
+    error:      'Không kiểm tra được quyền Search Console (' + (acc.msg || 'lỗi mạng') + ').'
+  }[acc.reason] || 'Thiếu quyền Search Console.';
+  var hint = (acc.reason === 'noproperty' || acc.reason === 'lowperm')
+    ? 'Đăng nhập bằng tài khoản Google có quyền <b>Chủ sở hữu</b> hoặc <b>Toàn quyền</b> với site này, hoặc cấp quyền cho ' + (acc.email || 'tài khoản này') + ' trong Search Console.'
+    : 'Chuyên gia SEO cần quyền Search Console (<b>Chủ sở hữu</b> hoặc <b>Toàn quyền</b>) của site để đọc đủ dữ liệu.';
+  var ov = document.createElement('div');
+  ov.id = 'wstGscGateOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:rgba(1,4,9,.72);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = function(e){ if (e.target === ov) wstCloseGscGate(); };
+  ov.innerHTML = ''
+    + '<div style="width:100%;max-width:460px;background:#161b22;border:1px solid #30363d;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.7);overflow:hidden">'
+    +   '<div style="padding:14px 18px;background:#0d1117;border-bottom:1px solid #21262d;font-weight:700;color:#e6edf3">🔐 Cần quyền Google Search Console — ' + (w.brand || '') + '</div>'
+    +   '<div style="padding:16px 18px;font-size:13px;line-height:1.6;color:#c9d1d9">'
+    +     '<div style="margin-bottom:8px">' + msg + '</div>'
+    +     '<div style="color:#8b949e">' + hint + '</div>'
+    +     '<div style="margin-top:10px;font-size:12px;color:#8b949e">Site kiểm tra: ' + dom + ' (URL 301 hiện tại)</div>'
+    +   '</div>'
+    +   '<div style="padding:12px 18px;border-top:1px solid #21262d;display:flex;gap:8px;justify-content:flex-end">'
+    +     '<button class="btn btn-outline btn-sm" onclick="wstCloseGscGate()">Đóng</button>'
+    +     (acc.reason === 'error' ? '<button class="btn btn-outline btn-sm" onclick="wstCloseGscGate();wstOpenDashboard(' + wsId + ')">🔄 Thử lại</button>' : '')
+    +     '<button class="btn btn-sm" style="background:#238636;color:#fff;border:none" onclick="wstGscGateLogin(' + wsId + ')">🔑 Đăng nhập Google</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(ov);
+}
+
+// Mở Dashboard cho một website (qua cổng quyền GSC)
+async function wstOpenDashboard(wsId) {
+  var acc = await wstGscAccessFor(wsId);
+  if (!acc.ok) { wstShowGscGate(wsId, acc); return; }
+  wstOpenDashboardUI(wsId);
+}
+
+function wstOpenDashboardUI(wsId) {
   const w = websites.find(x => x.id === wsId);
   const site = getWstSite(wsId);
   if (!w || !site) {
