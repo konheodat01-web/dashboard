@@ -1099,16 +1099,134 @@
       </div>`;
       msgs.scrollTop = 0;
       setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button><button class="sx-btn sx-prerun">↺ Lập lại (khung / file mới)</button></div>
-        <div class="sx-nav-r"><span class="sx-sub sx-pdmsg"></span><button class="sx-btn sx-pxlsx">⬇ Tải Excel</button>
+        <div class="sx-nav-r"><span class="sx-sub sx-pdmsg">${p.edited_at ? '✏️ sửa tay lần cuối ' + esc(p.edited_at) : ''}</span><button class="sx-btn sx-pedit">✏️ Sửa kế hoạch</button><button class="sx-btn sx-pxlsx">⬇ Tải Excel</button>
         ${p.confirmed ? '<span class="sx-ok">✅ Chuyên gia đang dùng kế hoạch này</span>' : '<button class="sx-btn sx-btn-primary sx-pconfirm">✅ Xác nhận kế hoạch</button>'}</div>`);
       bar.querySelector('.sx-tochat').onclick = enterChat;
-      bar.querySelector('.sx-prerun').onclick = () => renderPlanFrame(p);
+      bar.querySelector('.sx-pedit').onclick = () => renderPlanEdit(p);
+      bar.querySelector('.sx-prerun').onclick = () => {
+        if (p.edited_at && !confirm('Kế hoạch này đã được sửa tay (' + p.edited_at + ').\nLập lại sẽ tạo kế hoạch MỚI và bỏ các chỉnh sửa tay. Tiếp tục?')) return;
+        renderPlanFrame(p);
+      };
       bar.querySelector('.sx-pxlsx').onclick = () => sxPlanXlsx(p, bar.querySelector('.sx-pdmsg'));
       const cf = bar.querySelector('.sx-pconfirm');
       if (cf) cf.onclick = async () => {
         cf.disabled = true;
         try { await api('planconfirm/' + cid, { method: 'POST', body: '{}' }); renderPlanDone(); }
         catch (e) { bar.querySelector('.sx-pdmsg').textContent = '⚠️ ' + e.message; cf.disabled = false; }
+      };
+    }
+
+    // ✏️ SỬA KẾ HOẠCH THỦ CÔNG: sửa ô, thêm / xoá / đổi thứ tự bài, rồi lưu (planrows).
+    // Chỉ gửi cột sửa được + _i (dòng gốc) -> server giữ nguyên từ khóa phụ, SERP, mã cụm của dòng gốc.
+    function renderPlanEdit(p) {
+      const frame = p.frame || {};
+      const silos = (frame.silos || []).map(x => x.name);
+      const types = (frame.types || []).slice();
+      const subs = [];
+      (frame.silos || []).forEach(x => (x.subgroups || []).forEach(g => { if (!subs.includes(g)) subs.push(g); }));
+      (p.rows || []).forEach(r => {
+        if (r.silo && !silos.includes(r.silo)) silos.push(r.silo);
+        if (r.type && !types.includes(r.type)) types.push(r.type);
+        if (r.sub && !subs.includes(r.sub)) subs.push(r.sub);
+      });
+      const ed = (p.rows || []).map((r, i) => ({ _i: i, month: r.month, silo: r.silo, sub: r.sub, type: r.type, main: r.main, vol: r.vol || 0, note: r.note || '', src: r.src }));
+      const F = { q: '', silo: '' };
+      let dirty = false;
+      const inp = 'background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:3px 5px;font-size:12px;width:100%;box-sizing:border-box;font-family:inherit';
+      const ab = 'background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:1px 6px;font-size:11px;cursor:pointer';
+      const opt = (list, v) => list.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
+
+      msgs.innerHTML = `<div class="sx-report">
+        <div class="sx-report-h">✏️ Sửa kế hoạch nội dung — sửa trực tiếp trong ô, xong bấm 💾 Lưu</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0">
+          <input class="sx-pe-q" placeholder="🔍 Lọc từ khóa / nhóm / ghi chú..." style="${inp};width:240px">
+          <select class="sx-pe-silo" style="${inp};width:auto"><option value="">Tất cả silo</option>${opt(silos, '')}</select>
+          <button class="sx-btn sx-pe-add">+ Thêm bài</button>
+          <button class="sx-btn sx-pe-sort" title="Sắp lại toàn bộ theo cột Tháng (giữ thứ tự trong cùng tháng)">↕ Sắp theo tháng</button>
+          <span class="sx-sub sx-pe-info"></span>
+        </div>
+        <datalist id="sx-pe-dl-sub">${subs.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+        <datalist id="sx-pe-dl-type">${types.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+        <div class="sx-msg-ai sx-report-body"><table><thead><tr><th>STT</th><th style="width:58px">Tháng</th><th>Silo</th><th>Nhóm bài con</th><th>Dạng bài</th><th>Từ khóa chính</th><th style="width:80px">TK cụm</th><th>Ghi chú</th><th style="width:96px"></th></tr></thead>
+          <tbody class="sx-pe-body"></tbody></table></div>
+      </div>`;
+      const tb = msgs.querySelector('.sx-pe-body');
+      const info = msgs.querySelector('.sx-pe-info');
+
+      function draw() {
+        const q = F.q.toLowerCase();
+        const show = ed.map((r, i) => [r, i]).filter(([r]) => (!F.silo || r.silo === F.silo)
+          && (!q || [r.main, r.sub, r.note, r.type].some(v => String(v || '').toLowerCase().includes(q))));
+        tb.innerHTML = show.map(([r, i]) => `<tr data-i="${i}">
+          <td>${i + 1}</td>
+          <td><input type="number" min="1" data-k="month" value="${esc(r.month)}" style="${inp}"></td>
+          <td><select data-k="silo" style="${inp}">${opt(silos, r.silo)}</select></td>
+          <td><input data-k="sub" list="sx-pe-dl-sub" value="${esc(r.sub)}" style="${inp}"></td>
+          <td><input data-k="type" list="sx-pe-dl-type" value="${esc(r.type)}" style="${inp}"></td>
+          <td><input data-k="main" value="${esc(r.main)}" style="${inp};font-weight:600"${r._i === null ? ' placeholder="nhập từ khóa chính"' : ''}></td>
+          <td><input type="number" min="0" data-k="vol" value="${esc(r.vol)}" style="${inp}"></td>
+          <td><input data-k="note" value="${esc(r.note)}" style="${inp}"></td>
+          <td style="white-space:nowrap"><button data-act="up" title="Lên" style="${ab}">↑</button> <button data-act="down" title="Xuống" style="${ab}">↓</button> <button data-act="ins" title="Chèn bài mới bên dưới" style="${ab}">＋</button> <button data-act="del" title="Xoá bài" style="${ab};color:#f85149">🗑</button></td>
+        </tr>`).join('') || '<tr><td colspan="9" class="sx-sub">Không có bài nào khớp bộ lọc</td></tr>';
+        info.textContent = `${ed.length} bài` + (show.length !== ed.length ? ` · đang hiện ${show.length}` : '') + (dirty ? ' · ● chưa lưu' : '');
+      }
+      const blank = (month, silo) => ({ _i: null, month: month || 1, silo: silo || F.silo || silos[0] || '', sub: '', type: types[0] || '', main: '', vol: 0, note: '' });
+      const touch = () => { dirty = true; info.textContent = info.textContent.replace(/ · ● chưa lưu$/, '') + ' · ● chưa lưu'; };
+
+      tb.addEventListener('input', e => {
+        const k = e.target.dataset.k, tr = e.target.closest('tr');
+        if (!k || !tr) return;
+        const v = e.target.value;
+        ed[+tr.dataset.i][k] = (k === 'month' || k === 'vol') ? (parseInt(v, 10) || 0) : v;
+        touch();
+      });
+      tb.addEventListener('click', e => {
+        const act = e.target.dataset.act, tr = e.target.closest('tr');
+        if (!act || !tr) return;
+        const i = +tr.dataset.i;
+        if (act === 'up' && i > 0) [ed[i - 1], ed[i]] = [ed[i], ed[i - 1]];
+        else if (act === 'down' && i < ed.length - 1) [ed[i + 1], ed[i]] = [ed[i], ed[i + 1]];
+        else if (act === 'ins') ed.splice(i + 1, 0, blank(ed[i].month, ed[i].silo));
+        else if (act === 'del') { if (!confirm('Xoá bài "' + (ed[i].main || '(trống)') + '" khỏi kế hoạch?')) return; ed.splice(i, 1); }
+        else return;
+        dirty = true; draw();
+        if (act === 'ins') { const n = tb.querySelector(`tr[data-i="${i + 1}"] input[data-k="main"]`); if (n) n.focus(); }
+      });
+      // select silo không bắn 'input' ở mọi trình duyệt -> ghi thẳng
+      tb.addEventListener('change', e => {
+        if (e.target.dataset.k !== 'silo') return;
+        ed[+e.target.closest('tr').dataset.i].silo = e.target.value; touch();
+      });
+      msgs.querySelector('.sx-pe-q').oninput = e => { F.q = e.target.value; draw(); };
+      msgs.querySelector('.sx-pe-silo').onchange = e => { F.silo = e.target.value; draw(); };
+      msgs.querySelector('.sx-pe-add').onclick = () => {
+        const maxM = ed.reduce((m, r) => Math.max(m, r.month || 1), 1);
+        ed.push(blank(maxM)); dirty = true; F.q = ''; msgs.querySelector('.sx-pe-q').value = ''; draw();
+        const last = tb.querySelector(`tr[data-i="${ed.length - 1}"] input[data-k="main"]`);
+        if (last) { last.scrollIntoView({ block: 'center' }); last.focus(); }
+      };
+      msgs.querySelector('.sx-pe-sort').onclick = () => {
+        const withPos = ed.map((r, n) => [r, n]).sort((a, b) => (a[0].month || 1) - (b[0].month || 1) || a[1] - b[1]);
+        ed.splice(0, ed.length, ...withPos.map(x => x[0])); dirty = true; draw();
+      };
+      draw();
+
+      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-pe-cancel">✖ Huỷ sửa</button></div>
+        <div class="sx-nav-r"><span class="sx-sub sx-pe-msg">Bài không có từ khóa chính sẽ bị bỏ khi lưu. Mỗi lần lưu, bản cũ được sao lưu (giữ 5 bản).</span>
+        <button class="sx-btn sx-btn-primary sx-pe-save">💾 Lưu kế hoạch</button></div>`);
+      bar.querySelector('.sx-pe-cancel').onclick = () => {
+        if (dirty && !confirm('Bỏ các thay đổi chưa lưu?')) return;
+        renderPlanDone();
+      };
+      bar.querySelector('.sx-pe-save').onclick = async () => {
+        const btn = bar.querySelector('.sx-pe-save'), m = bar.querySelector('.sx-pe-msg');
+        const empty = ed.filter(r => !String(r.main || '').trim()).length;
+        if (empty && !confirm(empty + ' bài chưa có từ khóa chính sẽ bị bỏ. Lưu tiếp?')) return;
+        btn.disabled = true; m.textContent = 'Đang lưu…';
+        try {
+          await api('planrows/' + cid, { method: 'POST', body: JSON.stringify({ rows: ed.map(({ src, ...r }) => r) }) });
+          dirty = false; renderPlanDone();
+        } catch (e) { m.textContent = '⚠️ ' + e.message; btn.disabled = false; }
       };
     }
 
