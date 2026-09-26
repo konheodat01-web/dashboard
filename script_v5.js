@@ -127,8 +127,176 @@ const SYSTEM_MAPPING = {
   }
 };
 
+// ===== NHÓM (TEAM) — quản lý trong ⚙ Cài đặt, lưu ở _settings.teams (đồng bộ Firebase) =====
+// id là giá trị lưu trong dữ liệu (w.team, t.team...) -> KHÔNG đổi khi sửa tên; name = tên hiển thị;
+// code = 2 số dùng trong mã task index (genIndexTaskId); color = màu badge.
+// 'Team 01' là nhóm mặc định (mọi form mới mặc định Team 01) -> chỉ đổi tên, không xoá.
+const TEAM_DEFAULTS = [
+  { id: 'Team 01', name: 'Chaewon', code: '01', color: '#e74c3c' },
+  { id: 'Team 02', name: 'M7',      code: '02', color: '#1d6fb8' }
+];
+const TEAM_PALETTE = ['#e74c3c', '#1d6fb8', '#27ae60', '#8e44ad', '#d35400', '#16a085', '#c0392b', '#2c3e50', '#b7950b', '#e84393'];
+
+function getTeams() {
+  const t = (typeof _settings !== 'undefined' && _settings && Array.isArray(_settings.teams) && _settings.teams.length) ? _settings.teams : TEAM_DEFAULTS;
+  return t;
+}
+function getTeamById(id) { return getTeams().find(t => t.id === id) || null; }
+
 function getTeamLabel(teamVal) {
-  return SYSTEM_MAPPING.teams[teamVal] || teamVal || 'Chưa phân team';
+  const t = getTeamById(teamVal);
+  return t ? t.name : (SYSTEM_MAPPING.teams[teamVal] || teamVal || 'Chưa phân team');
+}
+
+// Nhận cả id ("Team 02") lẫn tên ("M7", không phân biệt hoa thường) -> id; không khớp -> giữ nguyên
+function resolveTeamId(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return s;
+  const t = getTeams().find(x => x.id.toLowerCase() === s.toLowerCase() || x.name.toLowerCase() === s.toLowerCase());
+  return t ? t.id : s;
+}
+
+function _teamEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+// Badge team dùng chung mọi nơi (bảng Theo dõi web, Website, Công việc, Link index)
+function teamBadgeHtml(teamVal, size) {
+  const t = getTeamById(teamVal);
+  if (!t && !teamVal) return '';
+  const color = t ? t.color : '#8b949e';
+  const pad = size === 'lg' ? '2px 8px' : '1px 6px';
+  return `<span style="font-size:10px;padding:${pad};border-radius:10px;background:${color}22;color:${color};font-weight:600;white-space:nowrap">${_teamEsc(t ? t.name : teamVal)}</span>`;
+}
+
+// <option> cho select team. first = nhãn option rỗng đầu tiên (vd "Tất cả team"), bỏ trống thì không có.
+function teamOptionsHtml(selected, first) {
+  return (first ? `<option value="">${_teamEsc(first)}</option>` : '')
+    + getTeams().map(t => `<option value="${_teamEsc(t.id)}" ${t.id === selected ? 'selected' : ''}>${_teamEsc(t.name)}</option>`).join('');
+}
+
+// Dựng lại mọi select team tĩnh trong index.html + nút chọn team của popup Link index
+function wstRefreshTeamUI() {
+  const SELECTS = { ql_team: '', npm_team: '', wst_filter_team: 'Tất cả team', websiteFilterTeam: 'Tất cả team', wbe_team: '— Giữ nguyên —', wf_team: '', qi_team: '' };
+  Object.keys(SELECTS).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = teamOptionsHtml(cur, SELECTS[id]);
+    if ([...el.options].some(o => o.value === cur)) el.value = cur;
+    else if (!SELECTS[id]) el.value = 'Team 01';
+  });
+  // try: có thể chạy trước khi khai báo let _aimTeam/_eimTeam (TDZ)
+  try { aimSetTeam(_aimTeam, true); } catch (e) {}
+  try { eimSetTeam(_eimTeam); } catch (e) {}
+}
+
+// Nút chọn team (thay cho 2 nút Team 01 / Team 02 cố định)
+function teamButtonsHtml(active, fnName) {
+  return getTeams().map(t => {
+    const on = t.id === active;
+    return `<button type="button" onclick="${fnName}('${_teamEsc(t.id)}')" class="btn ${on ? 'btn-primary' : 'btn-outline'}" style="flex:1${on ? ';background:' + t.color + ';border-color:' + t.color : ''}">${_teamEsc(t.name)}</button>`;
+  }).join('');
+}
+
+// ---- Quản lý nhóm trong ⚙ Cài đặt ----
+function _teamUsage(id) {
+  const cnt = arr => (Array.isArray(arr) ? arr.filter(x => x && x.team === id).length : 0);
+  return {
+    websites: cnt(typeof websites !== 'undefined' ? websites : []),
+    tasks: cnt(typeof tasks !== 'undefined' ? tasks : []),
+    recurring: cnt(typeof recurringTasks !== 'undefined' ? recurringTasks : []),
+    indexTasks: cnt(typeof indexTasks !== 'undefined' ? indexTasks : [])
+  };
+}
+
+function _saveTeams(teams) {
+  _settings.teams = teams;
+  try { localStorage.setItem('wt_settings', JSON.stringify(_settings)); } catch (e) {}
+  saveAppData();
+  wstRefreshTeamUI();
+  renderTeamSettings();
+  if (typeof renderWsTrack === 'function') renderWsTrack();
+  if (typeof renderWebsites === 'function' && document.getElementById('websiteFilterTeam')) renderWebsites();
+}
+
+function renderTeamSettings() {
+  const box = document.getElementById('sett_teams');
+  if (!box) return;
+  box.innerHTML = getTeams().map(t => {
+    const u = _teamUsage(t.id);
+    const used = `${u.websites} web · ${u.tasks + u.recurring} việc · ${u.indexTasks} link index`;
+    return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #30363d">
+      <input type="color" value="${t.color}" onchange="teamSetColor('${_teamEsc(t.id)}', this.value)" title="Màu badge" style="width:26px;height:26px;padding:0;border:none;background:none;cursor:pointer">
+      <input type="text" value="${_teamEsc(t.name)}" onchange="teamRename('${_teamEsc(t.id)}', this.value)" title="Sửa tên rồi bấm ra ngoài / Enter để lưu"
+        style="flex:1;min-width:0;font-size:12px;padding:5px 7px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">
+      <span style="font-size:10px;color:#8b949e;white-space:nowrap" title="Mã trong ID task index: ${t.code}">${used}</span>
+      ${t.id === 'Team 01'
+        ? '<span style="font-size:10px;color:#8b949e;width:34px;text-align:center" title="Nhóm mặc định — chỉ đổi tên">🔒</span>'
+        : `<button onclick="teamDelete('${_teamEsc(t.id)}')" class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;color:#f85149;border-color:#f8514960" title="Xoá nhóm">🗑</button>`}
+    </div>`;
+  }).join('');
+}
+
+function teamAdd() {
+  const inp = document.getElementById('sett_team_new');
+  const name = (inp && inp.value || '').trim();
+  if (!name) { toast('Nhập tên nhóm trước', '#e74c3c'); return; }
+  const teams = getTeams().map(t => Object.assign({}, t));
+  if (teams.some(t => t.name.toLowerCase() === name.toLowerCase())) { toast('Đã có nhóm tên này', '#e74c3c'); return; }
+  const codes = teams.map(t => parseInt(t.code, 10) || 0);
+  const code = String(Math.max(0, ...codes) + 1).padStart(2, '0');
+  teams.push({ id: 'Team ' + code, name: name, code: code, color: TEAM_PALETTE[teams.length % TEAM_PALETTE.length] });
+  if (inp) inp.value = '';
+  _saveTeams(teams);
+  toast('✓ Đã thêm nhóm ' + name);
+}
+
+function teamRename(id, name) {
+  name = String(name || '').trim();
+  const teams = getTeams().map(t => Object.assign({}, t));
+  const t = teams.find(x => x.id === id);
+  if (!t) return;
+  if (!name) { toast('Tên nhóm không được trống', '#e74c3c'); renderTeamSettings(); return; }
+  if (teams.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) { toast('Đã có nhóm tên này', '#e74c3c'); renderTeamSettings(); return; }
+  if (t.name === name) return;
+  t.name = name;
+  _saveTeams(teams);
+  toast('✓ Đã đổi tên nhóm thành ' + name);
+}
+
+function teamSetColor(id, color) {
+  const teams = getTeams().map(t => Object.assign({}, t));
+  const t = teams.find(x => x.id === id);
+  if (!t) return;
+  t.color = color;
+  _saveTeams(teams);
+}
+
+function teamDelete(id) {
+  if (id === 'Team 01') { toast('Nhóm mặc định không xoá được, chỉ đổi tên', '#e74c3c'); return; }
+  const teams = getTeams().map(t => Object.assign({}, t));
+  const t = teams.find(x => x.id === id);
+  if (!t) return;
+  const u = _teamUsage(id);
+  const total = u.websites + u.tasks + u.recurring + u.indexTasks;
+  const rest = teams.filter(x => x.id !== id);
+  let target = null;
+  if (total) {
+    const menu = rest.map((x, i) => `${i + 1}. ${x.name}`).join('\n');
+    const ans = prompt(`Nhóm "${t.name}" đang có ${u.websites} website, ${u.tasks + u.recurring} công việc, ${u.indexTasks} link index.\n`
+      + `Chuyển toàn bộ sang nhóm nào? Nhập số:\n${menu}`, '1');
+    if (ans === null) return;
+    target = rest[parseInt(ans, 10) - 1];
+    if (!target) { toast('Số không hợp lệ — chưa xoá gì', '#e74c3c'); return; }
+  }
+  if (!confirm(`Xoá nhóm "${t.name}"?` + (target ? `\n${total} mục sẽ chuyển sang "${target.name}".` : ''))) return;
+  if (target) {
+    [typeof websites !== 'undefined' ? websites : [], typeof tasks !== 'undefined' ? tasks : [],
+     typeof recurringTasks !== 'undefined' ? recurringTasks : [], typeof indexTasks !== 'undefined' ? indexTasks : []]
+      .forEach(arr => arr.forEach(x => { if (x && x.team === id) x.team = target.id; }));
+    try { localStorage.setItem('wt_index_tasks', JSON.stringify(indexTasks)); } catch (e) {}
+  }
+  _saveTeams(rest);
+  toast('✓ Đã xoá nhóm ' + t.name + (target ? ' · chuyển sang ' + target.name : ''));
 }
 
 function getWebsiteOwnerLabel(ownerVal) {
@@ -1340,6 +1508,7 @@ function initFirebaseListener(){
       _settings = s;
       delete _settings.loginBg;
       applyAllAvatars();
+        if (typeof wstRefreshTeamUI === 'function') wstRefreshTeamUI();
       localStorage.setItem('wt_settings', JSON.stringify(_settings));
     }
   }).catch(()=>{});
@@ -1486,6 +1655,7 @@ function initFirebaseListener(){
        delete _settings.loginBg;
 if(!_settings.avatars) _settings.avatars = {}; // local fills gaps, fb overrides
         applyAllAvatars();
+        if (typeof wstRefreshTeamUI === 'function') wstRefreshTeamUI();
         localStorage.setItem('wt_settings', JSON.stringify(_settings));
       }
 
@@ -1589,6 +1759,7 @@ function loadAppData(){
         delete _settings.loginBg;
        if(!_settings.avatars) _settings.avatars={};
         applyAllAvatars();
+        try { wstRefreshTeamUI(); } catch(e){}
       }catch(e){}
     }
     const b = localStorage.getItem('wt_billings'); if(b) billings = JSON.parse(b);
@@ -1835,7 +2006,7 @@ function createTaskCardHTML(t, mode) {
           ${recurBadge}
           ${getTaskStatusBadge(t)}
           ${t.person?`<span class="tag-person" style="font-size:10px">${getTaskOwnerLabel(t.person)}</span>`:''}
-          ${t.team==='Team 02'?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#555">M7</span>':(t.team==='Team 01'?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>':'')}
+          ${teamBadgeHtml(t.team)}
           <span style="font-weight:600;font-size:13px${isDone?';text-decoration:line-through;color:var(--text-muted)':''}">${wstColorizeDomainText(t.name)}</span>
         </div>
         ${isPendingTask?`<div style="font-size:11px;color:#e67e22;margin-top:3px">⏸ Pending: ${(t.pendingReason||'').slice(0,80)}</div>`:''}
@@ -4266,10 +4437,7 @@ function renderWsTrack(){
         })()}
       </td>
       <td style="padding:8px 10px;font-size:11px">
-        ${w.team === 'Team 02'
-          ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d6fb8;font-weight:600">M7</span>`
-          : `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#fdf2f2;color:var(--red);font-weight:600">Chaewon</span>`
-        }
+        ${teamBadgeHtml(w.team || 'Team 01', 'lg')}
       </td>
       <td style="padding:8px 10px;font-size:11px;">
         <div style="display:flex;align-items:center;gap:4px">
@@ -6411,7 +6579,7 @@ function renderWebsites(){
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
           <span style="font-weight:600;font-size:13px">${wstBrandHtml(w)}</span>
-          ${w.team==='Team 02'?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0f0;color:#666">M7</span>`:`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fdf2f2;color:var(--red)">Chaewon</span>`}
+          ${teamBadgeHtml(w.team || 'Team 01')}
           ${w.group?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fff3cd;color:#856404">${w.group}</span>`:''}
           ${(w.tags||[]).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:#58a6ff;border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
         </div>
@@ -7057,8 +7225,7 @@ function goEditWebsite(){
 
       <div class="form-group"><label>Team</label>
         <select id="we_team" style="width:100%" ${currentMember==='hai'?'disabled':''}>
-          <option value="Team 01" ${w.team!=='Team 02'?'selected':''}>Chaewon</option>
-          <option value="Team 02" ${w.team==='Team 02'?'selected':''}>M7</option>
+          ${teamOptionsHtml(w.team || 'Team 01')}
         </select>
       </div>
 
@@ -7751,7 +7918,7 @@ let _aimPerson = 'Hải';
 function genIndexTaskId(dateStr, team, stt, mmOverride){
   const d = dateStr || todayVN();
   const mm = mmOverride || d.split('-')[1] || String(new Date().getMonth()+1).padStart(2,'0');
-  const tNum = team === 'Team 02' ? '02' : '01';
+  const tNum = (getTeamById(team) || {}).code || '01';
   // If single number → expand to X-X range: "1" → "1-1"
   const normalizedStt = /^\d+$/.test(stt.trim()) ? `${stt.trim()}-${stt.trim()}` : stt;
   // Pad each number to 4 digits: "1-99" → "0001-0099"
@@ -7936,9 +8103,7 @@ function renderIndexTasks(){
     const subBadge = t.isSubTask ? '<span style="font-size:9px;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;padding:1px 5px;margin-left:4px">sub</span>' : '';
     const isOverdue = !isDone && t.dueDate < today;
     const isDue = !isDone && t.dueDate === today;
-    const teamBadge = t.team==='Team 02'
-      ? '<span class="it-badge-team t2">M7</span>'
-      : '<span class="it-badge-team">Chaewon</span>';
+    const teamBadge = teamBadgeHtml(t.team);
     let statusCell = '';
     if(isDone) statusCell = '<span class="it-status-done">✅ Done</span>';
     else if(isPending) statusCell = '<span class="it-status-pending">⏳ Pending</span>';
@@ -8038,7 +8203,7 @@ function renderIndexDueBanner(){
     return `<div class="it-due-card ${isOverdue?'overdue':isPending?'waiting':''}">
       ${renderItId(t.taskId)}${t.isSubTask?'<span style="font-size:9px;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;padding:1px 5px;margin-left:3px">sub</span>':''}
       ${t.name?`<span style="font-size:12px;font-weight:500;color:var(--text)">${t.name}</span>`:''}
-      <span class="${t.team==='Team 02'?'it-badge-team t2':'it-badge-team'}">${t.team==='Team 02'?'M7':'Chaewon'}</span>
+      ${teamBadgeHtml(t.team)}
       ${t.person?`<span class="tag-person" style="font-size:11px">${getTaskOwnerLabel(t.person)}</span>`:''}
       <span style="font-size:12px;color:var(--text-muted)">STT: ${t.stt}</span>
       ${isPending?`<span style="font-size:11px;color:#e67e22;flex:1">📝 ${t.pendingReason||''}</span>`:'<span style="flex:1"></span>'}
@@ -8113,13 +8278,11 @@ function closeAddIndexModal(){
   const pp=document.getElementById('aim_parents_preview'); if(pp){pp.style.display='none';pp.innerHTML='';}
 }
 
-function aimSetTeam(team){
+function aimSetTeam(team, silent){
   _aimTeam = team;
-  const t1 = document.getElementById('aim_team_btn1');
-  const t2 = document.getElementById('aim_team_btn2');
-  if(t1){ t1.className='btn '+(team==='Team 01'?'btn-primary':'btn-outline'); t1.style.cssText='flex:1'+(team==='Team 01'?';background:var(--red);border-color:var(--red)':''); }
-  if(t2){ t2.className='btn '+(team==='Team 02'?'btn-primary':'btn-outline'); t2.style.cssText='flex:1'+(team==='Team 02'?';background:var(--blue);border-color:var(--blue)':''); }
-  updateAimPreview();
+  const box = document.getElementById('aim_team_btns');
+  if (box) box.innerHTML = teamButtonsHtml(team, 'aimSetTeam');
+  if (!silent) updateAimPreview();
 }
 
 function aimSetPerson(person){
@@ -8377,10 +8540,8 @@ function closeEditIndexModal(){
 
 function eimSetTeam(team){
   _eimTeam = team;
-  const b1=document.getElementById('eim_team_btn1');
-  const b2=document.getElementById('eim_team_btn2');
-  if(b1){ b1.className='btn '+(team==='Team 01'?'btn-primary':'btn-outline'); b1.style.flex='1'; }
-  if(b2){ b2.className='btn '+(team==='Team 02'?'btn-primary':'btn-outline'); b2.style.flex='1'; }
+  const box = document.getElementById('eim_team_btns');
+  if (box) box.innerHTML = teamButtonsHtml(team, 'eimSetTeam');
 }
 
 function eimSetPerson(person){
@@ -10952,8 +11113,7 @@ function wsImportParseLines(){
       // Các trường bắt buộc phải đầy đủ (không được rỗng)
       if(!brand || !url || !admin || !account || !password || !statusVal || !teamRaw) return;
       
-      if (teamRaw === 'Chaewon' || teamRaw === 'Team 01') teamRaw = 'Team 01';
-      if (teamRaw === 'M7' || teamRaw === 'Team 02') teamRaw = 'Team 02';
+      teamRaw = resolveTeamId(teamRaw);
       
       const appwppass = parts[7] || ''; // Tuỳ chọn, nếu không có để trống
       
@@ -10981,8 +11141,7 @@ function wsImportParseLines(){
       brand = brand.charAt(0).toUpperCase() + brand.slice(1);
       
       let teamRaw = team;
-      if (teamRaw === 'Chaewon' || teamRaw === 'Team 01') teamRaw = 'Team 01';
-      if (teamRaw === 'M7' || teamRaw === 'Team 02') teamRaw = 'Team 02';
+      teamRaw = resolveTeamId(teamRaw);
       
       results.push({
         brand,
@@ -11094,8 +11253,7 @@ function wsImport301Run(){
   const status = document.getElementById('wsImportStatus')?.value || 'Tốt';
   
   let team = teamSelectVal;
-  if (team === 'Chaewon') team = 'Team 01';
-  if (team === 'M7') team = 'Team 02';
+  team = resolveTeamId(team);
   
   let owner = ownerSelectVal;
   if (owner === 'Hải' || owner === 'Hiếu') owner = 'admin';
@@ -14738,6 +14896,7 @@ function openSettings() {
   if (tokInput) {
     tokInput.value = wtCloudflyToken || localStorage.getItem('wt_cloudfly_token') || "";
   }
+  renderTeamSettings();
   document.getElementById("settingsModal").classList.add("open");
 }
 

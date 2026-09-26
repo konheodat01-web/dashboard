@@ -242,7 +242,7 @@
     L.push('\n## WEBSITE ĐANG CHẠY (bản ghi 301 mới nhất — phân tích dựa trên site này)');
     L.push(`- ${cur.brand || '—'} · ${cur.url || '—'} · trạng thái: ${cur.status || '—'}`);
     L.push('\n## DỰ ÁN (bản ghi gốc — chỉ là tên dự án)');
-    L.push(`- Brand: ${w.brand || '—'} · URL gốc: ${w.url || '—'} · Team: ${w.team === 'Team 02' ? 'M7' : 'Chaewon'} · Trạng thái: ${w.status || '—'} · Độ khó: ${w.difficulty || '—'} · Tag: ${(w.tags || []).join(', ') || '—'}`);
+    L.push(`- Brand: ${w.brand || '—'} · URL gốc: ${w.url || '—'} · Team: ${typeof getTeamLabel === 'function' ? getTeamLabel(w.team || 'Team 01') : (w.team || '—')} · Trạng thái: ${w.status || '—'} · Độ khó: ${w.difficulty || '—'} · Tag: ${(w.tags || []).join(', ') || '—'}`);
     L.push(`- Chuỗi domain (cũ → mới): ${chain.map(x => x.url).join(' → ')}`);
     const cmds = site.redirectCommands || [];
     L.push(`- Lệnh 301: ${cmds.length ? cmds.map(c => `${c.createdAt || c.dateText}: → ${c.destUrl} [${c.status}]`).join('; ') : 'chưa có'}`);

@@ -1746,10 +1746,10 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20260926_v67"></script>
+  <script src="script_v5.js?v=20260926_v68"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-  <script src="seo_expert.js?v=20260926_8"></script>
+  <script src="seo_expert.js?v=20260926_9"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">
@@ -1882,8 +1882,7 @@
       <div class="form-group" id="eim_team_row" style="width:100%">
         <label>Team</label>
         <div style="display:flex;gap:8px">
-          <button type="button" id="eim_team_btn1" onclick="eimSetTeam('Team 01')" class="btn btn-primary" style="flex:1">Team 01</button>
-          <button type="button" id="eim_team_btn2" onclick="eimSetTeam('Team 02')" class="btn btn-outline" style="flex:1">Team 02</button>
+          <span id="eim_team_btns" style="display:contents"></span>
         </div>
       </div>
       <div class="form-group" id="eim_person_row" style="width:100%">
@@ -1935,10 +1934,7 @@
       <div class="form-group" id="aim_team_row" style="width:100%">
         <label>Team</label>
         <div style="display:flex;gap:8px">
-          <button type="button" id="aim_team_btn1" onclick="aimSetTeam('Team 01')"
-            class="btn btn-primary" style="flex:1">Team 01</button>
-          <button type="button" id="aim_team_btn2" onclick="aimSetTeam('Team 02')"
-            class="btn btn-outline" style="flex:1">Team 02</button>
+          <span id="aim_team_btns" style="display:contents"></span>
         </div>
       </div>
       <div class="form-group" id="aim_person_row" style="width:100%">
@@ -2149,7 +2145,7 @@
 
 <!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
-  <div class="modal" style="max-width:420px" onclick="event.stopPropagation()">
+  <div class="modal" style="max-width:560px" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h3>⚙ Cài đặt hệ thống</h3>
       <button class="modal-close" onclick="closeSettings()">&times;</button>
@@ -2159,6 +2155,16 @@
         <label>CloudFly API Access Token</label>
         <input type="password" id="sett_cloudflyToken" placeholder="Nhập API Access Token..." style="width:100%;font-size:12px;padding:6px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">
         <small style="font-size:10px;color:#8b949e;margin-top:4px;display:block">Dùng để tự động đồng bộ số dư VPS CloudFly. Nhớ cấp phép IP của VPS trên trang CloudFly.</small>
+      </div>
+      <div class="form-group" style="width:100%;text-align:left">
+        <label>👥 Nhóm (Team)</label>
+        <div id="sett_teams"></div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input type="text" id="sett_team_new" placeholder="Tên nhóm mới..." onkeydown="if(event.key==='Enter')teamAdd()"
+            style="flex:1;font-size:12px;padding:6px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">
+          <button class="btn btn-sm" style="background:#238636;color:#fff;border:none;font-size:12px" onclick="teamAdd()">+ Thêm nhóm</button>
+        </div>
+        <small style="font-size:10px;color:#8b949e;margin-top:4px;display:block">Sửa tên / màu lưu ngay. Xoá nhóm đang có dữ liệu sẽ hỏi chuyển website, công việc sang nhóm khác. Nhóm mặc định (🔒) chỉ đổi tên.</small>
       </div>
     </div>
     <div class="modal-footer" style="padding:15px;display:flex;justify-content:flex-end;gap:8px">
