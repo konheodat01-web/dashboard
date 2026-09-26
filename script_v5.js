@@ -12738,6 +12738,7 @@ function wstRenderContentTab(wsId){
   var w = websites.find(function(x){ return x.id === wsId; });
   if (!panel || !w) return;
   var dom = wstCurrentUrl(w);
+  wstRestorePostsBody();   // vẽ lại tab sẽ xoá host cũ -> trả khối danh sách bài về popup trước, kẻo mất node
   panel.innerHTML = ''
     + '<div style="display:flex;flex-direction:column;gap:12px;height:100%;min-height:0">'
     +   '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
@@ -12750,7 +12751,7 @@ function wstRenderContentTab(wsId){
   wstRenderContentCards();
 
   // Chuyển khối danh sách bài từ popup sang tab
-  var body = document.querySelector('#wstPostsOverlay .modal-body') || document.querySelector('.wst-cm-host .modal-body');
+  var body = document.querySelector('#wstPostsOverlay .modal-body');
   if (!body) return;
   if (!_wstPostsBodyHome && body.closest('#wstPostsOverlay')) _wstPostsBodyHome = { parent: body.parentNode, next: body.nextSibling };
   document.getElementById('wstCmPostsHost').appendChild(body);
