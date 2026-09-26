@@ -12715,7 +12715,7 @@ function wstOpenDashboardUI(wsId) {
       <div class="mh-icon">🌐</div>
       <div class="mh-info">
         <div class="mh-name">${wstBrandHtml(w)}</div>
-        <div class="mh-url">${w.url || '—'} · Nhóm: ${w.group || 'Chưa phân nhóm'} · Trạng thái: ${w.status || '—'}</div>
+        <div class="mh-url">${wstCurrentUrl(w) || w.url || '—'}${wstCurrentUrl(w) && wstCurrentUrl(w) !== String(w.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '') ? ' <span style="color:#8b949e">(gốc: ' + w.url + ')</span>' : ''} · Team: ${getTeamLabel(w.team || 'Team 01')} · Nhóm: ${w.group || 'Chưa phân nhóm'} · Trạng thái: ${w.status || '—'}</div>
         <div class="mh-tags">
           <span class="tag tg">✅ ${w.status || 'Tốt'}</span>
           <span class="tag tb">📈 Đang theo dõi</span>
@@ -12758,29 +12758,36 @@ function wstOpenDashboardUI(wsId) {
       <div class="si">
         <div class="sl">Index</div>
         <div class="sv-group">
-          <div class="sv-item"><span class="sv-num cg">✅</span><span class="sv-source">Google</span></div>
-          <div class="sv-item"><span class="sv-num cg">✅</span><span class="sv-source">Bing</span></div>
+          ${(() => {
+            // Index trang chủ = lần kiểm tra mới nhất (trước đây ghi cứng ✅)
+            const le = (site.entries || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+            const ix = le && le.indexed;
+            const ic = !ix ? '—' : ix === 'Đã index' ? '✅' : '❌';
+            return `<div class="sv-item"><span class="sv-num cg" title="${ix ? ix + ' (' + le.date + ')' : 'Chưa kiểm tra'}">${ic}</span><span class="sv-source">Google</span></div>
+          <div class="sv-item"><span class="sv-num cbing" title="Chưa có nguồn dữ liệu index Bing">—</span><span class="sv-source">Bing</span></div>`;
+          })()}
         </div>
       </div>
     </div>
 
     <!-- TABS BAR -->
     <div class="mt" id="wst-t">
-      <button class="tb-btn on" onclick="wstSwitchTab(this,'rank')">📈 Check Rank</button>
-      <button class="tb-btn" onclick="wstSwitchTab(this,'gsc')">📊 GSC Data</button>
-      <button class="tb-btn" onclick="wstSwitchTab(this,'bing')">🔍 Bing Data</button>
-      <button class="tb-btn" onclick="wstSwitchTab(this,'dichvu')">🛠️ Dịch vụ</button>
-      <button class="tb-btn" onclick="wstSwitchTab(this,'anphat')">⚠️ Án phạt GSC</button>
-      <button class="tb-btn" onclick="wstSwitchTab(this,'plan')">📝 Kế hoạch & Strategy</button>
-      <button class="tb-btn" onclick="wstSwitchTab(this,'expert')">🧠 Chuyên gia SEO</button>
-      <button class="tb-btn" onclick="wstSwitchTab(this,'content')">✍️ Quản lý nội dung</button>
-      <button class="tb-btn" data-tab="history" onclick="wstSwitchTab(this,'history')">🕒 Lịch sử</button>
+      <button class="tb-btn on" data-group="overview" onclick="wstSwitchTab(this,'overview')">📊 Tổng quan</button>
+      <button class="tb-btn" data-group="perf" onclick="wstSwitchTab(this,'rank')">📈 Hiệu suất</button>
+      <button class="tb-btn" data-group="content" onclick="wstSwitchTab(this,'content')">✍️ Nội dung</button>
+      <button class="tb-btn" data-group="expert" onclick="wstSwitchTab(this,'expert')">🧠 Chuyên gia SEO</button>
+      <button class="tb-btn" data-group="ops" onclick="wstSwitchTab(this,'plan')">🗂 Vận hành</button>
     </div>
+    <!-- TAB CON (Hiệu suất / Vận hành) — vẽ bởi wstSwitchTab -->
+    <div class="wst-sub" id="wst-sub" style="display:none"></div>
 
     <!-- CONTAINER PANELS -->
     <div class="mc" id="wst-c">
+      <!-- 0. PANEL TỔNG QUAN (wstRenderOverview) -->
+      <div class="tp-panel on" id="wst-tab-overview"></div>
+
       <!-- 1. PANEL RANK -->
-      <div class="tp-panel on" id="wst-tab-rank">
+      <div class="tp-panel" id="wst-tab-rank">
         <div class="sh"><span class="st-title">📈 Lịch sử check Rank & Index</span></div>
         <div style="overflow-x:auto;">
           <table>
@@ -12826,6 +12833,7 @@ function wstOpenDashboardUI(wsId) {
         <div class="sh" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
           <span class="st-title" id="wstGscTitleRange">📊 Google Search Console — Chi tiết 28 ngày qua</span>
           <div style="display: flex; align-items: center; gap: 6px;">
+            <a href="#" onclick="wstOpenManualActions(${wsId});return false" style="font-size:11px;color:#d29922;text-decoration:none;margin-right:8px" title="Google không có API án phạt — mở báo cáo trong Search Console">⚠️ Án phạt thủ công ↗</a>
             <span style="font-size: 11px; color: #8b949e;">Khoảng thời gian:</span>
             <select id="wstGscDateRangeDetail" onchange="wstChangeGscRangeDetail()" style="background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; outline: none;">
               <option value="24h">24 giờ qua</option>
@@ -12910,14 +12918,6 @@ function wstOpenDashboardUI(wsId) {
       </div>
 
       <!-- 4.5. PANEL ÁN PHẠT GSC -->
-      <div class="tp-panel" id="wst-tab-anphat">
-        <div class="sh">
-          <span class="st-title">⚠️ Google Manual Actions (Án phạt thủ công)</span>
-        </div>
-        <div id="wstAnPhatBox" style="color:#8b949e; font-size:12px; padding:16px; border-radius:8px; background:#161b22; border:1px solid #30363d; min-height:80px;">
-          ⏳ Đang tải dữ liệu án phạt từ Google Search Console...
-        </div>
-      </div>
 
       <!-- 4.8. PANEL CHUYÊN GIA SEO (seo_expert.js — sxSiteMount) -->
       <div class="tp-panel" id="wst-tab-expert"></div>
@@ -12975,6 +12975,104 @@ function wstOpenDashboardUI(wsId) {
   wstRenderServices();
   wstRenderKanban();
   wstLoadGscQueries();
+  wstRenderOverview(wsId);
+}
+
+// ══ TAB 📊 TỔNG QUAN: tình trạng site trong 1 màn — thẻ số, cảnh báo, việc đang làm, thay đổi gần nhất ══
+function wstRenderOverview(wsId) {
+  const panel = document.getElementById('wst-tab-overview');
+  const w = websites.find(x => x.id === wsId);
+  const site = getWstSite(wsId);
+  if (!panel || !w || !site) return;
+  const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const strip = v => String(v == null ? '' : v).replace(/<[^>]+>/g, '');
+  const daysAgo = d => { const t = Date.parse(String(d || '').slice(0, 10)); return isNaN(t) ? null : Math.floor((Date.now() - t) / 86400000); };
+  const rankNum = r => { const n = parseInt(strip(r), 10); return isNaN(n) ? 999 : n; };
+
+  // Rank + index trang chủ (lần check mới nhất / liền trước)
+  const entries = (site.entries || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const last = entries[0], prev = entries[1];
+  const rankTxt = last ? strip(last.rank) || '—' : '—';
+  let rankTrend = '';
+  if (last && prev) {
+    const d = rankNum(prev.rank) - rankNum(last.rank);
+    if (d > 0) rankTrend = `<span style="color:#3fb950">▲ ${rankNum(prev.rank) === 999 ? 'vào top' : d}</span>`;
+    else if (d < 0) rankTrend = `<span style="color:#f85149">▼ ${rankNum(last.rank) === 999 ? 'rớt top' : -d}</span>`;
+    else rankTrend = '<span style="color:#8b949e">= giữ hạng</span>';
+  }
+  const idxTxt = last && last.indexed ? last.indexed : 'Chưa kiểm tra';
+  const idxOk = idxTxt === 'Đã index';
+
+  // GSC 28 ngày
+  const g = typeof wstGetGscPeriodData === 'function' ? wstGetGscPeriodData(wsId, '28d') : {};
+  const pct = (a, b) => (!b ? '' : (a >= b ? `<span style="color:#3fb950">▲ ${Math.round((a - b) / b * 100)}%</span>` : `<span style="color:#f85149">▼ ${Math.round((b - a) / b * 100)}%</span>`));
+  const cache = (typeof _gscCache !== 'undefined' && _gscCache[wsId]) || {};
+
+  // Nội dung
+  const cs = (typeof _wstContentStats !== 'undefined' && _wstContentStats[wsId]) || {};
+  const hasN = v => v === 0 || v > 0;
+  const total = hasN(cs.postCount) ? cs.postCount : null, idx = hasN(cs.indexed) ? cs.indexed : null;
+  const idxRate = total && idx !== null ? Math.round(idx / total * 100) : null;
+  const noIdx = total !== null && idx !== null ? Math.max(0, total - idx) : null;
+
+  // Cảnh báo
+  const alerts = [];
+  const go = (tab, label) => `<a href="#" onclick="wstSwitchTab(null,'${tab}');return false" style="color:#58a6ff;margin-left:6px">${label} →</a>`;
+  if (last && prev && rankNum(last.rank) > rankNum(prev.rank)) alerts.push(['#f85149', `Rank từ khóa chính tụt: ${esc(strip(prev.rank))} → ${esc(rankTxt)}`, go('rank', 'Xem rank')]);
+  if (last && last.indexed && !idxOk) alerts.push(['#f85149', `Trang chủ: ${esc(idxTxt)} (check ${esc(last.date)})`, '']);
+  if (site.gscConnectionStatus === 'disconnected') alerts.push(['#f85149', 'Mất kết nối Google Search Console', '']);
+  const syncAge = daysAgo(cache.syncedAt);
+  if (syncAge !== null && syncAge > 3) alerts.push(['#d29922', `Số liệu GSC cũ ${syncAge} ngày (đồng bộ lần cuối ${esc(String(cache.syncedAt).slice(0, 10))})`, '']);
+  if (noIdx) alerts.push(['#d29922', `${noIdx}/${total} bài chưa index (hoặc chưa kiểm tra)`, go('content', 'Quản lý nội dung')]);
+  const contentAge = daysAgo(cs.lastContentUpdate);
+  if (contentAge !== null && contentAge > 30) alerts.push(['#d29922', `${contentAge} ngày chưa cập nhật nội dung (lần cuối ${esc(cs.lastContentUpdate)})`, '']);
+  if (total === null) alerts.push(['#8b949e', 'Chưa quét bài viết trên site', go('content', 'Quét ngay')]);
+
+  const card = (label, val, sub, col) => `<div style="flex:1;min-width:150px;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:#8b949e;margin-bottom:6px">${label}</div>
+      <div style="font-size:20px;font-weight:700;color:${col}">${val}</div>
+      <div style="font-size:11px;margin-top:4px;color:#8b949e">${sub || '&nbsp;'}</div></div>`;
+  const box = (title, inner) => `<div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px 14px;min-width:0">
+      <div style="font-size:12px;font-weight:700;color:#c9d1d9;margin-bottom:8px">${title}</div>${inner}</div>`;
+
+  const kb = site.kanban || {};
+  const doing = (kb.doing || []).slice(-6), todo = (kb.todo || []).slice(-6);
+  const kItem = (c, col) => `<div style="font-size:12px;color:#c9d1d9;padding:4px 0;border-bottom:1px solid #21262d"><span style="color:${col}">●</span> ${esc(strip(c.title))}</div>`;
+  const logs = typeof wstBuildHistoryLogs === 'function' ? wstBuildHistoryLogs(wsId).slice(0, 6) : [];
+
+  panel.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="wstWriteForSite(${wsId})" class="btn btn-sm" style="padding:6px 12px;background:#7c5cff;color:#fff;border:none;border-radius:6px;font-weight:600">✍️ Viết bài</button>
+        <button onclick="wstSwitchTab(null,'content')" class="btn btn-sm" style="padding:6px 12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">🔎 Check index bài viết</button>
+        <button onclick="wstSwitchTab(null,'expert')" class="btn btn-sm" style="padding:6px 12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">🧠 Hỏi chuyên gia</button>
+        <button onclick="wstOpenManualActions(${wsId})" class="btn btn-sm" style="padding:6px 12px;background:#21262d;color:#d29922;border:1px solid #30363d;border-radius:6px" title="Google không có API — mở báo cáo trong Search Console">⚠️ Án phạt thủ công ↗</button>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        ${card('🏆 Rank từ khóa chính', esc(rankTxt), (rankTrend || '') + (last ? ` <span style="margin-left:4px">· ${esc(site.mainKeyword || w.brand)} · ${esc(String(last.date).slice(0, 10))}</span>` : ''), '#e3b341')}
+        ${card('🔍 Index trang chủ', idxOk ? '✅ Đã index' : (last && last.indexed ? '❌ Chưa' : '—'), last && last.indexed && !idxOk ? esc(idxTxt) : '', idxOk ? '#3fb950' : '#f85149')}
+        ${card('👆 Clicks GSC 28 ngày', (g.clicks || 0).toLocaleString(), pct(g.clicks || 0, g.clicksPrev || 0) + ' <span>so với 28 ngày trước</span>', '#58a6ff')}
+        ${card('👁 Hiển thị GSC 28 ngày', (g.imps || 0).toLocaleString(), pct(g.imps || 0, g.impsPrev || 0) + (g.pos ? ` · vị trí TB ${g.pos.toFixed(1)}` : ''), '#3fb950')}
+        ${card('📄 Tỷ lệ index bài', idxRate === null ? '—' : idxRate + '%', total === null ? 'chưa quét' : `${idx}/${total} bài`, idxRate === null ? '#8b949e' : idxRate >= 80 ? '#3fb950' : idxRate >= 50 ? '#d29922' : '#f85149')}
+      </div>
+
+      ${box('⚠ Cần chú ý', alerts.length
+        ? alerts.map(a => `<div style="font-size:12px;color:#c9d1d9;padding:5px 0 5px 10px;border-left:3px solid ${a[0]};margin-bottom:4px">${a[1]}${a[2]}</div>`).join('')
+        : '<div style="font-size:12px;color:#3fb950">✅ Không có cảnh báo nào</div>')}
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
+        ${box(`📝 Việc đang làm <a href="#" onclick="wstSwitchTab(null,'plan');return false" style="color:#58a6ff;font-weight:400;margin-left:6px">Kanban →</a>`,
+          (doing.length || todo.length)
+            ? doing.map(c => kItem(c, '#58a6ff')).join('') + todo.map(c => kItem(c, '#d29922')).join('')
+              + '<div style="font-size:10px;color:#8b949e;margin-top:6px"><span style="color:#58a6ff">●</span> đang làm · <span style="color:#d29922">●</span> vấn đề cần xử lý</div>'
+            : '<div style="font-size:12px;color:#8b949e">Chưa có việc nào</div>')}
+        ${box(`🕒 Thay đổi gần nhất <a href="#" onclick="wstSwitchTab(null,'history');return false" style="color:#58a6ff;font-weight:400;margin-left:6px">Lịch sử →</a>`,
+          logs.length
+            ? logs.map(l => `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #21262d"><span style="color:#8b949e;font-size:11px">${esc(l.date)}</span><br><span style="color:#c9d1d9">${esc(strip(l.detail))}</span></div>`).join('')
+            : '<div style="font-size:12px;color:#8b949e">Chưa có</div>')}
+      </div>
+    </div>`;
 }
 
 function wstCloseDashboard() {
@@ -12983,16 +13081,39 @@ function wstCloseDashboard() {
   _wstActiveSiteId = null;
 }
 
+// Cấu trúc tab Dashboard từng site: 5 nhóm, 2 nhóm có tab con.
+const WST_TAB_GROUPS = {
+  overview: [],
+  perf:     [['rank', '📈 Rank'], ['gsc', '📊 Google (GSC)'], ['bing', '🔍 Bing']],
+  content:  [],
+  expert:   [],
+  ops:      [['plan', '📝 Kế hoạch & Strategy'], ['dichvu', '🛠️ Dịch vụ'], ['history', '🕒 Lịch sử']]
+};
+function wstTabGroupOf(tabId) {
+  for (const g in WST_TAB_GROUPS) {
+    if (g === tabId || WST_TAB_GROUPS[g].some(s => s[0] === tabId)) return g;
+  }
+  return 'overview';
+}
+
+// btn giữ lại cho tương thích chữ ký cũ — trạng thái nút tính theo tabId
 function wstSwitchTab(btn, tabId) {
   const container = document.getElementById('wstDashboardModalContainer');
-  container.querySelectorAll('.tb-btn').forEach(b => b.classList.remove('on'));
+  const group = wstTabGroupOf(tabId);
+  container.querySelectorAll('.tb-btn').forEach(b => b.classList.toggle('on', b.dataset.group === group));
   container.querySelectorAll('.tp-panel').forEach(p => p.classList.remove('on'));
-  
-  btn.classList.add('on');
-  document.getElementById('wst-tab-' + tabId).classList.add('on');
 
-  if (tabId === 'anphat') {
-    wstLoadManualActions();
+  const sub = document.getElementById('wst-sub');
+  const subs = WST_TAB_GROUPS[group];
+  if (sub) {
+    sub.style.display = subs.length ? 'flex' : 'none';
+    sub.innerHTML = subs.map(s => `<button class="wst-sub-btn${s[0] === tabId ? ' on' : ''}" onclick="wstSwitchTab(null,'${s[0]}')">${s[1]}</button>`).join('');
+  }
+  const panel = document.getElementById('wst-tab-' + tabId);
+  if (panel) panel.classList.add('on');
+
+  if (tabId === 'overview') {
+    wstRenderOverview(_wstActiveSiteId);
   }
   if (tabId === 'expert' && typeof sxSiteMount === 'function') {
     sxSiteMount(document.getElementById('wst-tab-expert'), _wstActiveSiteId);
@@ -13428,25 +13549,18 @@ async function wstLoadGscQueries(range = '28d') {
   }
 }
 
-// Hàm tải dữ liệu án phạt thủ công (Google Manual Actions) từ GSC API
 // Án phạt thủ công: Google KHÔNG có API cho báo cáo này (Search Console API chỉ có searchanalytics,
 // sitemaps, sites, urlInspection, urlTestingTools — gọi /manualActions trả 404 + lỗi CORS).
 // -> mở thẳng báo cáo "Thao tác thủ công" của đúng property trong Search Console.
-async function wstLoadManualActions() {
-  const site = websites.find(x => x.id === _wstActiveSiteId);
-  const apBox = document.getElementById('wstAnPhatBox');
-  if (!site || !apBox) return;
+// Mở tab trống NGAY trong lúc click (tránh chặn popup) rồi mới gán URL sau khi tra property.
+async function wstOpenManualActions(wsId) {
+  const site = websites.find(x => x.id === wsId);
+  if (!site) return;
+  const win = window.open('about:blank', '_blank');
   let prop = '';
   try { prop = await wstGetExactGscPropertyUrl(site.gscPropertyUrl || wstCurrentUrl(site)); } catch (e) {}
   const link = 'https://search.google.com/search-console/manual-actions' + (prop ? '?resource_id=' + encodeURIComponent(prop) : '');
-  apBox.innerHTML = `
-    <div style="border-left:4px solid #58a6ff; padding:12px; background:rgba(88,166,255,0.08); line-height:1.6">
-      <strong style="color:#58a6ff; display:block; margin-bottom:4px; font-size:13px">ℹ️ Google không cung cấp API cho báo cáo Án phạt thủ công</strong>
-      <span style="color:#c9d1d9">Báo cáo này chỉ xem được trong giao diện Search Console. Property: <code style="background:#21262d; padding:2px 6px; border-radius:4px">${prop || wstCurrentUrl(site)}</code></span>
-      <div style="margin-top:10px">
-        <a href="${link}" target="_blank" rel="noopener" class="btn btn-g" style="display:inline-block; padding:6px 12px; font-size:12px; text-decoration:none">↗ Mở báo cáo Án phạt thủ công trên GSC</a>
-      </div>
-    </div>`;
+  if (win) win.location.href = link; else window.open(link, '_blank');
 }
 
 function wstChangeGscRangeDetail() {
@@ -13667,8 +13781,7 @@ function wstRenderHistoryTab(wsId) {
 // Giữ tên hàm cũ cho tương thích: mở Dashboard ở tab Lịch sử
 async function wstOpenHistoryModal(wsId) {
   await wstOpenDashboard(wsId);
-  const btn = document.querySelector('#wstDashboardModalContainer .tb-btn[data-tab="history"]');
-  if (btn && _wstActiveSiteId === wsId) wstSwitchTab(btn, 'history');
+  if (_wstActiveSiteId === wsId) wstSwitchTab(null, 'history');
 }
 
 
