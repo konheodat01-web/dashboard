@@ -1093,10 +1093,15 @@
           <div><b>Theo silo:</b> ${Object.entries(bySilo).map(([k, v]) => esc(k) + ' ' + v).join(' · ')}</div>
           <div><b>Theo tháng:</b> ${Object.entries(byMonth).slice(0, 8).map(([k, v]) => 'T' + k + ': ' + v).join(' · ')}${Object.keys(byMonth).length > 8 ? ' · …' : ''} (tổng ${Object.keys(byMonth).length} tháng)</div>
         </div>
-        <div class="sx-msg-ai sx-report-body"><table><thead><tr><th>STT</th><th>Tháng</th><th>Silo</th><th>Nhóm bài con</th><th>Dạng bài</th><th>Từ khóa chính</th><th>TK cụm</th><th>Ghi chú</th></tr></thead><tbody>
+        <div style="display:flex;gap:6px;margin:8px 0">
+          <button class="sx-btn sx-pv" data-v="tree" style="${s.planView !== 'list' ? 'border-color:#58a6ff;color:#e6edf3' : ''}">🌳 Theo danh mục</button>
+          <button class="sx-btn sx-pv" data-v="list" style="${s.planView === 'list' ? 'border-color:#58a6ff;color:#e6edf3' : ''}">📋 Theo thứ tự đăng</button>
+        </div>
+        ${s.planView === 'list' ? `<div class="sx-msg-ai sx-report-body"><table><thead><tr><th>STT</th><th>Tháng</th><th>Silo</th><th>Nhóm bài con</th><th>Dạng bài</th><th>Từ khóa chính</th><th>TK cụm</th><th>Ghi chú</th></tr></thead><tbody>
           ${rows.slice(0, 60).map(r => `<tr><td>${r.stt}</td><td>${r.month}</td><td>${esc(r.silo)}</td><td>${esc(r.sub)}</td><td>${esc(r.type)}</td><td><b>${esc(r.main)}</b></td><td>${r.vol ? num(r.vol) : '—'}</td><td>${esc(clip(r.note, 90))}</td></tr>`).join('')}
-        </tbody></table><div class="sx-sub">Hiện 60/${num(rows.length)} bài đầu — tải Excel để xem đủ.</div></div>
+        </tbody></table><div class="sx-sub">Hiện 60/${num(rows.length)} bài đầu — tải Excel để xem đủ.</div></div>` : planTreeHtml(p)}
       </div>`;
+      msgs.querySelectorAll('.sx-pv').forEach(b => { b.onclick = () => { s.planView = b.dataset.v; renderPlanDone(); }; });
       msgs.scrollTop = 0;
       setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button><button class="sx-btn sx-prerun">↺ Lập lại (khung / file mới)</button></div>
         <div class="sx-nav-r"><span class="sx-sub sx-pdmsg">${p.edited_at ? '✏️ sửa tay lần cuối ' + esc(p.edited_at) : ''}</span><button class="sx-btn sx-pedit">✏️ Sửa kế hoạch</button><button class="sx-btn sx-pxlsx">⬇ Tải Excel</button>
@@ -1114,6 +1119,44 @@
         try { await api('planconfirm/' + cid, { method: 'POST', body: '{}' }); renderPlanDone(); }
         catch (e) { bar.querySelector('.sx-pdmsg').textContent = '⚠️ ' + e.message; cf.disabled = false; }
       };
+    }
+
+    // 🌳 Kế hoạch dạng cây theo cấu trúc site của hồ sơ: Danh mục → Trụ cột → Nhóm bài con → (cấp 2 "Nhóm: Hãng") → bài.
+    // Thứ tự danh mục / nhóm con theo khung hồ sơ; bài trong nhóm theo STT (thứ tự đăng).
+    function planTreeHtml(p) {
+      const rows = p.rows || [], frame = p.frame || {};
+      const order = (frame.silos || []).map(x => x.name);
+      rows.forEach(r => { if (!order.includes(r.silo)) order.push(r.silo); });
+      const subOrder = {};
+      (frame.silos || []).forEach(x => { subOrder[x.name] = x.subgroups || []; });
+      const pillarOf = {};
+      (frame.silos || []).forEach(x => { pillarOf[x.name] = x.pillar; });
+      const vol = rs => rs.reduce((a, r) => a + (r.vol || 0), 0);
+      const art = r => `<tr><td style="width:44px">${r.stt}</td><td style="width:44px">T${r.month}</td><td><b>${esc(r.main)}</b>${(r.child || []).length ? `<span class="sx-sub"> +${r.child.length} từ phụ</span>` : ''}</td><td style="width:150px">${esc(r.type)}</td><td style="width:70px">${r.vol ? num(r.vol) : '—'}</td></tr>`;
+      const table = rs => `<table style="margin:4px 0 8px">${rs.map(art).join('')}</table>`;
+      const sum = (icon, name, rs, extra) => `<summary style="cursor:pointer;padding:5px 0"><span style="font-weight:700">${icon} ${esc(name)}</span> <span class="sx-sub">— ${rs.length} bài · ${num(vol(rs))} lượt/tháng${extra || ''}</span></summary>`;
+      return `<div class="sx-msg-ai sx-report-body" style="line-height:1.5">` + order.map(silo => {
+        const rs = rows.filter(r => r.silo === silo);
+        if (!rs.length) return '';
+        const pillars = rs.filter(r => r.role === 'Trụ cột');
+        const subs = {};
+        rs.filter(r => r.role !== 'Trụ cột').forEach(r => {
+          const [base, lv2] = String(r.sub || '(chưa có nhóm)').split(': ');
+          ((subs[base] = subs[base] || {})[lv2 || ''] = subs[base][lv2 || ''] || []).push(r);
+        });
+        const bases = (subOrder[silo] || []).filter(b => subs[b]).concat(Object.keys(subs).filter(b => !(subOrder[silo] || []).includes(b)));
+        return `<details open style="border:1px solid #30363d;border-radius:8px;padding:4px 12px;margin-bottom:10px">
+          ${sum('📁', silo, rs)}
+          <div style="margin:2px 0 6px 4px">🏛 <b>Trụ cột:</b> ${esc(pillarOf[silo] || '—')}${pillars.length ? ' — ' + pillars.map(r => `#${r.stt} <b>${esc(r.main)}</b>`).join(', ') : ' <span class="sx-sub">(chưa có bài trụ cột trong kế hoạch)</span>'}</div>
+          ${bases.map(b => {
+            const lv = subs[b], all = Object.values(lv).flat();
+            const other = k => /^(Hãng khác|Khác)/.test(k);   // nhóm gom bài lẻ luôn đứng cuối
+            const keys = Object.keys(lv).sort((x, y) => other(x) - other(y) || lv[y].length - lv[x].length);
+            const inner = keys.length === 1 && keys[0] === '' ? table(lv['']) : keys.map(k => `<details style="margin-left:14px">${sum('🏷', k || '(chung)', lv[k])}${table(lv[k])}</details>`).join('');
+            return `<details style="margin-left:14px">${sum('📂', b, all, keys.length > 1 || keys[0] ? ' · ' + keys.length + ' nhóm cấp 2' : '')}${inner}</details>`;
+          }).join('')}
+        </details>`;
+      }).join('') + `</div>`;
     }
 
     // ✏️ SỬA KẾ HOẠCH THỦ CÔNG: sửa ô, thêm / xoá / đổi thứ tự bài, rồi lưu (planrows).
