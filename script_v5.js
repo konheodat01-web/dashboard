@@ -3650,6 +3650,18 @@ async function wstBulkCheckRank() {
   }
 }
 
+// Ghim / bỏ ghim 1 web (lưu trong siteTracking -> đồng bộ Firebase, mọi máy đều thấy).
+// Không gọi saveWsTrack để khỏi đổi "Cập nhật" (lastUpdatedAt) của site.
+function wstTogglePin(wsId){
+  const site = getWstSite(wsId);
+  if (!site) return;
+  if (site.pinned) { delete site.pinned; delete site.pinnedAt; }
+  else { site.pinned = true; site.pinnedAt = Date.now(); }
+  try{ localStorage.setItem('wt_site_tracking', JSON.stringify(siteTracking)); }catch(e){}
+  saveAppData();
+  renderWsTrack();
+}
+
 function saveWsTrack(wsId){
   const targetId = wsId || _wstActiveSiteId;
   if (targetId) {
@@ -4031,9 +4043,13 @@ function renderWsTrack(){
     return true;
   });
 
-  if(!list.length){ 
-    tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block'; 
-    return; 
+  // Web đã ghim 📌: luôn hiện, KHÔNG bị bộ lọc / tìm kiếm ẩn đi (ghép lên đầu bảng sau bước sắp xếp)
+  const pinnedWs = allTrackedWs.filter(w => getWstSite(w.id)?.pinned)
+    .sort((a, b) => (getWstSite(a.id).pinnedAt || 0) - (getWstSite(b.id).pinnedAt || 0));
+
+  if(!list.length && !pinnedWs.length){
+    tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block';
+    return;
   }
   empty.style.display='none';
 
@@ -4047,7 +4063,7 @@ function renderWsTrack(){
     });
   }
 
-  if(!list.length){ tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block'; return; }
+  if(!list.length && !pinnedWs.length){ tbody.innerHTML=''; if(thead) thead.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
 
   // Sort logic
@@ -4161,6 +4177,12 @@ function renderWsTrack(){
     });
   }
 
+  // Ghép web đã ghim lên đầu (thứ tự theo lúc ghim), phần còn lại giữ nguyên lọc + sắp xếp
+  if (pinnedWs.length) {
+    const pinIds = new Set(pinnedWs.map(w => w.id));
+    list = pinnedWs.concat(list.filter(w => !pinIds.has(w.id)));
+  }
+
   // Build table header
   if(thead){
     thead.innerHTML = `<tr style="background:#f8f9fa;border-bottom:2px solid var(--gray-border)">
@@ -4204,7 +4226,8 @@ function renderWsTrack(){
       ? `<span style="opacity:0.65;filter:grayscale(50%);display:inline-flex;align-items:center;gap:2px" title="Dữ liệu cũ ngày ${lastIndexedDate}. Click để check mới.">${baseIcon}<span style="font-size:10px;line-height:1">🕒</span></span>`
       : baseIcon;
 
-    return `<tr style="border-bottom:1px solid #f0f0f0;${isSelected?'background:#fdf2f2;':''}" onmouseover="if(!${isSelected})this.style.background='#fafafa'" onmouseout="if(!${isSelected})this.style.background=''">
+    const isPinned = !!site?.pinned;
+    return `<tr style="border-bottom:1px solid #f0f0f0;${isSelected?'background:#fdf2f2;':''}${isPinned?'box-shadow:inset 3px 0 0 #d29922;':''}" onmouseover="if(!${isSelected})this.style.background='#fafafa'" onmouseout="if(!${isSelected})this.style.background=''">
       <td style="padding:6px;text-align:center">
         <input type="checkbox" class="wst-chk" data-id="${w.id}" onchange="wstToggleSelect(${w.id},this)" ${isSelected?'checked':''} style="cursor:pointer;accent-color:var(--red)">
       </td>
@@ -4350,6 +4373,7 @@ function renderWsTrack(){
             return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;display:inline-block;vertical-align:middle" title="chưa ghi nhận email sở hữu">GSC</span>`;
           }
         })()}
+        <button onclick="wstTogglePin(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle;${isPinned ? 'background:rgba(210,153,34,0.18);border-color:#d29922' : 'opacity:.45;filter:grayscale(1)'}" title="${isPinned ? 'Bỏ ghim' : 'Ghim lên đầu — luôn hiện, không bị bộ lọc ẩn'}">📌</button>
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>        <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c;vertical-align:middle" title="Bỏ theo dõi">×</button>
       </td>`}
     </tr>`;
