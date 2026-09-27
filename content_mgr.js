@@ -41,6 +41,12 @@
     return new Date(d.getFullYear(), d.getMonth() + Number(m), 0);
   }
 
+  // Gọi từ bảng kế hoạch (🧠 Chuyên gia SEO → 📐 Lập kế hoạch): chuyển sang tab ✍️ Nội dung và vào thẳng bước kiểm tra trùng
+  window.cmOpenImport = function (wsId, rowIds) {
+    window._cmPendingImport = { wsId, ids: rowIds };
+    if (typeof wstSwitchTab === 'function') wstSwitchTab(null, 'content');
+  };
+
   window.cmMount = function (panel, wsId) {
     const cid = 'ws' + wsId;
     const w = (typeof websites !== 'undefined' ? websites : []).find(x => x.id === wsId);
@@ -54,6 +60,13 @@
     async function load() {
       try { s.v = await api('content/' + cid); }
       catch (e) { root.innerHTML = `<div style="color:#f85149">⚠️ Không tải được kho nội dung: ${esc(e.message)}</div>`; return; }
+      const pend = window._cmPendingImport;
+      if (pend && pend.wsId === wsId) {             // đến từ nút 📥 ở bảng kế hoạch
+        window._cmPendingImport = null;
+        s.imp = { q: '', silo: '', label: '', month: '', sel: new Set(pend.ids) };
+        s.view = 'import';
+        return drawPreview();
+      }
       draw();
     }
     function setBusy(msg) { s.busy = msg || ''; const b = root.querySelector('.cm-busy'); if (b) b.textContent = s.busy; }

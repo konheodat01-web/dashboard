@@ -1086,6 +1086,9 @@
       if (s.mode !== 'plan') return;
       s.plan = p;
       s.planOpen = s.planOpen || new Set();
+      s.psel = new Set();                         // bài đang chọn để import sang Quản lý nội dung
+      s.imported = new Set();
+      try { s.imported = new Set((await api('content/' + cid)).imported_rows || []); } catch (e) {}
       s.kidsOpen = s.kidsOpen || new Set();
       s.pf = s.pf || { q: '', silo: '', sub: '', limit: 200, struct: false };
       s.inline = null;
@@ -1110,6 +1113,7 @@
       const kids = r.child || [], [base, lv2] = splitSub(r.sub);
       const opt = (l, v) => l.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
       let h = `<tr data-id="${r.id}">
+        <td style="width:26px;text-align:center">${s.imported.has(r.id) ? '<span title="Đã import vào Quản lý nội dung" style="color:#3fb950">✓</span>' : `<input type="checkbox" class="sx-psel" ${s.psel.has(r.id) ? 'checked' : ''}>`}</td>
         <td class="sx-sub" style="width:36px">${r.stt}</td>
         <td style="width:50px"><input type="number" min="1" class="sx-ed" data-f="month" value="${esc(r.month)}" style="${edIn}"></td>
         <td style="width:140px"><select class="sx-mv" data-f="silo" style="${edSel}">${opt(planSilos(p), r.silo)}</select></td>
@@ -1123,12 +1127,12 @@
         <td style="width:104px;white-space:nowrap;text-align:right"><button data-a="merge" style="${btnA}" title="Gộp bài này vào bài khác (thành từ khóa phụ)">🔗</button><button data-a="up" style="${btnA}" title="Lên">↑</button><button data-a="down" style="${btnA}" title="Xuống">↓</button><button data-a="delrow" style="${btnA};color:#f85149" title="Xoá bài">🗑</button></td>
       </tr>`;
       if (s.inline && s.inline.id === r.id) {
-        h += `<tr data-id="${r.id}"><td></td><td colspan="10">🔗 Gộp <b>${esc(r.main)}</b> (cùng ${kids.length} từ phụ) thành từ khóa phụ của bài:
+        h += `<tr data-id="${r.id}"><td></td><td></td><td colspan="10">🔗 Gộp <b>${esc(r.main)}</b> (cùng ${kids.length} từ phụ) thành từ khóa phụ của bài:
           <input class="sx-in-merge" list="sx-dl-main" placeholder="gõ để tìm từ khóa chính của bài đích…" style="${edSel};width:320px">
           <button data-a="merge-ok" style="${btnA}">✓ Gộp</button><button data-a="inline-x" style="${btnA}">Huỷ</button></td></tr>`;
       }
       if (s.kidsOpen.has(r.id)) {
-        h += `<tr data-id="${r.id}"><td></td><td colspan="10" style="padding:4px 0 8px">
+        h += `<tr data-id="${r.id}"><td></td><td></td><td colspan="10" style="padding:4px 0 8px">
           <span class="sx-sub">Từ khóa phụ của <b>${esc(r.main)}</b>:</span>
           ${kids.map(k => `<span style="display:inline-block;background:#21262d;border:1px solid #30363d;border-radius:12px;padding:2px 8px;margin:2px;font-size:11.5px">${esc(k)}
             <a href="#" data-a="setmain" data-kw="${esc(k)}" title="Đặt làm TỪ KHÓA CHÍNH (từ khóa chính hiện tại thành từ phụ)" style="text-decoration:none">⭐</a>
@@ -1148,11 +1152,13 @@
       const box = msgs.querySelector('.sx-ptable');
       if (!box) return;
       const p = s.plan, list = planFiltered(p), shown = list.slice(0, s.pf.limit);
-      box.innerHTML = `<table style="width:100%"><thead><tr><th>STT</th><th>Tháng</th><th>Danh mục</th><th>Vai trò</th><th>Nhãn (hãng)</th><th>Dạng bài</th><th>Từ khóa chính</th><th>Từ phụ</th><th>TK cụm</th><th>Ghi chú</th><th></th></tr></thead>
-        <tbody>${shown.map(r => planRowHtml(r, p)).join('') || '<tr><td colspan="11" class="sx-sub">Không có bài nào khớp bộ lọc</td></tr>'}</tbody></table>
+      box.innerHTML = `<table style="width:100%"><thead><tr><th><input type="checkbox" class="sx-pselall" title="Chọn tất cả bài theo bộ lọc (chưa import)"></th><th>STT</th><th>Tháng</th><th>Danh mục</th><th>Vai trò</th><th>Nhãn (hãng)</th><th>Dạng bài</th><th>Từ khóa chính</th><th>Từ phụ</th><th>TK cụm</th><th>Ghi chú</th><th></th></tr></thead>
+        <tbody>${shown.map(r => planRowHtml(r, p)).join('') || '<tr><td colspan="12" class="sx-sub">Không có bài nào khớp bộ lọc</td></tr>'}</tbody></table>
         ${list.length > shown.length ? `<div style="margin:8px 0"><button data-a="more" style="${btnA}">Hiện thêm ${Math.min(200, list.length - shown.length)} bài (${shown.length}/${list.length})</button></div>` : ''}`;
       const info = msgs.querySelector('.sx-pf-info');
-      if (info) info.textContent = `${num(list.length)}/${num((p.rows || []).length)} bài`;
+      if (info) info.textContent = `${num(list.length)}/${num((p.rows || []).length)} bài · ${num(s.imported.size)} đã import`;
+      const ib = msgs.querySelector('[data-a="toimport"]');
+      if (ib) { ib.textContent = `📥 Import vào Quản lý nội dung (${s.psel.size})`; ib.disabled = !s.psel.size; }
     }
 
     // ---------- 🗂 QUẢN LÝ DANH MỤC (cấu trúc) ----------
@@ -1300,6 +1306,7 @@
             <select class="sx-pf-sub" style="${edSel};width:auto">${opt(labelsIn, f.sub, 'Tất cả nhãn')}</select>
             <button data-a="addrow-top" style="${btnA}">＋ Thêm bài</button>
             <button data-a="sortmonth" style="${btnA}" title="Sắp lại toàn bộ theo cột Tháng (giữ thứ tự trong cùng tháng)">↕ Sắp theo tháng</button>
+            <button data-a="toimport" style="${btnA};background:#1f6feb;border-color:#1f6feb;color:#fff" title="Chọn bài ở cột ☑ rồi import sang tab ✍️ Nội dung (kiểm tra trùng với bài có sẵn trên web trước)">📥 Import vào Quản lý nội dung (0)</button>
             <button data-a="struct" style="${btnA};${f.struct ? 'border-color:#58a6ff' : ''}">🗂 Quản lý danh mục</button>
             <span class="sx-sub sx-pf-info"></span>
           </div>
@@ -1341,6 +1348,17 @@
         const t = e.target;
         if (t.classList.contains('sx-pf-silo')) { s.pf.silo = t.value; s.pf.sub = ''; s.pf.limit = 200; return drawPlanDone(); }
         if (t.classList.contains('sx-pf-sub')) { s.pf.sub = t.value; s.pf.limit = 200; return drawPlanTable(); }
+        if (t.classList.contains('sx-pselall')) {
+          planFiltered(s.plan).filter(x => !s.imported.has(x.id)).forEach(x => t.checked ? s.psel.add(x.id) : s.psel.delete(x.id));
+          return drawPlanTable();
+        }
+        if (t.classList.contains('sx-psel')) {
+          const rr = rowOf(t); if (!rr) return;
+          t.checked ? s.psel.add(rr.id) : s.psel.delete(rr.id);
+          const ib = msgs.querySelector('[data-a="toimport"]');
+          if (ib) { ib.textContent = `📥 Import vào Quản lý nội dung (${s.psel.size})`; ib.disabled = !s.psel.size; }
+          return;
+        }
         const r = rowOf(t);
         if (!r) return;
         if (t.classList.contains('sx-ed')) {
@@ -1369,6 +1387,11 @@
         const p = s.plan, silos = planSilos(p);
         switch (act) {
           case 'more': s.pf.limit += 200; return drawPlanTable();
+          case 'toimport': {
+            if (!s.psel.size) { alert('Tick chọn bài ở cột ☑ trước'); return; }
+            if (typeof cmOpenImport !== 'function') { alert('Chưa tải được Quản lý nội dung — tải lại trang (Ctrl+F5)'); return; }
+            return cmOpenImport(wsId, [...s.psel]);
+          }
           case 'struct': s.pf.struct = !s.pf.struct; return drawPlanDone();
           case 'sortmonth': if (confirm('Sắp lại toàn bộ bài theo cột Tháng?')) planOp({ op: 'sortmonth' }); return;
           case 'kids': s.kidsOpen.has(r.id) ? s.kidsOpen.delete(r.id) : s.kidsOpen.add(r.id); return drawPlanTable();
