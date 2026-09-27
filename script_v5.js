@@ -13185,6 +13185,8 @@ function wstRenderContentTab(wsId){
   var panel = document.getElementById('wst-tab-content');
   var w = websites.find(function(x){ return x.id === wsId; });
   if (!panel || !w) return;
+  // Dashboard quản lý nội dung mới (content_mgr.js): kho = bài có sẵn trên web + bài kế hoạch import
+  if (typeof cmMount === 'function') { wstRestorePostsBody(); return cmMount(panel, wsId); }
   var dom = wstCurrentUrl(w);
   wstRestorePostsBody();   // vẽ lại tab sẽ xoá host cũ -> trả khối danh sách bài về popup trước, kẻo mất node
   panel.innerHTML = ''
