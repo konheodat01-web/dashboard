@@ -1805,7 +1805,8 @@
       } catch (e) { s.integ = {}; }
       s.type = s.integ.type || '';
       s.answers = Object.assign({}, s.integ.answers || {});
-      if (unlocked()) enterChat(); else renderGate();
+      // web có sẵn đã chọn loại nhưng chưa xác nhận hồ sơ -> vào thẳng màn 🩺 Khám bệnh (nhánh tích hợp của web có sẵn)
+      if (unlocked()) enterChat(); else if (isOldSite()) renderCheckup(); else renderGate();
     }
     sxSiteContext(wsId).then(c => { ctxTitle = c.title || ''; const sub = q('.sx-site-sub'); if (sub && c.title) sub.textContent = '· ' + c.title.replace(/^🌐\s*/, ''); });
     size(); boot();
