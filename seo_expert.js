@@ -855,15 +855,23 @@
       const steps = sxSteps(s.type), done = QUESTIONS.filter(x => (s.answers[x.id] || '').trim()).length;
       msgs.innerHTML = `<div class="sx-welcome sx-gate">
         <div class="sx-welcome-t">🔒 Chuyên gia chưa được tích hợp với website này</div>
-        Để chuyên gia hiểu site từ GỐC (mục tiêu, đối tượng, đối thủ, lịch sử, chiến lược) thay vì chỉ nhìn số liệu bề nổi,
-        bạn trả lời vài câu hỏi, tải file Search Console (nếu có). Chuyên gia tự kiểm tra kỹ thuật rồi viết <b>báo cáo tích hợp</b> để bạn xác nhận.
-        Xác nhận xong mới mở hỏi đáp.
+        Để chuyên gia hiểu site từ GỐC thay vì chỉ nhìn số liệu bề nổi. Tích hợp có 2 nhánh theo loại website:
+        <ul style="text-align:left;margin:8px auto;max-width:620px">
+          <li>🌱 <b>Website mới</b>: trả lời vài câu hỏi (mục tiêu, đối tượng, đối thủ, chiến lược) → chuyên gia viết <b>báo cáo tích hợp</b>.</li>
+          <li>🔀 🚀 ♻️ <b>Website có sẵn</b> (nhận 301 / đang chạy / mua lại): tool <b>🩺 khám bệnh</b> website theo checklist chuẩn SEO → chuyên gia viết <b>bệnh án</b> = hồ sơ tích hợp về tình trạng hiện tại.</li>
+        </ul>
+        Xác nhận hồ sơ xong mới mở hỏi đáp.
         ${st === 'review' ? '<div class="sx-gate-note">📑 Báo cáo tích hợp đã tạo — đang chờ bạn xác nhận.</div>' :
           (s.type ? `<div class="sx-gate-note">✍️ Đã lưu nháp: ${done} câu trả lời${(s.integ.files || []).length ? ', ' + s.integ.files.length + ' file' : ''}.</div>` : '')}
       </div>`;
-      const label = st === 'review' ? '📑 Xem & xác nhận báo cáo tích hợp' : s.type ? `🧩 Tiếp tục tích hợp chuyên gia AI` : '🧩 Tích hợp chuyên gia AI';
-      setBar(`<button class="sx-btn sx-btn-primary sx-cta">${label}</button>`);
-      bar.querySelector('.sx-cta').onclick = () => st === 'review' ? renderReview() : renderStep(s.type ? Math.min(s.step || 1, steps.length - 1) : 0);
+      const old = isOldSite();
+      const label = old ? (st === 'review' ? '📑 Xem & xác nhận hồ sơ tích hợp (bệnh án)' : '🩺 Tiếp tục tích hợp: khám bệnh website')
+        : st === 'review' ? '📑 Xem & xác nhận báo cáo tích hợp' : s.type ? `🧩 Tiếp tục tích hợp chuyên gia AI` : '🧩 Tích hợp chuyên gia AI';
+      setBar(`${s.type ? '<button class="sx-btn sx-retype" title="Chọn lại loại website">↺ Chọn lại loại website</button>' : ''}<button class="sx-btn sx-btn-primary sx-cta">${label}</button>`);
+      const rt = bar.querySelector('.sx-retype');
+      if (rt) rt.onclick = () => renderStep(0);
+      bar.querySelector('.sx-cta').onclick = () => old ? renderCheckup()
+        : st === 'review' ? renderReview() : renderStep(s.type ? Math.min(s.step || 1, steps.length - 1) : 0);
     }
 
     // ── 2) FORM TỪNG CÂU ──
@@ -927,6 +935,7 @@
       bindNav(i, async () => {
         if (!s.type) { alert('Chọn loại website trước.'); return; }
         await saveDraft();
+        if (isOldSite()) return renderCheckup();          // web có sẵn: tích hợp = 🩺 Khám bệnh -> bệnh án = hồ sơ tích hợp
         renderStep(1);
       });
     }
@@ -1191,21 +1200,24 @@
     q('.sx-planbtn').onclick = () => { if (!s.busy) renderPlan(); };
 
     // ══ 🩺 KHÁM BỆNH (web cũ — thay 📐 Lập kế hoạch, gộp luôn 🔎 Chẩn đoán index) ══
+    // chưa tích hợp: quay lại màn tích hợp; đã tích hợp: về hội thoại
+    function backHome() { return unlocked() ? enterChat() : renderGate(); }
     function isOldSite() { return ['nhan301', 'dangchay', 'muallai'].includes((s.integ && s.integ.type) || s.type); }
     const scoreCol = v => v == null ? '#8b949e' : v >= 80 ? '#3fb950' : v >= 50 ? '#d29922' : '#f85149';
     function showCheckupBar() {
       const ck = s.checkup;
       if (!ck) return showDiagBar();
+      ck.status = ckConfirmed() ? 'confirmed' : 'review';      // bệnh án = hồ sơ tích hợp (web có sẵn)
       diagBar.hidden = false;
       diagBar.innerHTML = `🩺 Khám bệnh gần nhất: <b>${esc(ck.at)}</b> · điểm <b style="color:${scoreCol(ck.score)}">${ck.score}/100</b> · ${ck.status === 'confirmed'
-        ? '<span class="sx-ok">chuyên gia đang dùng bệnh án này</span>' : '<span class="sx-warn">chưa xác nhận</span>'} · <a href="#" class="sx-ck-view">Xem bệnh án</a>`;
+        ? '<span class="sx-ok">đang là hồ sơ tích hợp của chuyên gia</span>' : '<span class="sx-warn">chưa xác nhận</span>'} · <a href="#" class="sx-ck-view">Xem bệnh án</a>`;
       diagBar.querySelector('.sx-ck-view').onclick = e => { e.preventDefault(); if (!s.busy) renderCheckup(); };
     }
 
     function renderCheckup() {
       s.mode = 'checkup'; setHeadButtons();
       if (s.checkup && s.checkup.report) return drawCheckup();
-      msgs.innerHTML = `<div class="sx-report"><div class="sx-report-h">🩺 Khám bệnh website</div>
+      msgs.innerHTML = `<div class="sx-report"><div class="sx-report-h">🩺 Khám bệnh website — bước tích hợp cho website có sẵn</div>
         <div class="sx-msg-ai sx-report-body" style="line-height:1.6">
           Tool quét website từ bên ngoài (không đăng nhập WordPress) theo checklist chuẩn SEO, chấm từng mục ✅ / ⚠️ / ❌, rồi chuyên gia viết <b>bệnh án</b>: tình trạng, chủ đề website, các bệnh theo mức độ, phác đồ điều trị.
           <ul>
@@ -1217,9 +1229,9 @@
           </ul>
           <div class="sx-sub">Chi phí mỗi lần: Serper 1 credit (nhắc thương hiệu) · PageSpeed miễn phí · chuyên gia viết bệnh án bằng model rẻ (flash-lite, vài chục đồng). Mất khoảng 1–2 phút.</div>
         </div></div>`;
-      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button></div>
+      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">${unlocked() ? '↩ Về hội thoại' : '↩ Quay lại tích hợp'}</button></div>
         <div class="sx-nav-r"><span class="sx-sub sx-ckmsg"></span><button class="sx-btn sx-btn-primary sx-ckrun">▶ Bắt đầu khám</button></div>`);
-      bar.querySelector('.sx-tochat').onclick = enterChat;
+      bar.querySelector('.sx-tochat').onclick = backHome;
       bar.querySelector('.sx-ckrun').onclick = runCheckup;
     }
 
@@ -1235,21 +1247,26 @@
         setMsg('Chuyên gia đang viết bệnh án…');
         const th = msgs.querySelector('.sx-thinking'); if (th) th.textContent = '🩺 Chuyên gia đang viết bệnh án…';
         s.checkup = await api('checkup/' + cid, { method: 'POST', body: JSON.stringify({ site_title: await title(), checklist: sc.text, about: sc.about,
-          score: sc.score, items: sc.items, groups: sc.groups }) });
+          score: sc.score, items: sc.items, groups: sc.groups, site_type: s.type }) });
+        try { const c = await api('chats/' + cid); s.integ = c.integration || s.integ; } catch (e) {}
         s.busy = false;
         drawCheckup();
       } catch (e) {
         s.busy = false;
         msgs.innerHTML = `<div class="sx-err">⚠️ Khám lỗi: ${esc(e.message)}</div>`;
-        setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button></div><div class="sx-nav-r"><span class="sx-sub sx-ckmsg"></span><button class="sx-btn sx-btn-primary sx-ckrun">↻ Khám lại</button></div>`);
-        bar.querySelector('.sx-tochat').onclick = enterChat;
+        setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">${unlocked() ? '↩ Về hội thoại' : '↩ Quay lại tích hợp'}</button></div><div class="sx-nav-r"><span class="sx-sub sx-ckmsg"></span><button class="sx-btn sx-btn-primary sx-ckrun">↻ Khám lại</button></div>`);
+        bar.querySelector('.sx-tochat').onclick = backHome;
         bar.querySelector('.sx-ckrun').onclick = runCheckup;
         showCheckupBar();
       }
     }
 
+    // bệnh án đang là hồ sơ tích hợp đã xác nhận?
+    const ckConfirmed = () => !!(s.checkup && s.integ && s.integ.confirmed_report && s.integ.confirmed_report.trim() === (s.checkup.report || '').trim());
     function drawCheckup() {
       const ck = s.checkup, items = ck.items || [], gs = ck.groups || {};
+      ck.status = ckConfirmed() ? 'confirmed' : 'review';
+      if (ck.status === 'confirmed') ck.confirmed_at = s.integ.confirmed_at;
       const gcard = (label, v) => `<div style="flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 12px">
         <div style="font-size:11px;color:#8b949e">${esc(label)}</div><div style="font-size:22px;font-weight:700;color:${scoreCol(v)}">${v == null ? '—' : v + '/100'}</div></div>`;
       msgs.innerHTML = `<div class="sx-report">
@@ -1262,15 +1279,19 @@
         <div class="sx-msg-ai sx-report-body">${renderMd(ck.report || '', [])}</div>
       </div>`;
       msgs.scrollTop = 0;
-      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button><button class="sx-btn sx-ckrun">🩺 Khám lại</button></div>
+      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">${unlocked() ? '↩ Về hội thoại' : '↩ Quay lại tích hợp'}</button><button class="sx-btn sx-ckrun">🩺 Khám lại</button></div>
         <div class="sx-nav-r"><span class="sx-sub sx-ckmsg"></span>${ck.status === 'confirmed' ? '<span class="sx-ok">✅ Chuyên gia đang dùng bệnh án này</span>'
-          : '<button class="sx-btn sx-btn-primary sx-ckok" title="Đưa bệnh án vào hồ sơ gốc — chuyên gia dựa vào đây để tư vấn điều trị">✅ Xác nhận bệnh án</button>'}</div>`);
-      bar.querySelector('.sx-tochat').onclick = enterChat;
+          : '<button class="sx-btn sx-btn-primary sx-ckok" title="Bệnh án là hồ sơ tích hợp của website có sẵn — xác nhận để chuyên gia dùng làm gốc và mở hỏi đáp">✅ Xác nhận hồ sơ tích hợp</button>'}</div>`);
+      bar.querySelector('.sx-tochat').onclick = backHome;
       bar.querySelector('.sx-ckrun').onclick = () => { if (confirm('Khám lại website? (bệnh án hiện tại được lưu để so sánh)')) runCheckup(); };
       const ok = bar.querySelector('.sx-ckok');
       if (ok) ok.onclick = async () => {
         ok.disabled = true;
-        try { s.checkup = await api('checkupconfirm/' + cid, { method: 'POST', body: '{}' }); drawCheckup(); showCheckupBar(); }
+        try {
+          s.integ = await api('integconfirm/' + cid, { method: 'POST', body: JSON.stringify({ report: s.checkup.report }) });
+          showCheckupBar();
+          enterChat(true);
+        }
         catch (e) { bar.querySelector('.sx-ckmsg').textContent = '⚠️ ' + e.message; ok.disabled = false; }
       };
       showCheckupBar();
@@ -1779,8 +1800,8 @@
       try {
         const c = await api('chats/' + cid);
         if (c.diagnosis && c.diagnosis.text) { s.diag = c.diagnosis; showDiagBar(); }
-        if (c.checkup && c.checkup.report) { s.checkup = c.checkup; showCheckupBar(); }
         s.integ = c.integration || {};
+        if (c.checkup && c.checkup.report) { s.checkup = c.checkup; showCheckupBar(); }   // sau s.integ: cần biết bệnh án đã là hồ sơ xác nhận chưa
       } catch (e) { s.integ = {}; }
       s.type = s.integ.type || '';
       s.answers = Object.assign({}, s.integ.answers || {});
