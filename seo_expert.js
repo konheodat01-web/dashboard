@@ -415,9 +415,10 @@
         `${n} trang: thiếu ${dMiss} · ngoài 70–160 ký tự ${dBad} · trùng ${dDup}`, pages.filter(p => !p.descLen).slice(0, 3).map(p => p.url).join(' | '));
       const h1Bad = pages.filter(p => p.h1 !== 1);
       add('On-page', 'Thẻ H1', ratio(h1Bad.length, n) > 0.3 ? 'fail' : h1Bad.length ? 'warn' : 'ok', `${h1Bad.length}/${n} trang không có đúng 1 thẻ H1`, h1Bad.slice(0, 3).map(p => `${p.h1} H1: ${p.url}`).join(' | '));
-      const hBad = posts.filter(p => !p.h2 || p.headingSkips);
-      add('On-page', 'Phân cấp heading H2, H3', ratio(hBad.length, np) > 0.3 ? 'warn' : 'ok',
-        `${hBad.length}/${np} bài không có H2 hoặc nhảy cấp (vd H1 → H3)`, hBad.slice(0, 3).map(p => `H2=${p.h2}, nhảy cấp ${p.headingSkips}: ${p.url}`).join(' | '));
+      const noH2 = posts.filter(p => !p.h2), jump = posts.filter(p => p.headingSkips);
+      add('On-page', 'Phân cấp heading H2, H3', ratio(noH2.length + jump.length, np) > 0.3 ? 'warn' : 'ok',
+        `Trong nội dung bài: ${noH2.length}/${np} bài không có H2 · ${jump.length}/${np} bài nhảy cấp heading`,
+        noH2.slice(0, 2).map(p => `không có H2: ${p.url}`).concat(jump.slice(0, 3).map(p => `${p.skipEx}: ${p.url}`)).join(' | '));
       const thin = posts.filter(p => p.words < 300);
       add('On-page', 'Độ dài nội dung (≥ 300 từ)', ratio(thin.length, np) > 0.3 ? 'fail' : thin.length ? 'warn' : 'ok',
         `${thin.length}/${np} bài dưới 300 từ · trung bình ${np ? Math.round(posts.reduce((a, p) => a + p.words, 0) / np) : 0} từ`, thin.slice(0, 3).map(p => `${p.words} từ: ${p.url}`).join(' | '));
