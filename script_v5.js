@@ -14199,8 +14199,8 @@ async function wstGetGscHtmlCodesBulk() {
       
       if (!tokenRes.ok) {
         const errData = await tokenRes.json().catch(() => ({}));
-        const errMsg = errData.error?.message || `Lỗi API (${tokenRes.status})`;
-        throw new Error(errMsg);
+        console.warn('[GSC getToken]', errData.error?.message || tokenRes.status);
+        throw new Error(`Không lấy được mã xác minh từ Google (lỗi ${tokenRes.status})`);
       }
       
       const tokenData = await tokenRes.json();
@@ -14369,12 +14369,14 @@ async function wstVerifyIndividualGsc(btn, domain) {
     // Case 2: Xác minh thất bại do mã html chưa tồn tại trên website
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      const errMsg = errData.error?.message || 'Không tìm thấy thẻ Meta trên website!';
-      toast(`❌ Xác minh thất bại: ${errMsg}`, '#e74c3c', 4000);
+      // Lỗi gốc của Google (tiếng Anh) chỉ ghi ra console; người dùng thấy câu tiếng Việt dễ hiểu
+      console.warn('[GSC verify] ' + domain + ':', errData.error?.message || res.status);
+      toast(`❌ ${domain}: Không khớp mã xác minh — trên trang chưa có đúng mã này (hoặc trang đang bị cache). Dán lại mã, xoá cache rồi bấm Thử lại.`, '#e74c3c', 6000);
       btn.disabled = false;
       btn.style.background = '#d90429';
       btn.style.borderColor = '#ef233c';
       btn.innerHTML = 'Thử lại';
+      btn.title = 'Không khớp mã xác minh: trang chủ chưa có đúng thẻ meta google-site-verification đang hiện ở ô bên cạnh, hoặc trang bị cache (LiteSpeed / Cloudflare) giữ bản cũ.';
       return;
     }
     
