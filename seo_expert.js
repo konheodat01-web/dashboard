@@ -307,6 +307,210 @@
   const shortUrl = u => { try { const x = new URL(u); return x.pathname.length > 1 ? decodeURIComponent(x.pathname) : x.host + '/'; } catch (e) { return u; } };
   const tcell = s => String(s == null ? '' : s).replace(/\|/g, '/').replace(/\n/g, ' ');
 
+  // ══ 🩺 KHÁM BỆNH WEBSITE (web cũ) — đo checklist chuẩn SEO rồi chấm điểm (chủ site chốt 29/9/2026) ══
+  // Nguồn: VPS /api/site-checkup (on-page, HTTPS, robots/sitemap/noindex/canonical, link, ảnh, URL, MXH, trang giới thiệu)
+  //        + PageSpeed (tốc độ, mobile) + GSC (URL Inspection 5 bài, sitemap) + Serper (nhắc thương hiệu, 1 credit).
+  const CK_GROUPS = ['On-page', 'Technical', 'Off-page', 'Cấu trúc & UX'];
+  const CK_ICON = { ok: '✅', warn: '⚠️', fail: '❌', na: '—' };
+
+  async function sxPageSpeed(url, strategy) {
+    const r = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&strategy=${strategy}&category=performance`,
+      { signal: AbortSignal.timeout(90000) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((d.error && d.error.message) || ('PageSpeed HTTP ' + r.status));
+    const lh = d.lighthouseResult || {}, au = lh.audits || {}, fe = (d.loadingExperience || {}).metrics || {};
+    return {
+      url, strategy, score: Math.round(((lh.categories || {}).performance || {}).score * 100),
+      lcp: au['largest-contentful-paint'] ? au['largest-contentful-paint'].numericValue / 1000 : null,
+      cls: au['cumulative-layout-shift'] ? au['cumulative-layout-shift'].numericValue : null,
+      inp: fe.INTERACTION_TO_NEXT_PAINT ? fe.INTERACTION_TO_NEXT_PAINT.percentile : null,
+    };
+  }
+
+  async function sxCheckup(wsId, progress) {
+    const w = websites.find(x => x.id === wsId);
+    if (!w) throw new Error('Không tìm thấy website');
+    const host = wstCurrentUrl(w);
+    if (!host) throw new Error('Website chưa có URL');
+    const cid = 'ws' + String(wsId).replace(/\D/g, '');
+    // danh sách bài: ưu tiên kho Quản lý nội dung (đã quét đủ), không có thì đọc WP REST
+    progress('Đang lấy danh sách bài…');
+    let posts = [], pages = [];
+    try {
+      const inv = await fetch(API + 'content/' + cid).then(r => r.json());
+      (inv.items || []).filter(it => it.wp_id && !it.deleted && it.url).forEach(it => (it.wp_type === 'page' ? pages : posts).push({ link: it.url, date: it.date, title: it.title || '', slug: it.slug || '' }));
+    } catch (e) {}
+    if (!posts.length) {
+      const c = await wstFetchAllContent(host);
+      (c.ok ? c.items : []).forEach(it => (it._type === 'page' ? pages : posts).push({ link: it.link, date: it.date, title: (it.title && it.title.rendered) || '', slug: it.slug || '' }));
+    }
+    posts.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const samples = posts.slice(0, 30).map(p => p.link);
+    const about = pages.filter(p => /gioi-thieu|about|ve-chung-toi|chung-toi/i.test(p.slug + ' ' + p.link) || /giới thiệu|về chúng tôi|about/i.test(p.title)).slice(0, 3).map(p => p.link);
+    const brand = ((typeof getWstSite === 'function' && getWstSite(wsId)) || {}).mainKeyword || w.brand || host;
+
+    progress(`VPS đang khám trang chủ + ${samples.length} bài mẫu (on-page, HTTPS, robots, sitemap, link hỏng, ảnh…) — 30–90 giây`);
+    const base = 'https://' + host.replace(/\/$/, '');
+    const psiUrls = [base + '/'].concat(samples.slice(0, 2));
+    const [vps, psi, gsc, mention] = await Promise.all([
+      fetch('/api/site-checkup', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: host, urls: samples, all_links: posts.map(p => p.link), about }) })
+        .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || ('Lỗi khám ' + r.status)); return d; }),
+      Promise.all(psiUrls.flatMap(u => ['mobile', 'desktop'].map(st => sxPageSpeed(u, st).catch(e => ({ url: u, strategy: st, error: e.message }))))),
+      (async () => {
+        const token = sessionStorage.getItem('gsc_access_token');
+        if (!token) return { note: 'chưa đăng nhập Google Search Console' };
+        let prop = '';
+        try { prop = await wstGetExactGscPropertyUrl(w.gscPropertyUrl || host); } catch (e) { prop = 'sc-domain:' + host.replace(/^www\./, ''); }
+        const out = { prop, insp: [], sitemaps: null };
+        try {
+          const r = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(prop)}/sitemaps`, { headers: { Authorization: 'Bearer ' + token } });
+          out.sitemaps = r.ok ? ((await r.json()).sitemap || []) : null;
+        } catch (e) {}
+        for (const u of samples.slice(0, 5)) {
+          try {
+            const rr = await fetch('/api/gsc-inspect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, siteUrl: prop, inspectionUrl: u }) });
+            const j = await rr.json().catch(() => ({}));
+            if (!rr.ok) { out.note = rr.status === 403 ? 'không có quyền property ' + prop : 'URL Inspection lỗi ' + rr.status; break; }
+            const st = (j.inspectionResult || {}).indexStatusResult || {};
+            out.insp.push({ url: u, verdict: st.verdict, coverage: st.coverageState });
+          } catch (e) { out.note = e.message; break; }
+        }
+        return out;
+      })(),
+      (async () => {
+        if (typeof wtApiKey === 'undefined' || !wtApiKey) return { note: 'chưa có Serper API key' };
+        try {
+          const root = host.replace(/^www\./, '');
+          const r = await fetch('https://google.serper.dev/search', { method: 'POST', headers: { 'X-API-KEY': wtApiKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q: `"${brand}" -site:${root}`, gl: 'vn', hl: 'vi', num: 10 }) });
+          const d = await r.json();
+          const org = (d.organic || []).filter(o => !String(o.link || '').includes(root));
+          return { brand, count: org.length, sites: [...new Set(org.map(o => { try { return new URL(o.link).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }).filter(Boolean))].slice(0, 8) };
+        } catch (e) { return { note: e.message }; }
+      })(),
+    ]);
+    progress('Đang chấm checklist…');
+    return { vps, psi, gsc, mention, host, sampleCount: samples.length, postCount: posts.length, aboutUrls: about };
+  }
+
+  // Chấm từng mục: ok / warn / fail / na  →  điểm = (ok 1 · warn 0.5 · fail 0) trung bình, bỏ mục na
+  function sxCheckupScore(raw) {
+    const v = raw.vps || {}, pages = (v.pages || []).filter(p => p.status === 200), home = pages[0] || {}, posts = pages.slice(1);
+    const items = [];
+    const add = (g, name, st, val, detail) => items.push({ g, name, st, val: String(val || ''), detail: String(detail || '') });
+    const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+    const ratio = (a, b) => b ? a / b : 0;
+    const n = pages.length, np = posts.length;
+    const dup = arr => { const c = {}; arr.filter(Boolean).forEach(x => { c[x] = (c[x] || 0) + 1; }); return Object.values(c).filter(k => k > 1).reduce((a, k) => a + k, 0); };
+
+    // 1. ON-PAGE
+    if (!n) add('On-page', 'Trang đọc được', 'fail', 'Không đọc được trang nào', 'VPS không tải được trang chủ / bài mẫu');
+    else {
+      const tMiss = pages.filter(p => !p.titleLen).length, tLong = pages.filter(p => p.titleLen > 65).length, tShort = pages.filter(p => p.titleLen && p.titleLen < 30).length, tDup = dup(pages.map(p => p.title));
+      add('On-page', 'Thẻ tiêu đề (Title)', tMiss ? 'fail' : ratio(tLong + tShort + tDup, n) > 0.3 ? 'warn' : 'ok',
+        `${n} trang: thiếu ${tMiss} · dài >65 ký tự ${tLong} · ngắn <30 ${tShort} · trùng ${tDup}`, pages.filter(p => p.titleLen > 65).slice(0, 3).map(p => `${p.titleLen} ký tự: ${p.title}`).join(' | '));
+      const dMiss = pages.filter(p => !p.descLen).length, dBad = pages.filter(p => p.descLen && (p.descLen < 70 || p.descLen > 160)).length, dDup = dup(pages.map(p => p.desc));
+      add('On-page', 'Mô tả (Meta description)', ratio(dMiss, n) > 0.3 ? 'fail' : (dMiss || ratio(dBad + dDup, n) > 0.3) ? 'warn' : 'ok',
+        `${n} trang: thiếu ${dMiss} · ngoài 70–160 ký tự ${dBad} · trùng ${dDup}`, pages.filter(p => !p.descLen).slice(0, 3).map(p => p.url).join(' | '));
+      const h1Bad = pages.filter(p => p.h1 !== 1);
+      add('On-page', 'Thẻ H1', ratio(h1Bad.length, n) > 0.3 ? 'fail' : h1Bad.length ? 'warn' : 'ok', `${h1Bad.length}/${n} trang không có đúng 1 thẻ H1`, h1Bad.slice(0, 3).map(p => `${p.h1} H1: ${p.url}`).join(' | '));
+      const hBad = posts.filter(p => !p.h2 || p.headingSkips);
+      add('On-page', 'Phân cấp heading H2, H3', ratio(hBad.length, np) > 0.3 ? 'warn' : 'ok',
+        `${hBad.length}/${np} bài không có H2 hoặc nhảy cấp (vd H1 → H3)`, hBad.slice(0, 3).map(p => `H2=${p.h2}, nhảy cấp ${p.headingSkips}: ${p.url}`).join(' | '));
+      const thin = posts.filter(p => p.words < 300);
+      add('On-page', 'Độ dài nội dung (≥ 300 từ)', ratio(thin.length, np) > 0.3 ? 'fail' : thin.length ? 'warn' : 'ok',
+        `${thin.length}/${np} bài dưới 300 từ · trung bình ${np ? Math.round(posts.reduce((a, p) => a + p.words, 0) / np) : 0} từ`, thin.slice(0, 3).map(p => `${p.words} từ: ${p.url}`).join(' | '));
+      const imgs = pages.reduce((a, p) => a + (p.images || 0), 0), noAlt = pages.reduce((a, p) => a + (p.imgNoAlt || 0), 0);
+      add('On-page', 'Ảnh có Alt text', !imgs ? 'na' : ratio(noAlt, imgs) > 0.3 ? 'fail' : noAlt ? 'warn' : 'ok', imgs ? `${noAlt}/${imgs} ảnh thiếu alt (${pct(noAlt, imgs)}%)` : 'Không thấy ảnh trong nội dung các trang mẫu', '');
+      const modern = pages.reduce((a, p) => a + (p.imgModern || 0), 0), heavy = (v.heavyImages || []).length;
+      add('On-page', 'Ảnh nhẹ & định dạng mới', !imgs ? 'na' : (heavy || ratio(modern, imgs) < 0.5) ? 'warn' : 'ok',
+        imgs ? `${heavy}/${v.imagesChecked || 0} ảnh > 200 KB · ${pct(modern, imgs)}% ảnh WebP/AVIF` : '—', (v.heavyImages || []).slice(0, 3).map(x => `${Math.round(x.size / 1024)} KB: ${x.url}`).join(' | '));
+    }
+
+    // 2. TECHNICAL
+    const ps = raw.psi || [], mob = ps.filter(x => x.strategy === 'mobile' && !x.error), desk = ps.filter(x => x.strategy === 'desktop' && !x.error);
+    const avg = (a, k) => a.length ? a.reduce((s, x) => s + (x[k] || 0), 0) / a.length : null;
+    if (!mob.length) add('Technical', 'Tốc độ tải trang (PageSpeed)', 'na', 'Không lấy được PageSpeed', (ps.find(x => x.error) || {}).error || '');
+    else {
+      const sm = Math.round(avg(mob, 'score')), sd = desk.length ? Math.round(avg(desk, 'score')) : null, lcp = avg(mob, 'lcp'), cls = avg(mob, 'cls');
+      add('Technical', 'Tốc độ tải trang (PageSpeed)', sm >= 90 ? 'ok' : sm >= 50 ? 'warn' : 'fail',
+        `Mobile ${sm}/100 · Desktop ${sd == null ? '—' : sd + '/100'} · LCP mobile ${lcp == null ? '—' : lcp.toFixed(1) + 's'} · CLS ${cls == null ? '—' : cls.toFixed(2)}`,
+        mob.map(x => `${x.score}/100 LCP ${x.lcp ? x.lcp.toFixed(1) : '—'}s${x.inp ? ' INP ' + x.inp + 'ms' : ''}: ${x.url}`).join(' | '));
+    }
+    const noVp = pages.filter(p => !p.viewport).length;
+    add('Technical', 'Hiển thị trên di động', noVp ? 'fail' : (mob.length && avg(mob, 'score') < 50) ? 'warn' : 'ok',
+      `${noVp}/${n} trang thiếu thẻ viewport${mob.length ? ' · điểm mobile ' + Math.round(avg(mob, 'score')) : ''}`, '');
+    const hs = v.https || {}, cert = hs.cert || {}, mixed = pages.reduce((a, p) => a + (p.mixed || 0), 0);
+    add('Technical', 'Bảo mật HTTPS', (!cert.ok || (cert.days != null && cert.days < 0) || !(hs.httpRedirect || {}).ok) ? 'fail' : ((cert.days != null && cert.days < 15) || mixed) ? 'warn' : 'ok',
+      `SSL ${cert.ok ? 'hợp lệ' : 'LỖI ' + (cert.error || '')}${cert.days != null ? ', còn ' + cert.days + ' ngày' : ''} · http→https ${(hs.httpRedirect || {}).ok ? 'có' : 'KHÔNG'} · tài nguyên http lẫn trong https ${mixed}`, cert.issuer || '');
+    const ww = hs.www || {};
+    add('Technical', 'Thống nhất www / không www', ww.ok === false ? 'fail' : 'ok', ww.ok === null ? `${ww.alt} không tồn tại (không cần chuyển)` : ww.ok ? `${ww.alt} → chuyển về domain chính` : `${ww.alt} KHÔNG chuyển về domain chính (HTTP ${ww.status || ww.error})`, '');
+    const ix = v.index || {}, rb = ix.robots || {}, sm = ix.sitemap || {};
+    add('Technical', 'Robots.txt', rb.blocksAll ? 'fail' : rb.status !== 200 ? 'warn' : (rb.sitemaps || []).length ? 'ok' : 'warn',
+      rb.blocksAll ? 'CHẶN toàn bộ site với Googlebot' : rb.status === 200 ? `Có · khai báo ${(rb.sitemaps || []).length} sitemap` : `Không có robots.txt (HTTP ${rb.status})`, '');
+    add('Technical', 'Sitemap.xml', !sm.urlCount ? 'fail' : sm.missingCount ? 'warn' : 'ok',
+      sm.urlCount ? `${sm.urlCount} URL trong sitemap · ${sm.missingCount || 0}/${sm.checkedLinks} bài KHÔNG có trong sitemap` : 'Không tìm thấy sitemap', (sm.missingSample || []).slice(0, 3).join(' | '));
+    const smp = (ix.samples || []).filter(x => x.status === 200);
+    const noidx = smp.filter(x => /noindex/i.test((x.metaRobots || '') + ' ' + (x.xRobots || '') + ' ' + (x.metaGooglebot || ''))).concat(/noindex/i.test(((ix.home || {}).metaRobots || '') + ((ix.home || {}).xRobots || '')) ? [{ url: 'trang chủ' }] : []);
+    add('Technical', 'Không bị chặn index (noindex)', noidx.length ? 'fail' : 'ok', `${noidx.length} trang mẫu có noindex`, noidx.slice(0, 3).map(x => x.url).join(' | '));
+    const canBad = smp.filter(x => x.canonicalSelf === false);
+    add('Technical', 'Canonical', ratio(canBad.length, smp.length) > 0.3 ? 'fail' : canBad.length ? 'warn' : 'ok', `${canBad.length}/${smp.length} bài mẫu canonical trỏ sang URL khác`, canBad.slice(0, 3).map(x => `${x.url} → ${x.canonical}`).join(' | '));
+    const g = raw.gsc || {};
+    if (!(g.insp || []).length) add('Technical', 'Google đã index (GSC)', 'na', g.note || 'Không kiểm được', '');
+    else {
+      const ok = g.insp.filter(x => x.verdict === 'PASS').length;
+      add('Technical', 'Google đã index (GSC)', ratio(ok, g.insp.length) < 0.5 ? 'fail' : ok < g.insp.length ? 'warn' : 'ok', `${ok}/${g.insp.length} bài mẫu đã index theo URL Inspection`,
+        g.insp.filter(x => x.verdict !== 'PASS').slice(0, 3).map(x => `${x.coverage || x.verdict}: ${x.url}`).join(' | '));
+    }
+    if (!g.sitemaps) add('Technical', 'Sitemap trên GSC', 'na', g.note || 'Không đọc được', '');
+    else {
+      const err = g.sitemaps.reduce((a, s) => a + Number(s.errors || 0), 0), wn = g.sitemaps.reduce((a, s) => a + Number(s.warnings || 0), 0);
+      add('Technical', 'Sitemap trên GSC', !g.sitemaps.length ? 'warn' : err ? 'fail' : wn ? 'warn' : 'ok',
+        g.sitemaps.length ? `${g.sitemaps.length} sitemap đã gửi · lỗi ${err} · cảnh báo ${wn}` : 'Chưa gửi sitemap nào lên GSC', g.sitemaps.slice(0, 3).map(s => `${s.path} (${s.lastDownloaded || 'chưa tải'})`).join(' | '));
+    }
+    const noSchema = posts.filter(p => !(p.schema || []).some(t => /Article|BlogPosting|NewsArticle/i.test(t)));
+    add('Technical', 'Dữ liệu có cấu trúc (schema)', ratio(noSchema.length, np) > 0.5 ? 'warn' : 'ok', `${noSchema.length}/${np} bài không có schema Article`, [...new Set([].concat(...pages.map(p => p.schema || [])))].slice(0, 8).join(', '));
+
+    // 3. OFF-PAGE
+    const so = v.socials || {};
+    add('Off-page', 'Kênh mạng xã hội gắn trên web', Object.keys(so).length ? 'ok' : 'warn', Object.keys(so).length ? Object.keys(so).join(', ') : 'Không thấy link mạng xã hội nào trên trang chủ', Object.values(so).flat().slice(0, 4).join(' | '));
+    const mn = raw.mention || {};
+    add('Off-page', 'Thương hiệu được nhắc trên web khác', mn.count == null ? 'na' : mn.count >= 3 ? 'ok' : 'warn',
+      mn.count == null ? (mn.note || 'Không kiểm được') : `${mn.count} kết quả Google nhắc "${mn.brand}" ngoài site`, (mn.sites || []).join(', '));
+    add('Off-page', 'Backlink', 'na', 'Chủ site chọn bỏ qua', '');
+
+    // 4. CẤU TRÚC & UX
+    const us = v.urls || {};
+    const uBad = (us.longCount || 0) + (us.upperCount || 0) + (us.underscoreCount || 0) + (us.encodedCount || 0);
+    add('Cấu trúc & UX', 'Cấu trúc URL', ratio(uBad, us.total) > 0.1 ? 'warn' : 'ok',
+      `${us.total || 0} URL: dài >75 ký tự ${us.longCount || 0} · chữ hoa ${us.upperCount || 0} · gạch dưới ${us.underscoreCount || 0} · ký tự mã hoá ${us.encodedCount || 0} · có ngày tháng ${us.datedCount || 0} · số tầng ${Object.entries(us.depth || {}).map(([k, c]) => k + ':' + c).join(' ')}`,
+      [].concat(us.long || [], us.encoded || []).slice(0, 3).join(' | '));
+    const bc = posts.filter(p => p.breadcrumb).length;
+    add('Cấu trúc & UX', 'Breadcrumb', !np ? 'na' : bc === np ? 'ok' : 'warn', `${bc}/${np} bài có breadcrumb`, '');
+    const il = ix.inlinks || {}, zeroOut = posts.filter(p => !p.linksInternal).length;
+    add('Cấu trúc & UX', 'Liên kết nội bộ', ratio(il.orphanCount || 0, il.totalLinks) > 0.5 ? 'fail' : (zeroOut || ratio(il.orphanCount || 0, il.totalLinks) > 0.2) ? 'warn' : 'ok',
+      `Trung bình ${np ? Math.round(posts.reduce((a, p) => a + p.linksInternal, 0) / np) : 0} link nội bộ/bài · ${zeroOut}/${np} bài không link đi đâu · ${il.orphanCount == null ? '—' : il.orphanCount + '/' + il.totalLinks} bài không có link nội bộ nào trỏ tới`, '');
+    const extMany = posts.filter(p => p.linksExternal > 20).length, ext = posts.reduce((a, p) => a + p.linksExternal, 0), nof = posts.reduce((a, p) => a + p.externalNofollow, 0);
+    add('Cấu trúc & UX', 'Liên kết ra ngoài', extMany ? 'warn' : 'ok', `Trung bình ${np ? (ext / np).toFixed(1) : 0} link ngoài/bài · ${pct(nof, ext)}% có nofollow/sponsored · ${extMany} bài > 20 link ngoài`,
+      [...new Set([].concat(...posts.map(p => p.externalHosts || [])))].slice(0, 8).join(', '));
+    const br = v.broken || [], brIn = br.filter(x => x.internal).length;
+    add('Cấu trúc & UX', 'Liên kết hỏng', brIn ? 'fail' : (br.length || v.badRedirectCount) ? 'warn' : 'ok',
+      `${br.length}/${v.linksChecked || 0} link hỏng (${brIn} nội bộ) · ${v.badRedirectCount || 0} link chuyển hướng bất thường · ${v.slowCount || 0} link không phản hồi (quá 10 giây)`,
+      br.slice(0, 4).map(x => `${x.status || x.error}: ${x.url} (trên ${(x.on || [])[0] || '?'})`).join(' | '));
+
+    const val = { ok: 1, warn: 0.5, fail: 0 };
+    const sc = arr => { const s = arr.filter(x => x.st !== 'na'); return s.length ? Math.round(s.reduce((a, x) => a + val[x.st], 0) / s.length * 100) : null; };
+    const groups = {};
+    CK_GROUPS.forEach(gname => { groups[gname] = sc(items.filter(x => x.g === gname)); });
+    const score = sc(items) || 0;
+    const text = CK_GROUPS.map(gname => `### ${gname} (${groups[gname] == null ? '—' : groups[gname] + '/100'})\n` +
+      items.filter(x => x.g === gname).map(x => `- ${CK_ICON[x.st]} ${x.name}: ${x.val}${x.detail ? ' — ' + x.detail : ''}`).join('\n')).join('\n\n');
+    const about = [`TRANG CHỦ (${(raw.vps || {}).homeTitle || ''}): ${(raw.vps || {}).homeText || ''}`]
+      .concat(((raw.vps || {}).about || []).filter(a => a.text).map(a => `TRANG GIỚI THIỆU ${a.url} (${a.title}): ${a.text}`)).join('\n\n');
+    return { items, groups, score, text: `Website: ${raw.host} · ${raw.postCount} bài · khám ${raw.sampleCount} bài mẫu + trang chủ\n\n` + text, about };
+  }
+
   async function sxDiagnose(wsId, progress) {
     const w = websites.find(x => x.id === wsId);
     if (!w) throw new Error('Không tìm thấy website');
@@ -577,14 +781,15 @@
     panel.dataset.sxWs = String(wsId);
     panel.style.padding = '0';
     const cid = 'ws' + String(wsId).replace(/\D/g, '');
-    const s = { busy: false, diag: null, integ: {}, answers: {}, type: '', step: 0, mode: 'loading' };
+    const s = { busy: false, diag: null, checkup: null, integ: {}, answers: {}, type: '', step: 0, mode: 'loading' };
     panel.innerHTML = `<div class="sx-site">
       <div class="sx-site-head">
         <div class="sx-site-t">🧠 Chuyên gia SEO phụ trách site này <span class="sx-sub sx-site-sub"></span></div>
         <div class="sx-head-actions">
           <button class="sx-btn sx-prof" hidden title="Xem / sửa hồ sơ và báo cáo tích hợp đã xác nhận">🧩 Hồ sơ tích hợp</button>
           <button class="sx-btn sx-btn-primary sx-planbtn" hidden title="Bước 2: lập kế hoạch nội dung từ file Keyword Planner, khung = hồ sơ tích hợp">📐 Lập kế hoạch</button>
-          <button class="sx-btn sx-diag" title="Đọc robots.txt, sitemap, noindex, canonical, link nội bộ, Google URL Inspection của các bài chưa index">🔎 Chẩn đoán index</button>
+          <button class="sx-btn sx-btn-primary sx-checkbtn" hidden title="Web cũ: khám sức khỏe SEO theo checklist → chuyên gia viết bệnh án">🩺 Khám bệnh</button>
+          <button class="sx-btn sx-diag" hidden title="Đọc robots.txt, sitemap, noindex, canonical, link nội bộ, Google URL Inspection của các bài chưa index">🔎 Chẩn đoán index</button>
           <button class="sx-btn sx-ctx">📋 Dữ liệu chuyên gia đọc</button>
           <button class="sx-btn sx-reset" hidden title="Xoá tin nhắn của site này (giữ hồ sơ tích hợp và báo cáo chẩn đoán)">🗑 Làm mới</button>
         </div>
@@ -631,7 +836,9 @@
       integBar.querySelector('.sx-integ-link').onclick = e => { e.preventDefault(); if (s.busy) return; inReview ? enterChat() : renderReview(); };
     }
     const setHeadButtons = () => {
-      q('.sx-prof').hidden = !unlocked(); q('.sx-planbtn').hidden = !unlocked();
+      q('.sx-prof').hidden = !unlocked();
+      q('.sx-planbtn').hidden = !unlocked() || isOldSite();      // web cũ: 📐 Lập kế hoạch → 🩺 Khám bệnh (chủ site chốt 29/9)
+      q('.sx-checkbtn').hidden = !unlocked() || !isOldSite();
       q('.sx-reset').hidden = !(unlocked() && s.mode === 'chat');
       if (s.mode !== 'plan' && s.planTimer) { clearInterval(s.planTimer); s.planTimer = null; }
       showIntegBar();
@@ -976,10 +1183,98 @@
       ctxBox.hidden = false; ctxBox.textContent = 'Đang gom dữ liệu…';
       ctxBox.textContent = ((await sxSiteContext(wsId)).text || 'Không tìm thấy dữ liệu site.') +
         (unlocked() ? `\n\n(+ Hồ sơ tích hợp đã xác nhận lúc ${s.integ.confirmed_at} — xem bằng nút 🧩 Hồ sơ tích hợp)` : '\n\n(Chưa có hồ sơ tích hợp)') +
-        (s.diag ? `\n(+ Báo cáo chẩn đoán index lúc ${s.diag.at} — xem ở thanh 🔎 phía trên)` : '');
+        (s.checkup ? `\n(+ Bệnh án khám lúc ${s.checkup.at}, điểm ${s.checkup.score}/100${s.checkup.status === 'confirmed' ? ' — chuyên gia đang dùng' : ' — CHƯA xác nhận, chuyên gia chưa dùng'})`
+          : s.diag ? `\n(+ Báo cáo chẩn đoán index lúc ${s.diag.at} — xem ở thanh 🔎 phía trên)` : '');
     };
     q('.sx-prof').onclick = () => { if (!s.busy) renderReview(); };
     q('.sx-planbtn').onclick = () => { if (!s.busy) renderPlan(); };
+
+    // ══ 🩺 KHÁM BỆNH (web cũ — thay 📐 Lập kế hoạch, gộp luôn 🔎 Chẩn đoán index) ══
+    function isOldSite() { return ['nhan301', 'dangchay', 'muallai'].includes((s.integ && s.integ.type) || s.type); }
+    const scoreCol = v => v == null ? '#8b949e' : v >= 80 ? '#3fb950' : v >= 50 ? '#d29922' : '#f85149';
+    function showCheckupBar() {
+      const ck = s.checkup;
+      if (!ck) return showDiagBar();
+      diagBar.hidden = false;
+      diagBar.innerHTML = `🩺 Khám bệnh gần nhất: <b>${esc(ck.at)}</b> · điểm <b style="color:${scoreCol(ck.score)}">${ck.score}/100</b> · ${ck.status === 'confirmed'
+        ? '<span class="sx-ok">chuyên gia đang dùng bệnh án này</span>' : '<span class="sx-warn">chưa xác nhận</span>'} · <a href="#" class="sx-ck-view">Xem bệnh án</a>`;
+      diagBar.querySelector('.sx-ck-view').onclick = e => { e.preventDefault(); if (!s.busy) renderCheckup(); };
+    }
+
+    function renderCheckup() {
+      s.mode = 'checkup'; setHeadButtons();
+      if (s.checkup && s.checkup.report) return drawCheckup();
+      msgs.innerHTML = `<div class="sx-report"><div class="sx-report-h">🩺 Khám bệnh website</div>
+        <div class="sx-msg-ai sx-report-body" style="line-height:1.6">
+          Tool quét website từ bên ngoài (không đăng nhập WordPress) theo checklist chuẩn SEO, chấm từng mục ✅ / ⚠️ / ❌, rồi chuyên gia viết <b>bệnh án</b>: tình trạng, chủ đề website, các bệnh theo mức độ, phác đồ điều trị.
+          <ul>
+            <li><b>On-page</b> (trang chủ + 30 bài mới nhất): Title, Meta description, H1–H3, độ dài nội dung, ảnh (alt, dung lượng, định dạng)</li>
+            <li><b>Technical</b>: tốc độ PageSpeed (mobile + desktop), hiển thị di động, HTTPS, www, robots.txt, sitemap, noindex, canonical, Google đã index (GSC), sitemap trên GSC, schema</li>
+            <li><b>Off-page</b>: kênh mạng xã hội gắn trên web, thương hiệu được nhắc trên web khác (backlink: bỏ qua)</li>
+            <li><b>Cấu trúc & UX</b>: URL, breadcrumb, liên kết nội bộ, liên kết ra ngoài, liên kết hỏng</li>
+            <li>Chuyên gia đọc <b>trang chủ + trang giới thiệu</b> để hiểu chủ đề website (dùng cho bước lập kế hoạch sau)</li>
+          </ul>
+          <div class="sx-sub">Chi phí mỗi lần: Serper 1 credit (nhắc thương hiệu) · PageSpeed miễn phí · chuyên gia viết bệnh án bằng model rẻ (flash-lite, vài chục đồng). Mất khoảng 1–2 phút.</div>
+        </div></div>`;
+      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button></div>
+        <div class="sx-nav-r"><span class="sx-sub sx-ckmsg"></span><button class="sx-btn sx-btn-primary sx-ckrun">▶ Bắt đầu khám</button></div>`);
+      bar.querySelector('.sx-tochat').onclick = enterChat;
+      bar.querySelector('.sx-ckrun').onclick = runCheckup;
+    }
+
+    async function runCheckup() {
+      if (s.busy) return;
+      s.busy = true;
+      const setMsg = t => { const m = bar.querySelector('.sx-ckmsg'); if (m) m.textContent = t; showDiagBar('⏳ ' + t); };
+      const rb = bar.querySelector('.sx-ckrun'); if (rb) rb.disabled = true;
+      msgs.innerHTML = '<div class="sx-thinking">🩺 Đang khám…</div>';
+      try {
+        const raw = await sxCheckup(wsId, t => { setMsg(t); const th = msgs.querySelector('.sx-thinking'); if (th) th.textContent = '🩺 ' + t; });
+        const sc = sxCheckupScore(raw);
+        setMsg('Chuyên gia đang viết bệnh án…');
+        const th = msgs.querySelector('.sx-thinking'); if (th) th.textContent = '🩺 Chuyên gia đang viết bệnh án…';
+        s.checkup = await api('checkup/' + cid, { method: 'POST', body: JSON.stringify({ site_title: await title(), checklist: sc.text, about: sc.about,
+          score: sc.score, items: sc.items, groups: sc.groups }) });
+        s.busy = false;
+        drawCheckup();
+      } catch (e) {
+        s.busy = false;
+        msgs.innerHTML = `<div class="sx-err">⚠️ Khám lỗi: ${esc(e.message)}</div>`;
+        setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button></div><div class="sx-nav-r"><span class="sx-sub sx-ckmsg"></span><button class="sx-btn sx-btn-primary sx-ckrun">↻ Khám lại</button></div>`);
+        bar.querySelector('.sx-tochat').onclick = enterChat;
+        bar.querySelector('.sx-ckrun').onclick = runCheckup;
+        showCheckupBar();
+      }
+    }
+
+    function drawCheckup() {
+      const ck = s.checkup, items = ck.items || [], gs = ck.groups || {};
+      const gcard = (label, v) => `<div style="flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 12px">
+        <div style="font-size:11px;color:#8b949e">${esc(label)}</div><div style="font-size:22px;font-weight:700;color:${scoreCol(v)}">${v == null ? '—' : v + '/100'}</div></div>`;
+      msgs.innerHTML = `<div class="sx-report">
+        <div class="sx-report-h">🩺 Bệnh án · khám lúc ${esc(ck.at)}${ck.status === 'confirmed' ? ' · <span class="sx-ok">✅ xác nhận ' + esc(ck.confirmed_at || '') + '</span>' : ''}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0">${gcard('Điểm sức khỏe', ck.score)}${CK_GROUPS.map(g => gcard(g, gs[g])).join('')}</div>
+        ${items.length ? `<details ${ck.status === 'confirmed' ? '' : 'open'} style="margin:6px 0"><summary style="cursor:pointer;font-weight:700">📋 Checklist (${items.filter(x => x.st === 'fail').length} lỗi · ${items.filter(x => x.st === 'warn').length} cảnh báo · ${items.filter(x => x.st === 'ok').length} đạt)</summary>
+          <div class="sx-msg-ai sx-report-body"><table><thead><tr><th>Nhóm</th><th></th><th>Mục kiểm tra</th><th>Kết quả</th><th>Chi tiết</th></tr></thead><tbody>
+          ${items.map(x => `<tr><td>${esc(x.g)}</td><td>${CK_ICON[x.st]}</td><td><b>${esc(x.name)}</b></td><td>${esc(x.val)}</td><td style="font-size:11.5px;color:#8b949e;word-break:break-all">${esc(x.detail)}</td></tr>`).join('')}
+          </tbody></table></div></details>` : ''}
+        <div class="sx-msg-ai sx-report-body">${renderMd(ck.report || '', [])}</div>
+      </div>`;
+      msgs.scrollTop = 0;
+      setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button><button class="sx-btn sx-ckrun">🩺 Khám lại</button></div>
+        <div class="sx-nav-r"><span class="sx-sub sx-ckmsg"></span>${ck.status === 'confirmed' ? '<span class="sx-ok">✅ Chuyên gia đang dùng bệnh án này</span>'
+          : '<button class="sx-btn sx-btn-primary sx-ckok" title="Đưa bệnh án vào hồ sơ gốc — chuyên gia dựa vào đây để tư vấn điều trị">✅ Xác nhận bệnh án</button>'}</div>`);
+      bar.querySelector('.sx-tochat').onclick = enterChat;
+      bar.querySelector('.sx-ckrun').onclick = () => { if (confirm('Khám lại website? (bệnh án hiện tại được lưu để so sánh)')) runCheckup(); };
+      const ok = bar.querySelector('.sx-ckok');
+      if (ok) ok.onclick = async () => {
+        ok.disabled = true;
+        try { s.checkup = await api('checkupconfirm/' + cid, { method: 'POST', body: '{}' }); drawCheckup(); showCheckupBar(); }
+        catch (e) { bar.querySelector('.sx-ckmsg').textContent = '⚠️ ' + e.message; ok.disabled = false; }
+      };
+      showCheckupBar();
+    }
+    q('.sx-checkbtn').onclick = () => { if (!s.busy) renderCheckup(); };
 
     // ══ BƯỚC 2 · LẬP KẾ HOẠCH TỪ KHÓA (khung = hồ sơ tích hợp; server: seo_expert_plan.py) ══
     const PLAN_COLS = [['STT', 'stt', 6], ['Tháng', 'month', 7], ['Mốc lộ trình', 'milestone', 14], ['Nguồn', 'src', 22],
@@ -1483,6 +1778,7 @@
       try {
         const c = await api('chats/' + cid);
         if (c.diagnosis && c.diagnosis.text) { s.diag = c.diagnosis; showDiagBar(); }
+        if (c.checkup && c.checkup.report) { s.checkup = c.checkup; showCheckupBar(); }
         s.integ = c.integration || {};
       } catch (e) { s.integ = {}; }
       s.type = s.integ.type || '';

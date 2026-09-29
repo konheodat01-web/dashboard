@@ -313,6 +313,21 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── POST /api/site-checkup → KHÁM BỆNH website (checklist chuẩn SEO từ bên ngoài, lib/site_checkup.js) ──
+  // Body {domain, urls:[≤30 bài mẫu], all_links:[mọi bài], about:[≤3 trang giới thiệu]}. Dùng cho 🩺 Khám bệnh (seo_expert.js).
+  if (req.method === "POST" && url === "/api/site-checkup") {
+    try {
+      const input = JSON.parse((await readBody(req)) || "{}");
+      const out = await require("./lib/site_checkup").run(input, getLevel1Auth);
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(out));
+    } catch (e) {
+      res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // ── GET /api/wp-posts?domain=&type=&per_page= ────────────────────────────
   // Proxy lay danh sach bai viet tu WordPress REST. Fetch tu VPS nen qua duoc
   // lop bao mat chan IP la cua cac site .fashion/.io/.health.
