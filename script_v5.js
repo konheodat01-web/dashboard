@@ -4058,6 +4058,67 @@ function wstBrandHtml(w) {
   return w?.brand || '';
 }
 
+// ══ TÍCH XANH XÁC MINH (như Facebook) ══ — w.gscVerified = true khi tool ghi nhận xác minh GSC thành công.
+// Web gốc mới / web 301 mới: chưa có tích cho tới khi xác minh GSC thành công qua tool (Thêm GSC).
+function wstVerifiedBadge(w) {
+  if (!w || !w.gscVerified) return '';
+  return `<span title="Đã xác minh Google Search Console${w.gscVerifiedAt ? ' · ' + w.gscVerifiedAt : ''}" style="display:inline-flex;vertical-align:-2px;margin-left:4px">` +
+    `<svg width="13" height="13" viewBox="0 0 24 24" aria-label="Đã xác minh"><circle cx="12" cy="12" r="12" fill="#1877f2"/>` +
+    `<path d="M7 12.5l3.2 3.2L17.2 8.7" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+}
+const wstRootHost = u => wstNormalizeUrl(u).replace(/^www\./, '').replace(/\/.*$/, '');
+// Gắn tích cho mọi bản ghi website có domain này. Trả về số bản ghi vừa được gắn.
+function wstMarkGscVerified(domain, save = true) {
+  const d = wstRootHost(domain);
+  if (!d) return 0;
+  let n = 0;
+  websites.forEach(x => {
+    if (!x.gscVerified && wstRootHost(x.url) === d) { x.gscVerified = true; x.gscVerifiedAt = todayVN(); n++; }
+  });
+  if (n && save) { saveAppData(); if (typeof renderWsTrack === 'function') renderWsTrack(); }
+  return n;
+}
+
+// Dữ liệu cũ (chạy 1 lần, chủ site chốt 30/9/2026): mọi web 301 hiện có = đã xác minh;
+// web gốc = đối chiếu danh sách property ĐÃ xác minh trong tài khoản GSC đang đăng nhập (cần token).
+async function wstGscVerifiedBackfill() {
+  if (typeof _settings === 'undefined' || !Array.isArray(websites) || !websites.length) return;
+  let changed = false;
+  if (!_settings.gscTick301Done) {
+    websites.forEach(x => { if (x.is301 && !x.gscVerified) { x.gscVerified = true; x.gscVerifiedAt = todayVN(); } });
+    _settings.gscTick301Done = todayVN();
+    changed = true;
+  }
+  const token = sessionStorage.getItem('gsc_access_token');
+  if (!_settings.gscTickRootDone && token) {
+    try {
+      const r = await fetch('https://www.googleapis.com/webmasters/v3/sites', { headers: { Authorization: 'Bearer ' + token } });
+      if (r.ok) {
+        const entries = ((await r.json()).siteEntry || []).filter(e => e.permissionLevel && e.permissionLevel !== 'siteUnverifiedUser');
+        const prefix = new Set(), domainProps = [];
+        entries.forEach(e => { const h = wstRootHost(e.siteUrl); if (/^sc-domain:/i.test(e.siteUrl)) domainProps.push(h); else prefix.add(h); });
+        websites.forEach(x => {
+          if (x.is301 || x.gscVerified) return;
+          const h = wstRootHost(x.url);
+          if (h && (prefix.has(h) || domainProps.some(dp => h === dp || h.endsWith('.' + dp)))) { x.gscVerified = true; x.gscVerifiedAt = todayVN(); }
+        });
+        _settings.gscTickRootDone = todayVN() + ' · ' + (sessionStorage.getItem('gsc_user_email') || '');
+        changed = true;
+      }
+    } catch (e) { console.warn('[tích xanh] không đọc được danh sách GSC', e); }
+  }
+  if (changed) {
+    try { localStorage.setItem('wt_settings', JSON.stringify(_settings)); } catch (e) {}
+    saveAppData();
+    if (typeof renderWsTrack === 'function') renderWsTrack();
+  }
+}
+// chạy sau khi dữ liệu Firebase về (tránh ghi đè dữ liệu cũ lên Firebase)
+(async () => {
+  for (let i = 0; i < 240 && !window._fbDataLoaded; i++) await new Promise(r => setTimeout(r, 500));
+  if (window._fbDataLoaded) setTimeout(wstGscVerifiedBackfill, 3000);
+})();
+
 function wstUrlHtml(w, fallbackColor) {
   if (!w) return '';
   const url = w.url || '';
@@ -4418,7 +4479,7 @@ function renderWsTrack(){
           return `<div style="display:flex;align-items:center;gap:6px">
             <button onclick="wstShowWebInfo(${dW.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${dW.brand}">${WS_STATUS_ICON[dW.status]||'🌐'}</button>
             <div style="min-width:0">
-              <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wstBrandHtml(dW)}</div>
+              <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wstBrandHtml(dW)}${wstVerifiedBadge(dW)}</div>
               <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${wstUrlHtml(dW)}</div>
               <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px">
                 <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
@@ -4434,7 +4495,7 @@ function renderWsTrack(){
           return `<div style="display:flex;align-items:center;gap:6px">
             <button onclick="wstShowWebInfo(${w.id})" style="font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;line-height:1" title="Xem thông tin ${w.brand}">${WS_STATUS_ICON[w.status]||'🌐'}</button>
             <div style="min-width:0">
-              <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wstBrandHtml(w)}</div>
+              <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${wstBrandHtml(w)}${wstVerifiedBadge(w)}</div>
               <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${wstUrlHtml(w)}</div>
               <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px">
                 <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
@@ -11475,6 +11536,7 @@ async function wstGscPopupLogin(pendingState) {
     if (result.user && result.user.email) sessionStorage.setItem('gsc_user_email', result.user.email);
     if (typeof _wstGscSitesMemo !== 'undefined') _wstGscSitesMemo = null;
     wstSetGscBadge('done');
+    if (typeof wstGscVerifiedBackfill === 'function') wstGscVerifiedBackfill();   // lần đầu có token: đối chiếu tích xanh web gốc
     return tk;
   } catch (e) {
     if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
@@ -14163,6 +14225,7 @@ async function wstGetGscHtmlCodesBulk() {
             </div>
           `;
         }
+        wstMarkGscVerified(domainText);             // tích xanh xác minh
         
         // Đánh dấu nút xác minh là đã thành công
         const verifyBtn = cols[2]?.querySelector('button');
@@ -14396,6 +14459,7 @@ async function wstVerifyIndividualGsc(btn, domain) {
     // Case 1: Xác minh thành công
     const data = await res.json();
     toast('✅ Xác minh thành công! Đã thêm tài sản vào GSC.', '#27ae60', 3000);
+    wstMarkGscVerified(domain);                     // tích xanh xác minh
     btn.disabled = true;
     btn.style.background = '#1f6feb';
     btn.style.borderColor = '#388bfd';
