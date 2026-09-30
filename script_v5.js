@@ -15758,6 +15758,10 @@ function wstCancelRedirect301(cmdId) {
   const site = getWstSite(_wst301ActiveSiteId);
   if (!site || !site.redirectCommands) return;
 
+  // Huỷ = CHỈ rút lệnh này khỏi chuỗi. Chốt cứng Source của mọi lệnh trước khi xoá để lệnh liền sau
+  // vẫn giữ nguyên Source cũ (lệnh cũ chưa lưu source thì trước đây bị tính lại theo lệnh liền trước).
+  const srcMap = wst301SourceMap(site, websites.find(x => x.id === _wst301ActiveSiteId));
+  site.redirectCommands.forEach(c => { if (!c.source) c.source = srcMap[c.id]; });
   site.redirectCommands = site.redirectCommands.filter(c => c.id !== cmdId);
   saveWsTrack(_wst301ActiveSiteId);
   wstRenderRedirect301Table();
