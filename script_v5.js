@@ -7066,7 +7066,7 @@ function showWebsiteInfo(w, found, url=''){
             <option value="Tốt">✅ Tốt</option>
             <option value="Chờ cấp lại mật khẩu">🔒 Chờ cấp lại mật khẩu</option>
             <option value="Lỗi web">⚠️ Lỗi web</option>
-            <option value="CMB">🤖 CMB (đang cấu hình bot, chưa vận hành)</option>
+            <option value="CMB">🤖 CMB</option>
           </select>
         </div>
         <button class="btn btn-primary" onclick="saveWebsiteFromPopup()">&#43; Thêm vào danh sách</button>
@@ -7220,7 +7220,7 @@ function goEditWebsite(){
           <option value="Tốt" ${w.status==='Tốt'?'selected':''}>✅ Tốt</option>
           <option value="Chờ cấp lại mật khẩu" ${w.status==='Chờ cấp lại mật khẩu'?'selected':''}>🔒 Chờ cấp lại mật khẩu</option>
           <option value="Lỗi web" ${w.status==='Lỗi web'?'selected':''}>⚠️ Lỗi web</option>
-          <option value="CMB" ${w.status==='CMB'?'selected':''}>🤖 CMB (đang cấu hình bot, chưa vận hành)</option>
+          <option value="CMB" ${w.status==='CMB'?'selected':''}>🤖 CMB</option>
         </select>
       </div>
 
