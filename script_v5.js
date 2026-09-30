@@ -93,8 +93,15 @@ function hasPermission(permKey) {
   return !!staff.permissions[permKey];
 }
 
-const WS_STATUS_COLOR = {'Tốt':'#27ae60','Chờ cấp lại mật khẩu':'#e67e22','Lỗi web':'#e74c3c'};
-const WS_STATUS_ICON  = {'Tốt':'✅','Chờ cấp lại mật khẩu':'🔒','Lỗi web':'⚠️'};
+const WS_STATUS_COLOR = {'Tốt':'#27ae60','Chờ cấp lại mật khẩu':'#e67e22','Lỗi web':'#e74c3c','CMB':'#8250df'};
+const WS_STATUS_ICON  = {'Tốt':'✅','Chờ cấp lại mật khẩu':'🔒','Lỗi web':'⚠️','CMB':'🤖'};
+// CMB = website đang cấu hình bot Google thu thập dữ liệu, CHƯA vận hành -> tab Theo dõi web KHÔNG tốn API:
+// rank ghi "CMB", index = ❌, GSC không đồng bộ, không check index bài. Xét trạng thái của bản ghi 301 HIỆN TẠI (site đang chạy).
+function wstIsCMB(w){
+  if (!w) return false;
+  const cur = (typeof wstCurrent301Site === 'function') ? wstCurrent301Site(w) : w;
+  return ((cur && cur.status) || w.status) === 'CMB';
+}
 const LOAI_CONFIG_DEFAULT = {
   'Tinh Gọn':      {price: 14000, color: 'red'},
   'Chỉ Viết':      {price:  4000, color: 'blue'},
@@ -2820,8 +2827,8 @@ async function wstCheckSelectedSites(){
   if (!wtApiKey){ if(typeof toast==='function') toast('Chưa có Serper API Key — thiết lập trước','#e74c3c'); return; }
   var ids = Array.from(_wstSelected || []);
   var sites = ids.map(function(id){ return websites.find(function(w){ return w.id === id; }); })
-                 .filter(function(w){ return w && !w.is301; });
-  if (!sites.length){ if(typeof toast==='function') toast('Chưa tick site nào','#e74c3c'); return; }
+                 .filter(function(w){ return w && !w.is301 && !wstIsCMB(w); });   // bỏ site CMB
+  if (!sites.length){ if(typeof toast==='function') toast('Chưa tick site nào (site CMB được bỏ qua)','#e74c3c'); return; }
   if (!confirm('Check index cho ' + sites.length + ' site đã chọn bằng Serper?\nMỗi bài ~1 credit. Còn ' + wtSerperCredits + ' credit. Kết quả cache 24h.')) return;
 
   _wstScanAbort = false;
@@ -2846,7 +2853,7 @@ async function wstCheckSelectedSites(){
 async function wstScanNotIndexed(){
   if (!wtApiKey){ if(typeof toast==='function') toast('Chưa có Serper API Key — thiết lập trước','#e74c3c'); return; }
   var sites = siteTracking.map(function(st){ return websites.find(function(w){ return w.id === st.wsId; }); })
-                          .filter(function(w){ return w && !w.is301; });
+                          .filter(function(w){ return w && !w.is301 && !wstIsCMB(w); });   // bỏ site CMB
   if (!sites.length){ if(typeof toast==='function') toast('Chưa theo dõi website nào','#e74c3c'); return; }
   if (!confirm('Check index cho ' + sites.length + ' website bằng Serper?\nMỗi bài tốn ~1 credit. Còn ' + wtSerperCredits + ' credit. Kết quả cache 24h.')) return;
 
@@ -3524,6 +3531,7 @@ async function wstFetchRank(wsId) {
   // Từ khóa tìm kiếm mặc định lấy theo w.brand (của web gốc)
   const keyword = (site && site.mainKeyword) ? site.mainKeyword : (w ? w.brand : '');
   
+  if(w && wstIsCMB(w)) return {cmb: true, keyword, rank: 'CMB'};   // đang cấu hình bot -> không tốn API
   if(!w || !keyword) return {error: "Chua c\u00f3 t\u1eeb kh\u00f3a", keyword: ''};
   if(!wtApiKey) return {error: "Chua c\u00f3 API Key", keyword};
 
@@ -3658,7 +3666,7 @@ async function wstBulkCheckRank() {
   allTrackedWs.forEach(w => {
     if(!getWstSite(w.id)) siteTracking.push({wsId: w.id, entries: []});
   });
-  const targets = allTrackedWs.filter(w => {
+  const targets = allTrackedWs.filter(w => !wstIsCMB(w)).filter(w => {   // bỏ site CMB: không tốn API check rank
     let targetW = w;
     if(!w.is301) {
       const kids = websites.filter(x=>x.is301&&x.sourceUrl&&((x.sourceUrl===w.url||x.sourceUrl===(w.url||'').replace(/\/$/,'')) || (x.sourceUrl===w.brand)));
@@ -4159,7 +4167,7 @@ function renderWsTrack(){
     }
 
     // Advanced Filter: Status of web
-    if(fStatus && w.status !== fStatus) return false;
+    if(fStatus === 'CMB' ? !wstIsCMB(w) : (fStatus && w.status !== fStatus)) return false;
 
     // Advanced Filter: GSC Connection Status
     if(fGsc) {
@@ -4487,9 +4495,10 @@ function renderWsTrack(){
         `;
       })()}
       <td id="rank_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600">
-        ${!last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank)}
+        ${wstIsCMB(w) ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(130,80,223,.15);color:#a371f7;font-weight:700" title="Đang cấu hình bot Google thu thập dữ liệu — chưa vận hành, không check rank">CMB</span>'
+          : !last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank)}
       </td>
-      <td id="index_td_${w.id}" style="padding:8px 4px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="Trạng thái: ${lastIndexedVal || 'Chưa kiểm tra'}${lastIndexedDate ? `\nNgày check: ${lastIndexedDate}` : ''}\n(Click để check index tự động bằng Serper/GSC)">${indexIcon}</td>
+      <td id="index_td_${w.id}" style="padding:8px 4px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="${wstIsCMB(w) ? 'CMB — đang cấu hình bot, chưa vận hành: index mặc định ❌, không check' : `Trạng thái: ${lastIndexedVal || 'Chưa kiểm tra'}${lastIndexedDate ? `\nNgày check: ${lastIndexedDate}` : ''}\n(Click để check index tự động bằng Serper/GSC)`}">${wstIsCMB(w) ? '❌' : indexIcon}</td>
       ${(() => {
         const cache = (typeof _gscCache !== 'undefined' ? _gscCache[w.id] : null) || {};
         const gscDate = cache.syncedAt || '';
@@ -7057,6 +7066,7 @@ function showWebsiteInfo(w, found, url=''){
             <option value="Tốt">✅ Tốt</option>
             <option value="Chờ cấp lại mật khẩu">🔒 Chờ cấp lại mật khẩu</option>
             <option value="Lỗi web">⚠️ Lỗi web</option>
+            <option value="CMB">🤖 CMB (đang cấu hình bot, chưa vận hành)</option>
           </select>
         </div>
         <button class="btn btn-primary" onclick="saveWebsiteFromPopup()">&#43; Thêm vào danh sách</button>
@@ -7210,6 +7220,7 @@ function goEditWebsite(){
           <option value="Tốt" ${w.status==='Tốt'?'selected':''}>✅ Tốt</option>
           <option value="Chờ cấp lại mật khẩu" ${w.status==='Chờ cấp lại mật khẩu'?'selected':''}>🔒 Chờ cấp lại mật khẩu</option>
           <option value="Lỗi web" ${w.status==='Lỗi web'?'selected':''}>⚠️ Lỗi web</option>
+          <option value="CMB" ${w.status==='CMB'?'selected':''}>🤖 CMB (đang cấu hình bot, chưa vận hành)</option>
         </select>
       </div>
 
@@ -7435,7 +7446,7 @@ function wsSetStatusFilter(val){
   // Update pill active states
   const pills = {
     'wsPillAll': '', 'wsPillTot': 'Tốt',
-    'wsPillMK': 'Chờ cấp lại mật khẩu', 'wsPillLoi': 'Lỗi web'
+    'wsPillMK': 'Chờ cấp lại mật khẩu', 'wsPillLoi': 'Lỗi web', 'wsPillCmb': 'CMB'
   };
   Object.entries(pills).forEach(([id, v])=>{
     const btn = document.getElementById(id);
@@ -7454,6 +7465,7 @@ function wsUpdatePillCounts(fullList){
   set('wsCntTot', cnt('Tốt'));
   set('wsCntMK',  cnt('Chờ cấp lại mật khẩu'));
   set('wsCntLoi', cnt('Lỗi web'));
+  set('wsCntCmb', cnt('CMB'));
 }
 
 function wsVidcoCopy(id, btn){
@@ -9499,7 +9511,7 @@ function qi_parseUrl(){
   const t=qi_parsedTasks[0];
   // Render URL preview with ws recognition
   const STATUSES={
-    '✅':'Tốt','⚠️':'Lỗi web','🔒':'Chờ cấp lại mật khẩu','🔍':'Chưa có trong kho'
+    '✅':'Tốt','⚠️':'Lỗi web','🔒':'Chờ cấp lại mật khẩu','🤖':'CMB','🔍':'Chưa có trong kho'
   };
   const grouped={};
   t.cards.forEach(card=>{
@@ -11529,7 +11541,7 @@ async function wstSyncGscRealtime(token, force = false) {
     }
 
     // Bước 2: Lấy tất cả website đang tracking, dùng URL 301 hiện tại để match
-    const trackedWs = siteTracking.map(s => websites.find(w => w.id === s.wsId)).filter(Boolean);
+    const trackedWs = siteTracking.map(s => websites.find(w => w.id === s.wsId)).filter(Boolean).filter(w => !wstIsCMB(w));   // CMB: không cào GSC
 
     const allDomains = trackedWs.map(w => {
       // Tìm URL 301 mới nhất (con 301 cuối cùng), nếu không có thì dùng URL gốc
@@ -13820,6 +13832,7 @@ async function wstCheckIndexStatus(wsId) {
   const w = websites.find(x => x.id === wsId);
   const site = getWstSite(wsId);
   if (!w || !site) return;
+  if (wstIsCMB(w)) { if (typeof toast === 'function') toast('Site CMB (đang cấu hình bot) — không check index', '#8250df'); return; }
 
   // Hiển thị trạng thái đang check (loading)
   const td = document.getElementById(`index_td_${wsId}`);
