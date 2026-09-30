@@ -15444,7 +15444,7 @@ function wst301AskDest() {
   const ov = document.createElement('div');
   ov.id = 'wst301TplOverlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;padding:16px';
-  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  // chỉ đóng bằng nút (click ra ngoài KHÔNG đóng)
   ov.innerHTML = `<div style="width:100%;max-width:420px;background:#161b22;border:1px solid #30363d;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.7)">
     <div style="padding:12px 16px;border-bottom:1px solid #21262d;font-weight:700;color:#f0f6fc">📝 Mẫu 301 — website đích (C)</div>
     <div style="padding:14px 16px">
@@ -15478,7 +15478,7 @@ function wst301OpenTemplate() {
   const ov = document.createElement('div');
   ov.id = 'wst301TplOverlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;padding:16px';
-  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  // chỉ đóng bằng nút (click ra ngoài KHÔNG đóng)
   const tpl = d && WST_301_TEMPLATES[d.team];
   const teamName = typeof getTeamLabel === 'function' ? getTeamLabel(d ? d.team : '') : '';
   const sel = 'background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 8px;font-size:13px';
@@ -15497,7 +15497,7 @@ function wst301OpenTemplate() {
     <div style="padding:14px 16px">${body}</div>
     <div style="padding:10px 16px;border-top:1px solid #21262d;display:flex;justify-content:flex-end;gap:8px">
       <button class="btn btn-outline btn-sm" onclick="document.getElementById('wst301TplOverlay').remove()">Đóng</button>
-      ${tpl && !d.empty ? '<button class="btn btn-sm" id="wst301TplCopy" style="background:#238636;color:#fff;border:none">📋 Copy</button>' : ''}
+      ${tpl && !d.empty ? '<button class="btn btn-sm" id="wst301TplCreate" style="background:#238636;color:#fff;border:none" title="Tạo lệnh 301 tới C (đưa vào hàng chờ Đang 301) — giống nút Tạo lệnh 301 ở ngoài">Tạo lệnh 301</button><button class="btn btn-sm" id="wst301TplCopy" style="background:#1f6feb;color:#fff;border:none">📋 Copy</button>' : ''}
     </div></div>`;
   document.body.appendChild(ov);
   if (!tpl || d.empty) return;
@@ -15507,6 +15507,15 @@ function wst301OpenTemplate() {
   };
   document.getElementById('wst301TplBot').onchange = paint;
   document.getElementById('wst301TplVi').onchange = paint;
+  document.getElementById('wst301TplCreate').onclick = () => {
+    const site = getWstSite(_wst301ActiveSiteId);
+    const before = ((site && site.redirectCommands) || []).length;
+    wstCreateRedirect301();                         // dùng C đang nằm ở ô "Nhập website đích"
+    if (((site && site.redirectCommands) || []).length > before) {
+      toast('✓ Đã tạo lệnh 301 tới ' + d.C + ' (Đang 301)', '#27ae60');
+      document.getElementById('wst301TplOverlay').remove();
+    }
+  };
   document.getElementById('wst301TplCopy').onclick = () => {
     navigator.clipboard.writeText(document.getElementById('wst301TplText').textContent).then(() => toast('✓ Đã copy mẫu 301', '#27ae60'));
   };
