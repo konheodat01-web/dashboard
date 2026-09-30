@@ -15414,6 +15414,19 @@ function wstCloseRedirect301Modal() {
   _wst301ActiveSiteId = null;
 }
 
+// Source của từng lệnh 301 = site ĐANG CHẠY ngay trước lệnh đó = đích của lệnh liền trước (lệnh đầu tiên = website gốc).
+// Lệnh tạo từ 30/9/2026 lưu sẵn cmd.source lúc tạo; lệnh cũ tính lại theo thứ tự tạo.
+function wst301SourceMap(site, w) {
+  const out = {};
+  let prev = (w && w.url) || '';
+  ((site && site.redirectCommands) || []).forEach(c => { out[c.id] = c.source || prev; prev = c.destUrl || prev; });
+  return out;
+}
+function wst301NextSource(site, w) {
+  const cmds = (site && site.redirectCommands) || [];
+  return cmds.length ? (cmds[cmds.length - 1].destUrl || '') : ((w && w.url) || '');
+}
+
 function wstRenderRedirect301Table() {
   const tbody = document.getElementById('wst301TableBody');
   if (!tbody || !_wst301ActiveSiteId) return;
@@ -15433,11 +15446,7 @@ function wstRenderRedirect301Table() {
   }
 
   const siteUrlGoc = w.url || '—';
-  
-  // FIX: Sửa lỗi ReferenceError bằng cách tự lọc trực tiếp link 301 tại đây
-  const kids = websites.filter(x => x.is301 && x.sourceUrl && (x.sourceUrl === w.url || x.sourceUrl === (w.url || '').replace(/\/$/, '')));
-  const latest301 = kids.length ? kids[kids.length-1] : null;
-  const siteSourceUrl = latest301 ? (latest301.url || latest301.sourceUrl) : siteUrlGoc;
+  const srcMap = wst301SourceMap(site, w);
 
   tbody.innerHTML = redirectCmds.map(cmd => {
     const isRunning = cmd.status === 'Đang 301';
@@ -15447,7 +15456,7 @@ function wstRenderRedirect301Table() {
     return '<tr style="border-bottom:1px solid #30363d;">' +
       '<td style="padding:10px;">' + cmd.createdAt + '</td>' +
       '<td style="padding:10px;word-break:break-all;">' + siteUrlGoc + '</td>' +
-      '<td style="padding:10px;word-break:break-all;">' + siteSourceUrl + '</td>' +
+      '<td style="padding:10px;word-break:break-all;">' + String(srcMap[cmd.id] || '—').replace(/^https?:\/\//, '').replace(/\/$/, '') + '</td>' +
       '<td style="padding:10px;word-break:break-all;"><a href="' + cmd.destUrl + '" target="_blank" style="color:var(--blue);text-decoration:none;">' + cmd.destUrl + '</a></td>' +
       '<td style="padding:10px;text-align:center;">' +
         '<span style="padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';">' +
@@ -15489,6 +15498,7 @@ function wstCreateRedirect301() {
     id: Date.now() + Math.random().toString(36).substr(2, 9),
     createdAt: now.toLocaleString('vi-VN'),
     dateText: now.getDate() + '/' + (now.getMonth() + 1),
+    source: wst301NextSource(site, websites.find(x => x.id === _wst301ActiveSiteId)),
     destUrl: destUrl,
     status: 'Đang 301'
   };
@@ -15672,6 +15682,7 @@ function wstSubmitBulk301() {
           id: Date.now() + Math.random().toString(36).substr(2, 9),
           createdAt: now.toLocaleString('vi-VN'),
           dateText: now.getDate() + '/' + (now.getMonth() + 1),
+          source: wst301NextSource(site, websites.find(x => x.id === wsId)),
           destUrl: destUrl,
           status: 'Đang 301'
         };
