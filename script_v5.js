@@ -15429,9 +15429,9 @@ function wst301TemplateData(wsId) {
   const srcMap = wst301SourceMap(site, w);
   const typed = wst301Host((document.getElementById('wst301DestUrl') || {}).value);
   const chain = cmds.map(c => srcMap[c.id]);                   // nguồn của từng lệnh, cũ -> mới
-  let C;
-  if (typed) { C = typed; chain.push(wst301NextSource(site, w)); }
-  else { if (!cmds.length) return { empty: true }; C = cmds[cmds.length - 1].destUrl; }
+  if (!typed) return { needC: true, team: w.team || 'Team 01' };   // mẫu dùng cho lệnh SẮP tạo -> bắt buộc có C
+  const C = typed;
+  chain.push(wst301NextSource(site, w));                          // site đang chạy hiện tại = B mới nhất
   const A = wst301Host(w.url);
   const seen = new Set([A.toLowerCase(), wst301Host(C).toLowerCase()]);
   const B = [];
@@ -15439,10 +15439,42 @@ function wst301TemplateData(wsId) {
   return { A, B, C: wst301Host(C), src: B.length ? B[B.length - 1] : A, team: w.team || 'Team 01' };
 }
 
+// Hỏi website đích (C) trước khi vào mẫu; điền luôn vào ô "Nhập website đích" để bấm Tạo lệnh 301 ngay sau đó
+function wst301AskDest() {
+  const ov = document.createElement('div');
+  ov.id = 'wst301TplOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div style="width:100%;max-width:420px;background:#161b22;border:1px solid #30363d;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.7)">
+    <div style="padding:12px 16px;border-bottom:1px solid #21262d;font-weight:700;color:#f0f6fc">📝 Mẫu 301 — website đích (C)</div>
+    <div style="padding:14px 16px">
+      <input id="wst301AskC" placeholder="vd: site-moi.com" style="width:100%;box-sizing:border-box;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px 10px;font-size:13px">
+      <div id="wst301AskErr" style="color:#f85149;font-size:12px;margin-top:6px;min-height:14px"></div>
+    </div>
+    <div style="padding:10px 16px;border-top:1px solid #21262d;display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('wst301TplOverlay').remove()">Huỷ</button>
+      <button class="btn btn-sm" id="wst301AskGo" style="background:#238636;color:#fff;border:none">Tiếp →</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const inp = document.getElementById('wst301AskC');
+  const go = () => {
+    const v = wst301Host(inp.value);
+    if (!v || !/^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(v)) { document.getElementById('wst301AskErr').textContent = 'Nhập website đích hợp lệ (vd: site-moi.com)'; inp.focus(); return; }
+    const dest = document.getElementById('wst301DestUrl');
+    if (dest) dest.value = v;
+    ov.remove();
+    wst301OpenTemplate();
+  };
+  document.getElementById('wst301AskGo').onclick = go;
+  inp.onkeydown = e => { if (e.key === 'Enter') go(); };
+  inp.focus();
+}
+
 function wst301OpenTemplate() {
   const d = wst301TemplateData(_wst301ActiveSiteId);
   const old = document.getElementById('wst301TplOverlay');
   if (old) old.remove();
+  if (d && d.needC && WST_301_TEMPLATES[d.team]) return wst301AskDest();
   const ov = document.createElement('div');
   ov.id = 'wst301TplOverlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;padding:16px';
