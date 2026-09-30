@@ -15488,7 +15488,7 @@ function wst301OpenTemplate() {
   else if (d.empty) body = '<div style="color:#8b949e">Site chưa có lệnh 301 nào — nhập website đích ở ô "Tạo Lệnh 301 Mới" để lấy mẫu cho lệnh sắp tạo.</div>';
   else body = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <select id="wst301TplBot" style="${sel}"><option value="">— Bot —</option><option>Đóng bot</option><option>Mở bot</option></select>
+      <select id="wst301TplBot" style="${sel}"><option value="">— Bot —</option><option>Đóng bot</option><option selected>Mở bot</option></select>
       <select id="wst301TplVi" style="${sel}"><option value="">— vi-vn —</option><option>Set vi-vn</option><option>Gỡ vi-vn</option><option>Không set vi-vn</option></select>
     </div>
     <pre id="wst301TplText" style="white-space:pre-wrap;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;font-size:13px;color:#e6edf3;margin:0;font-family:inherit"></pre>`;
