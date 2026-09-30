@@ -197,10 +197,10 @@
           ${box('📁 Theo danh mục', `<table style="width:100%;font-size:12px"><tr style="color:#8b949e"><td style="padding:3px 6px">Danh mục</td><td style="padding:3px 6px;text-align:right">Tổng</td><td style="padding:3px 6px;text-align:right">Đã đăng</td><td style="padding:3px 6px;text-align:right">Index</td><td style="padding:3px 6px;text-align:right">Chưa đăng</td></tr>${bs}</table>`)}
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <input class="cm-q" value="${esc(s.f.q)}" placeholder="🔍 Từ khóa / tiêu đề / URL / nhãn…" style="${inp};width:220px">
+          <input class="cm-q" value="${esc(s.f.q)}" placeholder="🔍 Từ khóa / tiêu đề / URL / danh mục con…" style="${inp};width:220px">
           <select class="cm-f" data-k="silo" style="${inp}">${opt(silos, s.f.silo, 'Tất cả danh mục')}</select>
           <select class="cm-f" data-k="st" style="${inp}"><option value="">Tất cả trạng thái</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${s.f.st === k ? 'selected' : ''}>${x[0]}</option>`).join('')}<option value="indexed" ${s.f.st === 'indexed' ? 'selected' : ''}>✅ Đã index</option><option value="notindexed" ${s.f.st === 'notindexed' ? 'selected' : ''}>🚫 Chưa index</option></select>
-          <select class="cm-f" data-k="label" style="${inp}">${opt(labels, s.f.label, 'Tất cả nhãn')}</select>
+          <select class="cm-f" data-k="label" style="${inp}">${opt(labels, s.f.label, 'Tất cả danh mục con')}</select>
           <select class="cm-f" data-k="month" style="${inp}">${opt(months, s.f.month, 'Tất cả tháng')}</select>
           <select class="cm-f" data-k="src" style="${inp}"><option value="">Mọi nguồn</option><option value="site" ${s.f.src === 'site' ? 'selected' : ''}>Có trên web</option><option value="plan" ${s.f.src === 'plan' ? 'selected' : ''}>Từ kế hoạch</option><option value="deleted" ${s.f.src === 'deleted' ? 'selected' : ''}>Đã xoá trên web</option></select>
           <span style="font-size:12px;color:#8b949e">${num(list.length)} bài</span>
@@ -214,7 +214,7 @@
           <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead style="position:sticky;top:0;background:#161b22"><tr style="color:#8b949e;text-align:left">
               <th style="padding:6px"><input type="checkbox" class="cm-all"></th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Tiêu đề / URL</th>
-              <th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Nhãn</th><th style="padding:6px">Tháng</th>
+              <th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Tháng</th>
               <th style="padding:6px">Trạng thái</th><th style="padding:6px">Index</th><th style="padding:6px">Đăng / sửa</th><th style="padding:6px"></th></tr></thead>
             <tbody>${shown.map(it => rowHtml(it, silos)).join('') || '<tr><td colspan="11" style="padding:14px;color:#8b949e;text-align:center">Không có bài nào</td></tr>'}</tbody>
           </table>
@@ -264,7 +264,7 @@
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
             <input class="im-q" value="${esc(F.q)}" placeholder="🔍 Từ khóa…" style="${inp};width:200px">
             <select class="im-f" data-k="silo" style="${inp}">${opt(silos, F.silo, 'Tất cả danh mục')}</select>
-            <select class="im-f" data-k="label" style="${inp}">${opt(labels, F.label, 'Tất cả nhãn')}</select>
+            <select class="im-f" data-k="label" style="${inp}">${opt(labels, F.label, 'Tất cả danh mục con')}</select>
             <select class="im-f" data-k="month" style="${inp}">${opt(months, F.month, 'Tất cả tháng')}</select>
             <button data-a="imall" style="${btn()}">☑ Chọn tất cả theo lọc (${vs.length})</button><button data-a="imnone" style="${btn()}">Bỏ chọn</button>
             <span style="font-size:12px;color:#8b949e">Đã chọn ${F.sel.size}</span>
@@ -272,7 +272,7 @@
           </div>
           <div style="overflow:auto;border:1px solid #30363d;border-radius:8px;max-height:60vh">
             <table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:#161b22"><tr style="color:#8b949e;text-align:left">
-              <th style="padding:6px"></th><th style="padding:6px">STT</th><th style="padding:6px">Tháng</th><th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Nhãn</th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Từ phụ</th><th style="padding:6px">TK cụm</th></tr></thead>
+              <th style="padding:6px"></th><th style="padding:6px">STT</th><th style="padding:6px">Tháng</th><th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Từ phụ</th><th style="padding:6px">TK cụm</th></tr></thead>
               <tbody>${vs.slice(0, 500).map(r => `<tr data-row="${esc(r.id)}" style="border-top:1px solid #21262d"><td style="padding:4px 6px"><input type="checkbox" class="im-sel" ${F.sel.has(r.id) ? 'checked' : ''}></td>
                 <td style="padding:4px 6px;color:#8b949e">${r.stt}</td><td style="padding:4px 6px">T${r.month}</td><td style="padding:4px 6px">${esc(r.silo)}</td><td style="padding:4px 6px">${esc(r.role)}</td><td style="padding:4px 6px">${esc(r.label || '')}</td>
                 <td style="padding:4px 6px;font-weight:600">${esc(r.main)}</td><td style="padding:4px 6px;color:#8b949e">${(r.child || []).length}</td><td style="padding:4px 6px">${num(r.vol)}</td></tr>`).join('')}</tbody></table>
@@ -384,7 +384,7 @@
             return draw(true);
           }
           case 'sync':
-            if (!confirm(`Cập nhật ${s.v.plan_changed.length} bài theo kế hoạch mới (từ khóa, từ phụ, danh mục, nhãn, tháng)?`)) return;
+            if (!confirm(`Cập nhật ${s.v.plan_changed.length} bài theo kế hoạch mới (từ khóa, từ phụ, danh mục, danh mục con, tháng)?`)) return;
             s.v = await post('contentsync/' + cid, { ids: s.v.plan_changed });
             s.busy = '✓ Đã cập nhật theo kế hoạch'; return draw(true);
           case 'cfsave': {
@@ -401,6 +401,8 @@
             const st = typeof getWstSite === 'function' ? getWstSite(wsId) : null;
             const brand = (st && st.mainKeyword) || w.brand;
             const qs = ['site=' + encodeURIComponent(domain()), 'brand=' + encodeURIComponent(brand), 'kw=' + encodeURIComponent(it.keyword), 'sec=' + encodeURIComponent((it.child || []).join(', '))];
+            const catPath = (it.silo || '') + (it.silo && it.label && !/^Hãng khác/i.test(it.label) ? ' > ' + it.label : '');
+            if (catPath) qs.push('cat=' + encodeURIComponent(catPath));   // SEO Writer gán cả danh mục cha và con
             const frag = [];
             if (s301 && s301.account) frag.push('wpu=' + encodeURIComponent(s301.account));
             if (s301 && s301.appwppass) frag.push('wpp=' + encodeURIComponent(s301.appwppass));

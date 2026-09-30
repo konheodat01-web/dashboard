@@ -1300,7 +1300,7 @@
 
     // ══ BƯỚC 2 · LẬP KẾ HOẠCH TỪ KHÓA (khung = hồ sơ tích hợp; server: seo_expert_plan.py) ══
     const PLAN_COLS = [['STT', 'stt', 6], ['Tháng', 'month', 7], ['Mốc lộ trình', 'milestone', 14], ['Nguồn', 'src', 22],
-      ['Danh mục', 'silo', 20], ['Vai trò', 'role', 9], ['Nhãn (hãng)', 'label', 16], ['Dạng bài', 'type', 20],
+      ['Danh mục', 'silo', 20], ['Vai trò', 'role', 9], ['Danh mục con', 'label', 16], ['Dạng bài', 'type', 20],
       ['Từ khóa chính', 'main', 32], ['Từ khóa phụ (→ H2/H3)', 'child', 60], ['Tổng lượng TK cụm/tháng', 'vol', 12],
       ['Lượng TK từ khóa chính', 'main_vol', 11], ['Số từ khóa', 'n', 8], ['Search intent', 'intent', 11], ['Link về trụ cột', 'pillar', 32],
       ['Đối thủ trong hồ sơ đang top', 'comp', 26], ['Ghi chú', 'note', 50], ['Mã cụm', 'cid', 9], ['Trạng thái', null, 12], ['URL sau khi đăng', null, 30]];
@@ -1435,7 +1435,7 @@
         <td style="width:50px"><input type="number" min="1" class="sx-ed" data-f="month" value="${esc(r.month)}" style="${edIn}"></td>
         <td style="width:140px"><select class="sx-mv" data-f="silo" style="${edSel}">${opt(planSilos(p), r.silo)}</select></td>
         <td style="width:120px"><select class="sx-mv" data-f="base" style="${edSel}">${opt(planBasesOf(p, r.silo), base)}</select></td>
-        <td style="width:120px"><input class="sx-ed" data-f="label" value="${esc(r.label || '')}" placeholder="—" list="sx-dl-lv2" style="${edIn}" title="Nhãn để lọc (vd hãng) — không phải danh mục"></td>
+        <td style="width:120px"><input class="sx-ed" data-f="label" value="${esc(r.label || '')}" placeholder="—" list="sx-dl-lv2" style="${edIn}" title="Danh mục con (vd hãng) — khi viết bài sẽ đăng vào Danh mục > Danh mục con"></td>
         <td style="width:130px"><input class="sx-ed" data-f="type" list="sx-dl-type" value="${esc(r.type)}" style="${edIn}"></td>
         <td><input class="sx-ed" data-f="main" value="${esc(r.main)}" style="${edIn};font-weight:700"></td>
         <td style="width:62px;white-space:nowrap"><a href="#" data-a="kids" class="sx-sub" title="Xem / sửa từ khóa phụ">${s.kidsOpen.has(r.id) ? '▾' : '▸'} ${kids.length}</a></td>
@@ -1469,7 +1469,7 @@
       const box = msgs.querySelector('.sx-ptable');
       if (!box) return;
       const p = s.plan, list = planFiltered(p), shown = list.slice(0, s.pf.limit);
-      box.innerHTML = `<table style="width:100%"><thead><tr><th><input type="checkbox" class="sx-pselall" title="Chọn tất cả bài theo bộ lọc (chưa import)"></th><th>STT</th><th>Tháng</th><th>Danh mục</th><th>Vai trò</th><th>Nhãn (hãng)</th><th>Dạng bài</th><th>Từ khóa chính</th><th>Từ phụ</th><th>TK cụm</th><th>Ghi chú</th><th></th></tr></thead>
+      box.innerHTML = `<table style="width:100%"><thead><tr><th><input type="checkbox" class="sx-pselall" title="Chọn tất cả bài theo bộ lọc (chưa import)"></th><th>STT</th><th>Tháng</th><th>Danh mục</th><th>Vai trò</th><th>Danh mục con</th><th>Dạng bài</th><th>Từ khóa chính</th><th>Từ phụ</th><th>TK cụm</th><th>Ghi chú</th><th></th></tr></thead>
         <tbody>${shown.map(r => planRowHtml(r, p)).join('') || '<tr><td colspan="12" class="sx-sub">Không có bài nào khớp bộ lọc</td></tr>'}</tbody></table>
         ${list.length > shown.length ? `<div style="margin:8px 0"><button data-a="more" style="${btnA}">Hiện thêm ${Math.min(200, list.length - shown.length)} bài (${shown.length}/${list.length})</button></div>` : ''}`;
       const info = msgs.querySelector('.sx-pf-info');
@@ -1618,16 +1618,16 @@
           <datalist id="sx-dl-main">${rows.map(r => `<option value="${esc(r.main)}">#${r.stt} · ${esc(r.silo)}</option>`).join('')}</datalist>
           <datalist id="sx-dl-lv2">${lv2s.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-            <input class="sx-pf-q" value="${esc(f.q)}" placeholder="🔍 Lọc từ khóa chính / phụ / nhãn / ghi chú…" style="${edSel};width:260px">
+            <input class="sx-pf-q" value="${esc(f.q)}" placeholder="🔍 Lọc từ khóa chính / phụ / danh mục con / ghi chú…" style="${edSel};width:260px">
             <select class="sx-pf-silo" style="${edSel};width:auto">${opt(silos, f.silo, 'Tất cả danh mục')}</select>
-            <select class="sx-pf-sub" style="${edSel};width:auto">${opt(labelsIn, f.sub, 'Tất cả nhãn')}</select>
+            <select class="sx-pf-sub" style="${edSel};width:auto">${opt(labelsIn, f.sub, 'Tất cả danh mục con')}</select>
             <button data-a="addrow-top" style="${btnA}">＋ Thêm bài</button>
             <button data-a="sortmonth" style="${btnA}" title="Sắp lại toàn bộ theo cột Tháng (giữ thứ tự trong cùng tháng)">↕ Sắp theo tháng</button>
             <button data-a="toimport" style="${btnA};background:#1f6feb;border-color:#1f6feb;color:#fff" title="Chọn bài ở cột ☑ rồi import sang tab ✍️ Nội dung (kiểm tra trùng với bài có sẵn trên web trước)">📥 Import vào Quản lý nội dung (0)</button>
             <button data-a="struct" style="${btnA};${f.struct ? 'border-color:#58a6ff' : ''}">🗂 Quản lý danh mục</button>
             <span class="sx-sub sx-pf-info"></span>
           </div>
-          <div class="sx-sub" style="margin-bottom:6px">Sửa ô rồi Enter / bấm ra ngoài là lưu · đổi Danh mục / Vai trò là chuyển bài · Nhãn chỉ để lọc · ▸ Từ phụ: ⭐ đặt làm từ khóa chính, ✕ bỏ · 🔗 gộp bài thành từ phụ của bài khác</div>
+          <div class="sx-sub" style="margin-bottom:6px">Sửa ô rồi Enter / bấm ra ngoài là lưu · đổi Danh mục / Vai trò là chuyển bài · ▸ Từ phụ: ⭐ đặt làm từ khóa chính, ✕ bỏ · 🔗 gộp bài thành từ phụ của bài khác</div>
           ${f.struct ? planStructHtml(p) : ''}
           <div class="sx-msg-ai sx-report-body sx-ptable"></div>`}
       </div>`;
