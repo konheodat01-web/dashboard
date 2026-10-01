@@ -1476,6 +1476,8 @@
       if (info) info.textContent = `${num(list.length)}/${num((p.rows || []).length)} bài · ${num(s.imported.size)} đã import`;
       const ib = msgs.querySelector('[data-a="toimport"]');
       if (ib) { ib.textContent = `📥 Import vào Quản lý nội dung (${s.psel.size})`; ib.disabled = !s.psel.size; }
+      const db = msgs.querySelector('[data-a="delsel"]');
+      if (db) { db.textContent = `🗑 Xoá đã chọn (${s.psel.size})`; db.disabled = !s.psel.size; }
     }
 
     // ---------- 🗂 QUẢN LÝ DANH MỤC (cấu trúc) ----------
@@ -1624,6 +1626,7 @@
             <button data-a="addrow-top" style="${btnA}">＋ Thêm bài</button>
             <button data-a="sortmonth" style="${btnA}" title="Sắp lại toàn bộ theo cột Tháng (giữ thứ tự trong cùng tháng)">↕ Sắp theo tháng</button>
             <button data-a="toimport" style="${btnA};background:#1f6feb;border-color:#1f6feb;color:#fff" title="Chọn bài ở cột ☑ rồi import sang tab ✍️ Nội dung (kiểm tra trùng với bài có sẵn trên web trước)">📥 Import vào Quản lý nội dung (0)</button>
+            <button data-a="delsel" style="${btnA};background:#f85149;border-color:#f85149;color:#fff" title="Chọn bài ở cột ☑ rồi xoá hàng loạt khỏi kế hoạch">🗑 Xoá đã chọn (0)</button>
             <button data-a="struct" style="${btnA};${f.struct ? 'border-color:#58a6ff' : ''}">🗂 Quản lý danh mục</button>
             <span class="sx-sub sx-pf-info"></span>
           </div>
@@ -1658,7 +1661,11 @@
         else if (e.target.classList.contains('sx-addkid')) {
           e.preventDefault();
           const r = rowOf(e.target), kw = e.target.value.trim();
-          if (r && kw) planOp({ op: 'addchild', id: r.id, kw });
+          if (r && kw) planOp({ op: 'addchild', id: r.id, kw }).then(ok => {
+            // redraw sau khi lưu xoá/tạo lại input này -> mất focus, gõ từ phụ TIẾP THEO ngay sau đó
+            // rơi vào khoảng không (đây là lý do user báo "không thêm được") -> focus lại đúng ô.
+            if (ok) { const again = root.querySelector(`tr[data-id="${r.id}"] .sx-addkid`); if (again) again.focus(); }
+          });
         } else if (e.target.classList.contains('sx-in-merge')) { e.preventDefault(); root.querySelector('[data-a="merge-ok"]').click(); }
       });
       root.addEventListener('change', e => {
@@ -1674,6 +1681,8 @@
           t.checked ? s.psel.add(rr.id) : s.psel.delete(rr.id);
           const ib = msgs.querySelector('[data-a="toimport"]');
           if (ib) { ib.textContent = `📥 Import vào Quản lý nội dung (${s.psel.size})`; ib.disabled = !s.psel.size; }
+          const db = msgs.querySelector('[data-a="delsel"]');
+          if (db) { db.textContent = `🗑 Xoá đã chọn (${s.psel.size})`; db.disabled = !s.psel.size; }
           return;
         }
         const r = rowOf(t);
@@ -1708,6 +1717,13 @@
             if (!s.psel.size) { alert('Tick chọn bài ở cột ☑ trước'); return; }
             if (typeof cmOpenImport !== 'function') { alert('Chưa tải được Quản lý nội dung — tải lại trang (Ctrl+F5)'); return; }
             return cmOpenImport(wsId, [...s.psel]);
+          }
+          case 'delsel': {
+            if (!s.psel.size) { alert('Tick chọn bài ở cột ☑ trước'); return; }
+            if (!confirm(`Xoá ${s.psel.size} bài đã chọn khỏi kế hoạch?`)) return;
+            const ok = await planOp({ op: 'delrows', ids: [...s.psel] });
+            if (ok) s.psel.clear();
+            return;
           }
           case 'struct': s.pf.struct = !s.pf.struct; return drawPlanDone();
           case 'sortmonth': if (confirm('Sắp lại toàn bộ bài theo cột Tháng?')) planOp({ op: 'sortmonth' }); return;
