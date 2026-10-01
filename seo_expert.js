@@ -1661,10 +1661,14 @@
         else if (e.target.classList.contains('sx-addkid')) {
           e.preventDefault();
           const r = rowOf(e.target), kw = e.target.value.trim();
-          if (r && kw) planOp({ op: 'addchild', id: r.id, kw }).then(ok => {
-            // redraw sau khi lưu xoá/tạo lại input này -> mất focus, gõ từ phụ TIẾP THEO ngay sau đó
-            // rơi vào khoảng không (đây là lý do user báo "không thêm được") -> focus lại đúng ô.
-            if (ok) { const again = root.querySelector(`tr[data-id="${r.id}"] .sx-addkid`); if (again) again.focus(); }
+          // (1/10) redraw NHẸ (chỉ vẽ lại bảng, giống hệt cách sx-ed đã làm ổn định — planOp(...,false))
+          // thay vì drawPlanDone() mặc định (vẽ lại CẢ panel -> cuộn nhảy lên đầu, đúng thứ user báo
+          // "load lại 1 phát rồi nhảy lên đầu" khiến tưởng không lưu được dù dữ liệu đã lưu đúng).
+          if (r && kw) planOp({ op: 'addchild', id: r.id, kw }, false).then(ok => {
+            if (ok) {
+              drawPlanTable();
+              const again = root.querySelector(`tr[data-id="${r.id}"] .sx-addkid`); if (again) again.focus();
+            }
           });
         } else if (e.target.classList.contains('sx-in-merge')) { e.preventDefault(); root.querySelector('[data-a="merge-ok"]').click(); }
       });
@@ -1731,7 +1735,7 @@
           case 'setmain':
             if (confirm(`Đặt "${el.dataset.kw}" làm TỪ KHÓA CHÍNH?\n"${r.main}" sẽ chuyển thành từ khóa phụ.`)) planOp({ op: 'setmain', id: r.id, kw: el.dataset.kw });
             return;
-          case 'delchild': return planOp({ op: 'delchild', id: r.id, kw: el.dataset.kw });
+          case 'delchild': { const okd = await planOp({ op: 'delchild', id: r.id, kw: el.dataset.kw }, false); if (okd) drawPlanTable(); return; }
           case 'merge': s.inline = { id: r.id, kind: 'merge' }; drawPlanTable(); { const i = msgs.querySelector('.sx-in-merge'); if (i) i.focus(); } return;
           case 'inline-x': s.inline = null; return drawPlanTable();
           case 'merge-ok': {
