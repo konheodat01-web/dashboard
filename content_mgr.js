@@ -8,9 +8,9 @@
  */
 (function () {
   const API = '/api/sw-expert/';
-  const ST = {                                        // trạng thái bài
-    plan: ['Kế hoạch', '#8b949e'], writing: ['Đang viết', '#d29922'], published: ['Đã đăng', '#58a6ff'],
-    optimize: ['Cần tối ưu', '#db6d28'], dropped: ['Bỏ', '#6e7681']
+  const ST = {                                        // trạng thái bài — mỗi trạng thái 1 màu riêng, không trùng
+    plan: ['Kế hoạch', '#8b949e'], writing: ['Đang viết', '#d29922'], awaiting_images: ['Chờ ảnh', '#bc8cff'],
+    published: ['Đã đăng', '#58a6ff'], optimize: ['Cần tối ưu', '#db6d28'], dropped: ['Bỏ', '#6e7681']
   };
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const num = n => (Number(n) || 0).toLocaleString('vi-VN');
@@ -226,8 +226,9 @@
 
     // bài đã chọn viết được = có từ khóa + chưa có trên web (giống điều kiện nút ✍️ Viết từng dòng)
     function writable() { return (s.v.items || []).filter(x => s.sel.has(x.id) && x.keyword && !x.wp_id && !x.deleted); }
-    // (1/10) "Chờ ảnh": đã đăng (status published) nhưng SEO Writer chưa báo có ảnh (img_done=false) + có sẵn sw_article_id (id bài thật bên SEO Writer để mở đúng) — bài cũ chưa từng qua luồng này sẽ không có field này nên không tự hiện nhầm.
-    function needsImg(it) { return it.status === 'published' && it.img_done === false && !!it.sw_article_id; }
+    // (1/10) "Chờ ảnh": trạng thái RIÊNG (khong phai badge phu canh "Da dang") - da dang WP
+    // nhung SEO Writer Tool chua bao co anh; chi chuyen sang "Da dang" THAT SU khi anh xong.
+    function needsImg(it) { return it.status === 'awaiting_images' && !!it.sw_article_id; }
     const catPathOf = it => (it.silo || '') + (it.silo && it.label && !/^Hãng khác/i.test(it.label) ? ' > ' + it.label : '');
     // URL SEO Writer: site/brand (+ extra query) qua query; creds của bản ghi 301 + rows qua FRAGMENT (không lên server)
     // "Dạng bài" kế hoạch (tự do theo từng site, vd "Review chuyên sâu", "Tổng hợp / Xếp hạng")
@@ -268,7 +269,7 @@
         <td style="padding:5px 6px">${esc(it.role || (it.wp_type === 'page' ? 'Trang' : ''))}</td>
         <td style="padding:5px 6px">${esc(it.label || '')}</td>
         <td style="padding:5px 6px">${it.month ? 'T' + it.month : ''}</td>
-        <td style="padding:5px 6px"><select class="cm-st" style="${inp};padding:2px 4px;color:${st[1]}">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select>${needsImg(it) ? '<div style="font-size:10.5px;color:#d29922;margin-top:2px">🖼️ Chờ ảnh</div>' : ''}</td>
+        <td style="padding:5px 6px"><select class="cm-st" style="${inp};padding:2px 4px;color:${st[1]}">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select></td>
         <td style="padding:5px 6px;text-align:center">${ix}</td>
         <td style="padding:5px 6px;white-space:nowrap;color:#8b949e">${esc(String(it.date || '').slice(0, 10))}${it.modified && it.modified.slice(0, 10) !== String(it.date || '').slice(0, 10) ? '<br>sửa ' + esc(it.modified.slice(0, 10)) : ''}</td>
         <td style="padding:5px 6px;white-space:nowrap">${it.keyword && !it.wp_id ? `<button data-a="write" style="${btn('padding:3px 8px;background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer điền sẵn từ khóa chính + phụ">✍️ Viết</button>` : ''}${!it.wp_id ? `<button data-a="del" style="${btn('padding:3px 6px;margin-left:3px;color:#f85149')}" title="Xoá khỏi kho (chỉ bài kế hoạch chưa đăng)">🗑</button>` : ''}</td>
