@@ -207,6 +207,7 @@
           <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <span style="font-size:12px;color:#8b949e">Đã chọn ${s.sel.size}</span>
             <button data-a="bulkwrite" style="${btn('background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer, điền sẵn các bài đã chọn (chưa đăng) vào bảng Bước 1 — bạn kiểm tra rồi bấm chạy">✍️ Viết hàng loạt${writable().length ? ' (' + writable().length + ')' : ''}</button>
+            <button data-a="bulkimg" style="${btn('background:#d29922;border-color:#d29922;color:#fff')}" title="Mở SEO Writer, nạp sẵn các bài đã chọn vào 'Ảnh hàng loạt' — chỉ áp dụng bài đang 🖼️ Chờ ảnh">🖼️ Làm ảnh hàng loạt${(s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x)).length ? ' (' + (s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x)).length + ')' : ''}</button>
             <select class="cm-bulkst" style="${inp}"><option value="">Đổi trạng thái…</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}">${x[0]}</option>`).join('')}</select>
             <button data-a="checkidx" style="${btn('background:#238636;border-color:#238636;color:#fff')}" title="Check index các bài đã chọn bằng Serper (site: URL)">✅ Check index</button>
           </span>
@@ -225,6 +226,8 @@
 
     // bài đã chọn viết được = có từ khóa + chưa có trên web (giống điều kiện nút ✍️ Viết từng dòng)
     function writable() { return (s.v.items || []).filter(x => s.sel.has(x.id) && x.keyword && !x.wp_id && !x.deleted); }
+    // (1/10) "Chờ ảnh": đã đăng (status published) nhưng SEO Writer chưa báo có ảnh (img_done=false) + có sẵn sw_article_id (id bài thật bên SEO Writer để mở đúng) — bài cũ chưa từng qua luồng này sẽ không có field này nên không tự hiện nhầm.
+    function needsImg(it) { return it.status === 'published' && it.img_done === false && !!it.sw_article_id; }
     const catPathOf = it => (it.silo || '') + (it.silo && it.label && !/^Hãng khác/i.test(it.label) ? ' > ' + it.label : '');
     // URL SEO Writer: site/brand (+ extra query) qua query; creds của bản ghi 301 + rows qua FRAGMENT (không lên server)
     // "Dạng bài" kế hoạch (tự do theo từng site, vd "Review chuyên sâu", "Tổng hợp / Xếp hạng")
@@ -265,7 +268,7 @@
         <td style="padding:5px 6px">${esc(it.role || (it.wp_type === 'page' ? 'Trang' : ''))}</td>
         <td style="padding:5px 6px">${esc(it.label || '')}</td>
         <td style="padding:5px 6px">${it.month ? 'T' + it.month : ''}</td>
-        <td style="padding:5px 6px"><select class="cm-st" style="${inp};padding:2px 4px;color:${st[1]}">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select></td>
+        <td style="padding:5px 6px"><select class="cm-st" style="${inp};padding:2px 4px;color:${st[1]}">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select>${needsImg(it) ? '<div style="font-size:10.5px;color:#d29922;margin-top:2px">🖼️ Chờ ảnh</div>' : ''}</td>
         <td style="padding:5px 6px;text-align:center">${ix}</td>
         <td style="padding:5px 6px;white-space:nowrap;color:#8b949e">${esc(String(it.date || '').slice(0, 10))}${it.modified && it.modified.slice(0, 10) !== String(it.date || '').slice(0, 10) ? '<br>sửa ' + esc(it.modified.slice(0, 10)) : ''}</td>
         <td style="padding:5px 6px;white-space:nowrap">${it.keyword && !it.wp_id ? `<button data-a="write" style="${btn('padding:3px 8px;background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer điền sẵn từ khóa chính + phụ">✍️ Viết</button>` : ''}${!it.wp_id ? `<button data-a="del" style="${btn('padding:3px 6px;margin-left:3px;color:#f85149')}" title="Xoá khỏi kho (chỉ bài kế hoạch chưa đăng)">🗑</button>` : ''}</td>
@@ -452,6 +455,17 @@
             if (toWriting.length) s.v = await post('contentop/' + cid, { op: 'status', ids: toWriting, value: 'writing' });
             s.sel.clear();
             s.busy = `✓ Đã chuyển ${rows.length} bài sang SEO Writer${skipped ? ` (bỏ qua ${skipped} bài đã đăng / thiếu từ khóa)` : ''} — kiểm tra Bước 1 rồi bấm chạy`;
+            return draw(true);
+          }
+          case 'bulkimg': {
+            // Mở thẳng "Ảnh hàng loạt" bên SEO Writer cho ĐÚNG các bài đã chọn (qua sw_article_id đã
+            // ghi nhớ lúc viết hàng loạt) — chỉ áp dụng bài đang 🖼️ Chờ ảnh.
+            const imgList = (s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x));
+            if (!imgList.length) { alert('Chọn các bài đang "🖼️ Chờ ảnh" (đã đăng nhưng SEO Writer chưa báo có ảnh)'); return; }
+            const artIds = imgList.map(x => x.sw_article_id);
+            const imgUrl = writerUrl([], ['artids=' + encodeURIComponent(artIds.join(','))]);
+            if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(imgUrl, `Làm ảnh hàng loạt ${artIds.length} bài — ${domain()}`); else window.open(imgUrl, '_blank');
+            s.sel.clear();
             return draw(true);
           }
           case 'checkidx': {
