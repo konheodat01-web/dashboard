@@ -206,6 +206,7 @@
           <span style="font-size:12px;color:#8b949e">${num(list.length)} bài</span>
           <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <span style="font-size:12px;color:#8b949e">Đã chọn ${s.sel.size}</span>
+            <button data-a="bulkwrite" style="${btn('background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer, điền sẵn các bài đã chọn (chưa đăng) vào bảng Bước 1 — bạn kiểm tra rồi bấm chạy">✍️ Viết hàng loạt${writable().length ? ' (' + writable().length + ')' : ''}</button>
             <select class="cm-bulkst" style="${inp}"><option value="">Đổi trạng thái…</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}">${x[0]}</option>`).join('')}</select>
             <button data-a="checkidx" style="${btn('background:#238636;border-color:#238636;color:#fff')}" title="Check index các bài đã chọn bằng Serper (site: URL)">✅ Check index</button>
           </span>
@@ -220,6 +221,21 @@
           </table>
         </div>
         ${list.length > shown.length ? `<div><button data-a="more" style="${btn()}">Hiện thêm (${shown.length}/${list.length})</button></div>` : ''}`;
+    }
+
+    // bài đã chọn viết được = có từ khóa + chưa có trên web (giống điều kiện nút ✍️ Viết từng dòng)
+    function writable() { return (s.v.items || []).filter(x => s.sel.has(x.id) && x.keyword && !x.wp_id && !x.deleted); }
+    const catPathOf = it => (it.silo || '') + (it.silo && it.label && !/^Hãng khác/i.test(it.label) ? ' > ' + it.label : '');
+    // URL SEO Writer: site/brand (+ extra query) qua query; creds của bản ghi 301 + rows qua FRAGMENT (không lên server)
+    function writerUrl(extraQs, extraFrag) {
+      const s301 = typeof wstCurrent301Site === 'function' ? wstCurrent301Site(w) : w;
+      const st = typeof getWstSite === 'function' ? getWstSite(wsId) : null;
+      const brand = (st && st.mainKeyword) || w.brand;
+      const qs = ['site=' + encodeURIComponent(domain()), 'brand=' + encodeURIComponent(brand)].concat(extraQs || []);
+      const frag = [];
+      if (s301 && s301.account) frag.push('wpu=' + encodeURIComponent(s301.account));
+      if (s301 && s301.appwppass) frag.push('wpp=' + encodeURIComponent(s301.appwppass));
+      return 'https://seo-writer-tool.nthieucloud.shop/?' + qs.join('&') + '#' + frag.concat(extraFrag || []).join('&');
     }
 
     function rowHtml(it, silos) {
@@ -397,19 +413,30 @@
             if (!confirm(`Xoá "${it.keyword}" khỏi kho nội dung? (bài vẫn còn trong kế hoạch, import lại được)`)) return;
             s.v = await post('contentop/' + cid, { op: 'delete', id }); s.sel.delete(id); return draw(true);
           case 'write': {
-            const s301 = typeof wstCurrent301Site === 'function' ? wstCurrent301Site(w) : w;
-            const st = typeof getWstSite === 'function' ? getWstSite(wsId) : null;
-            const brand = (st && st.mainKeyword) || w.brand;
-            const qs = ['site=' + encodeURIComponent(domain()), 'brand=' + encodeURIComponent(brand), 'kw=' + encodeURIComponent(it.keyword), 'sec=' + encodeURIComponent((it.child || []).join(', '))];
-            const catPath = (it.silo || '') + (it.silo && it.label && !/^Hãng khác/i.test(it.label) ? ' > ' + it.label : '');
+            const qs = ['kw=' + encodeURIComponent(it.keyword), 'sec=' + encodeURIComponent((it.child || []).join(', '))];
+            const catPath = catPathOf(it);
             if (catPath) qs.push('cat=' + encodeURIComponent(catPath));   // SEO Writer gán cả danh mục cha và con
-            const frag = [];
-            if (s301 && s301.account) frag.push('wpu=' + encodeURIComponent(s301.account));
-            if (s301 && s301.appwppass) frag.push('wpp=' + encodeURIComponent(s301.appwppass));
-            const url = 'https://seo-writer-tool.nthieucloud.shop/?' + qs.join('&') + (frag.length ? '#' + frag.join('&') : '');
+            const url = writerUrl(qs);
             if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(url, it.keyword + ' — ' + domain()); else window.open(url, '_blank');
             if (it.status === 'plan') { s.v = await post('contentop/' + cid, { op: 'status', id, value: 'writing' }); draw(true); }
             return;
+          }
+          case 'bulkwrite': {
+            // Điền sẵn bảng Bước 1 SEO Writer (từ khóa chính | phụ | "Danh mục > Danh mục con" theo từng dòng);
+            // người dùng chỉ kiểm tra rồi bấm chạy. Bài đã đăng / không có từ khóa tự bị bỏ qua.
+            const list = writable();
+            if (!list.length) { alert('Chọn các bài CHƯA ĐĂNG (có từ khóa chính) để viết hàng loạt'); return; }
+            const skipped = s.sel.size - list.length;
+            const s301 = typeof wstCurrent301Site === 'function' ? wstCurrent301Site(w) : w;
+            if (!(s301 && s301.appwppass) && !confirm('Site này chưa có WP Application Password — SEO Writer sẽ viết nhưng không đăng được lên web. Vẫn mở?')) return;
+            const rows = list.map(x => ({ main: x.keyword, sec: (x.child || []).join(', '), cat: catPathOf(x) }));
+            const url = writerUrl(['batch=1'], ['rows=' + encodeURIComponent(JSON.stringify(rows))]);
+            if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(url, `Viết hàng loạt ${rows.length} bài — ${domain()}`); else window.open(url, '_blank');
+            const toWriting = list.filter(x => x.status === 'plan').map(x => x.id);
+            if (toWriting.length) s.v = await post('contentop/' + cid, { op: 'status', ids: toWriting, value: 'writing' });
+            s.sel.clear();
+            s.busy = `✓ Đã chuyển ${rows.length} bài sang SEO Writer${skipped ? ` (bỏ qua ${skipped} bài đã đăng / thiếu từ khóa)` : ''} — kiểm tra Bước 1 rồi bấm chạy`;
+            return draw(true);
           }
           case 'checkidx': {
             if (!wtApiKey) { alert('Chưa có Serper API Key'); return; }
