@@ -444,8 +444,9 @@
             const skipped = s.sel.size - list.length;
             const s301 = typeof wstCurrent301Site === 'function' ? wstCurrent301Site(w) : w;
             if (!(s301 && s301.appwppass) && !confirm('Site này chưa có WP Application Password — SEO Writer sẽ viết nhưng không đăng được lên web. Vẫn mở?')) return;
-            const rows = list.map(x => ({ main: x.keyword, sec: (x.child || []).join(', '), cat: catPathOf(x), atype: mapArticleType(x.type) }));
-            const url = writerUrl(['batch=1'], ['rows=' + encodeURIComponent(JSON.stringify(rows))]);
+            const rows = list.map(x => ({ main: x.keyword, sec: (x.child || []).join(', '), cat: catPathOf(x), atype: mapArticleType(x.type), plan_id: x.id }));
+            // cid gui kem -> SEO Writer tu bao lai "Da dang" o day sau khi viet xong, khoi phai tu bam "Quet" lai
+            const url = writerUrl(['batch=1'], ['rows=' + encodeURIComponent(JSON.stringify(rows)), 'cid=' + encodeURIComponent(cid)]);
             if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(url, `Viết hàng loạt ${rows.length} bài — ${domain()}`); else window.open(url, '_blank');
             const toWriting = list.filter(x => x.status === 'plan').map(x => x.id);
             if (toWriting.length) s.v = await post('contentop/' + cid, { op: 'status', ids: toWriting, value: 'writing' });
