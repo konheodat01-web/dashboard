@@ -206,6 +206,7 @@
           <span style="font-size:12px;color:#8b949e">${num(list.length)} bài</span>
           <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <span style="font-size:12px;color:#8b949e">Đã chọn ${s.sel.size}</span>
+            <select class="cm-atype" style="${inp}" title="Loại bài — SEO Writer sẽ tự điền vào Bước 1 khi mở"><option value="" selected>— Loại bài —</option><option value="huong-dan">Hướng dẫn / Mẹo</option><option value="trang-chu">Trang chủ / Giới thiệu thương hiệu</option><option value="trang-van-hanh">Trang vận hành (đăng nhập, nạp/rút tiền, điều khoản...)</option><option value="review">Đánh giá / Review</option><option value="tin-tuc">Tin tức / Cập nhật</option><option value="thuat-ngu">Thuật ngữ / Là gì</option><option value="nhan-dinh">Nhận định trận đấu</option></select>
             <button data-a="bulkwrite" style="${btn('background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer, điền sẵn các bài đã chọn (chưa đăng) vào bảng Bước 1 — bạn kiểm tra rồi bấm chạy">✍️ Viết hàng loạt${writable().length ? ' (' + writable().length + ')' : ''}</button>
             <select class="cm-bulkst" style="${inp}"><option value="">Đổi trạng thái…</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}">${x[0]}</option>`).join('')}</select>
             <button data-a="checkidx" style="${btn('background:#238636;border-color:#238636;color:#fff')}" title="Check index các bài đã chọn bằng Serper (site: URL)">✅ Check index</button>
@@ -429,8 +430,10 @@
             const skipped = s.sel.size - list.length;
             const s301 = typeof wstCurrent301Site === 'function' ? wstCurrent301Site(w) : w;
             if (!(s301 && s301.appwppass) && !confirm('Site này chưa có WP Application Password — SEO Writer sẽ viết nhưng không đăng được lên web. Vẫn mở?')) return;
+            const atype = (root.querySelector('.cm-atype') || {}).value || '';
+            if (!atype) { alert('Chọn Loại bài trước khi Viết hàng loạt'); return; }
             const rows = list.map(x => ({ main: x.keyword, sec: (x.child || []).join(', '), cat: catPathOf(x) }));
-            const url = writerUrl(['batch=1'], ['rows=' + encodeURIComponent(JSON.stringify(rows))]);
+            const url = writerUrl(['batch=1'], ['rows=' + encodeURIComponent(JSON.stringify(rows)), 'type=' + encodeURIComponent(atype)]);
             if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(url, `Viết hàng loạt ${rows.length} bài — ${domain()}`); else window.open(url, '_blank');
             const toWriting = list.filter(x => x.status === 'plan').map(x => x.id);
             if (toWriting.length) s.v = await post('contentop/' + cid, { op: 'status', ids: toWriting, value: 'writing' });
