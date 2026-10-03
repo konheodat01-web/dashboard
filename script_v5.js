@@ -13066,7 +13066,6 @@ function wstOpenDashboardUI(wsId) {
       <div class="mf-btns">
         <button class="btn btn-d" onclick="wstRemoveTrackingFromDashboard(${wsId})">🗑 Bỏ theo dõi</button>
         <button class="btn btn-o" onclick="wstCloseDashboard()">Đóng</button>
-        <button class="btn btn-g" onclick="wstAddEntryFromDashboard(${wsId})">✏️ Chỉnh sửa / Thêm dữ liệu</button>
       </div>
     </div>
   `;

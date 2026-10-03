@@ -206,6 +206,7 @@
           <span style="font-size:12px;color:#8b949e">${num(list.length)} bài</span>
           <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <span style="font-size:12px;color:#8b949e">Đã chọn ${s.sel.size}</span>
+            <button data-a="write1" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}" title="Mở SEO Writer cho site này để viết bài NGOÀI kế hoạch (Bước 1 trống, đã điền sẵn site + WP key)">✍️ Viết bài</button>
             <button data-a="bulkwrite" style="${btn('background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer, điền sẵn các bài đã chọn (chưa đăng) vào bảng Bước 1 — bạn kiểm tra rồi bấm chạy">✍️ Viết hàng loạt${writable().length ? ' (' + writable().length + ')' : ''}</button>
             <button data-a="bulkimg" style="${btn('background:#d29922;border-color:#d29922;color:#fff')}" title="Mở SEO Writer, nạp sẵn các bài đã chọn vào 'Ảnh hàng loạt' — chỉ áp dụng bài đang 🖼️ Chờ ảnh">🖼️ Làm ảnh hàng loạt${(s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x)).length ? ' (' + (s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x)).length + ')' : ''}</button>
             <select class="cm-bulkst" style="${inp}"><option value="">Đổi trạng thái…</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}">${x[0]}</option>`).join('')}</select>
@@ -438,6 +439,11 @@
             const url = writerUrl(qs);
             if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(url, it.keyword + ' — ' + domain()); else window.open(url, '_blank');
             if (it.status === 'plan') { s.v = await post('contentop/' + cid, { op: 'status', id, value: 'writing' }); draw(true); }
+            return;
+          }
+          case 'write1': {   // viết bài ngoài kế hoạch: mở SEO Writer trống cho site này
+            const url = writerUrl([]);
+            if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(url, 'Viết bài — ' + domain()); else window.open(url, '_blank');
             return;
           }
           case 'bulkwrite': {
