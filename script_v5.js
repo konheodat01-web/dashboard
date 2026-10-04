@@ -4066,11 +4066,26 @@ function wstVerifiedBadge(w) {
     `<svg width="13" height="13" viewBox="0 0 24 24" aria-label="Đã xác minh"><circle cx="12" cy="12" r="12" fill="#1877f2"/>` +
     `<path d="M7 12.5l3.2 3.2L17.2 8.7" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
 }
-const wstRootHost = u => wstNormalizeUrl(u).replace(/^www\./, '').replace(/\/.*$/, '');
+const wstRootHost = u => wstNormalizeUrl(String(u || '').replace(/\s*\(Không có 301\)\s*$/i, '').trim().split(/\s+/)[0]).replace(/^www\./, '').replace(/\/.*$/, '');
+// Web 301 mới nhất theo CHUỖI chuyển hướng (A -> B -> C trả C) — cùng cách bảng Theo dõi web hiển thị.
+function wstLatest301(w) {
+  let cur = w; const seen = new Set();
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    const kids = websites.filter(x => x.is301 && x.sourceUrl && wstNormalizeUrl(x.sourceUrl) === wstNormalizeUrl(cur.url));
+    if (!kids.length) break;
+    cur = kids[kids.length - 1];
+  }
+  return (cur && cur.id !== w.id) ? cur : null;
+}
 // Gắn tích cho mọi bản ghi website có domain này. Trả về số bản ghi vừa được gắn.
 function wstMarkGscVerified(domain, save = true) {
   const d = wstRootHost(domain);
   if (!d) return 0;
+  if (typeof _settings === 'object' && _settings) {
+    const hs = Array.isArray(_settings.gscVerifiedHosts) ? _settings.gscVerifiedHosts : (_settings.gscVerifiedHosts = []);
+    if (!hs.includes(d)) { hs.push(d); try { localStorage.setItem('wt_settings', JSON.stringify(_settings)); } catch (e) {} if (save) saveAppData(); }
+  }
   let n = 0;
   websites.forEach(x => {
     if (!x.gscVerified && wstRootHost(x.url) === d) { x.gscVerified = true; x.gscVerifiedAt = todayVN(); n++; }
@@ -4089,8 +4104,12 @@ async function wstGscVerifiedBackfill() {
     _settings.gscTick301Done = todayVN();
     changed = true;
   }
+  const hs = Array.isArray(_settings.gscVerifiedHosts) ? _settings.gscVerifiedHosts : [];
+  websites.forEach(x => {
+    if (!x.gscVerified && hs.includes(wstRootHost(x.url))) { x.gscVerified = true; x.gscVerifiedAt = todayVN(); changed = true; }
+  });
   const token = sessionStorage.getItem('gsc_access_token');
-  if (!_settings.gscTickRootDone && token) {
+  if (!sessionStorage.getItem('wst_tick_sync') && token) {
     try {
       const r = await fetch('https://www.googleapis.com/webmasters/v3/sites', { headers: { Authorization: 'Bearer ' + token } });
       if (r.ok) {
@@ -4098,12 +4117,12 @@ async function wstGscVerifiedBackfill() {
         const prefix = new Set(), domainProps = [];
         entries.forEach(e => { const h = wstRootHost(e.siteUrl); if (/^sc-domain:/i.test(e.siteUrl)) domainProps.push(h); else prefix.add(h); });
         websites.forEach(x => {
-          if (x.is301 || x.gscVerified) return;
+          if (x.gscVerified) return;
           const h = wstRootHost(x.url);
-          if (h && (prefix.has(h) || domainProps.some(dp => h === dp || h.endsWith('.' + dp)))) { x.gscVerified = true; x.gscVerifiedAt = todayVN(); }
+          if (h && (prefix.has(h) || domainProps.some(dp => h === dp || h.endsWith('.' + dp)))) { x.gscVerified = true; x.gscVerifiedAt = todayVN(); changed = true; }
         });
         _settings.gscTickRootDone = todayVN() + ' · ' + (sessionStorage.getItem('gsc_user_email') || '');
-        changed = true;
+        sessionStorage.setItem('wst_tick_sync', '1');
       }
     } catch (e) { console.warn('[tích xanh] không đọc được danh sách GSC', e); }
   }
@@ -4443,15 +4462,7 @@ function renderWsTrack(){
     const entries = (site?.entries||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
     const last = entries[0];
     // FIX: Sửa lỗi hiển thị URL 301 bằng cách duyệt qua toàn bộ chuỗi 301 (forward chain) và chuẩn hóa URL
-    let current301 = w;
-    let visited301 = new Set();
-    while (current301 && !visited301.has(current301.id)) {
-      visited301.add(current301.id);
-      const nextKids = websites.filter(x => x.is301 && x.sourceUrl && wstNormalizeUrl(x.sourceUrl) === wstNormalizeUrl(current301.url));
-      if (!nextKids.length) break;
-      current301 = nextKids[nextKids.length - 1]; // Lấy thằng 301 mới nhất
-    }
-    const latest301 = (current301 && current301.id !== w.id) ? current301 : null;
+    const latest301 = wstLatest301(w);
     const display301Url = latest301 ? (latest301.url||latest301.sourceUrl||'—') : (w.url||'—');
     const isSameAsSource = !latest301;
     const isSelected = _wstSelected.has(w.id);
@@ -14050,8 +14061,8 @@ function wstSelectAddGscType(type) {
       let displayUrl = w.url || '';
       let targetWs = w;
       if (type === '301') {
-        const kids = websites.filter(x => x.is301 && x.sourceUrl && ((x.sourceUrl === w.url || x.sourceUrl === (w.url || '').replace(/\/$/, '')) || (x.sourceUrl === w.brand)));
-        const latest301 = kids.length ? kids[kids.length - 1] : null;
+        const latest301 = wstLatest301(w)
+          || (websites.filter(x => x.is301 && x.sourceUrl && x.sourceUrl === w.brand).slice(-1)[0] || null);
         if (latest301) {
           displayUrl = latest301.url;
           targetWs = latest301;
