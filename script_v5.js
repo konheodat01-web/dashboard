@@ -3243,7 +3243,8 @@ async function wstPollProcesses(){
   } catch(e){ return; }
   // Icon LUÔN hiển thị; chỉ badge (số) mới bật/tắt theo running / chưa xem
   var cb = document.getElementById('procCircleBadge');
-  if (cb){ if ((_swProc.running||0) > 0){ cb.style.display='inline-block'; cb.textContent=_swProc.running; } else cb.style.display='none'; }
+  var nRun = (_swProc.running||0) + (_swProc.img_running||0);
+  if (cb){ if (nRun > 0){ cb.style.display='inline-block'; cb.textContent=nRun; } else cb.style.display='none'; }
   var bb = document.getElementById('procBellBadge');
   
   let gscReports = [];
@@ -3274,29 +3275,51 @@ function wstToggleProcPopup(mode){
   }
 }
 function _wstEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+var _WST_IMG_ST = {
+  done: { icon: '✅', bd: '#2ea043', tip: 'đủ ảnh' },
+  running: { icon: '🎨', bd: '#d29922', tip: 'đang vẽ ảnh' },
+  waiting: { icon: '⏳', bd: '#30363d', tip: 'chờ làm ảnh' },
+  failed: { icon: '❌', bd: '#f85149', tip: 'làm ảnh lỗi 3 lần' }
+};
 function _wstKwChips(p){
   var kws = (p.keywords||[]).filter(Boolean);
   if (!kws.length) return '';
+  var per = (p.img && p.img.per) || {};
   var chips = kws.map(function(k){
-    return '<span style="display:inline-block;background:#1c2128;border:1px solid #30363d;border-radius:10px;padding:1px 7px;margin:2px 3px 0 0;font-size:10.5px;color:#c9d1d9">' + _wstEsc(k) + '</span>';
+    var im = per[k], st = im && _WST_IMG_ST[im.state];
+    var tip = st ? ' title="' + st.tip + ' · ' + im.done + '/' + im.total + ' ảnh"' : '';
+    return '<span' + tip + ' style="display:inline-block;background:#1c2128;border:1px solid ' + (st ? st.bd : '#30363d') + ';border-radius:10px;padding:1px 7px;margin:2px 3px 0 0;font-size:10.5px;color:#c9d1d9">' + (st ? st.icon + ' ' : '') + _wstEsc(k) + (im && im.state !== 'done' && im.total ? ' <span style="color:#8b949e">' + im.done + '/' + im.total + '</span>' : '') + '</span>';
   }).join('');
   return '<div style="margin-top:5px;line-height:1.5">' + chips + '</div>';
+}
+function _wstImgLine(p){
+  var im = p.img; if (!im) return '';
+  if (!im.pending) return '<div style="font-size:11px;color:#3fb950;margin-top:2px">🖼️ Đủ ảnh ' + im.done + '/' + im.articles + ' bài</div>';
+  var st = im.paused ? '⏸ đang tạm dừng'
+    : (!im.available && im.resume_at ? '⏳ mọi hồ sơ hết lượt — chạy lại ' + new Date(im.resume_at*1000).toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})
+    : (!im.available ? '⚪ chưa có hồ sơ Chạy nền' : '🎨 đang làm'));
+  return '<div style="font-size:11px;color:#d29922;margin-top:2px">🖼️ Làm ảnh: ' + im.done + '/' + im.articles + ' bài đủ ảnh · ' + st + '</div>';
 }
 function wstRenderProcPopup(){
   var pop = document.getElementById('procPopup'); if (!pop || !_procPopupMode) return;
   var running = _procPopupMode === 'running';
-  var list = (_swProc.processes||[]).filter(function(p){ return running ? p.status==='running' : (p.status==='done'||p.status==='cancelled'); });
+  var list = (_swProc.processes||[]).filter(function(p){
+    if (running) return p.status==='running' || (p.status==='done' && p.img && p.img.pending > 0);
+    return p.status==='done'||p.status==='cancelled';
+  });
   var head = running ? ('🔄 Đang chạy ngầm (' + list.length + ')') : ('🔔 Tiến trình & Báo cáo');
   var rows = list.length ? list.map(function(p){
     var prog = (p.done||0) + '/' + (p.total||0) + ' bài';
     var site = _wstEsc(p.site || '');
     var siteLine = site ? '<div style="font-size:11px;color:#58a6ff;font-weight:600;margin-bottom:1px">🌐 ' + site + '</div>' : '';
     var kwLine = _wstKwChips(p);
+    if (running && p.status !== 'running')
+      return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:#8b949e">✅ Viết xong ' + prog + '</div>' + _wstImgLine(p) + kwLine + '</div>';
     if (running)
       return '<div style="padding:9px 12px;border-top:1px solid #21262d">' + siteLine + '<div style="font-size:11px;color:#8b949e;display:flex;justify-content:space-between;align-items:center;gap:8px"><span>⏳ ' + prog + ' · bắt đầu ' + (p.created_at||'').slice(5,16) + '</span><button onclick="event.stopPropagation();wstCancelProcess(&quot;' + p.id + '&quot;)" style="background:#3d1518;color:#f85149;border:1px solid #f85149;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;white-space:nowrap">⏸ Tạm ngưng</button></div>' + kwLine + '</div>';
     if (p.status === 'cancelled')
       return '<div style="padding:9px 12px;border-top:1px solid #21262d">' + siteLine + '<div style="font-size:11px;color:#f85149">🚫 Đã hủy · ' + prog + ' xong trước khi dừng</div>' + kwLine + '</div>';
-    return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:#7c5cff">✅ ' + prog + ' xong · bấm mở Lịch sử thêm ảnh →</div>' + kwLine + '</div>';
+    return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:#7c5cff">✅ ' + prog + ' xong · bấm mở Lịch sử thêm ảnh →</div>' + _wstImgLine(p) + kwLine + '</div>';
   }).join('') : '<div style="padding:16px;text-align:center;color:#8b949e">Không có</div>';
   
   if (!running) {
