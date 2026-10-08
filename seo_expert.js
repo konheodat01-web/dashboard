@@ -1053,7 +1053,7 @@
           <div><b>Kiểm tra kỹ thuật:</b> ${s.diag ? 'có (' + esc(s.diag.at) + ')' : '<span class="sx-sub">chưa chạy</span>'}</div></div>
         ${s.type === 'moi'
           ? `<div class="sx-form-help">Site mới: chuyên gia <b>tự lập chiến lược nội dung và kiến trúc site</b>. Trước khi viết, hệ thống nghiên cứu Google cho ${researchKws().length} từ khóa mục tiêu (${researchKws().length} credit Serper): ai đang top, dạng bài, câu hỏi người dùng hay tìm.<br>
-             Báo cáo gồm: Tổng quan · Checklist kỹ thuật trước khi index · Nghiên cứu đối thủ & từ khóa · Chiến lược nội dung, cây danh mục, 30 bài đầu tiên, liên kết nội bộ, lịch 30/60/90 ngày · Vấn đề & lộ trình (khoảng 1–2 phút).</div>`
+             Báo cáo gồm: Tổng quan · Checklist kỹ thuật trước khi index · Nghiên cứu đối thủ & từ khóa · Chiến lược nội dung, cây danh mục, liên kết nội bộ, lịch 30/60/90 ngày · Vấn đề & lộ trình (khoảng 1–2 phút).</div>`
           : '<div class="sx-form-help">Chuyên gia sẽ viết báo cáo: Tổng quan · Phân tích kỹ thuật · Nội dung · Hiệu suất · Vấn đề & đề xuất & lộ trình · Thông tin còn thiếu (khoảng 30–90 giây).</div>'}
         <span class="sx-sub sx-gen-msg"></span>
       </div>`;
@@ -1321,13 +1321,11 @@
       if (!f) return '';
       const silos = (f.silos || []).map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.pillar || '')}</td><td>${esc((x.subgroups || []).join(' · '))}</td></tr>`).join('');
       const pace = (f.pace || []).map(x => `<li><b>${esc(x.label || '')}</b>: ${x.count || 0} bài${(x.silos || []).length ? ' · ưu tiên ' + esc(x.silos.join(', ')) : ''}${(x.subgroups || []).length ? ' › ' + esc(x.subgroups.join(', ')) : ''}${x.note ? ' — <i>' + esc(x.note) + '</i>' : ''}</li>`).join('');
-      const first = (f.first_articles || []).map((a, i) => `${i + 1}. ${esc(a.kw)} <span class="sx-sub">(${esc(a.silo)} · ${esc(a.type)})</span>`).join('<br>');
       return `${!(f.silos || []).length ? `<div class="sx-err">⚠️ Hồ sơ chưa có cây danh mục nên chưa lập được kế hoạch${f.missing ? ': ' + esc(f.missing) : ''}. Bổ sung câu "Kiến trúc site" trong form tích hợp rồi tạo lại và xác nhận báo cáo.</div>`
         : (f.missing ? `<div class="sx-sub">📝 Ghi chú của chuyên gia về hồ sơ: ${esc(f.missing)}</div>` : '')}
         <table class="sx-ftable"><thead><tr><th>Silo</th><th>Trụ cột</th><th>Nhóm bài con</th></tr></thead><tbody>${silos || '<tr><td colspan="3">Không có silo nào</td></tr>'}</tbody></table>
         <div><b>Dạng bài:</b> ${esc((f.types || []).join(', '))}</div>
         <div><b>Lộ trình:</b><ul>${pace || '<li>Hồ sơ không nêu mốc — xếp theo lượng tìm kiếm</li>'}</ul>Sau các mốc: <b>${f.monthly_after || '?'}</b> bài/tháng${f.short_head_later ? ' · từ khóa lớn (brand/model, short-head) làm sau' : ''}</div>
-        <details><summary><b>${(f.first_articles || []).length} bài đầu tiên theo hồ sơ</b> (đặt đầu kế hoạch, đúng thứ tự)</summary><div class="sx-fdig">${first || 'Hồ sơ không có danh sách bài đầu'}</div></details>
         ${(f.tech_tasks || []).length ? `<div><b>Việc kỹ thuật trước khi xuất bản:</b><ul>${f.tech_tasks.map(t => `<li>${esc(t.task)} <span class="sx-sub">(${esc(t.source || '')})</span></li>`).join('')}</ul></div>` : ''}
         ${(f.competitors || []).length ? `<div><b>Đối thủ trong hồ sơ:</b> ${esc(f.competitors.join(', '))}</div>` : ''}`;
     }
@@ -1340,7 +1338,7 @@
         <div class="sx-up"><input type="file" class="sx-kpfile" accept=".csv,.tsv,.txt">
           <span class="sx-sub">Keyword Planner → Tải xuống ý tưởng từ khóa → .csv</span></div><div class="sx-kpinfo"></div>
         <div class="sx-form-q">2. Khung kế hoạch theo hồ sơ tích hợp</div>
-        <div class="sx-form-help">KHUNG lấy từ báo cáo tích hợp đã xác nhận (silo, trụ cột, nhóm bài con, dạng bài, bài đầu tiên, lộ trình) — gửi file xong chuyên gia tự đọc nếu chưa có.
+        <div class="sx-form-help">KHUNG lấy từ báo cáo tích hợp đã xác nhận (silo, trụ cột, nhóm bài con, dạng bài, lộ trình) — gửi file xong chuyên gia tự đọc nếu chưa có.
           Từ khóa trong file chỉ được <b>xếp vào khung</b>: gom theo search intent + trùng SERP ≥ 3 URL (top 10 Google) + từ khóa chính/phụ. Cụm không vừa khung để riêng, không tạo danh mục mới.</div>
         ${p.status === 'error' ? `<div class="sx-err">⚠️ Lần chạy trước lỗi: ${esc(p.error || '')}</div>` : ''}
         <div class="sx-pframebox">${f ? `<div class="sx-sum">${frameHtml(f)}<div class="sx-sub">Đọc lúc ${esc(p.frame_at || '')} từ hồ sơ xác nhận lúc ${esc(f.from_report_at || '')}.</div></div>` : '<div class="sx-sub">Chưa đọc khung — sẽ tự đọc khi gửi file.</div>'}</div>
