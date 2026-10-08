@@ -1333,44 +1333,58 @@
     }
 
     function renderPlanFrame(p) {
-      const f = p.frame;
+      const f = p.frame, okFrame = f && (f.silos || []).length;
       msgs.innerHTML = `<div class="sx-form">
         <div class="sx-form-sec">Bước 2 · Lập kế hoạch từ khóa</div>
-        <div class="sx-form-q">${f ? 'Khung kế hoạch đọc từ hồ sơ tích hợp' : 'Đọc khung từ hồ sơ tích hợp'}</div>
-        <div class="sx-form-help">KHUNG lấy từ báo cáo tích hợp đã xác nhận (silo, trụ cột, nhóm bài con, dạng bài, bài đầu tiên, lộ trình).
-          Từ khóa trong file Keyword Planner chỉ được <b>xếp vào khung</b>: gom theo search intent + trùng SERP ≥ 3 URL (top 10 Google) + từ khóa chính/phụ. Cụm không vừa khung để riêng, không tạo danh mục mới.</div>
+        <div class="sx-form-q">1. Gửi file từ khóa</div>
+        <div class="sx-up"><input type="file" class="sx-kpfile" accept=".csv,.tsv,.txt">
+          <span class="sx-sub">Keyword Planner → Tải xuống ý tưởng từ khóa → .csv</span></div><div class="sx-kpinfo"></div>
+        <div class="sx-form-q">2. Khung kế hoạch theo hồ sơ tích hợp</div>
+        <div class="sx-form-help">KHUNG lấy từ báo cáo tích hợp đã xác nhận (silo, trụ cột, nhóm bài con, dạng bài, bài đầu tiên, lộ trình) — gửi file xong chuyên gia tự đọc nếu chưa có.
+          Từ khóa trong file chỉ được <b>xếp vào khung</b>: gom theo search intent + trùng SERP ≥ 3 URL (top 10 Google) + từ khóa chính/phụ. Cụm không vừa khung để riêng, không tạo danh mục mới.</div>
         ${p.status === 'error' ? `<div class="sx-err">⚠️ Lần chạy trước lỗi: ${esc(p.error || '')}</div>` : ''}
-        ${f ? `<div class="sx-sum">${frameHtml(f)}<div class="sx-sub">Đọc lúc ${esc(p.frame_at || '')} từ hồ sơ xác nhận lúc ${esc(f.from_report_at || '')}.</div></div>` : ''}
-        <div><button class="sx-btn ${f ? '' : 'sx-btn-primary'} sx-pframe">${f ? '↺ Đọc lại khung' : '📖 Đọc khung từ hồ sơ'}</button> <span class="sx-sub sx-pmsg"></span></div>
-        ${f && (f.silos || []).length ? `<div class="sx-up"><b>File Keyword Planner:</b> <input type="file" class="sx-kpfile" accept=".csv,.tsv,.txt">
-          <span class="sx-sub">Keyword Planner → Tải xuống ý tưởng từ khóa → .csv</span></div><div class="sx-kpinfo"></div>` : ''}
+        <div class="sx-pframebox">${f ? `<div class="sx-sum">${frameHtml(f)}<div class="sx-sub">Đọc lúc ${esc(p.frame_at || '')} từ hồ sơ xác nhận lúc ${esc(f.from_report_at || '')}.</div></div>` : '<div class="sx-sub">Chưa đọc khung — sẽ tự đọc khi gửi file.</div>'}</div>
+        <div><button class="sx-btn sx-pframe">${f ? '↺ Đọc lại khung' : '📖 Đọc khung ngay'}</button> <span class="sx-sub sx-pmsg"></span></div>
       </div>`;
       setBar(`<div class="sx-nav-l"><button class="sx-btn sx-tochat">↩ Về hội thoại</button></div><div class="sx-nav-r"><button class="sx-btn sx-btn-primary sx-pstart" disabled>▶ Chạy lập kế hoạch</button></div>`);
       bar.querySelector('.sx-tochat').onclick = enterChat;
-      msgs.querySelector('.sx-pframe').onclick = async () => {
-        const b = msgs.querySelector('.sx-pframe'), m = msgs.querySelector('.sx-pmsg');
-        b.disabled = true; m.textContent = '⏳ Chuyên gia đang đọc hồ sơ tích hợp (khoảng 20–60 giây)…';
-        try { renderPlanFrame(await api('planframe/' + cid, { method: 'POST', body: '{}' })); }
-        catch (e) { m.textContent = '⚠️ ' + e.message; b.disabled = false; }
-      };
-      const fi = msgs.querySelector('.sx-kpfile');
-      if (fi) fi.onchange = async () => {
-        const info = msgs.querySelector('.sx-kpinfo'), go = bar.querySelector('.sx-pstart');
-        go.disabled = true; info.textContent = 'Đang đọc file…';
+      let frame = f, kw = null, est = null, fname = '';
+      const go = bar.querySelector('.sx-pstart'), info = msgs.querySelector('.sx-kpinfo');
+      const readFrame = async () => {
+        const btn = msgs.querySelector('.sx-pframe'), m = msgs.querySelector('.sx-pmsg');
+        btn.disabled = true; m.textContent = '⏳ Chuyên gia đang đọc hồ sơ tích hợp (khoảng 20–60 giây)…';
         try {
-          const kw = await sxParseKeywordPlanner(fi.files[0]);
-          const est = await api('planest/' + cid, { method: 'POST', body: JSON.stringify({ keywords: kw }) });
+          const np = await api('planframe/' + cid, { method: 'POST', body: '{}' });
+          frame = np.frame;
+          msgs.querySelector('.sx-pframebox').innerHTML = frame ? `<div class="sx-sum">${frameHtml(frame)}<div class="sx-sub">Đọc lúc ${esc(np.frame_at || '')} từ hồ sơ xác nhận lúc ${esc(frame.from_report_at || '')}.</div></div>` : '';
+          btn.textContent = '↺ Đọc lại khung'; m.textContent = '';
+        } catch (e) { m.textContent = '⚠️ ' + e.message; }
+        btn.disabled = false;
+        refresh();
+      };
+      const refresh = () => {
+        const ok = frame && (frame.silos || []).length;
+        go.disabled = !(kw && est && ok);
+      };
+      msgs.querySelector('.sx-pframe').onclick = readFrame;
+      const fi = msgs.querySelector('.sx-kpfile');
+      fi.onchange = async () => {
+        go.disabled = true; kw = null; est = null; info.textContent = 'Đang đọc file…';
+        try {
+          kw = await sxParseKeywordPlanner(fi.files[0]); fname = fi.files[0].name;
+          est = await api('planest/' + cid, { method: 'POST', body: JSON.stringify({ keywords: kw }) });
           info.innerHTML = `✅ Đọc được <b>${num(kw.length)}</b> từ khóa (${num(est.keywords)} có lượng tìm kiếm).
             Cần tra Google <b>${num(est.serp_needed)}</b> từ khóa (= ${num(est.serp_needed)} credit Serper), ${num(est.serp_cached)} đã có sẵn trong bộ nhớ đệm.
             Chạy ngầm khoảng ${Math.ceil(est.serp_needed / 600) + 1}–${Math.ceil(est.serp_needed / 300) + 3} phút — đóng cửa sổ vẫn chạy tiếp.`;
-          go.disabled = false;
-          go.onclick = async () => {
-            if (!confirm(`Chạy lập kế hoạch cho ${num(kw.length)} từ khóa?\n\nTốn khoảng ${num(est.serp_needed)} credit Serper + chi phí AI xếp cụm vào khung.`)) return;
-            go.disabled = true;
-            try { renderPlanRunning(await api('planstart/' + cid, { method: 'POST', body: JSON.stringify({ keywords: kw, file_name: fi.files[0].name }) })); }
-            catch (e) { info.insertAdjacentHTML('beforeend', `<div class="sx-err">⚠️ ${esc(e.message)}</div>`); go.disabled = false; }
-          };
-        } catch (e) { info.innerHTML = `<div class="sx-err">⚠️ ${esc(e.message)}</div>`; }
+        } catch (e) { info.innerHTML = `<div class="sx-err">⚠️ ${esc(e.message)}</div>`; return; }
+        if (!frame) await readFrame(); else refresh();
+        if (!(frame && (frame.silos || []).length)) info.insertAdjacentHTML('beforeend', '<div class="sx-err">⚠️ Hồ sơ chưa có cây danh mục nên chưa chạy được — xem ghi chú ở phần khung bên dưới.</div>');
+      };
+      go.onclick = async () => {
+        if (!confirm(`Chạy lập kế hoạch cho ${num(kw.length)} từ khóa theo khung hồ sơ tích hợp?\n\nTốn khoảng ${num(est.serp_needed)} credit Serper + chi phí AI xếp cụm vào khung.`)) return;
+        go.disabled = true;
+        try { renderPlanRunning(await api('planstart/' + cid, { method: 'POST', body: JSON.stringify({ keywords: kw, file_name: fname }) })); }
+        catch (e) { info.insertAdjacentHTML('beforeend', `<div class="sx-err">⚠️ ${esc(e.message)}</div>`); go.disabled = false; }
       };
     }
 
