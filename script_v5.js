@@ -1352,6 +1352,7 @@ function showPage(name) {
   if (name === 'tasks' && typeof renderTasksOverview === 'function') renderTasksOverview(); checkAndResetRecurringTasks(); renderRecurringTasks();
   if (name === 'recurring' && typeof renderRecurringTasks === 'function') renderRecurringTasks();
   if (name === 'wstrack' && typeof renderWsTrack === 'function') renderWsTrack();
+  if (name === 'seoaudit' && typeof saInit === 'function') saInit();
   if (name === 'billing' && typeof renderBilling === 'function') {
     renderBilling();
     wstSyncBillingAll(); // Tự động sync khi người dùng click vào tab hóa đơn

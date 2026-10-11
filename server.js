@@ -313,6 +313,43 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.startsWith("/api/seo-audit")) {
+    const SA = require("./lib/seo_audit");
+    const q = new URL(req.url, `http://${req.headers.host}`).searchParams;
+    const json = (code, obj) => { res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" }); res.end(JSON.stringify(obj)); };
+    try {
+      if (req.method === "POST" && url === "/api/seo-audit") {
+        const body = JSON.parse((await readBody(req)) || "{}");
+        return json(200, { guid: SA.start(body.url) });
+      }
+      if (req.method === "GET" && url === "/api/seo-audit/meta") return json(200, { checks: SA.CHECKS, groups: SA.GROUPS });
+      if (req.method === "GET" && url === "/api/seo-audit/history") return json(200, { items: SA.history(50) });
+      if (req.method === "GET" && url === "/api/seo-audit/report") {
+        const r = SA.load(q.get("guid") || "");
+        return r ? json(200, r) : json(404, { error: "Không tìm thấy báo cáo" });
+      }
+      if (req.method === "DELETE" && url === "/api/seo-audit/report") return json(200, { ok: SA.remove(q.get("guid") || "") });
+      if (req.method === "GET" && url === "/api/seo-audit/stream") {
+        res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", "Connection": "keep-alive", "X-Accel-Buffering": "no" });
+        res.write(": ok\n\n");
+        const ping = setInterval(() => res.write(": ping\n\n"), 15000);
+        let off = null, closed = false;
+        const end = () => { if (closed) return; closed = true; clearInterval(ping); if (off) off(); };
+        off = SA.subscribe(q.get("guid") || "", ev => {
+          if (closed) return;
+          res.write("data: " + JSON.stringify(ev) + "\n\n");
+          if (ev.done) { end(); res.end(); }
+        });
+        if (!off) { res.write("data: " + JSON.stringify({ done: true, error: "Không tìm thấy lượt phân tích này" }) + "\n\n"); end(); res.end(); return; }
+        req.on("close", end);
+        return;
+      }
+      return json(404, { error: "Không có API này" });
+    } catch (e) {
+      return json(400, { error: e.message });
+    }
+  }
+
   // ── POST /api/site-checkup → KHÁM BỆNH website (checklist chuẩn SEO từ bên ngoài, lib/site_checkup.js) ──
   // Body {domain, urls:[≤30 bài mẫu], all_links:[mọi bài], about:[≤3 trang giới thiệu]}. Dùng cho 🩺 Khám bệnh (seo_expert.js).
   if (req.method === "POST" && url === "/api/site-checkup") {
