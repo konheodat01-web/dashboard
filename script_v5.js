@@ -5280,6 +5280,26 @@ function editRecurring(id){ openNewProjectModal(true, id); }
 
 
 
+function confirmDeleteRecurring(id){
+  const found = recurringTasks.find(x=>x.id===id);
+  if(!found) return;
+  window._lastDeletedRecurring = found;
+  recurringTasks = recurringTasks.filter(x=>x.id!==id);
+  saveRecurring();
+  renderRecurringTasks();
+  toast('🗑 Đã xoá task định kỳ. <a onclick="undoDeleteRecurring('+id+')" style="color:#fff;text-decoration:underline;cursor:pointer;font-weight:600">Hoàn tác</a>', '#2c3e50', 6000);
+}
+
+function undoDeleteRecurring(id){
+  const t = window._lastDeletedRecurring;
+  if(!t || t.id!==id) return;
+  window._lastDeletedRecurring = null;
+  recurringTasks.unshift(t);
+  saveRecurring();
+  renderRecurringTasks();
+  toast('✓ Đã khôi phục task định kỳ!');
+}
+
 function deleteRecurring(id){
   if(!confirm('Xoá task định kỳ này?')) return;
   recurringTasks = recurringTasks.filter(x=>x.id!==id);
