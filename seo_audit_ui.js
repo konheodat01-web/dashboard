@@ -214,7 +214,8 @@
         render(); return;
       }
       if ('note' in ev) { ST.note = ev.note; if (ST.phase === 'loading') render(); return; }
-      if (!ST.results[ev.slug]) { ST.results[ev.slug] = ev.result; ST.order.push(ev.slug); }
+      if (!ST.results[ev.slug]) ST.order.push(ev.slug);
+      ST.results[ev.slug] = ev.result;
       if (!t) t = setTimeout(() => { t = null; if (ST.phase === 'loading') render(); }, 120);
     };
     es.onerror = () => {
