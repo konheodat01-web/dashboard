@@ -147,7 +147,7 @@
     return `<div class="sa-top">
       <div class="u">Báo cáo SEO Audit · ${esc(when)}<br><b>${esc(ST.report ? ST.report.final_url || ST.url : ST.url)}</b></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="sa-btn ghost sm" onclick="saNew()">＋ Phân tích URL khác</button>
+        <button class="sa-btn ghost sm" onclick="saNew()">🏠 Nhập URL / Lịch sử</button>
         <button class="sa-btn ghost sm" onclick="saRerun()">↻ Phân tích lại</button>
         <button class="sa-btn sm" onclick="saPdf()">⬇ Xuất PDF</button>
       </div></div>
@@ -275,8 +275,6 @@
     const el = root(); if (!el || el.dataset.ready) return;
     el.dataset.ready = '1';
     try { await ensureMeta(); } catch (e) { el.innerHTML = '<div class="sa-card" style="color:#f85149">Không tải được công cụ: ' + esc(e.message) + '</div>'; return; }
-    let last = ''; try { last = localStorage.getItem('sa_last') || ''; } catch (x) {}
-    if (last) { await saOpen(last); if (ST.phase === 'dash') return; ST.err = ''; }
     render();
   };
   const pg = document.getElementById('page-seoaudit');
