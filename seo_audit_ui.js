@@ -84,6 +84,7 @@
       <div class="sa-top"><div class="u">Đang phân tích<br><b>${esc(ST.url)}</b></div><button class="sa-btn ghost sm" onclick="saCancel()">Huỷ</button></div>
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Đang kiểm tra các tiêu chí…</span><b>${done}/${total} · ${pct}%</b></div>
       <div class="sa-bar"><i style="width:${pct}%"></i></div>
+      ${ST.note ? `<div style="margin-top:10px;font-size:13px;color:#d29922">⏳ ${esc(ST.note)}</div>` : ''}
       <div class="sa-gchips">${ST.meta.groups.map(g => `<span class="sa-gchip ${byG[g.key] && byG[g.key][0] === byG[g.key][1] ? 'done' : ''}">${g.icon} ${esc(g.label)} ${byG[g.key] ? byG[g.key][0] + '/' + byG[g.key][1] : ''}</span>`).join('')}</div>
       <ul class="sa-feed">${last.map(slug => { const c = ST.meta.checks.find(x => x.slug === slug), r = ST.results[slug]; return `<li><span class="sa-ico ${r.status}">${ICON[r.status]}</span><b>${esc(c.name)}</b><span>${esc(r.message)}</span></li>`; }).join('') || '<li><span>Đang tải trang…</span></li>'}</ul>
     </div></div>`;
@@ -198,6 +199,7 @@
         try { localStorage.setItem('sa_last', guid); } catch (x) {}
         render(); return;
       }
+      if ('note' in ev) { ST.note = ev.note; if (ST.phase === 'loading') render(); return; }
       if (!ST.results[ev.slug]) { ST.results[ev.slug] = ev.result; ST.order.push(ev.slug); }
       if (!t) t = setTimeout(() => { t = null; if (ST.phase === 'loading') render(); }, 120);
     };
@@ -215,7 +217,7 @@
     ST.err = ''; ST.url = url;
     try {
       const { guid } = await api('', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
-      Object.assign(ST, { guid, results: {}, order: [], report: null, phase: 'loading', tab: 'overview' });
+      Object.assign(ST, { guid, results: {}, order: [], report: null, phase: 'loading', tab: 'overview', note: '' });
       render(); listen(guid);
     } catch (e) { ST.phase = 'hero'; ST.err = 'Không thể tạo báo cáo: ' + e.message; render(); }
   };

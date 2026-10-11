@@ -322,6 +322,22 @@ const server = http.createServer(async (req, res) => {
         const body = JSON.parse((await readBody(req)) || "{}");
         return json(200, { guid: SA.start(body.url) });
       }
+      if (url === "/api/seo-audit/psi-next" || url === "/api/seo-audit/psi-result") {
+        let k = "";
+        try { k = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
+        if (!k || q.get("key") !== k) return json(401, { error: "Sai access key" });
+        if (req.method === "GET" && url === "/api/seo-audit/psi-next") {
+          const w = SA.psiNext(Number(q.get("wait") || 20) * 1000);
+          res.on("close", w.cancel);
+          const r = await w.promise;
+          if (res.writableEnded || res.destroyed) return;
+          return json(200, r);
+        }
+        if (req.method === "POST" && url === "/api/seo-audit/psi-result") {
+          const body = JSON.parse((await readBody(req)) || "{}");
+          return json(200, { ok: SA.psiResult(body) });
+        }
+      }
       if (req.method === "GET" && url === "/api/seo-audit/meta") return json(200, { checks: SA.CHECKS, groups: SA.GROUPS });
       if (req.method === "GET" && url === "/api/seo-audit/history") return json(200, { items: SA.history(50) });
       if (req.method === "GET" && url === "/api/seo-audit/report") {
@@ -341,7 +357,7 @@ const server = http.createServer(async (req, res) => {
           if (ev.done) { end(); res.end(); }
         });
         if (!off) { res.write("data: " + JSON.stringify({ done: true, error: "Không tìm thấy lượt phân tích này" }) + "\n\n"); end(); res.end(); return; }
-        req.on("close", end);
+        res.on("close", end);
         return;
       }
       return json(404, { error: "Không có API này" });
