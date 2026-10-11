@@ -2,11 +2,11 @@
   const API = '/api/seo-audit';
   const ST = { meta: null, phase: 'hero', guid: '', url: '', results: {}, order: [], report: null, tab: 'overview', es: null, err: '' };
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const ICON = { passed: '✓', warning: '!', failed: '✕', skipped: '–' };
+  const ICON = { passed: '✅', warning: '⚠️', failed: '❌', skipped: '➖' };
   const LBL = { passed: 'Đạt', warning: 'Cảnh báo', failed: 'Không đạt', skipped: 'Bỏ qua' };
   const cls = v => v == null ? 'sa-skip' : v >= 80 ? 'sa-good' : v >= 50 ? 'sa-mid' : 'sa-bad';
   const color = v => v >= 80 ? '#3fb950' : v >= 50 ? '#d29922' : '#f85149';
-  const rate = v => v >= 80 ? 'Tốt — Website đạt chuẩn SEO ở hầu hết tiêu chí' : v >= 50 ? 'Trung bình — Còn một số mục quan trọng cần sửa' : 'Yếu — Cần cải thiện nhiều mục quan trọng';
+  const rate = v => v >= 80 ? 'Tốt — Website đạt chuẩn SEO ở hầu hết tiêu chí' : v >= 50 ? 'Khá — Cần cải thiện một số mục' : 'Yếu — Cần cải thiện nhiều mục quan trọng';
   const root = () => document.getElementById('saRoot');
 
   async function api(path, opt) {
@@ -90,71 +90,79 @@
     </div></div>`;
   }
 
-  function ring(v) {
-    const r = 72, c = 2 * Math.PI * r, off = c * (1 - v / 100);
-    return `<div class="sa-ring"><svg width="170" height="170"><circle cx="85" cy="85" r="${r}" stroke="#21262d" stroke-width="14" fill="none"/><circle cx="85" cy="85" r="${r}" stroke="${color(v)}" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/></svg><div class="v"><b style="color:${color(v)}">${v}</b><span>/ 100 điểm</span></div></div>`;
-  }
-
   function groupStats(key) {
-    let t = 0, s = 0; const n = { passed: 0, warning: 0, failed: 0, skipped: 0 };
+    let t = 0, s = 0; const n = { passed: 0, warning: 0, failed: 0, skipped: 0 }; let total = 0;
     for (const c of ST.meta.checks.filter(c => !key || c.group === key)) {
+      total++;
       const r = ST.results[c.slug]; if (!r) continue;
       n[r.status]++;
       if (!c.relevance || r.status === 'skipped') continue;
       t += c.relevance; s += r.status === 'passed' ? c.relevance : r.status === 'warning' ? c.relevance / 2 : 0;
     }
-    return { score: t ? Math.round(s / t * 100) : null, n };
+    return { score: t ? Math.round(s / t * 100) : null, n, total };
+  }
+
+  const tone = (p, t) => !t ? 'sa-skip' : p / t >= 1 ? 'sa-good' : p / t >= 0.6 ? 'sa-mid' : 'sa-bad';
+
+  function donut(n) {
+    const tot = n.passed + n.warning + n.failed || 1, r = 38, C = 2 * Math.PI * r;
+    let off = 0;
+    const seg = (v, col) => { const len = v / tot * C; const el = v ? `<circle cx="48" cy="48" r="${r}" fill="none" stroke="${col}" stroke-width="12" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}"/>` : ''; off += len; return el; };
+    return `<div class="wrap"><svg width="96" height="96"><circle cx="48" cy="48" r="${r}" fill="none" stroke="#21262d" stroke-width="12"/>${seg(n.passed, '#3fb950')}${seg(n.warning, '#d29922')}${seg(n.failed, '#f85149')}</svg><div class="c">✅</div></div>`;
+  }
+
+  const VITALS = [
+    ['web-vitals-ttfb', '⏱️', 'TTFB', 800, 1800, v => (v / 1000).toFixed(2) + 's', 'Ngưỡng tốt: ≤ 0.8s'],
+    ['web-vitals-fcp', '🎨', 'FCP', 1800, 3000, v => (v / 1000).toFixed(2) + 's', 'Ngưỡng tốt: ≤ 1.8s'],
+    ['web-vitals-lcp', '📐', 'LCP', 2500, 4000, v => (v / 1000).toFixed(2) + 's', 'Ngưỡng tốt: ≤ 2.5s'],
+    ['web-vitals-cls', '📊', 'CLS', 0.1, 0.25, v => v.toFixed(4), 'Ngưỡng tốt: ≤ 0.1'],
+  ];
+  const SCOL = { passed: '#3fb950', warning: '#d29922', failed: '#f85149', skipped: '#8b949e' };
+
+  function vitalsHtml() {
+    return `<div class="sa-vitals">${VITALS.map(([slug, ic, name, good, poor, fmt, th]) => {
+      const r = ST.results[slug], v = r && r.data && typeof r.data.value === 'number' ? r.data.value : null;
+      const st = r ? r.status : 'skipped', w = v == null ? 0 : Math.min(100, Math.max(3, v / poor * 100));
+      return `<div class="sa-vital" title="${esc(r ? r.message : '')}"><div class="h">${ic} ${name}</div><div class="v" style="color:${SCOL[st]}">${v == null ? '—' : fmt(v)}</div>
+        <div class="sa-bar"><i style="width:${w}%;background:${SCOL[st]}"></i></div><div class="t">${th}</div></div>`;
+    }).join('')}</div>`;
+  }
+
+  function kpisHtml() {
+    const s = (ST.report && ST.report.stats) || {};
+    const ld = ST.results['loading-speed'], lt = ld && ld.data && ld.data.loading_time != null ? ld.data.loading_time : s.load;
+    const size = b => b == null ? '—' : b >= 1048576 ? (b / 1048576).toFixed(2) + ' MB' : Math.round(b / 1024) + ' KB';
+    const k = [['⚡', lt == null ? '—' : (lt / 1000).toFixed(2) + 's', 'Thời gian tải trang'], ['📦', s.requests ?? '—', 'Tổng HTTP Requests'],
+      ['💾', size(s.bytes) + (s.approx && s.bytes != null ? '*' : ''), 'Tổng dung lượng'], ['🏗️', s.dom ?? '—', 'DOM Nodes']];
+    return `<div class="sa-kpis">${k.map(([i, v, l]) => `<div class="sa-kpi"><div class="i">${i}</div><div><b>${esc(v)}</b><span>${l}</span></div></div>`).join('')}</div>`;
   }
 
   function dashHtml() {
     const sc = ST.report ? ST.report.score : score(ST.results);
     const all = groupStats(null);
-    const issues = ST.meta.checks.filter(c => ST.results[c.slug] && ['failed', 'warning'].includes(ST.results[c.slug].status));
-    const tabs = [['overview', '📊 Tổng quan', 0], ['issues', '🛠️ Cần sửa', issues.length], ...ST.meta.groups.map(g => [g.key, g.icon + ' ' + g.label, groupStats(g.key).n.failed])];
-    const when = ST.report ? new Date(ST.report.created).toLocaleString('vi-VN') + ' · ' + Math.round((ST.report.duration || 0) / 1000) + ' giây' : '';
+    const band = sc >= 80 ? 'good' : sc >= 50 ? 'mid' : 'bad';
+    const when = ST.report ? new Date(ST.report.created).toLocaleString('vi-VN') + ' · phân tích trong ' + Math.round((ST.report.duration || 0) / 1000) + ' giây' : '';
+    const nav = ST.meta.groups.map(g => { const gs = groupStats(g.key); return `<button class="${ST.tab === g.key ? 'on' : ''}" onclick="saTab('${g.key}')"><span>${g.icon}</span><span class="l">${esc(g.label)}</span><em class="${tone(gs.n.passed, gs.total)}">${gs.n.passed}/${gs.total}</em></button>`; }).join('');
+    const groups = ST.tab === 'overview' ? ST.meta.groups : ST.meta.groups.filter(g => g.key === ST.tab);
     return `<div class="sa-top">
-      <div class="u">Báo cáo SEO Audit<br><b>${esc(ST.report ? ST.report.final_url || ST.url : ST.url)}</b><br>${esc(when)}</div>
+      <div class="u">Báo cáo SEO Audit · ${esc(when)}<br><b>${esc(ST.report ? ST.report.final_url || ST.url : ST.url)}</b></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="sa-btn ghost sm" onclick="saNew()">＋ Phân tích URL khác</button>
         <button class="sa-btn ghost sm" onclick="saRerun()">↻ Phân tích lại</button>
         <button class="sa-btn sm" onclick="saPdf()">⬇ Xuất PDF</button>
       </div></div>
     ${ST.report && ST.report.error ? `<div class="sa-card" style="border-color:#f85149;color:#f85149">${esc(ST.report.error)}</div>` : ''}
-    <div class="sa-sum">
-      <div class="sa-card sa-score">${ring(sc)}<div class="sa-rate" style="color:${color(sc)}">${rate(sc)}</div>
-        <div class="sa-counts"><div><b style="color:#3fb950">${all.n.passed}</b>Đạt</div><div><b style="color:#d29922">${all.n.warning}</b>Cảnh báo</div><div><b style="color:#f85149">${all.n.failed}</b>Không đạt</div><div><b style="color:#8b949e">${all.n.skipped}</b>Bỏ qua</div></div></div>
-      <div class="sa-card"><h3>Điểm theo nhóm</h3><div class="sa-groups">${ST.meta.groups.map(g => { const gs = groupStats(g.key); return `<div class="sa-group" onclick="saTab('${g.key}')">
-        <div class="h"><span>${g.icon} ${esc(g.label)}</span><span class="sa-pill ${cls(gs.score)}">${gs.score == null ? '–' : gs.score}</span></div>
-        <div class="sa-bar"><i style="width:${gs.score || 0}%;background:${gs.score == null ? '#30363d' : color(gs.score)}"></i></div>
-        <div class="n">✓ ${gs.n.passed} · ! ${gs.n.warning} · ✕ ${gs.n.failed}${gs.n.skipped ? ' · – ' + gs.n.skipped : ''}</div></div>`; }).join('')}</div></div>
-    </div>
-    <div class="sa-tabs">${tabs.map(([k, l, n]) => `<button class="sa-tab ${ST.tab === k ? 'on' : ''}" onclick="saTab('${k}')">${esc(l)}${n ? `<em>${n}</em>` : ''}</button>`).join('')}</div>
-    <div id="saBody">${tabBody()}</div>`;
-  }
-
-  function tabBody() {
-    if (ST.tab === 'overview') return overviewHtml();
-    let list;
-    if (ST.tab === 'issues') {
-      list = ST.meta.checks.filter(c => ST.results[c.slug] && ['failed', 'warning'].includes(ST.results[c.slug].status))
-        .sort((a, b) => (ST.results[a.slug].status === 'failed' ? 0 : 1) - (ST.results[b.slug].status === 'failed' ? 0 : 1) || b.relevance - a.relevance);
-      if (!list.length) return '<div class="sa-empty">🎉 Không còn mục nào cần sửa.</div>';
-    } else list = ST.meta.checks.filter(c => c.group === ST.tab);
-    return list.map(checkHtml).join('');
-  }
-
-  function overviewHtml() {
-    const top = ST.meta.checks.filter(c => ST.results[c.slug] && ST.results[c.slug].status === 'failed').sort((a, b) => b.relevance - a.relevance).slice(0, 6);
-    const pv = ST.results['google-preview'], cl = ST.results['keywords-cloud'], sn = ST.results['mobile-snapshot'], kw = ST.results['common-keywords'];
-    return `<div class="sa-ov">
+    <div class="sa-layout">
+      <nav class="sa-nav"><button class="${ST.tab === 'overview' ? 'on' : ''}" onclick="saTab('overview')"><span>📊</span><span class="l">Tổng quan</span></button><hr>${nav}</nav>
       <div>
-        <div class="sa-card"><h3>🚨 Lỗi quan trọng nhất</h3>${top.length ? top.map(checkHtml).join('') : '<div class="sa-empty">Không có lỗi nghiêm trọng.</div>'}</div>
-        <div class="sa-card"><h3>🔎 Xem trước trên Google</h3>${pv && pv.data ? dataHtml(pv.data) : '<div class="sa-empty">Không có dữ liệu.</div>'}</div>
+        ${ST.tab === 'overview' ? `<div class="sa-scorebox ${band}">
+          <div><div class="k">Điểm SEO tổng thể</div><div class="n">${sc}<small>/ 100</small></div><div class="r">${rate(sc)}</div></div>
+          <div class="sa-donut">${donut(all.n)}<div class="sa-legend"><div><i style="background:#3fb950"></i>Đạt: ${all.n.passed} mục</div><div><i style="background:#d29922"></i>Cần cải thiện: ${all.n.warning} mục</div><div><i style="background:#f85149"></i>Không đạt: ${all.n.failed} mục</div>${all.n.skipped ? `<div><i style="background:#6e7681"></i>Chưa đo được: ${all.n.skipped} mục</div>` : ''}</div></div>
+        </div>${vitalsHtml()}${kpisHtml()}` : ''}
+        ${groups.map(g => { const gs = groupStats(g.key); return `<div class="sa-sec"><div class="sa-sec-h"><div><h2>${g.icon} ${esc(g.label)}</h2><p>${gs.total} tiêu chí đã kiểm tra</p></div><span class="sa-pill ${tone(gs.n.passed, gs.total)}">${gs.n.passed}/${gs.total} đạt</span></div>
+          ${ST.meta.checks.filter(c => c.group === g.key).map(checkHtml).join('')}</div>`; }).join('')}
       </div>
-      <div>
-        <div class="sa-card"><h3>📱 Giao diện Mobile</h3>${sn && sn.data && sn.data.snapshot ? dataHtml(sn.data) : `<div class="sa-empty">${esc(sn ? sn.message : 'Không có dữ liệu.')}</div>`}</div>
-        <div class="sa-card"><h3>🏷️ Từ khóa phổ biến</h3>${kw && kw.data ? dataHtml(kw.data) : ''}${cl && cl.data ? dataHtml(cl.data) : ''}</div>
-      </div></div>`;
+    </div>`;
   }
 
   function dataHtml(d) {
@@ -166,18 +174,24 @@
     if (d.table && d.table.rows && d.table.rows.length) h += `<table class="sa-tbl"><tr>${d.table.head.map(x => `<th>${esc(x)}</th>`).join('')}</tr>${d.table.rows.map(r => `<tr>${r.map(x => `<td>${esc(x)}</td>`).join('')}</tr>`).join('')}</table>`;
     if (d.items && d.items.length) h += `<ul class="sa-list">${d.items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
     if (d.code) h += `<div class="sa-code">${esc(d.code)}</div>`;
-    if (d.image) h += `<img src="${esc(d.image)}" alt="" style="max-width:${d.small ? 48 : 300}px;margin-top:8px;border-radius:4px;background:#fff">`;
+    if (d.image) h += `<img src="${esc(d.image)}" alt="" style="max-width:${d.small ? 48 : 300}px;margin-top:8px;border-radius:4px">`;
     return h;
+  }
+
+  function mini(r, c) {
+    if (!c.relevance || r.status === 'skipped') return `<div class="sa-mini" title="Không tính điểm"><svg width="30" height="30"><circle cx="15" cy="15" r="12" fill="none" stroke="#30363d" stroke-width="3"/></svg><b style="color:#8b949e">—</b></div>`;
+    const p = r.status === 'passed' ? 100 : r.status === 'warning' ? 50 : 0, C = 2 * Math.PI * 12, col = SCOL[r.status];
+    return `<div class="sa-mini" title="Điểm tiêu chí này: ${p}%"><svg width="30" height="30"><circle cx="15" cy="15" r="12" fill="none" stroke="#30363d" stroke-width="3"/><circle cx="15" cy="15" r="12" fill="none" stroke="${col}" stroke-width="3" stroke-dasharray="${C * p / 100} ${C}"/></svg><b style="color:${col}">${p}%</b></div>`;
   }
 
   function checkHtml(c) {
     const r = ST.results[c.slug];
-    if (!r) return `<div class="sa-check"><div class="h"><span class="sa-ico skipped">…</span><div class="t"><b>${esc(c.name)}</b><span>Đang kiểm tra…</span></div></div></div>`;
-    const imp = c.relevance >= 8 ? 'Quan trọng cao' : c.relevance >= 4 ? 'Quan trọng vừa' : c.relevance ? 'Quan trọng thấp' : 'Tham khảo';
+    if (!r) return `<div class="sa-check"><div class="h"><span class="sa-ico skipped">⏳</span><div class="t"><b>${esc(c.name)}</b><span>Đang kiểm tra…</span></div></div></div>`;
+    const imp = c.relevance >= 8 ? ['hi', 'Quan trọng'] : c.relevance >= 3 ? ['md', 'Trung bình'] : c.relevance ? ['lo', 'Thấp'] : ['ref', 'Tham khảo'];
     return `<div class="sa-check" id="sa-c-${c.slug}"><div class="h" onclick="this.parentNode.classList.toggle('open')">
       <span class="sa-ico ${r.status}" title="${LBL[r.status]}">${ICON[r.status]}</span>
       <div class="t"><b>${esc(c.name)}</b><span>${esc(r.message)}</span></div>
-      <span class="imp">${imp}</span><span class="car">›</span></div>
+      <span class="sa-imp ${imp[0]}">${imp[1]}</span>${mini(r, c)}<span class="car">▼</span></div>
       <div class="b">${dataHtml(r.data)}${r.status !== 'passed' && r.how_to_fix ? `<div class="sa-fix"><b>💡 Cách khắc phục:</b> ${esc(r.how_to_fix)}</div>` : ''}</div></div>`;
   }
 
@@ -239,7 +253,7 @@
   window.saRerun = function () { saStart(ST.url); };
   window.saCancel = function () { closeEs(); ST.phase = 'hero'; render(); };
   window.saNew = function () { closeEs(); ST.phase = 'hero'; ST.url = ''; try { localStorage.removeItem('sa_last'); } catch (x) {} render(); };
-  window.saTab = function (k) { ST.tab = k; render(); const b = document.querySelector('.sa-tabs'); if (b) b.scrollIntoView({ block: 'nearest' }); };
+  window.saTab = function (k) { ST.tab = k; render(); const pg = document.getElementById('page-seoaudit'); if (pg) pg.scrollTop = 0; };
   window.saPdf = function () {
     const sc = ST.report ? ST.report.score : score(ST.results);
     const rows = ST.meta.groups.map(g => {
