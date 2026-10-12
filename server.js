@@ -322,10 +322,16 @@ const server = http.createServer(async (req, res) => {
         const body = JSON.parse((await readBody(req)) || "{}");
         return json(200, { guid: SA.start(body.url) });
       }
-      if (url === "/api/seo-audit/psi-next" || url === "/api/seo-audit/psi-result") {
+      if (["/api/seo-audit/psi-next", "/api/seo-audit/psi-result", "/api/seo-audit/psi-switch", "/api/seo-audit/psi-status"].includes(url)) {
         let k = "";
         try { k = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
         if (!k || q.get("key") !== k) return json(401, { error: "Sai access key" });
+        if (req.method === "GET" && url === "/api/seo-audit/psi-status") return json(200, SA.psiStatus());
+        if (req.method === "POST" && url === "/api/seo-audit/psi-switch") {
+          const body = JSON.parse((await readBody(req)) || "{}");
+          return json(200, { ok: true, n: SA.psiSwitch(body.mode) });
+        }
+        if (req.method === "GET" && url === "/api/seo-audit/psi-next" && q.get("hold")) { SA.psiHold(); return json(200, { job: null }); }
         if (req.method === "GET" && url === "/api/seo-audit/psi-next") {
           const w = SA.psiNext(Number(q.get("wait") || 20) * 1000);
           res.on("close", w.cancel);
