@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bản đồ hệ thống · nthieucloud</title>
+<script>try { const t = localStorage.getItem('hub-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); document.documentElement.dataset.theme = t; } catch (e) { document.documentElement.dataset.theme = 'dark'; }</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -12,10 +13,23 @@
   --accent:#5b8cff; --accent-soft:rgba(91,140,255,.16);
   --ok:#3fbf73; --warn:#e3a33a; --fail:#f06363; --idle:#6f7a8c;
   --grid:rgba(223,230,241,.05); --edge:#3a4a62; --edge-live:#5b8cff;
+  --shadow:rgba(0,0,0,.5); --backdrop:rgba(5,8,14,.72); --mark:rgba(227,163,58,.32);
+  --e-route:#5b8cff; --e-module:#3fbf73; --e-api:#b48cff; --e-schedule:#e3a33a;
+  --e-task:#2dd4bf; --e-embed:#a3adbd; --e-host:#6b7a90; --e-guard:#f06363;
   --f-display:"Chakra Petch","Segoe UI",system-ui,sans-serif;
   --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
   color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#f3f5f9; --panel:#ffffff; --panel2:#eef1f6; --line:#d6dce6; --fg:#16202e; --mut:#5b677a;
+  --accent:#2f6bea; --accent-soft:rgba(47,107,234,.12);
+  --ok:#1f9d55; --warn:#b7700a; --fail:#d23a3a; --idle:#8a94a6;
+  --grid:rgba(22,32,46,.09); --edge:#9aa6b8; --edge-live:#2f6bea;
+  --shadow:rgba(20,30,50,.18); --backdrop:rgba(22,30,44,.42); --mark:rgba(240,180,40,.4);
+  --e-route:#2f6bea; --e-module:#1f9d55; --e-api:#7c4ddb; --e-schedule:#c27a0e;
+  --e-task:#0f9488; --e-embed:#7a8597; --e-host:#5b6676; --e-guard:#d23a3a;
+  color-scheme:light;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -61,8 +75,9 @@ svg.edges g.hl path.base{stroke-width:2.8}
 .help:hover,.help:focus-visible{color:var(--fg);border-color:var(--accent);outline:none}
 .ico{width:30px;height:30px;padding:0;justify-content:center}
 .ico svg{width:17px;height:17px}
-.modal{position:fixed;inset:0;z-index:100;background:rgba(5,8,14,.72);display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
-.mbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(980px,100%);height:min(680px,100%);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);min-height:0}
+:root[data-theme="light"] .i-sun,:root:not([data-theme="light"]) .i-moon{display:none}
+.modal{position:fixed;inset:0;z-index:100;background:var(--backdrop);display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
+.mbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(980px,100%);height:min(680px,100%);display:flex;flex-direction:column;box-shadow:0 20px 60px var(--shadow);min-height:0}
 .mhd{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
 .mhd h2{font:600 19px var(--f-display);margin:0;flex:1}
 .gwrap{flex:1;display:grid;grid-template-columns:230px minmax(0,1fr);min-height:0}
@@ -82,7 +97,7 @@ svg.edges g.hl path.base{stroke-width:2.8}
 .mbd section + section{border-top:1px solid var(--line)}
 .mbd .crumb{font:500 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
 .mbd h3{font:600 18px var(--f-display);margin:0;color:var(--fg);letter-spacing:.01em}
-.mbd mark{background:rgba(227,163,58,.32);color:inherit;border-radius:2px;padding:0 1px}
+.mbd mark{background:var(--mark);color:inherit;border-radius:2px;padding:0 1px}
 .gempty{color:var(--mut);padding:24px 0}
 .gpos{margin-right:auto;font:12px var(--f-mono);color:var(--mut);align-self:center}
 @media (max-width:720px){
@@ -102,7 +117,7 @@ svg.edges g.hl path.base{stroke-width:2.8}
 .gtbl tr:last-child td{border-bottom:none}
 .gtbl td:first-child{white-space:nowrap;font-weight:500}
 .mft{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--line)}
-.tip{position:fixed;z-index:50;max-width:280px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.5;color:var(--fg);box-shadow:0 6px 24px rgba(0,0,0,.45);pointer-events:none}
+.tip{position:fixed;z-index:50;max-width:280px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.5;color:var(--fg);box-shadow:0 6px 24px var(--shadow);pointer-events:none}
 .tip b{display:block;font:600 13px var(--f-display);margin-bottom:3px}
 .desc{font-size:12.5px;color:var(--mut);line-height:1.5}
 .node .kind{font:500 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
@@ -153,6 +168,7 @@ svg.edges g.hl path.base{stroke-width:2.8}
   <span class="kpi" id="k-vps"></span>
   <span class="sp"></span>
   <span class="conn"><i class="dot" id="c-dot"></i><span id="c-txt">đang kết nối…</span></span>
+  <button class="btn ico" type="button" id="b-theme" title="Đổi giao diện sáng / tối" aria-label="Đổi giao diện sáng / tối"><svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg><svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg></button>
   <button class="btn ico" type="button" id="b-guide" title="Hướng dẫn sử dụng" aria-label="Hướng dẫn sử dụng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path><path d="M8 13h8M8 17h5"></path></svg></button>
   <button class="btn" type="button" id="b-reset">Sắp lại mặc định</button>
   <a class="btn" href="/admin/config">Cấu hình dashboard</a>
@@ -211,6 +227,7 @@ svg.edges g.hl path.base{stroke-width:2.8}
           <li><b>Rê chuột lên dây</b>: xem đó là quan hệ gì.</li>
           <li><b>− / + / Vừa khung</b> (góc dưới phải): phóng to, thu nhỏ, thu cả bản đồ vừa màn hình.</li>
           <li><b>Sắp lại mặc định</b>: đưa mọi ô về vị trí ban đầu.</li>
+          <li><b>Nút mặt trời / mặt trăng</b> trên thanh trên cùng: đổi giao diện sáng / tối. Trình duyệt nhớ lựa chọn cho lần sau; lần đầu mở sẽ theo chế độ sáng/tối của máy.</li>
         </ul>
       </section>
       <section data-sec="status" data-grp="Đọc bản đồ">
@@ -277,19 +294,19 @@ const stage = document.getElementById('stage'), svg = document.getElementById('e
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const byId = {};
 const ET = {
-  route:    { label: 'Chuyển truy cập', hint: 'Tên miền đi qua Caddy rồi vào app này', color: '#5b8cff', dash: '', arrow: true },
-  module:   { label: 'Chức năng bên trong', hint: 'Chạy chung trong cùng một tool, không phải dịch vụ riêng', color: '#3fbf73', dash: '', arrow: false, dot: true },
-  api:      { label: 'Gọi API ngoài', hint: 'Mỗi lần gọi tốn tiền hoặc credit', color: '#b48cff', dash: '', arrow: true },
-  schedule: { label: 'Hẹn giờ kích hoạt', hint: 'Tự gọi theo lịch, không cần người bấm', color: '#e3a33a', dash: '9 6', arrow: true },
-  task:     { label: 'Giao việc', hint: 'Tool đẩy việc vào hàng đợi, bên kia nhận về làm rồi gửi kết quả lại', color: '#2dd4bf', dash: '5 5', arrow: true },
-  embed:    { label: 'Nhúng giao diện', hint: 'Mở app kia ngay bên trong trang này', color: '#a3adbd', dash: '1 6', arrow: true },
-  host:     { label: 'Máy chủ chạy', hint: 'Mọi dịch vụ chạy trên VPS; truy cập từ ngoài vào qua Caddy', color: '#6b7a90', dash: '', arrow: true, wide: true },
-  guard:    { label: 'Bảo vệ', hint: 'Chặn IP dò mật khẩu SSH', color: '#f06363', dash: '2 5', arrow: true },
+  route:    { label: 'Chuyển truy cập', hint: 'Tên miền đi qua Caddy rồi vào app này', color: 'var(--e-route)', dash: '', arrow: true },
+  module:   { label: 'Chức năng bên trong', hint: 'Chạy chung trong cùng một tool, không phải dịch vụ riêng', color: 'var(--e-module)', dash: '', arrow: false, dot: true },
+  api:      { label: 'Gọi API ngoài', hint: 'Mỗi lần gọi tốn tiền hoặc credit', color: 'var(--e-api)', dash: '', arrow: true },
+  schedule: { label: 'Hẹn giờ kích hoạt', hint: 'Tự gọi theo lịch, không cần người bấm', color: 'var(--e-schedule)', dash: '9 6', arrow: true },
+  task:     { label: 'Giao việc', hint: 'Tool đẩy việc vào hàng đợi, bên kia nhận về làm rồi gửi kết quả lại', color: 'var(--e-task)', dash: '5 5', arrow: true },
+  embed:    { label: 'Nhúng giao diện', hint: 'Mở app kia ngay bên trong trang này', color: 'var(--e-embed)', dash: '1 6', arrow: true },
+  host:     { label: 'Máy chủ chạy', hint: 'Mọi dịch vụ chạy trên VPS; truy cập từ ngoài vào qua Caddy', color: 'var(--e-host)', dash: '', arrow: true, wide: true },
+  guard:    { label: 'Bảo vệ', hint: 'Chặn IP dò mật khẩu SSH', color: 'var(--e-guard)', dash: '2 5', arrow: true },
 };
 const etKey = e => (e[2] in ET ? e[2] : 'host');
 const etOf = e => ET[etKey(e)];
 document.getElementById('lg-edges').insertAdjacentHTML('beforeend', Object.values(ET).map(t =>
-  `<span title="${esc(t.hint)}"><svg width="40" height="10" aria-hidden="true"><path d="M3 5 H${t.arrow ? 32 : 38}" stroke="${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}" stroke-linecap="round" fill="none"></path>${t.arrow ? `<path d="M31 1.5 L38 5 L31 8.5 Z" fill="${t.color}"></path>` : ''}${t.dot ? `<circle cx="3.5" cy="5" r="2.6" fill="${t.color}"></circle>` : ''}</svg>${esc(t.label)}</span>`).join(''));
+  `<span title="${esc(t.hint)}"><svg width="40" height="10" aria-hidden="true"><path d="M3 5 H${t.arrow ? 32 : 38}" style="stroke:${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}" stroke-linecap="round" fill="none"></path>${t.arrow ? `<path d="M31 1.5 L38 5 L31 8.5 Z" style="fill:${t.color}"></path>` : ''}${t.dot ? `<circle cx="3.5" cy="5" r="2.6" style="fill:${t.color}"></circle>` : ''}</svg>${esc(t.label)}</span>`).join(''));
 let EDGES = [], LIVE = new Set(), SERIES = {cpu:[], ram:[]}, sel = null;
 try { sel = localStorage.getItem('hub-sel'); } catch (e) {}
 
@@ -368,12 +385,12 @@ function pathD(A, B){
 function shownEdges(){ return EDGES.filter(([a, b]) => byId[a] && byId[b]); }
 function renderEdges(){
   sizeStage();
-  const defs = Object.entries(ET).map(([k, t]) => `<marker id="ar-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 Z" fill="${t.color}"></path></marker><marker id="dt-${k}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="4" fill="${t.color}"></circle></marker>`).join('');
+  const defs = Object.entries(ET).map(([k, t]) => `<marker id="ar-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 Z" style="fill:${t.color}"></path></marker><marker id="dt-${k}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="4" style="fill:${t.color}"></circle></marker>`).join('');
   svg.innerHTML = `<defs>${defs}</defs>` + shownEdges().map((e, i) => {
     const [a, b] = e, k = etKey(e), t = ET[k], d = pathD(byId[a], byId[b]);
     const cls = sel ? (a === sel || b === sel ? 'hl' : 'dim') : '';
     const mk = (t.arrow ? ` marker-end="url(#ar-${k})"` : '') + (t.dot ? ` marker-start="url(#dt-${k})"` : '');
-    return `<g class="${cls}" data-i="${i}"><path class="base" d="${d}" stroke="${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}"${mk}></path>${LIVE.has(a + '>' + b) ? `<path class="flow" d="${d}" stroke="${t.color}"></path>` : ''}<path class="hit" d="${d}"></path></g>`;
+    return `<g class="${cls}" data-i="${i}"><path class="base" d="${d}" style="stroke:${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}"${mk}></path>${LIVE.has(a + '>' + b) ? `<path class="flow" d="${d}" style="stroke:${t.color}"></path>` : ''}<path class="hit" d="${d}"></path></g>`;
   }).join('');
 }
 function edgeText(e){
@@ -500,7 +517,7 @@ function drawSide(){
   const lk = shownEdges().filter(e => e[0] === n.id || e[1] === n.id);
   document.getElementById('s-links').innerHTML = lk.length ? '<span class="eyebrow" style="margin-top:4px">Kết nối</span>' + lk.map(e => {
     const t = etOf(e), out = e[0] === n.id, o = byId[out ? e[1] : e[0]];
-    return `<div class="lk"><svg width="26" height="8" aria-hidden="true"><path d="M2 4 H24" stroke="${t.color}" stroke-width="2" stroke-dasharray="${t.dash}" stroke-linecap="round"></path></svg><span>${esc(t.label)} ${out ? '→' : '←'} <b>${esc(o.name)}</b></span></div>`;
+    return `<div class="lk"><svg width="26" height="8" aria-hidden="true"><path d="M2 4 H24" style="stroke:${t.color}" stroke-width="2" stroke-dasharray="${t.dash}" stroke-linecap="round"></path></svg><span>${esc(t.label)} ${out ? '→' : '←'} <b>${esc(o.name)}</b></span></div>`;
   }).join('') : '';
   const meta = Object.entries(n.meta || {});
   if (n.at) meta.push(['Đo lúc', fmtT(n.at)]);
@@ -679,12 +696,20 @@ function guideSearch(){
 document.getElementById('g-q').addEventListener('input', guideSearch);
 document.getElementById('g-prev').addEventListener('click', () => { const i = GSECS.findIndex(x => x.dataset.sec === gCur); if (i > 0) showSec(GSECS[i - 1].dataset.sec); });
 document.getElementById('g-next').addEventListener('click', () => { const i = GSECS.findIndex(x => x.dataset.sec === gCur); if (i < GSECS.length - 1) showSec(GSECS[i + 1].dataset.sec); });
+function setTheme(t){
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('hub-theme', t); } catch (e) {}
+  const b = document.getElementById('b-theme');
+  b.title = b.ariaLabel = t === 'light' ? 'Chuyển sang giao diện tối' : 'Chuyển sang giao diện sáng';
+}
+document.getElementById('b-theme').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
+setTheme(document.documentElement.dataset.theme || 'dark');
 function openGuide(){
   const ge = document.getElementById('g-edges');
   ge.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
   ge.insertAdjacentHTML('beforeend', Object.values(ET).map(t => {
     const pairs = shownEdges().filter(e => etOf(e) === t).map(e => `${byId[e[0]].name} → ${byId[e[1]].name}`);
-    return `<tr><td><svg width="44" height="10" aria-hidden="true"><path d="M3 5 H${t.arrow ? 34 : 42}" stroke="${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}" stroke-linecap="round" fill="none"></path>${t.arrow ? `<path d="M33 1.5 L40 5 L33 8.5 Z" fill="${t.color}"></path>` : ''}${t.dot ? `<circle cx="3.5" cy="5" r="2.6" fill="${t.color}"></circle>` : ''}</svg></td><td>${esc(t.label)}</td><td>${esc(t.hint)}${pairs.length ? `<br><span class="mut">${esc(pairs.join(' · '))}</span>` : ''}</td></tr>`;
+    return `<tr><td><svg width="44" height="10" aria-hidden="true"><path d="M3 5 H${t.arrow ? 34 : 42}" style="stroke:${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}" stroke-linecap="round" fill="none"></path>${t.arrow ? `<path d="M33 1.5 L40 5 L33 8.5 Z" style="fill:${t.color}"></path>` : ''}${t.dot ? `<circle cx="3.5" cy="5" r="2.6" style="fill:${t.color}"></circle>` : ''}</svg></td><td>${esc(t.label)}</td><td>${esc(t.hint)}${pairs.length ? `<br><span class="mut">${esc(pairs.join(' · '))}</span>` : ''}</td></tr>`;
   }).join(''));
   const gn = document.getElementById('g-nodes');
   gn.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
