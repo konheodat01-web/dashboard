@@ -278,6 +278,7 @@ svg.edges g.gh path.base{opacity:.55}
           <li>Ô có hình <b>xếp chồng</b> và dòng <b>⧉ n chức năng</b> là hệ con: <b>nhấp đúp</b> (hoặc nút "Mở sơ đồ bên trong" ở khung phải) để vào.</li>
           <li>Sơ đồ của mỗi hệ con là <b>dây chuyền</b>: mỗi chức năng một <b>làn</b>, đọc trái sang phải: <b>⚡ Trigger</b> (điều kiện khởi động) → các <b>bước</b> → <b>🏁 Output</b>. Chữ trên dây là dữ liệu đi qua (ra của bước trước = vào của bước sau). Chip dưới mỗi bước là dịch vụ bước đó gọi tới, chấm màu là trạng thái thật của dịch vụ.</li>
           <li>Làn <b>gạch ngang, viền đứt, màu xám</b> là chức năng không dùng nữa hoặc đang hỏng, kèm lý do để bạn dọn.</li>
+          <li><b>SEO Writer</b> và <b>Chuyên gia SEO</b> là một dây chuyền rẽ nhánh: nhiều lối vào (⚡) gộp vào các bước chung, rẽ thành nhánh, rồi hợp lại ở một kết quả (🏁). Chữ trên dây rẽ nhánh cho biết khi nào đi nhánh đó. Chuyên gia SEO nối sang SEO Writer ở cuối (Kho nội dung giao bài cần viết).</li>
           <li><b>Nhấp đúp một làn</b> (hoặc nút "⤢ Mở quy trình đầy đủ") để mở sơ đồ cấp 3 của riêng quy trình đó: bên trái là chuỗi ô của <b>sơ đồ ông</b> (Hệ thống) và <b>sơ đồ mẹ</b> (hệ con) dẫn vào Trigger, chỉ gồm những ô quy trình thật sự đi qua; giữa là các bước; hàng dưới là từng dịch vụ nối thẳng vào đúng bước gọi nó.</li>
           <li>Ô <b>Dịch vụ ngoài</b> ở sơ đồ tổng gom tất cả dịch vụ (AI, Google, Serper, Firebase…) để xem tình trạng từng cái.</li>
           <li>Ở sơ đồ tổng, màu của hệ con là màu xấu nhất trong các thành phần bên trong; dòng ⧉ đếm số thành phần tốt (✓), cảnh báo (!), lỗi (✕).</li>
@@ -400,6 +401,7 @@ let flowEdges = [];
 const SHORT = { or: 'OpenRouter', ext: 'Tiện ích Chrome', gsc: 'GSC', psi: 'PageSpeed', gsheets: 'Sheets', gemini: 'Gemini', cors: 'Proxy công khai', dfb: 'Firebase', ffb: 'Firebase', gfb: 'Firebase', wp: 'WordPress', tg: 'Telegram', cloudfly: 'CloudFly', sepay: 'SePay', gscapi: 'GSC Bulk API', gchrome: 'Chrome VPS', dash: 'Dashboard', sw: 'SEO Writer', reddit: 'Reddit', serper: 'Serper' };
 function isFlow(){ return !!(MAPS[cur] && MAPS[cur].kind === 'flow'); }
 function isProc(){ return !!(MAPS[cur] && MAPS[cur].kind === 'proc'); }
+function isDag(){ return !!(MAPS[cur] && MAPS[cur].kind === 'dag'); }
 function relType(a, b){
   for (const m of Object.values(MAPS)) for (const e of (m.edges || [])) if (e[0] === a && e[1] === b) return e[2];
   if (a === 'caddy' && b === 'fgh') return 'route';
@@ -419,7 +421,17 @@ function homeOf(id){
   const m = Object.values(MAPS).find(x => x.id !== cur && (x.nodes || []).some(n => n.id === id));
   return m ? m.id : 'root';
 }
+function dagSt(d){
+  if (d.live && NODES[d.live]) return NODES[d.live].st;
+  if (!d.calls || !d.calls.length) return 'none';
+  const w = worstOf(d.calls); return w === 'idle' ? 'ok' : w;
+}
 function members(m){
+  if (m.kind === 'dag') {
+    const ids = new Set([m.core]);
+    m.nodes.forEach(n => { if (n.live) ids.add(n.live); (n.calls || []).forEach(c => ids.add(c)); });
+    return [...ids];
+  }
   if (m.kind !== 'flow') return m.nodes.map(x => x.id);
   const ids = new Set([m.core]);
   m.lanes.filter(l => !l.dead).forEach(l => { if (l.trigger.live) ids.add(l.trigger.live); l.steps.forEach(st => st.calls.forEach(c => ids.add(c))); });
@@ -433,10 +445,12 @@ function agg(id){
   if (!m) return null;
   const ids = members(m), c = { ok: 0, warn: 0, fail: 0, idle: 0, na: 0 }, bad = [];
   if (m.kind === 'flow') m.lanes.filter(l => !l.dead).forEach(l => { const st = laneSt(l); c[st] = (c[st] || 0) + 1; });
+  else if (m.kind === 'dag') m.nodes.filter(n => n.t === 'step').forEach(n => { const st = dagSt(n); if (st !== 'none') c[st] = (c[st] || 0) + 1; });
   else ids.forEach(i => { const d = NODES[i]; if (!d) return; c[d.st] = (c[d.st] || 0) + 1; if (d.st === 'warn' || d.st === 'fail') bad.push(d); });
   const top = worstOf(ids);
-  const total = m.kind === 'flow' ? m.lanes.length : m.nodes.length;
-  return { c, st: top === 'idle' && c.ok ? 'ok' : top, total, unit: m.kind === 'flow' ? 'chức năng' : 'thành phần', bad, flow: m.kind === 'flow', dead: m.kind === 'flow' ? m.lanes.filter(l => l.dead).length : 0 };
+  const total = m.kind === 'flow' ? m.lanes.length : m.kind === 'dag' ? m.nodes.filter(n => n.t === 'trig').length : m.nodes.length;
+  const unit = m.kind === 'flow' ? 'chức năng' : m.kind === 'dag' ? 'lối vào · 1 dây chuyền' : 'thành phần';
+  return { c, st: top === 'idle' && c.ok ? 'ok' : top, total, unit, bad, flow: m.kind === 'flow', dead: m.kind === 'flow' ? m.lanes.filter(l => l.dead).length : 0 };
 }
 function stOf(id){ const a = agg(id); return a ? a.st : (NODES[id] || {}).st || 'idle'; }
 
@@ -537,7 +551,7 @@ function pathD(A, B){
   const x1 = A.x + W, y1 = A.y + h(A) / 2, x2 = B.x - 3, y2 = B.y + h(B) / 2, dx = Math.max(40, Math.abs(x2 - x1) / 2);
   return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
 }
-function mapEdges(){ return isFlow() || isProc() ? flowEdges : (MAPS[cur] || { edges: [] }).edges; }
+function mapEdges(){ return isFlow() || isProc() || isDag() ? flowEdges : (MAPS[cur] || { edges: [] }).edges; }
 function shownEdges(){ return mapEdges().filter(([a, b]) => byId[a] && byId[b]); }
 function renderEdges(){
   sizeStage();
@@ -549,11 +563,13 @@ function renderEdges(){
     return `<g class="${cls}" data-i="${i}"><path class="base" d="${d}" style="stroke:${t.color}" stroke-width="${t.wide ? 3 : 2.2}" stroke-dasharray="${t.dash}"${mk}></path>${LIVE.has(a + '>' + b) ? `<path class="flow" d="${d}" style="stroke:${t.color}"></path>` : ''}<path class="hit" d="${d}"></path></g>`;
   }).join('');
   stage.querySelectorAll('.elab').forEach(x => x.remove());
-  if (isFlow() || isProc()) shownEdges().forEach(([a, b, , label]) => {
+  if (isFlow() || isProc() || isDag()) shownEdges().forEach(([a, b, , label]) => {
     if (!label) return;
-    const A = byId[a], B = byId[b], el = document.createElement('div');
-    el.className = 'elab';
+    const A = byId[a], B = byId[b];
     const left = A.x + W + 8, wd = B.x - left - 8, y = A.y + h(A) / 2;
+    if (wd < 60) return;
+    const el = document.createElement('div');
+    el.className = 'elab';
     el.style.left = left + 'px'; el.style.width = wd + 'px'; el.style.top = (y - 46) + 'px'; el.style.height = '42px';
     el.innerHTML = `<span>${esc(label)}</span>`;
     stage.appendChild(el);
@@ -571,7 +587,7 @@ function makeFlowEl(n){
   const el = document.createElement('div');
   const f = n.flow;
   el.className = 'node fnode'; el.tabIndex = 0; el.dataset.id = n.id; el.setAttribute('role', 'button');
-  const kind = f.t === 'trig' ? '⚡ Trigger' : f.t === 'out' ? '🏁 Output' : 'Bước ' + f.k;
+  const kind = f.t === 'trig' ? '⚡ Trigger' : f.t === 'out' ? '🏁 Output' : (f.d.kind || 'Bước' + (f.k ? ' ' + f.k : ''));
   el.innerHTML = `<div class="hd"><i class="dot"></i><span class="kind">${esc(kind)}</span></div><div class="nm"></div><div class="mt"></div><div class="chips"></div>`;
   stage.appendChild(el); n.el = el;
   el.addEventListener('pointerdown', e => e.stopPropagation());
@@ -580,6 +596,28 @@ function makeFlowEl(n){
   el.addEventListener('keydown', e => {
     if (e.key === 'Enter' && isFlow() && sel === n.id) { e.preventDefault(); openMap('p-' + n.lane.id, n.id); return; }
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n.id); }
+  });
+}
+const ROW_H = 250, DAG_Y = 70;
+function buildDag(){
+  const m = MAPS[cur];
+  flowEdges = (m.edges || []).map(e => [e[0], e[1], e[2], e[3] || '']);
+  const px = c => LANE_X + c * FSTEP, py = r => DAG_Y + r * ROW_H;
+  Object.entries(m.anc || {}).forEach(([id, [c, r]]) => { if (!NODES[id]) return; const n = byId[id] = { id, x: px(c), y: py(r), ghost: false, tag: 'sơ đồ ông' }; makeEl(n); paint(n); });
+  Object.entries(m.refs || {}).forEach(([id, [c, r]]) => { if (!NODES[id]) return; const n = byId[id] = { id, x: px(c), y: py(r), ghost: false, tag: 'hệ con khác' }; makeEl(n); paint(n); });
+  let mh = 0;
+  m.nodes.forEach(d => {
+    const n = byId[d.id] = { id: d.id, x: px(d.col), y: py(d.row), flow: { t: d.t, d }, dag: true };
+    makeFlowEl(n); paintFlow(n); mh = Math.max(mh, n.el.offsetHeight);
+  });
+  (m.bands || []).forEach(b => {
+    const band = document.createElement('div');
+    band.className = 'lane';
+    band.style.left = (px(b.c0) - 24) + 'px'; band.style.top = (py(b.r0) - 52) + 'px';
+    band.style.width = ((b.c1 - b.c0 + 1) * FSTEP - FGAP + 48) + 'px';
+    band.style.height = ((b.r1 - b.r0) * ROW_H + 52 + mh + 20) + 'px';
+    band.innerHTML = `<div class="lt"><b>${esc(b.title)}</b></div>`;
+    stage.insertBefore(band, stage.firstChild);
   });
 }
 function buildProc(){
@@ -629,7 +667,8 @@ function buildProc(){
 function paintFlow(n){
   const f = n.flow, d = f.d, el = n.el;
   let st = 'none';
-  if (n.dead) st = 'na';
+  if (n.dag) st = f.t === 'step' || (f.t === 'trig' && d.live) ? dagSt(d) : 'none';
+  else if (n.dead) st = 'na';
   else if (f.t === 'trig' && d.live && NODES[d.live]) st = NODES[d.live].st;
   else if (f.t === 'step' && d.calls.length) { const w = worstOf(d.calls); st = w === 'idle' ? 'ok' : w; }
   el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
@@ -639,7 +678,7 @@ function paintFlow(n){
   const live = f.t === 'trig' && d.live && NODES[d.live] ? NODES[d.live].mt : '';
   el.querySelector('.mt').textContent = f.t === 'step' ? `${d.in} → ${d.out}` : (live || d.detail || '');
   el.querySelector('.chips').innerHTML = f.t === 'step' ? d.calls.map(c => { const x = NODES[c] || { name: c, st: 'idle' }; return `<span class="chip" title="${esc(x.name)}"><i class="dot ${x.st}"></i>${esc(SHORT[c] || x.name)}</span>`; }).join('') : '';
-  el.setAttribute('aria-label', `${n.lane.title} — ${d.label}`);
+  el.setAttribute('aria-label', `${n.lane ? n.lane.title : MAPS[cur].title} — ${d.label}`);
 }
 function buildFlow(focus){
   const m = MAPS[cur];
@@ -716,7 +755,7 @@ function fitView(){
   ns.forEach(n => { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + W); y1 = Math.max(y1, n.y + h(n)); });
   const pad = 40, ww = wrap.clientWidth, wh = wrap.clientHeight;
   const fit = Math.min((ww - pad * 2) / (x1 - x0), (wh - pad * 2) / (y1 - y0));
-  if ((isFlow() || isProc()) && fit < 0.55) {
+  if ((isFlow() || isProc() || isDag()) && fit < 0.55) {
     view.k = Math.min(0.75, Math.max(0.45, (ww - pad * 2) / (x1 - x0)));
     view.x = pad - x0 * view.k; view.y = pad - y0 * view.k;
     applyView(); return;
@@ -818,6 +857,7 @@ function buildMap(focus){
   const m = MAPS[cur];
   if (m.kind === 'flow') buildFlow(focus);
   else if (m.kind === 'proc') buildProc();
+  else if (m.kind === 'dag') buildDag();
   else {
     m.nodes.forEach(x => { byId[x.id] = { id: x.id, x: x.x, y: x.y, ghost: false }; });
     m.ghosts.forEach(x => { byId[x.id] = { id: x.id, x: x.x, y: x.y, ghost: true }; });
@@ -827,7 +867,7 @@ function buildMap(focus){
   document.getElementById('b-reset').hidden = !!m.kind;
   document.getElementById('b-reset').textContent = m.parent ? 'Sắp lại sơ đồ này' : 'Sắp lại mặc định';
   if (focus && byId[focus]) sel = focus;
-  if (!sel || !byId[sel]) sel = byId[cur] ? cur : m.kind === 'proc' ? `${m.lane.id}#0` : (m.core || m.nodes[0].id);
+  if (!sel || !byId[sel]) sel = byId[cur] ? cur : m.kind === 'proc' ? `${m.lane.id}#0` : m.kind === 'dag' ? m.nodes[0].id : (m.core || m.nodes[0].id);
   renderEdges();
   if (views[cur]) { Object.assign(view, views[cur]); applyView(); } else fitView();
   select(sel);
@@ -851,13 +891,13 @@ function select(id){
 }
 function drawFlowSide(n){
   const f = n.flow, d = f.d;
-  document.getElementById('s-kind').textContent = `${n.lane.title} · ${f.t === 'trig' ? 'Trigger' : f.t === 'out' ? 'Output' : 'Bước ' + f.k}`;
+  document.getElementById('s-kind').textContent = `${n.lane ? n.lane.title : MAPS[cur].title} · ${f.t === 'trig' ? 'Trigger' : f.t === 'out' ? 'Output' : (d.kind || 'Bước' + (f.k ? ' ' + f.k : ''))}`;
   document.getElementById('s-name').textContent = d.label;
   const st = n.el.querySelector('.hd .dot').className.replace('dot', '').trim();
   document.getElementById('s-dot').className = 'dot ' + st;
-  document.getElementById('s-desc').textContent = (n.dead ? '⚠ ' + n.lane.dead + ' ' : '') + (d.detail || '');
+  document.getElementById('s-desc').textContent = (n.dead && n.lane ? '⚠ ' + n.lane.dead + ' ' : '') + (d.detail || '');
   const act = document.getElementById('s-act');
-  const actHtml = isFlow() ? `<button class="btn" type="button" data-open="p-${n.lane.id}" data-focus="${n.id}">⤢ Mở quy trình đầy đủ</button>` : '';
+  const actHtml = isFlow() && n.lane ? `<button class="btn" type="button" data-open="p-${n.lane.id}" data-focus="${n.id}">⤢ Mở quy trình đầy đủ</button>` : '';
   if (act.dataset.html !== actHtml) { act.innerHTML = actHtml; act.dataset.html = actHtml; }
   const rows = [];
   if (f.t === 'step') { rows.push(['Vào', d.in], ['Ra', d.out]); }
@@ -889,7 +929,9 @@ function drawSide(){
   if (act.dataset.html !== actHtml) { act.innerHTML = actHtml; act.dataset.html = actHtml; }
   const inner = document.getElementById('s-inner');
   const sm = a && MAPS[k];
-  inner.innerHTML = !a ? '' : sm.kind === 'flow'
+  inner.innerHTML = !a ? '' : sm.kind === 'dag'
+    ? '<span class="eyebrow">Lối vào → kết quả</span>' + sm.nodes.filter(x => x.t === 'trig' || x.t === 'out').map(x => `<div class="lk"><i class="dot ${x.t === 'out' ? 'ok' : dagSt(x) === 'none' ? '' : dagSt(x)}"></i><span>${x.t === 'trig' ? '⚡' : '🏁'} <b>${esc(x.label)}</b></span></div>`).join('')
+    : sm.kind === 'flow'
     ? '<span class="eyebrow">Các chức năng</span>' + sm.lanes.map(l => `<div class="lk"><i class="dot ${l.dead ? 'na' : laneSt(l)}"></i><span><b>${esc(l.title)}</b>${l.dead ? ' · không dùng / hỏng' : ''}</span></div>`).join('')
     : '<span class="eyebrow">Bên trong</span>' + sm.nodes.map(x => { const c = NODES[x.id] || {}; return `<div class="lk"><i class="dot ${c.st}"></i><span><b>${esc(c.name)}</b> · ${esc(c.mt)}</span></div>`; }).join('');
   const lk = shownEdges().filter(e => e[0] === n.id || e[1] === n.id);
