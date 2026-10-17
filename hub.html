@@ -451,7 +451,15 @@ function sizeStage(){
   stage.style.width = w + 'px'; stage.style.height = hh + 'px';
   svg.setAttribute('width', w); svg.setAttribute('height', hh); svg.setAttribute('viewBox', `0 0 ${w} ${hh}`);
 }
+function blocked(A, B){
+  const y0 = Math.min(A.y, B.y), y1 = Math.max(A.y, B.y);
+  return Object.values(byId).some(n => n !== A && n !== B && Math.abs(n.x - A.x) < W && n.y > y0 && n.y < y1);
+}
 function pathD(A, B){
+  if (B.x < A.x + W + 30 && A.x < B.x + W + 30 && blocked(A, B)) {
+    const x1 = A.x + W, y1 = A.y + h(A) / 2, x2 = B.x + W + 3, y2 = B.y + h(B) / 2, off = 50 + Math.abs(y2 - y1) * 0.12;
+    return `M${x1},${y1} C${x1 + off},${y1} ${x2 + off},${y2} ${x2},${y2}`;
+  }
   if (B.x < A.x + W + 30 && A.x < B.x + W + 30) {
     const up = B.y < A.y, x1 = A.x + W / 2, x2 = B.x + W / 2;
     const y1 = up ? A.y : A.y + h(A), y2 = up ? B.y + h(B) + 2 : B.y - 2, dy = Math.max(30, Math.abs(y2 - y1) / 2) * (up ? -1 : 1);
