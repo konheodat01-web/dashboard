@@ -62,13 +62,34 @@ svg.edges g.hl path.base{stroke-width:2.8}
 .ico{width:30px;height:30px;padding:0;justify-content:center}
 .ico svg{width:17px;height:17px}
 .modal{position:fixed;inset:0;z-index:100;background:rgba(5,8,14,.72);display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
-.mbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(860px,100%);max-height:100%;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);min-height:0}
+.mbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(980px,100%);height:min(680px,100%);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);min-height:0}
 .mhd{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
 .mhd h2{font:600 19px var(--f-display);margin:0;flex:1}
-.mbd{overflow:auto;padding:6px 22px 20px;display:flex;flex-direction:column;gap:6px;min-height:0}
-.mbd section{display:flex;flex-direction:column;gap:8px;padding:14px 0;border-bottom:1px solid var(--line)}
-.mbd section:last-child{border-bottom:none}
-.mbd h3{font:600 15px var(--f-display);margin:0;color:var(--accent);letter-spacing:.02em}
+.gwrap{flex:1;display:grid;grid-template-columns:230px minmax(0,1fr);min-height:0}
+.gnav{border-right:1px solid var(--line);background:var(--panel2);padding:12px 10px;display:flex;flex-direction:column;gap:10px;overflow:auto;min-height:0}
+.gnav input{width:100%;font:13px var(--f-body);background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+.gnav input:focus{outline:none;border-color:var(--accent)}
+.gnav .gg{display:flex;flex-direction:column;gap:2px}
+.gnav .gl{font:500 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut);padding:6px 8px 3px}
+.gnav button{all:unset;box-sizing:border-box;display:flex;justify-content:space-between;gap:6px;width:100%;padding:6px 10px;border-radius:6px;font-size:13px;color:var(--fg);cursor:pointer}
+.gnav button:hover{background:var(--panel)}
+.gnav button:focus-visible{outline:2px solid var(--accent)}
+.gnav button.on{background:var(--accent-soft);color:var(--accent);font-weight:500}
+.gnav button .n{font:11px var(--f-mono);color:var(--mut)}
+.gnav button.off{opacity:.35}
+.mbd{overflow:auto;padding:4px 24px 20px;display:flex;flex-direction:column;min-height:0}
+.mbd section{display:flex;flex-direction:column;gap:10px;padding:16px 0}
+.mbd section + section{border-top:1px solid var(--line)}
+.mbd .crumb{font:500 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.mbd h3{font:600 18px var(--f-display);margin:0;color:var(--fg);letter-spacing:.01em}
+.mbd mark{background:rgba(227,163,58,.32);color:inherit;border-radius:2px;padding:0 1px}
+.gempty{color:var(--mut);padding:24px 0}
+.gpos{margin-right:auto;font:12px var(--f-mono);color:var(--mut);align-self:center}
+@media (max-width:720px){
+  .gwrap{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .gnav{border-right:none;border-bottom:1px solid var(--line);max-height:38%}
+  .mft .btn#g-prev,.mft .btn#g-next{display:none}
+}
 .mbd p,.mbd li{font-size:13.5px;line-height:1.65;color:var(--fg);max-width:76ch}
 .mbd p{margin:0}
 .mbd ul,.mbd ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px}
@@ -80,7 +101,7 @@ svg.edges g.hl path.base{stroke-width:2.8}
 .gtbl th{font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);background:var(--panel2)}
 .gtbl tr:last-child td{border-bottom:none}
 .gtbl td:first-child{white-space:nowrap;font-weight:500}
-.mft{display:flex;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line)}
+.mft{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--line)}
 .tip{position:fixed;z-index:50;max-width:280px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.5;color:var(--fg);box-shadow:0 6px 24px rgba(0,0,0,.45);pointer-events:none}
 .tip b{display:block;font:600 13px var(--f-display);margin-bottom:3px}
 .desc{font-size:12.5px;color:var(--mut);line-height:1.5}
@@ -167,13 +188,19 @@ svg.edges g.hl path.base{stroke-width:2.8}
 <div class="modal" id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="g-title">
   <div class="mbox">
     <div class="mhd"><h2 id="g-title">Hướng dẫn sử dụng bản đồ hệ thống</h2><button class="btn ico" type="button" id="g-x" aria-label="Đóng">✕</button></div>
-    <div class="mbd" id="g-body">
-      <section>
+    <div class="gwrap">
+      <nav class="gnav" aria-label="Mục lục hướng dẫn">
+        <input type="search" id="g-q" placeholder="Tìm trong hướng dẫn…" aria-label="Tìm trong hướng dẫn">
+        <div id="g-nav"></div>
+      </nav>
+      <div class="mbd" id="g-body">
+      <p class="gempty" id="g-empty" hidden>Không tìm thấy nội dung khớp.</p>
+      <section data-sec="intro" data-grp="Bắt đầu">
         <h3>Bản đồ này để làm gì</h3>
         <p>Một màn hình xem toàn bộ máy chủ và các tool đang chạy: mỗi ô là một dịch vụ hoặc một chức năng, dây nối cho biết chúng liên quan với nhau thế nào. Thay vì mở từng tool để xem còn sống không, nhìn màu chấm trên từng ô là biết.</p>
         <p class="mut">Hiện tại bản đồ chỉ để xem, chưa có nút điều khiển (restart, chạy lại…).</p>
       </section>
-      <section>
+      <section data-sec="ops" data-grp="Bắt đầu">
         <h3>Thao tác</h3>
         <ul>
           <li><b>Lăn chuột</b> trên bản đồ: phóng to / thu nhỏ quanh vị trí con trỏ.</li>
@@ -186,7 +213,7 @@ svg.edges g.hl path.base{stroke-width:2.8}
           <li><b>Sắp lại mặc định</b>: đưa mọi ô về vị trí ban đầu.</li>
         </ul>
       </section>
-      <section>
+      <section data-sec="status" data-grp="Đọc bản đồ">
         <h3>Màu chấm trạng thái</h3>
         <div class="gtbl"><table>
           <tr><th>Màu</th><th>Ý nghĩa</th></tr>
@@ -197,7 +224,7 @@ svg.edges g.hl path.base{stroke-width:2.8}
         </table></div>
         <p class="mut">Góc trên bên phải có chấm kết nối: xanh = đang nhận số liệu; vàng = mất luồng, đang nối lại; đỏ = máy chủ im lặng quá lâu.</p>
       </section>
-      <section>
+      <section data-sec="thresh" data-grp="Theo dõi">
         <h3>Ngưỡng cảnh báo</h3>
         <div class="gtbl"><table>
           <tr><th>Ô</th><th>Vàng khi</th><th>Đỏ khi</th></tr>
@@ -209,16 +236,16 @@ svg.edges g.hl path.base{stroke-width:2.8}
           <tr><td>PM2, Fail2ban, Cron</td><td>—</td><td>Tiến trình dừng hoặc biến mất</td></tr>
         </table></div>
       </section>
-      <section>
+      <section data-sec="edges" data-grp="Đọc bản đồ">
         <h3>Các loại dây nối</h3>
         <div class="gtbl"><table id="g-edges"><tr><th>Dây</th><th>Quan hệ</th><th>Ý nghĩa</th></tr></table></div>
         <p class="mut">Dây có hạt sáng chạy dọc = đang có việc chạy qua, ví dụ Autopilot đang viết bài.</p>
       </section>
-      <section>
+      <section data-sec="nodes" data-grp="Đọc bản đồ">
         <h3>Các ô trên bản đồ</h3>
         <div class="gtbl"><table id="g-nodes"><tr><th>Ô</th><th>Chức năng</th></tr></table></div>
       </section>
-      <section>
+      <section data-sec="data" data-grp="Theo dõi">
         <h3>Số liệu và nhật ký</h3>
         <ul>
           <li>VPS đo mỗi 30 giây; các ô khác mỗi 60 giây; OpenRouter và Serper mỗi 10 phút (để không gọi API quá nhiều).</li>
@@ -227,7 +254,7 @@ svg.edges g.hl path.base{stroke-width:2.8}
           <li>Ô VPS có biểu đồ CPU/RAM khoảng 2 giờ gần nhất.</li>
         </ul>
       </section>
-      <section>
+      <section data-sec="fix" data-grp="Xử lý sự cố">
         <h3>Khi thấy ô đỏ</h3>
         <ol>
           <li>Bấm vào ô, đọc dòng <b>Trạng thái</b> và mấy dòng nhật ký cuối để biết lý do.</li>
@@ -235,12 +262,13 @@ svg.edges g.hl path.base{stroke-width:2.8}
           <li>Báo Claude tên ô và lý do trong nhật ký để xử lý.</li>
         </ol>
       </section>
-      <section>
+      <section data-sec="login" data-grp="Xử lý sự cố">
         <h3>Đăng nhập</h3>
         <p>Trang dùng tài khoản của khu vực admin (file <kbd>admin_auth.json</kbd> trên VPS). Trang cấu hình dashboard cũ vẫn ở nút <b>Cấu hình dashboard</b>.</p>
       </section>
     </div>
-    <div class="mft"><button class="btn" type="button" id="g-ok">Đã hiểu</button></div>
+    </div>
+    <div class="mft"><span class="gpos" id="g-pos"></span><button class="btn" type="button" id="g-prev">‹ Mục trước</button><button class="btn" type="button" id="g-next">Mục sau ›</button><button class="btn" type="button" id="g-ok">Đã hiểu</button></div>
   </div>
 </div>
 <script>
@@ -556,6 +584,101 @@ document.getElementById('b-reset').addEventListener('click', async () => {
   renderEdges(); fitView();
 });
 window.addEventListener('resize', renderEdges);
+const GSECS = (() => {
+  const all = [...document.querySelectorAll('#g-body section[data-sec]')], order = [];
+  all.forEach(x => { if (!order.includes(x.dataset.grp)) order.push(x.dataset.grp); });
+  const sorted = order.flatMap(g => all.filter(x => x.dataset.grp === g));
+  const body = document.getElementById('g-body');
+  sorted.forEach(x => body.appendChild(x));
+  return sorted;
+})();
+let gCur = 'intro';
+try { gCur = localStorage.getItem('hub-guide') || 'intro'; } catch (e) {}
+GSECS.forEach(sec => {
+  const h = sec.querySelector('h3');
+  h.insertAdjacentHTML('beforebegin', `<span class="crumb">${esc(sec.dataset.grp)}</span>`);
+  sec.querySelectorAll('li, tr, p, h3').forEach(el => { el.dataset.raw = el.innerHTML; });
+});
+function guideNav(counts){
+  const groups = [];
+  GSECS.forEach(sec => { let g = groups.find(x => x.name === sec.dataset.grp); if (!g) groups.push(g = { name: sec.dataset.grp, secs: [] }); g.secs.push(sec); });
+  document.getElementById('g-nav').innerHTML = groups.map(g => `<div class="gg"><span class="gl">${esc(g.name)}</span>${g.secs.map(sec => {
+    const c = counts ? counts[sec.dataset.sec] : null;
+    return `<button type="button" data-go="${sec.dataset.sec}" class="${!counts && sec.dataset.sec === gCur ? 'on' : ''}${counts && !c ? ' off' : ''}">${esc(sec.querySelector('h3').textContent)}${c ? `<span class="n">${c}</span>` : ''}</button>`;
+  }).join('')}</div>`).join('');
+}
+document.getElementById('g-nav').addEventListener('click', e => {
+  const b = e.target.closest('button[data-go]');
+  if (!b) return;
+  const q = document.getElementById('g-q');
+  if (q.value) { const sec = GSECS.find(x => x.dataset.sec === b.dataset.go); sec.scrollIntoView({ block: 'start' }); return; }
+  showSec(b.dataset.go);
+});
+function showSec(id){
+  if (!GSECS.some(x => x.dataset.sec === id)) id = GSECS[0].dataset.sec;
+  gCur = id;
+  try { localStorage.setItem('hub-guide', id); } catch (e) {}
+  const i = GSECS.findIndex(x => x.dataset.sec === id);
+  GSECS.forEach(sec => { sec.hidden = sec.dataset.sec !== id; });
+  document.getElementById('g-empty').hidden = true;
+  document.getElementById('g-pos').textContent = `Mục ${i + 1} / ${GSECS.length}`;
+  document.getElementById('g-prev').disabled = i === 0;
+  document.getElementById('g-next').disabled = i === GSECS.length - 1;
+  document.getElementById('g-prev').hidden = document.getElementById('g-next').hidden = false;
+  document.getElementById('g-body').scrollTop = 0;
+  guideNav(null);
+}
+function norm(t){ return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase(); }
+function markText(html, q){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const nq = norm(q), walk = document.createTreeWalker(tmp, NodeFilter.SHOW_TEXT), nodes = [];
+  while (walk.nextNode()) nodes.push(walk.currentNode);
+  nodes.forEach(tn => {
+    const t = tn.nodeValue, nt = norm(t);
+    let idx = nt.indexOf(nq);
+    if (idx < 0) return;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    while (idx >= 0) {
+      frag.append(t.slice(last, idx));
+      const m = document.createElement('mark'); m.textContent = t.slice(idx, idx + q.length); frag.append(m);
+      last = idx + q.length; idx = nt.indexOf(nq, last);
+    }
+    frag.append(t.slice(last));
+    tn.replaceWith(frag);
+  });
+  return tmp.innerHTML;
+}
+function guideSearch(){
+  const q = document.getElementById('g-q').value.trim();
+  GSECS.forEach(sec => sec.querySelectorAll('[data-raw]').forEach(el => { el.innerHTML = el.dataset.raw; el.hidden = false; }));
+  if (!q) { showSec(gCur); return; }
+  const nq = norm(q), counts = {};
+  let any = false;
+  GSECS.forEach(sec => {
+    const titleHit = norm(sec.querySelector('h3').textContent).includes(nq);
+    let n = 0;
+    sec.querySelectorAll('li, tr, p').forEach(el => {
+      if (el.querySelector('th')) return;
+      const hit = norm(el.textContent).includes(nq);
+      if (hit) { n++; el.innerHTML = markText(el.dataset.raw, q); }
+      else if (!titleHit) el.hidden = true;
+    });
+    if (titleHit) { const h = sec.querySelector('h3'); h.innerHTML = markText(h.dataset.raw, q); }
+    counts[sec.dataset.sec] = n + (titleHit ? 1 : 0);
+    sec.hidden = !counts[sec.dataset.sec];
+    if (!sec.hidden) any = true;
+  });
+  document.getElementById('g-empty').hidden = any;
+  document.getElementById('g-pos').textContent = any ? `${Object.values(counts).filter(Boolean).length} mục có kết quả` : '';
+  document.getElementById('g-prev').hidden = document.getElementById('g-next').hidden = true;
+  document.getElementById('g-body').scrollTop = 0;
+  guideNav(counts);
+}
+document.getElementById('g-q').addEventListener('input', guideSearch);
+document.getElementById('g-prev').addEventListener('click', () => { const i = GSECS.findIndex(x => x.dataset.sec === gCur); if (i > 0) showSec(GSECS[i - 1].dataset.sec); });
+document.getElementById('g-next').addEventListener('click', () => { const i = GSECS.findIndex(x => x.dataset.sec === gCur); if (i < GSECS.length - 1) showSec(GSECS[i + 1].dataset.sec); });
 function openGuide(){
   const ge = document.getElementById('g-edges');
   ge.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
@@ -566,10 +689,12 @@ function openGuide(){
   const gn = document.getElementById('g-nodes');
   gn.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
   gn.insertAdjacentHTML('beforeend', Object.values(byId).sort((a, b) => a.x - b.x || a.y - b.y).map(n => `<tr><td><i class="dot ${n.st}"></i> ${esc(n.name)}</td><td>${esc(n.desc || '')}</td></tr>`).join(''));
+  [ge, gn].forEach(t => t.querySelectorAll('tr').forEach(el => { el.dataset.raw = el.innerHTML; }));
   hideTip();
   document.getElementById('guide').hidden = false;
-  document.getElementById('g-body').scrollTop = 0;
-  document.getElementById('g-ok').focus();
+  document.getElementById('g-q').value = '';
+  showSec(gCur);
+  document.getElementById('g-q').focus();
 }
 function closeGuide(){ document.getElementById('guide').hidden = true; document.getElementById('b-guide').focus(); }
 document.getElementById('b-guide').addEventListener('click', openGuide);
