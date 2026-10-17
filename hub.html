@@ -39,10 +39,18 @@ a{color:var(--accent);text-decoration:none}
 .zoom button:hover{border-color:var(--accent)}
 .zoom .fit{width:auto;padding:0 8px;font-size:12px;font-weight:500}
 .zoom output{min-width:44px;text-align:center;font:12px var(--f-mono);color:var(--mut)}
-svg.edges{position:absolute;inset:0;pointer-events:none}
-svg.edges path{fill:none;stroke:var(--edge);stroke-width:1.6}
-svg.edges path.live{stroke:var(--edge-live);stroke-dasharray:6 6;animation:flow 1.2s linear infinite}
-@keyframes flow{to{stroke-dashoffset:-12}}
+svg.edges{position:absolute;inset:0;pointer-events:none;overflow:visible}
+svg.edges path{fill:none;stroke-width:1.8;stroke-linecap:round}
+svg.edges path.hit{stroke:transparent;stroke-width:14;pointer-events:stroke;cursor:help}
+svg.edges path.flow{stroke-width:3;stroke-dasharray:2 10;animation:flow .9s linear infinite;opacity:.95}
+svg.edges g.dim{opacity:.18}
+svg.edges g.hl path.base{stroke-width:2.8}
+@keyframes flow{to{stroke-dashoffset:-24}}
+.legend .grp{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center}
+.legend .gt{font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--fg)}
+.links{display:flex;flex-direction:column;gap:4px;font-size:12.5px}
+.links .lk{display:flex;gap:8px;align-items:center;color:var(--mut)}
+.links .lk b{color:var(--fg);font-weight:500}
 .node{position:absolute;width:210px;background:var(--panel);border:1px solid var(--line);border-radius:8px;cursor:grab;user-select:none;touch-action:none}
 .node:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .node.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -90,7 +98,7 @@ svg.edges path.live{stroke:var(--edge-live);stroke-dasharray:6 6;animation:flow 
   .stage-wrap{height:60vh}
   .side{border-left:none;border-top:1px solid var(--line);height:70vh}
 }
-@media (prefers-reduced-motion:reduce){svg.edges path.live,.dot.fail{animation:none}}
+@media (prefers-reduced-motion:reduce){svg.edges path.flow,.dot.fail{animation:none}}
 </style>
 </head>
 <body>
@@ -117,6 +125,7 @@ svg.edges path.live{stroke:var(--edge-live);stroke-dasharray:6 6;animation:flow 
       <p class="desc" id="s-desc"></p>
       <div class="meta" id="s-meta"></div>
       <div class="spark" id="s-spark" hidden></div>
+      <div class="links" id="s-links"></div>
     </div>
     <div class="loghd"><span>Nhật ký</span><span class="sp"></span>
       <select id="s-lv" aria-label="Lọc mức log"><option value="">Tất cả</option><option value="WARN">Cảnh báo + lỗi</option><option value="ERROR">Chỉ lỗi</option></select>
@@ -125,16 +134,32 @@ svg.edges path.live{stroke:var(--edge-live);stroke-dasharray:6 6;animation:flow 
   </aside>
 </div>
 <footer class="legend">
-  <span><i class="dot ok"></i>chạy tốt</span><span><i class="dot warn"></i>cảnh báo (vượt ngưỡng, chậm, sắp hết hạn mức)</span>
-  <span><i class="dot fail"></i>lỗi / mất kết nối</span><span><i class="dot"></i>đang nghỉ</span>
-  <span><svg width="34" height="8" aria-hidden="true"><path d="M1 4 H33" stroke="var(--edge-live)" stroke-width="1.6" stroke-dasharray="6 6" fill="none"></path></svg>đang có việc chạy qua</span>
-  <span>Đo lại mỗi 30–60 giây · lăn chuột để phóng to/thu nhỏ · giữ chuột ở chỗ trống để kéo bản đồ · kéo node để sắp xếp</span>
+  <div class="grp"><span class="gt">Trạng thái</span>
+    <span><i class="dot ok"></i>chạy tốt</span><span><i class="dot warn"></i>cảnh báo</span>
+    <span><i class="dot fail"></i>lỗi / mất kết nối</span><span><i class="dot"></i>đang nghỉ</span>
+  </div>
+  <div class="grp" id="lg-edges"><span class="gt">Dây nối</span></div>
+  <div class="grp"><span>Lăn chuột: phóng to/thu nhỏ · giữ chuột chỗ trống: kéo bản đồ · rê chuột lên dây: xem quan hệ · bấm ô: làm nổi dây của ô đó</span></div>
 </footer>
 <script>
 const W = 210;
 const stage = document.getElementById('stage'), svg = document.getElementById('edges'), wrap = document.getElementById('wrap');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const byId = {};
+const ET = {
+  route:    { label: 'Chuyển truy cập', hint: 'Tên miền đi qua Caddy rồi vào app này', color: '#5b8cff', dash: '', arrow: true },
+  module:   { label: 'Chức năng bên trong', hint: 'Chạy chung trong cùng một tool, không phải dịch vụ riêng', color: '#3fbf73', dash: '', arrow: false, dot: true },
+  api:      { label: 'Gọi API ngoài', hint: 'Mỗi lần gọi tốn tiền hoặc credit', color: '#b48cff', dash: '', arrow: true },
+  schedule: { label: 'Hẹn giờ kích hoạt', hint: 'Tự gọi theo lịch, không cần người bấm', color: '#e3a33a', dash: '9 6', arrow: true },
+  task:     { label: 'Giao việc', hint: 'Tool đẩy việc vào hàng đợi, bên kia nhận về làm rồi gửi kết quả lại', color: '#2dd4bf', dash: '5 5', arrow: true },
+  embed:    { label: 'Nhúng giao diện', hint: 'Mở app kia ngay bên trong trang này', color: '#a3adbd', dash: '1 6', arrow: true },
+  host:     { label: 'Máy chủ chạy', hint: 'Mọi dịch vụ chạy trên VPS; truy cập từ ngoài vào qua Caddy', color: '#6b7a90', dash: '', arrow: true, wide: true },
+  guard:    { label: 'Bảo vệ', hint: 'Chặn IP dò mật khẩu SSH', color: '#f06363', dash: '2 5', arrow: true },
+};
+const etKey = e => (e[2] in ET ? e[2] : 'host');
+const etOf = e => ET[etKey(e)];
+document.getElementById('lg-edges').insertAdjacentHTML('beforeend', Object.values(ET).map(t =>
+  `<span title="${esc(t.hint)}"><svg width="40" height="10" aria-hidden="true"><path d="M3 5 H${t.arrow ? 32 : 38}" stroke="${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}" stroke-linecap="round" fill="none"></path>${t.arrow ? `<path d="M31 1.5 L38 5 L31 8.5 Z" fill="${t.color}"></path>` : ''}${t.dot ? `<circle cx="3.5" cy="5" r="2.6" fill="${t.color}"></circle>` : ''}</svg>${esc(t.label)}</span>`).join(''));
 let EDGES = [], LIVE = new Set(), SERIES = {cpu:[], ram:[]}, sel = null;
 try { sel = localStorage.getItem('hub-sel'); } catch (e) {}
 
@@ -201,19 +226,41 @@ function sizeStage(){
   stage.style.width = w + 'px'; stage.style.height = hh + 'px';
   svg.setAttribute('width', w); svg.setAttribute('height', hh); svg.setAttribute('viewBox', `0 0 ${w} ${hh}`);
 }
+function pathD(A, B){
+  if (B.x < A.x + W + 30 && A.x < B.x + W + 30) {
+    const up = B.y < A.y, x1 = A.x + W / 2, x2 = B.x + W / 2;
+    const y1 = up ? A.y : A.y + h(A), y2 = up ? B.y + h(B) + 2 : B.y - 2, dy = Math.max(30, Math.abs(y2 - y1) / 2) * (up ? -1 : 1);
+    return `M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}`;
+  }
+  const x1 = A.x + W, y1 = A.y + h(A) / 2, x2 = B.x - 3, y2 = B.y + h(B) / 2, dx = Math.max(40, Math.abs(x2 - x1) / 2);
+  return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+}
+function shownEdges(){ return EDGES.filter(([a, b]) => byId[a] && byId[b]); }
 function renderEdges(){
   sizeStage();
-  svg.innerHTML = EDGES.filter(([a, b]) => byId[a] && byId[b]).map(([a, b]) => {
-    const A = byId[a], B = byId[b], cls = LIVE.has(a + '>' + b) ? 'live' : '';
-    if (B.x < A.x + W + 30 && A.x < B.x + W + 30) {
-      const up = B.y < A.y, x1 = A.x + W / 2, x2 = B.x + W / 2;
-      const y1 = up ? A.y : A.y + h(A), y2 = up ? B.y + h(B) : B.y, dy = Math.max(30, Math.abs(y2 - y1) / 2) * (up ? -1 : 1);
-      return `<path class="${cls}" d="M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}"></path>`;
-    }
-    const x1 = A.x + W, y1 = A.y + h(A) / 2, x2 = B.x, y2 = B.y + h(B) / 2, dx = Math.max(40, Math.abs(x2 - x1) / 2);
-    return `<path class="${cls}" d="M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}"></path>`;
+  const defs = Object.entries(ET).map(([k, t]) => `<marker id="ar-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 Z" fill="${t.color}"></path></marker><marker id="dt-${k}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="4" fill="${t.color}"></circle></marker>`).join('');
+  svg.innerHTML = `<defs>${defs}</defs>` + shownEdges().map((e, i) => {
+    const [a, b] = e, k = etKey(e), t = ET[k], d = pathD(byId[a], byId[b]);
+    const cls = sel ? (a === sel || b === sel ? 'hl' : 'dim') : '';
+    const mk = (t.arrow ? ` marker-end="url(#ar-${k})"` : '') + (t.dot ? ` marker-start="url(#dt-${k})"` : '');
+    return `<g class="${cls}" data-i="${i}"><path class="base" d="${d}" stroke="${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}"${mk}></path>${LIVE.has(a + '>' + b) ? `<path class="flow" d="${d}" stroke="${t.color}"></path>` : ''}<path class="hit" d="${d}"></path></g>`;
   }).join('');
 }
+function edgeText(e){
+  const t = etOf(e), A = byId[e[0]], B = byId[e[1]];
+  return `<b>${esc(t.label)}</b>${esc(A.name)} → ${esc(B.name)}<br>${esc(t.hint)}${LIVE.has(e[0] + '>' + e[1]) ? '<br>Đang có việc chạy qua.' : ''}`;
+}
+svg.addEventListener('mousemove', ev => {
+  const g = ev.target.closest && ev.target.closest('g[data-i]');
+  if (!g || !ev.target.classList.contains('hit')) { if (tipFor === 'edge') hideTip(); return; }
+  const e = shownEdges()[+g.dataset.i];
+  if (!e) return;
+  tip.innerHTML = edgeText(e); tip.hidden = false; tipFor = 'edge';
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.max(6, Math.min(window.innerWidth - tw - 6, ev.clientX + 14)) + 'px';
+  tip.style.top = Math.max(6, ev.clientY - th - 10) + 'px';
+});
+svg.addEventListener('mouseleave', () => { if (tipFor === 'edge') hideTip(); });
 
 const view = { k: 1, x: 0, y: 0 };
 try { Object.assign(view, JSON.parse(localStorage.getItem('hub-view2')) || {}); } catch (e) {}
@@ -311,7 +358,7 @@ function select(id){
   sel = id;
   try { localStorage.setItem('hub-sel', id); } catch (e) {}
   Object.values(byId).forEach(x => x.el.classList.toggle('sel', x.id === id));
-  drawSide(); drawLog(true);
+  drawSide(); drawLog(true); renderEdges();
 }
 function drawSide(){
   const n = byId[sel];
@@ -320,6 +367,11 @@ function drawSide(){
   document.getElementById('s-name').textContent = n.name;
   document.getElementById('s-dot').className = 'dot ' + n.st;
   document.getElementById('s-desc').textContent = n.desc || '';
+  const lk = shownEdges().filter(e => e[0] === n.id || e[1] === n.id);
+  document.getElementById('s-links').innerHTML = lk.length ? '<span class="eyebrow" style="margin-top:4px">Kết nối</span>' + lk.map(e => {
+    const t = etOf(e), out = e[0] === n.id, o = byId[out ? e[1] : e[0]];
+    return `<div class="lk"><svg width="26" height="8" aria-hidden="true"><path d="M2 4 H24" stroke="${t.color}" stroke-width="2" stroke-dasharray="${t.dash}" stroke-linecap="round"></path></svg><span>${esc(t.label)} ${out ? '→' : '←'} <b>${esc(o.name)}</b></span></div>`;
+  }).join('') : '';
   const meta = Object.entries(n.meta || {});
   if (n.at) meta.push(['Đo lúc', fmtT(n.at)]);
   document.getElementById('s-meta').innerHTML = meta.map(([k, v]) => `<span>${esc(k)}</span><span>${esc(v)}</span>`).join('');
