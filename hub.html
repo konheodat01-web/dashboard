@@ -17,6 +17,7 @@
   --shadow:rgba(0,0,0,.5); --backdrop:rgba(5,8,14,.72); --mark:rgba(227,163,58,.32);
   --e-route:#5b8cff; --e-module:#3fbf73; --e-api:#b48cff; --e-schedule:#e3a33a;
   --e-task:#2dd4bf; --e-embed:#a3adbd; --e-host:#6b7a90; --e-guard:#f06363;
+  --e-call:#8fa3c4; --e-data:#f472b6; --e-publish:#a3e635;
   --f-display:"Chakra Petch","Segoe UI",system-ui,sans-serif;
   --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
@@ -31,6 +32,7 @@
   --shadow:rgba(20,30,50,.18); --backdrop:rgba(22,30,44,.42); --mark:rgba(240,180,40,.4);
   --e-route:#2f6bea; --e-module:#1f9d55; --e-api:#7c4ddb; --e-schedule:#c27a0e;
   --e-task:#0f9488; --e-embed:#7a8597; --e-host:#5b6676; --e-guard:#d23a3a;
+  --e-call:#5a6b88; --e-data:#c0267a; --e-publish:#4d7c0f;
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -72,6 +74,27 @@ svg.edges g.hl path.base{stroke-width:3.2}
 .node:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .node.sel{border-top-color:var(--accent);border-right-color:var(--accent);border-bottom-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--node-shadow)}
 .node.drag{cursor:grabbing;z-index:5}
+.node.st-na{border-left-style:dashed}
+.node.ghost{background:transparent;border-style:dashed;border-left-width:1px;box-shadow:none;opacity:.7}
+.node.ghost .hd{background:transparent}
+.node.ghost:hover{opacity:1}
+.gtag{font:500 9.5px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border:1px dashed var(--node-line);border-radius:4px;padding:0 4px}
+.node.has-sub{box-shadow:5px 5px 0 -1px var(--node),5px 5px 0 0 var(--node-line),var(--node-shadow);cursor:zoom-in}
+.node.has-sub.sel{box-shadow:0 0 0 3px var(--accent-soft),5px 5px 0 -1px var(--node),5px 5px 0 0 var(--node-line)}
+.node .sub{display:flex;justify-content:space-between;gap:6px;margin:0 10px 9px;padding:4px 8px;border:1px dashed var(--node-line);border-radius:6px;font:11px var(--f-mono);color:var(--mut)}
+.node .sub .cnt{display:flex;gap:6px}
+.c-ok{color:var(--ok)} .c-warn{color:var(--warn)} .c-fail{color:var(--fail)}
+svg.edges g.gh path.base{opacity:.55}
+.crumbs{display:flex;align-items:center;gap:6px;font:500 13px var(--f-body);min-width:0;flex-wrap:wrap}
+.crumbs button{all:unset;cursor:pointer;color:var(--accent);padding:2px 4px;border-radius:4px}
+.crumbs button:hover{background:var(--accent-soft)}
+.crumbs button:focus-visible{outline:2px solid var(--accent)}
+.crumbs .sep{color:var(--mut)}
+.crumbs .cur{font:600 15px var(--f-display);color:var(--fg)}
+.sacts{display:flex;gap:6px;flex-wrap:wrap}
+.inner{display:flex;flex-direction:column;gap:4px;font-size:12.5px}
+.inner .lk{display:flex;gap:8px;align-items:center;color:var(--mut)}
+.inner .lk b{color:var(--fg);font-weight:500}
 .node.st-fail{border-top-color:var(--fail);border-right-color:var(--fail);border-bottom-color:var(--fail)}
 .node .hd{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--node-line);background:var(--node-hd);border-radius:4px 7px 0 0}
 .help{margin-left:auto;width:18px;height:18px;border-radius:50%;border:1px solid var(--node-line);background:var(--node);color:var(--mut);font:600 11px var(--f-body);display:grid;place-items:center;cursor:help;padding:0;flex:none}
@@ -123,8 +146,9 @@ svg.edges g.hl path.base{stroke-width:3.2}
 .tip{position:fixed;z-index:50;max-width:280px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.5;color:var(--fg);box-shadow:0 6px 24px var(--shadow);pointer-events:none}
 .tip b{display:block;font:600 13px var(--f-display);margin-bottom:3px}
 .desc{font-size:12.5px;color:var(--mut);line-height:1.5}
-.node .kind{font:500 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.node .kind{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;font:500 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
 .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--idle);display:inline-block}
+.dot.na{background:transparent;box-shadow:inset 0 0 0 1.6px var(--idle)}
 .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.fail{background:var(--fail);animation:blink 1.4s ease-in-out infinite}
 @keyframes blink{50%{opacity:.35}}
 .node .nm{padding:7px 10px 2px;font-weight:600;font-size:13.5px;line-height:1.3}
@@ -165,6 +189,8 @@ svg.edges g.hl path.base{stroke-width:3.2}
 <body>
 <header class="bar">
   <h1>Bản đồ hệ thống</h1>
+  <nav class="crumbs" id="crumbs" aria-label="Vị trí sơ đồ"></nav>
+  <button class="btn" type="button" id="b-up" hidden>‹ Lên sơ đồ tổng</button>
   <span class="kpi"><i class="dot ok"></i><strong id="k-ok">0</strong> chạy tốt</span>
   <span class="kpi"><i class="dot warn"></i><strong id="k-warn">0</strong> cảnh báo</span>
   <span class="kpi"><i class="dot fail"></i><strong id="k-fail">0</strong> lỗi</span>
@@ -186,8 +212,10 @@ svg.edges g.hl path.base{stroke-width:3.2}
       <span class="eyebrow" id="s-kind">Node</span>
       <h2><i class="dot" id="s-dot"></i><span id="s-name">Chọn một node</span></h2>
       <p class="desc" id="s-desc"></p>
+      <div class="sacts" id="s-act"></div>
       <div class="meta" id="s-meta"></div>
       <div class="spark" id="s-spark" hidden></div>
+      <div class="inner" id="s-inner"></div>
       <div class="links" id="s-links"></div>
     </div>
     <div class="loghd"><span>Nhật ký</span><span class="sp"></span>
@@ -199,10 +227,11 @@ svg.edges g.hl path.base{stroke-width:3.2}
 <footer class="legend">
   <div class="grp"><span class="gt">Trạng thái</span>
     <span><i class="dot ok"></i>chạy tốt</span><span><i class="dot warn"></i>cảnh báo</span>
-    <span><i class="dot fail"></i>lỗi / mất kết nối</span><span><i class="dot"></i>đang nghỉ</span>
+    <span><i class="dot fail"></i>lỗi / mất kết nối</span><span><i class="dot"></i>đang nghỉ</span><span><i class="dot na"></i>không đo được</span>
   </div>
+  <div class="grp"><span class="gt">Ô</span><span>⧉ ô xếp chồng = có sơ đồ bên trong, nhấp đúp để mở</span><span>viền đứt, mờ = ô của sơ đồ khác (ranh giới)</span></div>
   <div class="grp" id="lg-edges"><span class="gt">Dây nối</span></div>
-  <div class="grp"><span>Lăn chuột: phóng to/thu nhỏ · giữ chuột chỗ trống: kéo bản đồ · rê chuột lên dây: xem quan hệ · bấm ô: làm nổi dây của ô đó</span></div>
+  <div class="grp"><span>Lăn chuột: phóng to/thu nhỏ · giữ chuột chỗ trống: kéo bản đồ · rê chuột lên dây: xem quan hệ · bấm ô: làm nổi dây · nhấp đúp ô ⧉: vào sơ đồ con</span></div>
 </footer>
 <div class="modal" id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="g-title">
   <div class="mbox">
@@ -219,17 +248,29 @@ svg.edges g.hl path.base{stroke-width:3.2}
         <p>Một màn hình xem toàn bộ máy chủ và các tool đang chạy: mỗi ô là một dịch vụ hoặc một chức năng, dây nối cho biết chúng liên quan với nhau thế nào. Thay vì mở từng tool để xem còn sống không, nhìn màu chấm trên từng ô là biết.</p>
         <p class="mut">Hiện tại bản đồ chỉ để xem, chưa có nút điều khiển (restart, chạy lại…).</p>
       </section>
+      <section data-sec="levels" data-grp="Bắt đầu">
+        <h3>Sơ đồ tổng và sơ đồ con</h3>
+        <p>Bản đồ chia nhiều tầng như một hệ thống thật: <b>sơ đồ tổng</b> chỉ có hạ tầng (VPS, Caddy, Fail2ban, Cron) và 4 hệ con (Dashboard, Quản lý tài chính, GSC Bulk Tool, SEO Writer). Mỗi hệ con có <b>sơ đồ riêng</b> thể hiện các thành phần bên trong của nó.</p>
+        <ul>
+          <li>Ô có hình <b>xếp chồng</b> và dòng <b>⧉ n thành phần</b> là hệ con: <b>nhấp đúp</b> (hoặc nút "Mở sơ đồ bên trong" ở khung phải) để vào.</li>
+          <li>Ở sơ đồ tổng, màu của hệ con là màu xấu nhất trong các thành phần bên trong; dòng ⧉ đếm số thành phần tốt (✓), cảnh báo (!), lỗi (✕).</li>
+          <li>Trong sơ đồ con, các ô <b>viền đứt, mờ, ghi "ngoài hệ này"</b> là ô của sơ đồ khác, chỉ hiện để biết hệ con này nối ra đâu. Nhấp đúp vào chúng để tới sơ đồ của chúng.</li>
+          <li>Thanh trên cùng có đường dẫn <b>Hệ thống › SEO Writer</b>; bấm "Hệ thống" hoặc nút <b>‹ Lên sơ đồ tổng</b> để quay ra.</li>
+          <li>Một ô có thể xuất hiện ở nhiều sơ đồ (ví dụ Serper dùng chung cho SEO Writer, Dashboard và GSC Bulk Tool); số liệu và nhật ký là một.</li>
+        </ul>
+      </section>
       <section data-sec="ops" data-grp="Bắt đầu">
         <h3>Thao tác</h3>
         <ul>
           <li><b>Lăn chuột</b> trên bản đồ: phóng to / thu nhỏ quanh vị trí con trỏ.</li>
           <li><b>Giữ chuột ở chỗ trống rồi kéo</b>: di chuyển cả bản đồ.</li>
-          <li><b>Kéo một ô</b>: sắp lại vị trí. Vị trí được lưu trên máy chủ, mở ở máy khác vẫn giữ nguyên.</li>
+          <li><b>Kéo một ô</b>: sắp lại vị trí. Mỗi sơ đồ lưu vị trí riêng trên máy chủ, mở ở máy khác vẫn giữ nguyên.</li>
           <li><b>Bấm vào ô</b>: khung bên phải hiện thông số, các kết nối và nhật ký của ô đó; dây của ô nổi lên, dây khác mờ đi.</li>
+          <li><b>Nhấp đúp ô ⧉</b>: mở sơ đồ bên trong của hệ con đó. Bàn phím: chọn ô rồi nhấn Enter lần nữa.</li>
           <li><b>Nút ?</b> ở góc mỗi ô: giải thích ô đó làm gì.</li>
           <li><b>Rê chuột lên dây</b>: xem đó là quan hệ gì.</li>
           <li><b>− / + / Vừa khung</b> (góc dưới phải): phóng to, thu nhỏ, thu cả bản đồ vừa màn hình.</li>
-          <li><b>Sắp lại mặc định</b>: đưa mọi ô về vị trí ban đầu.</li>
+          <li><b>Sắp lại mặc định / Sắp lại sơ đồ này</b>: đưa các ô của sơ đồ đang xem về vị trí ban đầu.</li>
           <li><b>Nút mặt trời / mặt trăng</b> trên thanh trên cùng: đổi giao diện sáng / tối. Trình duyệt nhớ lựa chọn cho lần sau; lần đầu mở sẽ theo chế độ sáng/tối của máy.</li>
         </ul>
       </section>
@@ -241,6 +282,7 @@ svg.edges g.hl path.base{stroke-width:3.2}
           <tr><td><i class="dot warn"></i> Vàng</td><td>Cảnh báo: vượt ngưỡng, phản hồi chậm hoặc sắp hết hạn mức. Vẫn chạy nhưng nên xem.</td></tr>
           <tr><td><i class="dot fail"></i> Đỏ nhấp nháy</td><td>Lỗi hoặc mất kết nối: dịch vụ dừng, trang không trả lời.</td></tr>
           <tr><td><i class="dot"></i> Xám</td><td>Đang nghỉ: không có việc hoặc đang tắt (ví dụ Autopilot tắt, không hồ sơ Chrome nào bật Chạy nền). Không phải lỗi.</td></tr>
+          <tr><td><i class="dot na"></i> Rỗng</td><td>Không đo được từ máy chủ (ví dụ Google Search Console gọi bằng tài khoản của bạn). Ô chỉ để thể hiện cấu trúc.</td></tr>
         </table></div>
         <p class="mut">Góc trên bên phải có chấm kết nối: xanh = đang nhận số liệu; vàng = mất luồng, đang nối lại; đỏ = máy chủ im lặng quá lâu.</p>
       </section>
@@ -254,6 +296,8 @@ svg.edges g.hl path.base{stroke-width:3.2}
           <tr><td>OpenRouter</td><td>Key còn dưới $1 hạn mức</td><td>—</td></tr>
           <tr><td>SEO Writer</td><td>Trả lời chậm hơn 5 giây</td><td>Dịch vụ dừng hoặc không trả lời</td></tr>
           <tr><td>PM2, Fail2ban, Cron</td><td>—</td><td>Tiến trình dừng hoặc biến mất</td></tr>
+          <tr><td>Firebase</td><td>Ai cũng đọc được dữ liệu không cần đăng nhập, hoặc chậm hơn 3 giây</td><td>Không truy cập được</td></tr>
+          <tr><td>Các site WordPress</td><td>Có site không truy cập được</td><td>—</td></tr>
         </table></div>
       </section>
       <section data-sec="edges" data-grp="Đọc bản đồ">
@@ -263,12 +307,12 @@ svg.edges g.hl path.base{stroke-width:3.2}
       </section>
       <section data-sec="nodes" data-grp="Đọc bản đồ">
         <h3>Các ô trên bản đồ</h3>
-        <div class="gtbl"><table id="g-nodes"><tr><th>Ô</th><th>Chức năng</th></tr></table></div>
+        <div class="gtbl"><table id="g-nodes"><tr><th>Ô</th><th>Có ở sơ đồ</th><th>Chức năng</th></tr></table></div>
       </section>
       <section data-sec="data" data-grp="Theo dõi">
         <h3>Số liệu và nhật ký</h3>
         <ul>
-          <li>VPS đo mỗi 30 giây; các ô khác mỗi 60 giây; OpenRouter và Serper mỗi 10 phút (để không gọi API quá nhiều).</li>
+          <li>VPS đo mỗi 30 giây; các ô khác mỗi 60 giây; OpenRouter, Serper, Firebase và các site WordPress mỗi 10 phút (để không gọi quá nhiều).</li>
           <li>Số liệu tự đẩy về trang, không cần tải lại.</li>
           <li>Nhật ký chỉ ghi khi có thay đổi: đổi trạng thái, restart, có bài mới, hồ sơ Chrome bật/tắt, lên phiên bản mới… Giữ 30 ngày. Dùng ô lọc để chỉ xem cảnh báo và lỗi.</li>
           <li>Ô VPS có biểu đồ CPU/RAM khoảng 2 giờ gần nhất.</li>
@@ -295,37 +339,59 @@ svg.edges g.hl path.base{stroke-width:3.2}
 const W = 210;
 const stage = document.getElementById('stage'), svg = document.getElementById('edges'), wrap = document.getElementById('wrap');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const byId = {};
 const ET = {
   route:    { label: 'Chuyển truy cập', hint: 'Tên miền đi qua Caddy rồi vào app này', color: 'var(--e-route)', dash: '', arrow: true },
   module:   { label: 'Chức năng bên trong', hint: 'Chạy chung trong cùng một tool, không phải dịch vụ riêng', color: 'var(--e-module)', dash: '', arrow: false, dot: true },
-  api:      { label: 'Gọi API ngoài', hint: 'Mỗi lần gọi tốn tiền hoặc credit', color: 'var(--e-api)', dash: '', arrow: true },
+  call:     { label: 'Gọi API nội bộ', hint: 'Tool này gọi sang tool kia trên cùng máy chủ để lấy dữ liệu hoặc nhờ làm việc', color: 'var(--e-call)', dash: '7 4', arrow: true },
+  api:      { label: 'Gọi API ngoài', hint: 'Gọi dịch vụ bên ngoài; thường tốn tiền hoặc credit', color: 'var(--e-api)', dash: '', arrow: true },
+  data:     { label: 'Đọc / ghi dữ liệu', hint: 'Nơi tool lưu và lấy dữ liệu của nó', color: 'var(--e-data)', dash: '', arrow: true },
+  publish:  { label: 'Đăng bài', hint: 'Đẩy bài viết đã xong lên website', color: 'var(--e-publish)', dash: '', arrow: true },
   schedule: { label: 'Hẹn giờ kích hoạt', hint: 'Tự gọi theo lịch, không cần người bấm', color: 'var(--e-schedule)', dash: '9 6', arrow: true },
-  task:     { label: 'Giao việc', hint: 'Tool đẩy việc vào hàng đợi, bên kia nhận về làm rồi gửi kết quả lại', color: 'var(--e-task)', dash: '5 5', arrow: true },
+  task:     { label: 'Giao việc', hint: 'Đẩy việc sang bên kia làm rồi nhận kết quả lại', color: 'var(--e-task)', dash: '5 5', arrow: true },
   embed:    { label: 'Nhúng giao diện', hint: 'Mở app kia ngay bên trong trang này', color: 'var(--e-embed)', dash: '1 6', arrow: true },
-  host:     { label: 'Máy chủ chạy', hint: 'Mọi dịch vụ chạy trên VPS; truy cập từ ngoài vào qua Caddy', color: 'var(--e-host)', dash: '', arrow: true, wide: true },
+  host:     { label: 'Nơi chạy', hint: 'Máy chủ hoặc dịch vụ lưu trữ mà ô kia chạy trên đó', color: 'var(--e-host)', dash: '', arrow: true, wide: true },
   guard:    { label: 'Bảo vệ', hint: 'Chặn IP dò mật khẩu SSH', color: 'var(--e-guard)', dash: '2 5', arrow: true },
 };
 const etKey = e => (e[2] in ET ? e[2] : 'host');
 const etOf = e => ET[etKey(e)];
-document.getElementById('lg-edges').insertAdjacentHTML('beforeend', Object.values(ET).map(t =>
-  `<span title="${esc(t.hint)}"><svg width="40" height="10" aria-hidden="true"><path d="M3 5 H${t.arrow ? 32 : 38}" style="stroke:${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}" stroke-linecap="round" fill="none"></path>${t.arrow ? `<path d="M31 1.5 L38 5 L31 8.5 Z" style="fill:${t.color}"></path>` : ''}${t.dot ? `<circle cx="3.5" cy="5" r="2.6" style="fill:${t.color}"></circle>` : ''}</svg>${esc(t.label)}</span>`).join(''));
-let EDGES = [], LIVE = new Set(), SERIES = {cpu:[], ram:[]}, sel = null;
-try { sel = localStorage.getItem('hub-sel'); } catch (e) {}
+const edgeSample = (t, w = 40) => `<svg width="${w}" height="10" aria-hidden="true"><path d="M3 5 H${t.arrow ? w - 8 : w - 2}" style="stroke:${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}" stroke-linecap="round" fill="none"></path>${t.arrow ? `<path d="M${w - 9} 1.5 L${w - 2} 5 L${w - 9} 8.5 Z" style="fill:${t.color}"></path>` : ''}${t.dot ? `<circle cx="3.5" cy="5" r="2.6" style="fill:${t.color}"></circle>` : ''}</svg>`;
+document.getElementById('lg-edges').insertAdjacentHTML('beforeend', Object.values(ET).map(t => `<span title="${esc(t.hint)}">${edgeSample(t)}${esc(t.label)}</span>`).join(''));
+
+let NODES = {}, MAPS = {}, LIVE = new Set(), SERIES = { cpu: [], ram: [] }, sel = null, cur = 'root', byId = {};
+try { sel = localStorage.getItem('hub-sel'); cur = localStorage.getItem('hub-map') || 'root'; } catch (e) {}
+if (location.hash.length > 1) cur = location.hash.slice(1);
 
 function fmtT(ms){
   const d = new Date(ms), p = n => String(n).padStart(2, '0');
   return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 function h(n){ return n.el ? n.el.offsetHeight : 80; }
+const RANK = { fail: 3, warn: 2, ok: 1 };
+function subMap(id){ return MAPS[id] && id !== cur ? MAPS[id] : null; }
+function homeOf(id){
+  if (MAPS[id]) return id;
+  const m = Object.values(MAPS).find(x => x.id !== cur && x.nodes.some(n => n.id === id));
+  return m ? m.id : 'root';
+}
+function agg(id){
+  const m = subMap(id);
+  if (!m) return null;
+  const c = { ok: 0, warn: 0, fail: 0, idle: 0, na: 0 }, bad = [];
+  m.nodes.forEach(x => { const d = NODES[x.id]; if (!d) return; c[d.st] = (c[d.st] || 0) + 1; if (d.st === 'warn' || d.st === 'fail') bad.push(d); });
+  const top = m.nodes.map(x => NODES[x.id]).filter(Boolean).reduce((a, d) => (RANK[d.st] || 0) > (RANK[a] || 0) ? d.st : a, 'idle');
+  return { c, st: top === 'idle' && c.ok ? 'ok' : top, total: m.nodes.length, bad };
+}
+function stOf(id){ const a = agg(id); return a ? a.st : (NODES[id] || {}).st || 'idle'; }
 
 const tip = document.createElement('div');
 tip.className = 'tip'; tip.hidden = true; tip.setAttribute('role', 'tooltip');
 document.body.appendChild(tip);
 let tipFor = null;
-function showTip(n, btn){
-  tip.innerHTML = `<b>${esc(n.name)}</b>${esc(n.desc || 'Chưa có mô tả.')}`;
-  tip.hidden = false; tipFor = n.id;
+function showTip(id, btn){
+  const d = NODES[id] || {};
+  const m = subMap(id);
+  tip.innerHTML = `<b>${esc(d.name)}</b>${esc(d.desc || 'Chưa có mô tả.')}${m ? `<br><i>Nhấp đúp để mở sơ đồ bên trong (${m.nodes.length} thành phần).</i>` : ''}`;
+  tip.hidden = false; tipFor = id;
   const r = btn.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
   let x = r.left + r.width / 2 - tw / 2, y = r.top - th - 8;
   if (y < 6) y = r.bottom + 8;
@@ -335,38 +401,47 @@ function showTip(n, btn){
 function hideTip(){ tip.hidden = true; tipFor = null; }
 wrap.addEventListener('wheel', hideTip, { passive: true });
 
-function upsert(d){
-  let n = byId[d.id];
-  if (!n) {
-    n = byId[d.id] = { ...d, log: d.log || [] };
-    const el = document.createElement('div');
-    el.className = 'node'; el.tabIndex = 0; el.dataset.id = d.id; el.setAttribute('role', 'button');
-    el.innerHTML = '<span class="port in"></span><span class="port out"></span><div class="hd"><i class="dot"></i><span class="kind"></span><button type="button" class="help" aria-label="Chức năng">?</button></div><div class="nm"></div><div class="mt"></div><div class="prog" hidden><i></i></div>';
-    stage.appendChild(el); n.el = el;
-    const hb = el.querySelector('.help');
-    hb.addEventListener('pointerdown', e => e.stopPropagation());
-    hb.addEventListener('click', e => { e.stopPropagation(); showTip(n, hb); });
-    hb.addEventListener('mouseenter', () => showTip(n, hb));
-    hb.addEventListener('mouseleave', hideTip);
-    hb.addEventListener('focus', () => showTip(n, hb));
-    hb.addEventListener('blur', hideTip);
-    drag(el, n);
-    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n.id); } });
-  } else {
-    const x = n.x, y = n.y;
-    Object.assign(n, d, { log: n.log, x, y });
-  }
-  const el = n.el;
+function makeEl(n){
+  const el = document.createElement('div');
+  el.className = 'node'; el.tabIndex = 0; el.dataset.id = n.id; el.setAttribute('role', 'button');
+  el.innerHTML = '<span class="port in"></span><span class="port out"></span><div class="hd"><i class="dot"></i><span class="kind"></span><span class="gtag" hidden>ngoài hệ này</span><button type="button" class="help" aria-label="Chức năng">?</button></div><div class="nm"></div><div class="mt"></div><div class="prog" hidden><i></i></div><div class="sub" hidden></div>';
+  stage.appendChild(el); n.el = el;
+  const hb = el.querySelector('.help');
+  hb.addEventListener('pointerdown', e => e.stopPropagation());
+  hb.addEventListener('click', e => { e.stopPropagation(); showTip(n.id, hb); });
+  hb.addEventListener('mouseenter', () => showTip(n.id, hb));
+  hb.addEventListener('mouseleave', hideTip);
+  hb.addEventListener('focus', () => showTip(n.id, hb));
+  hb.addEventListener('blur', hideTip);
+  hb.addEventListener('dblclick', e => e.stopPropagation());
+  drag(el, n);
+  el.addEventListener('dblclick', e => { e.preventDefault(); enter(n); });
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (sel === n.id || e.shiftKey)) { e.preventDefault(); enter(n); return; }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n.id); }
+  });
+}
+function enter(n){
+  if (n.ghost) openMap(homeOf(n.id), n.id);
+  else if (subMap(n.id)) openMap(n.id);
+}
+function paint(n){
+  const d = NODES[n.id] || { name: n.id, kind: '', mt: '', st: 'idle' };
+  const el = n.el, a = agg(n.id), st = a ? a.st : d.st;
   el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
-  el.className = 'node st-' + n.st + (sel === n.id ? ' sel' : '') + (n.dragging ? ' drag' : '');
-  el.querySelector('.hd .dot').className = 'dot ' + n.st;
-  el.querySelector('.kind').textContent = n.kind;
-  el.querySelector('.nm').textContent = n.name;
-  el.querySelector('.mt').textContent = n.mt;
-  el.setAttribute('aria-label', `${n.name} — ${n.mt}`);
+  el.className = 'node st-' + st + (sel === n.id ? ' sel' : '') + (n.dragging ? ' drag' : '') + (n.ghost ? ' ghost' : '') + (a ? ' has-sub' : '');
+  el.querySelector('.hd .dot').className = 'dot ' + st;
+  el.querySelector('.kind').textContent = d.kind;
+  el.querySelector('.gtag').hidden = !n.ghost;
+  el.querySelector('.nm').textContent = d.name;
+  el.querySelector('.mt').textContent = d.mt;
+  el.setAttribute('aria-label', `${d.name} — ${d.mt}${a ? ' — nhấp đúp để mở sơ đồ bên trong' : ''}${n.ghost ? ' — thuộc sơ đồ khác' : ''}`);
   const pg = el.querySelector('.prog');
-  pg.hidden = n.prog == null;
-  if (n.prog != null) pg.querySelector('i').style.width = n.prog + '%';
+  pg.hidden = d.prog == null || n.ghost;
+  if (!pg.hidden) pg.querySelector('i').style.width = d.prog + '%';
+  const sb = el.querySelector('.sub');
+  sb.hidden = !a;
+  if (a) sb.innerHTML = `<span>⧉ ${a.total} thành phần</span><span class="cnt">${a.c.ok ? `<b class="c-ok">${a.c.ok}✓</b>` : ''}${a.c.warn ? `<b class="c-warn">${a.c.warn}!</b>` : ''}${a.c.fail ? `<b class="c-fail">${a.c.fail}✕</b>` : ''}</span>`;
 }
 
 function sizeStage(){
@@ -382,22 +457,27 @@ function pathD(A, B){
     const y1 = up ? A.y : A.y + h(A), y2 = up ? B.y + h(B) + 2 : B.y - 2, dy = Math.max(30, Math.abs(y2 - y1) / 2) * (up ? -1 : 1);
     return `M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}`;
   }
+  if (B.x + W < A.x) {
+    const x1 = A.x, y1 = A.y + h(A) / 2, x2 = B.x + W + 3, y2 = B.y + h(B) / 2, dx = Math.max(40, Math.abs(x2 - x1) / 2);
+    return `M${x1},${y1} C${x1 - dx},${y1} ${x2 + dx},${y2} ${x2},${y2}`;
+  }
   const x1 = A.x + W, y1 = A.y + h(A) / 2, x2 = B.x - 3, y2 = B.y + h(B) / 2, dx = Math.max(40, Math.abs(x2 - x1) / 2);
   return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
 }
-function shownEdges(){ return EDGES.filter(([a, b]) => byId[a] && byId[b]); }
+function mapEdges(){ return (MAPS[cur] || { edges: [] }).edges; }
+function shownEdges(){ return mapEdges().filter(([a, b]) => byId[a] && byId[b]); }
 function renderEdges(){
   sizeStage();
   const defs = Object.entries(ET).map(([k, t]) => `<marker id="ar-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 Z" style="fill:${t.color}"></path></marker><marker id="dt-${k}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="4" style="fill:${t.color}"></circle></marker>`).join('');
   svg.innerHTML = `<defs>${defs}</defs>` + shownEdges().map((e, i) => {
     const [a, b] = e, k = etKey(e), t = ET[k], d = pathD(byId[a], byId[b]);
-    const cls = sel ? (a === sel || b === sel ? 'hl' : 'dim') : '';
+    const cls = (sel && byId[sel] ? (a === sel || b === sel ? 'hl' : 'dim') : '') + (byId[a].ghost || byId[b].ghost ? ' gh' : '');
     const mk = (t.arrow ? ` marker-end="url(#ar-${k})"` : '') + (t.dot ? ` marker-start="url(#dt-${k})"` : '');
     return `<g class="${cls}" data-i="${i}"><path class="base" d="${d}" style="stroke:${t.color}" stroke-width="${t.wide ? 3 : 2.2}" stroke-dasharray="${t.dash}"${mk}></path>${LIVE.has(a + '>' + b) ? `<path class="flow" d="${d}" style="stroke:${t.color}"></path>` : ''}<path class="hit" d="${d}"></path></g>`;
   }).join('');
 }
 function edgeText(e){
-  const t = etOf(e), A = byId[e[0]], B = byId[e[1]];
+  const t = etOf(e), A = NODES[e[0]] || {}, B = NODES[e[1]] || {};
   return `<b>${esc(t.label)}</b>${esc(A.name)} → ${esc(B.name)}<br>${esc(t.hint)}${LIVE.has(e[0] + '>' + e[1]) ? '<br>Đang có việc chạy qua.' : ''}`;
 }
 svg.addEventListener('mousemove', ev => {
@@ -412,15 +492,16 @@ svg.addEventListener('mousemove', ev => {
 });
 svg.addEventListener('mouseleave', () => { if (tipFor === 'edge') hideTip(); });
 
+let views = {};
+try { views = JSON.parse(localStorage.getItem('hub-view3')) || {}; } catch (e) {}
 const view = { k: 1, x: 0, y: 0 };
-try { Object.assign(view, JSON.parse(localStorage.getItem('hub-view2')) || {}); } catch (e) {}
-let viewSaved = !!(view.k !== 1 || view.x || view.y);
 function applyView(){
   stage.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.k})`;
   wrap.style.backgroundSize = `${22 * view.k}px ${22 * view.k}px`;
   wrap.style.backgroundPosition = `${view.x}px ${view.y}px`;
   document.getElementById('z-val').textContent = Math.round(view.k * 100) + '%';
-  try { localStorage.setItem('hub-view2', JSON.stringify(view)); } catch (e) {}
+  views[cur] = { ...view };
+  try { localStorage.setItem('hub-view3', JSON.stringify(views)); } catch (e) {}
 }
 function zoomAt(k, cx, cy){
   k = Math.min(2.5, Math.max(0.25, k));
@@ -435,7 +516,7 @@ function fitView(){
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   ns.forEach(n => { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + W); y1 = Math.max(y1, n.y + h(n)); });
   const pad = 40, ww = wrap.clientWidth, wh = wrap.clientHeight;
-  const k = Math.min(1.5, Math.max(0.25, Math.min((ww - pad * 2) / (x1 - x0), (wh - pad * 2) / (y1 - y0))));
+  const k = Math.min(1.25, Math.max(0.25, Math.min((ww - pad * 2) / (x1 - x0), (wh - pad * 2) / (y1 - y0))));
   view.k = k;
   view.x = (ww - (x1 - x0) * k) / 2 - x0 * k;
   view.y = (wh - (y1 - y0) * k) / 2 - y0 * k;
@@ -472,10 +553,12 @@ document.getElementById('z-fit').addEventListener('click', fitView);
 let saveT = null;
 function saveLayout(){
   clearTimeout(saveT);
+  const map = cur, pos = {};
+  Object.values(byId).forEach(n => pos[n.id] = { x: n.x, y: n.y });
+  const m = MAPS[map];
+  if (m) [...m.nodes, ...m.ghosts].forEach(x => { if (pos[x.id]) { x.x = pos[x.id].x; x.y = pos[x.id].y; } });
   saveT = setTimeout(() => {
-    const body = {};
-    Object.values(byId).forEach(n => body[n.id] = { x: n.x, y: n.y });
-    fetch('/admin/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {});
+    fetch('/admin/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ map, pos }) }).catch(() => {});
   }, 400);
 }
 function drag(el, n){
@@ -490,6 +573,7 @@ function drag(el, n){
     if (!el.hasPointerCapture(e.pointerId)) return;
     const dx = (e.clientX - sx) / view.k, dy = (e.clientY - sy) / view.k;
     if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 3) moved = true;
+    if (!moved) return;
     n.x = Math.max(0, Math.round(ox + dx)); n.y = Math.max(0, Math.round(oy + dy));
     el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; renderEdges();
   });
@@ -503,6 +587,45 @@ function drag(el, n){
   el.addEventListener('pointercancel', end);
 }
 
+function crumbs(){
+  const chain = [];
+  let m = MAPS[cur];
+  while (m) { chain.unshift(m); m = m.parent ? MAPS[m.parent] : null; }
+  document.getElementById('crumbs').innerHTML = chain.map((x, i) => i === chain.length - 1
+    ? `<span class="cur" aria-current="page">${esc(x.title)}</span>`
+    : `<button type="button" data-map="${x.id}">${esc(x.title)}</button><span class="sep">›</span>`).join('');
+  const up = document.getElementById('b-up');
+  up.hidden = !(MAPS[cur] && MAPS[cur].parent);
+}
+document.getElementById('crumbs').addEventListener('click', e => { const b = e.target.closest('button[data-map]'); if (b) openMap(b.dataset.map); });
+document.getElementById('b-up').addEventListener('click', () => { const m = MAPS[cur]; if (m && m.parent) openMap(m.parent, cur); });
+
+function buildMap(focus){
+  if (!MAPS[cur]) cur = 'root';
+  stage.querySelectorAll('.node').forEach(el => el.remove());
+  byId = {};
+  const m = MAPS[cur];
+  m.nodes.forEach(x => { byId[x.id] = { id: x.id, x: x.x, y: x.y, ghost: false }; });
+  m.ghosts.forEach(x => { byId[x.id] = { id: x.id, x: x.x, y: x.y, ghost: true }; });
+  Object.values(byId).forEach(n => { makeEl(n); paint(n); });
+  crumbs();
+  document.getElementById('b-reset').textContent = m.parent ? 'Sắp lại sơ đồ này' : 'Sắp lại mặc định';
+  if (focus && byId[focus]) sel = focus;
+  if (!sel || !byId[sel]) sel = byId[cur] ? cur : m.nodes[0].id;
+  renderEdges();
+  if (views[cur]) { Object.assign(view, views[cur]); applyView(); } else fitView();
+  select(sel);
+}
+function openMap(id, focus){
+  if (!MAPS[id] || id === cur) return;
+  hideTip();
+  cur = id;
+  try { localStorage.setItem('hub-map', id); } catch (e) {}
+  history.replaceState(null, '', id === 'root' ? location.pathname : '#' + id);
+  buildMap(focus);
+}
+window.addEventListener('hashchange', () => { const id = location.hash.slice(1) || 'root'; if (MAPS[id] && id !== cur) openMap(id); });
+
 function select(id){
   if (!byId[id]) return;
   sel = id;
@@ -511,25 +634,33 @@ function select(id){
   drawSide(); drawLog(true); renderEdges();
 }
 function drawSide(){
-  const n = byId[sel];
-  if (!n) return;
-  document.getElementById('s-kind').textContent = n.kind;
-  document.getElementById('s-name').textContent = n.name;
-  document.getElementById('s-dot').className = 'dot ' + n.st;
-  document.getElementById('s-desc').textContent = n.desc || '';
+  const n = byId[sel], d = n && NODES[n.id];
+  if (!d) return;
+  const a = agg(n.id), st = a ? a.st : d.st;
+  document.getElementById('s-kind').textContent = d.kind + (n.ghost ? ' · thuộc sơ đồ khác' : '');
+  document.getElementById('s-name').textContent = d.name;
+  document.getElementById('s-dot').className = 'dot ' + st;
+  document.getElementById('s-desc').textContent = d.desc || '';
+  const act = document.getElementById('s-act');
+  const actHtml = a ? `<button class="btn" type="button" data-open="${n.id}">⧉ Mở sơ đồ bên trong (${a.total} thành phần)</button>`
+    : n.ghost ? `<button class="btn" type="button" data-open="${homeOf(n.id)}" data-focus="${n.id}">↗ Tới sơ đồ ${esc((MAPS[homeOf(n.id)] || {}).title || '')}</button>` : '';
+  if (act.dataset.html !== actHtml) { act.innerHTML = actHtml; act.dataset.html = actHtml; }
+  const inner = document.getElementById('s-inner');
+  inner.innerHTML = a ? '<span class="eyebrow">Bên trong</span>' + MAPS[n.id].nodes.map(x => { const c = NODES[x.id] || {}; return `<div class="lk"><i class="dot ${c.st}"></i><span><b>${esc(c.name)}</b> · ${esc(c.mt)}</span></div>`; }).join('') : '';
   const lk = shownEdges().filter(e => e[0] === n.id || e[1] === n.id);
-  document.getElementById('s-links').innerHTML = lk.length ? '<span class="eyebrow" style="margin-top:4px">Kết nối</span>' + lk.map(e => {
-    const t = etOf(e), out = e[0] === n.id, o = byId[out ? e[1] : e[0]];
-    return `<div class="lk"><svg width="26" height="8" aria-hidden="true"><path d="M2 4 H24" style="stroke:${t.color}" stroke-width="2" stroke-dasharray="${t.dash}" stroke-linecap="round"></path></svg><span>${esc(t.label)} ${out ? '→' : '←'} <b>${esc(o.name)}</b></span></div>`;
+  document.getElementById('s-links').innerHTML = lk.length ? '<span class="eyebrow">Kết nối trong sơ đồ này</span>' + lk.map(e => {
+    const t = etOf(e), out = e[0] === n.id, o = NODES[out ? e[1] : e[0]] || {};
+    return `<div class="lk">${edgeSample(t, 28)}<span>${esc(t.label)} ${out ? '→' : '←'} <b>${esc(o.name)}</b></span></div>`;
   }).join('') : '';
-  const meta = Object.entries(n.meta || {});
-  if (n.at) meta.push(['Đo lúc', fmtT(n.at)]);
+  const meta = Object.entries(d.meta || {});
+  if (d.at) meta.push(['Đo lúc', fmtT(d.at)]);
   document.getElementById('s-meta').innerHTML = meta.map(([k, v]) => `<span>${esc(k)}</span><span>${esc(v)}</span>`).join('');
   const sp = document.getElementById('s-spark');
   sp.hidden = n.id !== 'vps' || !SERIES.cpu.length;
   if (!sp.hidden) sp.innerHTML = `<svg viewBox="0 0 240 56" preserveAspectRatio="none" aria-label="CPU và RAM 2 giờ gần nhất">${line(SERIES.cpu, 'var(--accent)')}${line(SERIES.ram, 'var(--ok)')}</svg>
     <div class="lg"><span style="color:var(--accent)">— CPU %</span><span style="color:var(--ok)">— RAM %</span><span>${SERIES.cpu.length} lần đo gần nhất</span></div>`;
 }
+document.getElementById('s-act').addEventListener('click', e => { const b = e.target.closest('button[data-open]'); if (b) openMap(b.dataset.open, b.dataset.focus); });
 function line(arr, color){
   if (arr.length < 2) return '';
   const n = arr.length;
@@ -538,33 +669,38 @@ function line(arr, color){
 }
 const LV_RANK = { INFO: 0, OK: 0, WARN: 1, ERROR: 2 };
 function drawLog(toBottom){
-  const n = byId[sel], box = document.getElementById('s-log');
-  if (!n) { box.innerHTML = '<div class="empty">Bấm một node trên bản đồ để xem nhật ký của nó.</div>'; return; }
+  const d = sel && NODES[sel], box = document.getElementById('s-log');
+  if (!d) { box.innerHTML = '<div class="empty">Bấm một ô trên bản đồ để xem nhật ký của nó.</div>'; return; }
   const f = document.getElementById('s-lv').value, min = f ? LV_RANK[f] : 0;
-  const rows = n.log.filter(e => LV_RANK[e.level] >= min);
+  const rows = (d.log || []).filter(e => LV_RANK[e.level] >= min);
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 30;
-  box.innerHTML = rows.length ? rows.map(e => `<div><span class="t">${fmtT(e.at)}</span><span class="l lv-${e.level}">${e.level}</span><span class="m">${esc(e.msg)}</span></div>`).join('') : '<div class="empty">Chưa có dòng nào. Nhật ký ghi lại mỗi khi trạng thái node thay đổi hoặc có việc mới.</div>';
+  box.innerHTML = rows.length ? rows.map(e => `<div><span class="t">${fmtT(e.at)}</span><span class="l lv-${e.level}">${e.level}</span><span class="m">${esc(e.msg)}</span></div>`).join('') : '<div class="empty">Chưa có dòng nào. Nhật ký ghi lại mỗi khi trạng thái thay đổi hoặc có việc mới.</div>';
   if (toBottom || atBottom) box.scrollTop = box.scrollHeight;
 }
 document.getElementById('s-lv').addEventListener('change', () => drawLog(true));
 
 function kpis(){
-  const all = Object.values(byId), c = s => all.filter(n => n.st === s).length;
+  const all = Object.values(NODES), c = s => all.filter(n => n.st === s).length;
   document.getElementById('k-ok').textContent = c('ok');
   document.getElementById('k-warn').textContent = c('warn');
   document.getElementById('k-fail').textContent = c('fail');
-  const v = byId.vps;
+  const v = NODES.vps;
   document.getElementById('k-vps').innerHTML = v && v.meta && v.meta.RAM ? `VPS RAM <strong>${esc(v.meta.RAM.split(' (')[0])}</strong> · Ổ <strong>${esc((v.meta['Ổ cứng'] || '').split('(')[1]?.replace(')', '') || '')}</strong>` : '';
 }
 
 function apply(s, withLog){
-  (s.nodes || []).forEach(upsert);
-  EDGES = s.edges || EDGES; LIVE = new Set(s.live || []); SERIES = s.series || SERIES;
-  (s.events || []).forEach(e => {
-    const n = byId[e.node];
-    if (!n || n.log.some(x => x.at === e.at && x.msg === e.msg)) return;
-    n.log.push(e); if (n.log.length > 300) n.log.shift();
+  (s.nodes || []).forEach(d => {
+    const o = NODES[d.id];
+    NODES[d.id] = { ...(o || {}), ...d, log: o ? o.log : (d.log || []) };
   });
+  if (s.maps && !Object.keys(MAPS).length) s.maps.forEach(m => { MAPS[m.id] = m; });
+  LIVE = new Set(s.live || []); SERIES = s.series || SERIES;
+  (s.events || []).forEach(e => {
+    const d = NODES[e.node];
+    if (!d || d.log.some(x => x.at === e.at && x.msg === e.msg)) return;
+    d.log.push(e); if (d.log.length > 300) d.log.shift();
+  });
+  Object.values(byId).forEach(paint);
   renderEdges(); kpis();
   if (sel && byId[sel]) { drawSide(); drawLog(withLog); }
 }
@@ -581,9 +717,7 @@ async function boot(){
     const s = await r.json();
     apply(s, true);
     lastTick = Date.now();
-    if (!sel || !byId[sel]) sel = 'vps';
-    if (viewSaved) applyView(); else fitView();
-    select(sel);
+    buildMap();
     conn('ok', 'cập nhật ' + fmtT(s.at).slice(6));
   } catch (e) {
     conn('fail', 'không tải được: ' + e.message);
@@ -598,9 +732,11 @@ async function boot(){
   setInterval(() => { if (Date.now() - lastTick > 100000) conn('fail', 'Hub im lặng ' + Math.round((Date.now() - lastTick) / 60000) + ' phút'); }, 10000);
 }
 document.getElementById('b-reset').addEventListener('click', async () => {
-  const r = await fetch('/admin/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reset: true }) });
+  const r = await fetch('/admin/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ map: cur, reset: true }) });
   const d = await r.json();
-  Object.entries(d.layout || {}).forEach(([id, p]) => { const n = byId[id]; if (n) { n.x = p.x; n.y = p.y; n.el.style.left = p.x + 'px'; n.el.style.top = p.y + 'px'; } });
+  if (!d.map) return;
+  MAPS[cur] = d.map;
+  [...d.map.nodes, ...d.map.ghosts].forEach(p => { const n = byId[p.id]; if (n) { n.x = p.x; n.y = p.y; paint(n); } });
   renderEdges(); fitView();
 });
 window.addEventListener('resize', renderEdges);
@@ -710,13 +846,17 @@ setTheme(document.documentElement.dataset.theme || 'dark');
 function openGuide(){
   const ge = document.getElementById('g-edges');
   ge.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
+  const allEdges = [], seen = new Set();
+  Object.values(MAPS).forEach(m => m.edges.forEach(e => { const k = e.join('>'); if (!seen.has(k)) { seen.add(k); allEdges.push(e); } }));
   ge.insertAdjacentHTML('beforeend', Object.values(ET).map(t => {
-    const pairs = shownEdges().filter(e => etOf(e) === t).map(e => `${byId[e[0]].name} → ${byId[e[1]].name}`);
-    return `<tr><td><svg width="44" height="10" aria-hidden="true"><path d="M3 5 H${t.arrow ? 34 : 42}" style="stroke:${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}" stroke-linecap="round" fill="none"></path>${t.arrow ? `<path d="M33 1.5 L40 5 L33 8.5 Z" style="fill:${t.color}"></path>` : ''}${t.dot ? `<circle cx="3.5" cy="5" r="2.6" style="fill:${t.color}"></circle>` : ''}</svg></td><td>${esc(t.label)}</td><td>${esc(t.hint)}${pairs.length ? `<br><span class="mut">${esc(pairs.join(' · '))}</span>` : ''}</td></tr>`;
+    const pairs = allEdges.filter(e => etOf(e) === t).map(e => `${(NODES[e[0]] || {}).name} → ${(NODES[e[1]] || {}).name}`);
+    return `<tr><td>${edgeSample(t, 44)}</td><td>${esc(t.label)}</td><td>${esc(t.hint)}${pairs.length ? `<br><span class="mut">${esc(pairs.join(' · '))}</span>` : ''}</td></tr>`;
   }).join(''));
   const gn = document.getElementById('g-nodes');
   gn.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
-  gn.insertAdjacentHTML('beforeend', Object.values(byId).sort((a, b) => a.x - b.x || a.y - b.y).map(n => `<tr><td><i class="dot ${n.st}"></i> ${esc(n.name)}</td><td>${esc(n.desc || '')}</td></tr>`).join(''));
+  const rows = [];
+  Object.values(MAPS).forEach(m => m.nodes.forEach(x => { if (!rows.some(r => r.id === x.id)) rows.push({ id: x.id, maps: Object.values(MAPS).filter(mm => mm.nodes.some(y => y.id === x.id)).map(mm => mm.title) }); }));
+  gn.insertAdjacentHTML('beforeend', rows.map(r => { const n = NODES[r.id] || {}; return `<tr><td><i class="dot ${n.st}"></i> ${esc(n.name)}</td><td>${esc(r.maps.join(', '))}</td><td>${esc(n.desc || '')}</td></tr>`; }).join(''));
   [ge, gn].forEach(t => t.querySelectorAll('tr').forEach(el => { el.dataset.raw = el.innerHTML; }));
   hideTip();
   document.getElementById('guide').hidden = false;
