@@ -59,6 +59,28 @@ svg.edges g.hl path.base{stroke-width:2.8}
 .node .hd{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line)}
 .help{margin-left:auto;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);color:var(--mut);font:600 11px var(--f-body);display:grid;place-items:center;cursor:help;padding:0;flex:none}
 .help:hover,.help:focus-visible{color:var(--fg);border-color:var(--accent);outline:none}
+.ico{width:30px;height:30px;padding:0;justify-content:center}
+.ico svg{width:17px;height:17px}
+.modal{position:fixed;inset:0;z-index:100;background:rgba(5,8,14,.72);display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
+.mbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(860px,100%);max-height:100%;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);min-height:0}
+.mhd{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.mhd h2{font:600 19px var(--f-display);margin:0;flex:1}
+.mbd{overflow:auto;padding:6px 22px 20px;display:flex;flex-direction:column;gap:6px;min-height:0}
+.mbd section{display:flex;flex-direction:column;gap:8px;padding:14px 0;border-bottom:1px solid var(--line)}
+.mbd section:last-child{border-bottom:none}
+.mbd h3{font:600 15px var(--f-display);margin:0;color:var(--accent);letter-spacing:.02em}
+.mbd p,.mbd li{font-size:13.5px;line-height:1.65;color:var(--fg);max-width:76ch}
+.mbd p{margin:0}
+.mbd ul,.mbd ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px}
+.mbd .mut{color:var(--mut)}
+.mbd kbd{font:12px var(--f-mono);background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.gtbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+.gtbl table{border-collapse:collapse;width:100%;font-size:13px}
+.gtbl th,.gtbl td{text-align:left;vertical-align:top;padding:7px 10px;border-bottom:1px solid var(--line)}
+.gtbl th{font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);background:var(--panel2)}
+.gtbl tr:last-child td{border-bottom:none}
+.gtbl td:first-child{white-space:nowrap;font-weight:500}
+.mft{display:flex;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line)}
 .tip{position:fixed;z-index:50;max-width:280px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.5;color:var(--fg);box-shadow:0 6px 24px rgba(0,0,0,.45);pointer-events:none}
 .tip b{display:block;font:600 13px var(--f-display);margin-bottom:3px}
 .desc{font-size:12.5px;color:var(--mut);line-height:1.5}
@@ -110,6 +132,7 @@ svg.edges g.hl path.base{stroke-width:2.8}
   <span class="kpi" id="k-vps"></span>
   <span class="sp"></span>
   <span class="conn"><i class="dot" id="c-dot"></i><span id="c-txt">đang kết nối…</span></span>
+  <button class="btn ico" type="button" id="b-guide" title="Hướng dẫn sử dụng" aria-label="Hướng dẫn sử dụng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path><path d="M8 13h8M8 17h5"></path></svg></button>
   <button class="btn" type="button" id="b-reset">Sắp lại mặc định</button>
   <a class="btn" href="/admin/config">Cấu hình dashboard</a>
   <a class="btn" href="/">Về Dashboard</a>
@@ -141,6 +164,85 @@ svg.edges g.hl path.base{stroke-width:2.8}
   <div class="grp" id="lg-edges"><span class="gt">Dây nối</span></div>
   <div class="grp"><span>Lăn chuột: phóng to/thu nhỏ · giữ chuột chỗ trống: kéo bản đồ · rê chuột lên dây: xem quan hệ · bấm ô: làm nổi dây của ô đó</span></div>
 </footer>
+<div class="modal" id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="g-title">
+  <div class="mbox">
+    <div class="mhd"><h2 id="g-title">Hướng dẫn sử dụng bản đồ hệ thống</h2><button class="btn ico" type="button" id="g-x" aria-label="Đóng">✕</button></div>
+    <div class="mbd" id="g-body">
+      <section>
+        <h3>Bản đồ này để làm gì</h3>
+        <p>Một màn hình xem toàn bộ máy chủ và các tool đang chạy: mỗi ô là một dịch vụ hoặc một chức năng, dây nối cho biết chúng liên quan với nhau thế nào. Thay vì mở từng tool để xem còn sống không, nhìn màu chấm trên từng ô là biết.</p>
+        <p class="mut">Hiện tại bản đồ chỉ để xem, chưa có nút điều khiển (restart, chạy lại…).</p>
+      </section>
+      <section>
+        <h3>Thao tác</h3>
+        <ul>
+          <li><b>Lăn chuột</b> trên bản đồ: phóng to / thu nhỏ quanh vị trí con trỏ.</li>
+          <li><b>Giữ chuột ở chỗ trống rồi kéo</b>: di chuyển cả bản đồ.</li>
+          <li><b>Kéo một ô</b>: sắp lại vị trí. Vị trí được lưu trên máy chủ, mở ở máy khác vẫn giữ nguyên.</li>
+          <li><b>Bấm vào ô</b>: khung bên phải hiện thông số, các kết nối và nhật ký của ô đó; dây của ô nổi lên, dây khác mờ đi.</li>
+          <li><b>Nút ?</b> ở góc mỗi ô: giải thích ô đó làm gì.</li>
+          <li><b>Rê chuột lên dây</b>: xem đó là quan hệ gì.</li>
+          <li><b>− / + / Vừa khung</b> (góc dưới phải): phóng to, thu nhỏ, thu cả bản đồ vừa màn hình.</li>
+          <li><b>Sắp lại mặc định</b>: đưa mọi ô về vị trí ban đầu.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>Màu chấm trạng thái</h3>
+        <div class="gtbl"><table>
+          <tr><th>Màu</th><th>Ý nghĩa</th></tr>
+          <tr><td><i class="dot ok"></i> Xanh</td><td>Chạy tốt.</td></tr>
+          <tr><td><i class="dot warn"></i> Vàng</td><td>Cảnh báo: vượt ngưỡng, phản hồi chậm hoặc sắp hết hạn mức. Vẫn chạy nhưng nên xem.</td></tr>
+          <tr><td><i class="dot fail"></i> Đỏ nhấp nháy</td><td>Lỗi hoặc mất kết nối: dịch vụ dừng, trang không trả lời.</td></tr>
+          <tr><td><i class="dot"></i> Xám</td><td>Đang nghỉ: không có việc hoặc đang tắt (ví dụ Autopilot tắt, không hồ sơ Chrome nào bật Chạy nền). Không phải lỗi.</td></tr>
+        </table></div>
+        <p class="mut">Góc trên bên phải có chấm kết nối: xanh = đang nhận số liệu; vàng = mất luồng, đang nối lại; đỏ = máy chủ im lặng quá lâu.</p>
+      </section>
+      <section>
+        <h3>Ngưỡng cảnh báo</h3>
+        <div class="gtbl"><table>
+          <tr><th>Ô</th><th>Vàng khi</th><th>Đỏ khi</th></tr>
+          <tr><td>VPS</td><td>RAM ≥ 85% hoặc ổ cứng ≥ 80%</td><td>RAM ≥ 95% hoặc ổ cứng ≥ 92%</td></tr>
+          <tr><td>Caddy</td><td>Tên miền trả lời chậm hơn 3 giây, SSL còn dưới 14 ngày</td><td>Tên miền lỗi, Caddy dừng, SSL còn dưới 3 ngày</td></tr>
+          <tr><td>Serper</td><td>Còn dưới 2.000 credit</td><td>Còn dưới 500 credit</td></tr>
+          <tr><td>OpenRouter</td><td>Key còn dưới $1 hạn mức</td><td>—</td></tr>
+          <tr><td>SEO Writer</td><td>Trả lời chậm hơn 5 giây</td><td>Dịch vụ dừng hoặc không trả lời</td></tr>
+          <tr><td>PM2, Fail2ban, Cron</td><td>—</td><td>Tiến trình dừng hoặc biến mất</td></tr>
+        </table></div>
+      </section>
+      <section>
+        <h3>Các loại dây nối</h3>
+        <div class="gtbl"><table id="g-edges"><tr><th>Dây</th><th>Quan hệ</th><th>Ý nghĩa</th></tr></table></div>
+        <p class="mut">Dây có hạt sáng chạy dọc = đang có việc chạy qua, ví dụ Autopilot đang viết bài.</p>
+      </section>
+      <section>
+        <h3>Các ô trên bản đồ</h3>
+        <div class="gtbl"><table id="g-nodes"><tr><th>Ô</th><th>Chức năng</th></tr></table></div>
+      </section>
+      <section>
+        <h3>Số liệu và nhật ký</h3>
+        <ul>
+          <li>VPS đo mỗi 30 giây; các ô khác mỗi 60 giây; OpenRouter và Serper mỗi 10 phút (để không gọi API quá nhiều).</li>
+          <li>Số liệu tự đẩy về trang, không cần tải lại.</li>
+          <li>Nhật ký chỉ ghi khi có thay đổi: đổi trạng thái, restart, có bài mới, hồ sơ Chrome bật/tắt, lên phiên bản mới… Giữ 30 ngày. Dùng ô lọc để chỉ xem cảnh báo và lỗi.</li>
+          <li>Ô VPS có biểu đồ CPU/RAM khoảng 2 giờ gần nhất.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>Khi thấy ô đỏ</h3>
+        <ol>
+          <li>Bấm vào ô, đọc dòng <b>Trạng thái</b> và mấy dòng nhật ký cuối để biết lý do.</li>
+          <li>Xem các ô nối vào nó: nếu VPS hoặc Caddy đỏ thì mọi thứ phía sau đỏ theo, sửa từ gốc trước.</li>
+          <li>Báo Claude tên ô và lý do trong nhật ký để xử lý.</li>
+        </ol>
+      </section>
+      <section>
+        <h3>Đăng nhập</h3>
+        <p>Trang dùng tài khoản của khu vực admin (file <kbd>admin_auth.json</kbd> trên VPS). Trang cấu hình dashboard cũ vẫn ở nút <b>Cấu hình dashboard</b>.</p>
+      </section>
+    </div>
+    <div class="mft"><button class="btn" type="button" id="g-ok">Đã hiểu</button></div>
+  </div>
+</div>
 <script>
 const W = 210;
 const stage = document.getElementById('stage'), svg = document.getElementById('edges'), wrap = document.getElementById('wrap');
@@ -454,6 +556,25 @@ document.getElementById('b-reset').addEventListener('click', async () => {
   renderEdges(); fitView();
 });
 window.addEventListener('resize', renderEdges);
+function openGuide(){
+  const ge = document.getElementById('g-edges');
+  ge.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
+  ge.insertAdjacentHTML('beforeend', Object.values(ET).map(t => {
+    const pairs = shownEdges().filter(e => etOf(e) === t).map(e => `${byId[e[0]].name} → ${byId[e[1]].name}`);
+    return `<tr><td><svg width="44" height="10" aria-hidden="true"><path d="M3 5 H${t.arrow ? 34 : 42}" stroke="${t.color}" stroke-width="${t.wide ? 2.6 : 1.8}" stroke-dasharray="${t.dash}" stroke-linecap="round" fill="none"></path>${t.arrow ? `<path d="M33 1.5 L40 5 L33 8.5 Z" fill="${t.color}"></path>` : ''}${t.dot ? `<circle cx="3.5" cy="5" r="2.6" fill="${t.color}"></circle>` : ''}</svg></td><td>${esc(t.label)}</td><td>${esc(t.hint)}${pairs.length ? `<br><span class="mut">${esc(pairs.join(' · '))}</span>` : ''}</td></tr>`;
+  }).join(''));
+  const gn = document.getElementById('g-nodes');
+  gn.querySelectorAll('tr:not(:first-child)').forEach(r => r.remove());
+  gn.insertAdjacentHTML('beforeend', Object.values(byId).sort((a, b) => a.x - b.x || a.y - b.y).map(n => `<tr><td><i class="dot ${n.st}"></i> ${esc(n.name)}</td><td>${esc(n.desc || '')}</td></tr>`).join(''));
+  hideTip();
+  document.getElementById('guide').hidden = false;
+  document.getElementById('g-body').scrollTop = 0;
+  document.getElementById('g-ok').focus();
+}
+function closeGuide(){ document.getElementById('guide').hidden = true; document.getElementById('b-guide').focus(); }
+document.getElementById('b-guide').addEventListener('click', openGuide);
+document.getElementById('g-x').addEventListener('click', closeGuide);
+document.getElementById('g-ok').addEventListener('click', closeGuide);
 boot();
 </script>
 </body>
