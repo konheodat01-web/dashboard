@@ -31,8 +31,14 @@ a{color:var(--accent);text-decoration:none}
 .btn{font:500 12px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;padding:5px 11px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
 .btn:hover{border-color:var(--accent)} .btn:focus-visible{outline:2px solid var(--accent)}
 .main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:0}
-.stage-wrap{overflow:auto;min-width:0;position:relative}
-.stage{position:relative;background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:22px 22px}
+.stage-wrap{overflow:hidden;min-width:0;position:relative;cursor:grab;touch-action:none;background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:22px 22px}
+.stage-wrap.pan{cursor:grabbing}
+.stage{position:absolute;left:0;top:0;transform-origin:0 0}
+.zoom{position:absolute;right:12px;bottom:12px;display:flex;gap:4px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px;z-index:10;cursor:default}
+.zoom button{width:28px;height:28px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);border-radius:5px;cursor:pointer;font:600 15px var(--f-body);display:grid;place-items:center}
+.zoom button:hover{border-color:var(--accent)}
+.zoom .fit{width:auto;padding:0 8px;font-size:12px;font-weight:500}
+.zoom output{min-width:44px;text-align:center;font:12px var(--f-mono);color:var(--mut)}
 svg.edges{position:absolute;inset:0;pointer-events:none}
 svg.edges path{fill:none;stroke:var(--edge);stroke-width:1.6}
 svg.edges path.live{stroke:var(--edge-live);stroke-dasharray:6 6;animation:flow 1.2s linear infinite}
@@ -96,7 +102,9 @@ svg.edges path.live{stroke:var(--edge-live);stroke-dasharray:6 6;animation:flow 
   <a class="btn" href="/">Về Dashboard</a>
 </header>
 <div class="main">
-  <div class="stage-wrap" id="wrap"><div class="stage" id="stage"><svg class="edges" id="edges" aria-hidden="true"></svg></div></div>
+  <div class="stage-wrap" id="wrap"><div class="stage" id="stage"><svg class="edges" id="edges" aria-hidden="true"></svg></div>
+    <div class="zoom" id="zoom"><button type="button" id="z-out" aria-label="Thu nhỏ">−</button><output id="z-val">100%</output><button type="button" id="z-in" aria-label="Phóng to">+</button><button type="button" class="fit" id="z-fit">Vừa khung</button></div>
+  </div>
   <aside class="side" aria-live="polite">
     <div class="top">
       <span class="eyebrow" id="s-kind">Node</span>
@@ -114,7 +122,7 @@ svg.edges path.live{stroke:var(--edge-live);stroke-dasharray:6 6;animation:flow 
   <span><i class="dot ok"></i>chạy tốt</span><span><i class="dot warn"></i>cảnh báo (vượt ngưỡng, chậm, sắp hết hạn mức)</span>
   <span><i class="dot fail"></i>lỗi / mất kết nối</span><span><i class="dot"></i>đang nghỉ</span>
   <span><svg width="34" height="8" aria-hidden="true"><path d="M1 4 H33" stroke="var(--edge-live)" stroke-width="1.6" stroke-dasharray="6 6" fill="none"></path></svg>đang có việc chạy qua</span>
-  <span>Đo lại mỗi 30–60 giây · kéo node để sắp xếp</span>
+  <span>Đo lại mỗi 30–60 giây · lăn chuột để phóng to/thu nhỏ · giữ chuột ở chỗ trống để kéo bản đồ · kéo node để sắp xếp</span>
 </footer>
 <script>
 const W = 210;
@@ -160,7 +168,7 @@ function upsert(d){
 function sizeStage(){
   let mx = 0, my = 0;
   Object.values(byId).forEach(n => { mx = Math.max(mx, n.x + W); my = Math.max(my, n.y + h(n)); });
-  const w = Math.max(mx + 60, wrap.clientWidth), hh = Math.max(my + 60, wrap.clientHeight);
+  const w = mx + 60, hh = my + 60;
   stage.style.width = w + 'px'; stage.style.height = hh + 'px';
   svg.setAttribute('width', w); svg.setAttribute('height', hh); svg.setAttribute('viewBox', `0 0 ${w} ${hh}`);
 }
@@ -172,6 +180,63 @@ function renderEdges(){
     return `<path class="${LIVE.has(a + '>' + b) ? 'live' : ''}" d="M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}"></path>`;
   }).join('');
 }
+
+const view = { k: 1, x: 0, y: 0 };
+try { Object.assign(view, JSON.parse(localStorage.getItem('hub-view')) || {}); } catch (e) {}
+let viewSaved = !!(view.k !== 1 || view.x || view.y);
+function applyView(){
+  stage.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.k})`;
+  wrap.style.backgroundSize = `${22 * view.k}px ${22 * view.k}px`;
+  wrap.style.backgroundPosition = `${view.x}px ${view.y}px`;
+  document.getElementById('z-val').textContent = Math.round(view.k * 100) + '%';
+  try { localStorage.setItem('hub-view', JSON.stringify(view)); } catch (e) {}
+}
+function zoomAt(k, cx, cy){
+  k = Math.min(2.5, Math.max(0.25, k));
+  view.x = cx - (cx - view.x) * k / view.k;
+  view.y = cy - (cy - view.y) * k / view.k;
+  view.k = k; applyView();
+}
+function zoomCenter(f){ zoomAt(view.k * f, wrap.clientWidth / 2, wrap.clientHeight / 2); }
+function fitView(){
+  const ns = Object.values(byId);
+  if (!ns.length) return;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  ns.forEach(n => { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + W); y1 = Math.max(y1, n.y + h(n)); });
+  const pad = 40, ww = wrap.clientWidth, wh = wrap.clientHeight;
+  const k = Math.min(1.5, Math.max(0.25, Math.min((ww - pad * 2) / (x1 - x0), (wh - pad * 2) / (y1 - y0))));
+  view.k = k;
+  view.x = (ww - (x1 - x0) * k) / 2 - x0 * k;
+  view.y = (wh - (y1 - y0) * k) / 2 - y0 * k;
+  applyView();
+}
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = wrap.getBoundingClientRect();
+  zoomAt(view.k * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015)), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+let panS = null;
+wrap.addEventListener('pointerdown', e => {
+  if (e.button !== 0 && e.button !== 1) return;
+  if (e.target.closest('.node, .zoom')) return;
+  panS = { px: e.clientX, py: e.clientY, x: view.x, y: view.y, id: e.pointerId };
+  wrap.setPointerCapture(e.pointerId); wrap.classList.add('pan');
+  e.preventDefault();
+});
+wrap.addEventListener('pointermove', e => {
+  if (!panS || e.pointerId !== panS.id) return;
+  view.x = panS.x + e.clientX - panS.px; view.y = panS.y + e.clientY - panS.py; applyView();
+});
+const panEnd = e => {
+  if (!panS || e.pointerId !== panS.id) return;
+  panS = null; wrap.classList.remove('pan');
+  if (wrap.hasPointerCapture(e.pointerId)) wrap.releasePointerCapture(e.pointerId);
+};
+wrap.addEventListener('pointerup', panEnd);
+wrap.addEventListener('pointercancel', panEnd);
+document.getElementById('z-in').addEventListener('click', () => zoomCenter(1.2));
+document.getElementById('z-out').addEventListener('click', () => zoomCenter(1 / 1.2));
+document.getElementById('z-fit').addEventListener('click', fitView);
 
 let saveT = null;
 function saveLayout(){
@@ -186,13 +251,14 @@ function drag(el, n){
   let sx, sy, ox, oy, moved;
   el.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
+    e.stopPropagation();
     sx = e.clientX; sy = e.clientY; ox = n.x; oy = n.y; moved = false; n.dragging = true;
     el.setPointerCapture(e.pointerId); el.classList.add('drag');
   });
   el.addEventListener('pointermove', e => {
     if (!el.hasPointerCapture(e.pointerId)) return;
-    const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    const dx = (e.clientX - sx) / view.k, dy = (e.clientY - sy) / view.k;
+    if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 3) moved = true;
     n.x = Math.max(0, Math.round(ox + dx)); n.y = Math.max(0, Math.round(oy + dy));
     el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; renderEdges();
   });
@@ -279,6 +345,7 @@ async function boot(){
     apply(s, true);
     lastTick = Date.now();
     if (!sel || !byId[sel]) sel = 'vps';
+    if (viewSaved) applyView(); else fitView();
     select(sel);
     conn('ok', 'cập nhật ' + fmtT(s.at).slice(6));
   } catch (e) {
@@ -297,7 +364,7 @@ document.getElementById('b-reset').addEventListener('click', async () => {
   const r = await fetch('/admin/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reset: true }) });
   const d = await r.json();
   Object.entries(d.layout || {}).forEach(([id, p]) => { const n = byId[id]; if (n) { n.x = p.x; n.y = p.y; n.el.style.left = p.x + 'px'; n.el.style.top = p.y + 'px'; } });
-  renderEdges();
+  renderEdges(); fitView();
 });
 window.addEventListener('resize', renderEdges);
 boot();
