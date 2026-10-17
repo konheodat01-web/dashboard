@@ -175,21 +175,26 @@ function sizeStage(){
 function renderEdges(){
   sizeStage();
   svg.innerHTML = EDGES.filter(([a, b]) => byId[a] && byId[b]).map(([a, b]) => {
-    const A = byId[a], B = byId[b];
+    const A = byId[a], B = byId[b], cls = LIVE.has(a + '>' + b) ? 'live' : '';
+    if (B.x < A.x + W + 30 && A.x < B.x + W + 30) {
+      const up = B.y < A.y, x1 = A.x + W / 2, x2 = B.x + W / 2;
+      const y1 = up ? A.y : A.y + h(A), y2 = up ? B.y + h(B) : B.y, dy = Math.max(30, Math.abs(y2 - y1) / 2) * (up ? -1 : 1);
+      return `<path class="${cls}" d="M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}"></path>`;
+    }
     const x1 = A.x + W, y1 = A.y + h(A) / 2, x2 = B.x, y2 = B.y + h(B) / 2, dx = Math.max(40, Math.abs(x2 - x1) / 2);
-    return `<path class="${LIVE.has(a + '>' + b) ? 'live' : ''}" d="M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}"></path>`;
+    return `<path class="${cls}" d="M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}"></path>`;
   }).join('');
 }
 
 const view = { k: 1, x: 0, y: 0 };
-try { Object.assign(view, JSON.parse(localStorage.getItem('hub-view')) || {}); } catch (e) {}
+try { Object.assign(view, JSON.parse(localStorage.getItem('hub-view2')) || {}); } catch (e) {}
 let viewSaved = !!(view.k !== 1 || view.x || view.y);
 function applyView(){
   stage.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.k})`;
   wrap.style.backgroundSize = `${22 * view.k}px ${22 * view.k}px`;
   wrap.style.backgroundPosition = `${view.x}px ${view.y}px`;
   document.getElementById('z-val').textContent = Math.round(view.k * 100) + '%';
-  try { localStorage.setItem('hub-view', JSON.stringify(view)); } catch (e) {}
+  try { localStorage.setItem('hub-view2', JSON.stringify(view)); } catch (e) {}
 }
 function zoomAt(k, cx, cy){
   k = Math.min(2.5, Math.max(0.25, k));
