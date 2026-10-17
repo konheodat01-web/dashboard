@@ -278,6 +278,7 @@ svg.edges g.gh path.base{opacity:.55}
           <li>Ô có hình <b>xếp chồng</b> và dòng <b>⧉ n chức năng</b> là hệ con: <b>nhấp đúp</b> (hoặc nút "Mở sơ đồ bên trong" ở khung phải) để vào.</li>
           <li>Sơ đồ của mỗi hệ con là <b>dây chuyền</b>: mỗi chức năng một <b>làn</b>, đọc trái sang phải: <b>⚡ Trigger</b> (điều kiện khởi động) → các <b>bước</b> → <b>🏁 Output</b>. Chữ trên dây là dữ liệu đi qua (ra của bước trước = vào của bước sau). Chip dưới mỗi bước là dịch vụ bước đó gọi tới, chấm màu là trạng thái thật của dịch vụ.</li>
           <li>Làn <b>gạch ngang, viền đứt, màu xám</b> là chức năng không dùng nữa hoặc đang hỏng, kèm lý do để bạn dọn.</li>
+          <li><b>Nhấp đúp một làn</b> (hoặc nút "⤢ Mở quy trình đầy đủ") để mở sơ đồ cấp 3 của riêng quy trình đó: bên trái là chuỗi ô của <b>sơ đồ ông</b> (Hệ thống) và <b>sơ đồ mẹ</b> (hệ con) dẫn vào Trigger, chỉ gồm những ô quy trình thật sự đi qua; giữa là các bước; hàng dưới là từng dịch vụ nối thẳng vào đúng bước gọi nó.</li>
           <li>Ô <b>Dịch vụ ngoài</b> ở sơ đồ tổng gom tất cả dịch vụ (AI, Google, Serper, Firebase…) để xem tình trạng từng cái.</li>
           <li>Ở sơ đồ tổng, màu của hệ con là màu xấu nhất trong các thành phần bên trong; dòng ⧉ đếm số thành phần tốt (✓), cảnh báo (!), lỗi (✕).</li>
           <li>Trong sơ đồ con, các ô <b>viền đứt, mờ, ghi "ngoài hệ này"</b> là ô của sơ đồ khác, chỉ hiện để biết hệ con này nối ra đâu. Nhấp đúp vào chúng để tới sơ đồ của chúng.</li>
@@ -398,6 +399,20 @@ const FGAP = 130, FSTEP = W + FGAP, LANE_H = 250, LANE_TOP = 190, LANE_X = 30;
 let flowEdges = [];
 const SHORT = { or: 'OpenRouter', ext: 'Tiện ích Chrome', gsc: 'GSC', psi: 'PageSpeed', gsheets: 'Sheets', gemini: 'Gemini', cors: 'Proxy công khai', dfb: 'Firebase', ffb: 'Firebase', gfb: 'Firebase', wp: 'WordPress', tg: 'Telegram', cloudfly: 'CloudFly', sepay: 'SePay', gscapi: 'GSC Bulk API', gchrome: 'Chrome VPS', dash: 'Dashboard', sw: 'SEO Writer', reddit: 'Reddit', serper: 'Serper' };
 function isFlow(){ return !!(MAPS[cur] && MAPS[cur].kind === 'flow'); }
+function isProc(){ return !!(MAPS[cur] && MAPS[cur].kind === 'proc'); }
+function relType(a, b){
+  for (const m of Object.values(MAPS)) for (const e of (m.edges || [])) if (e[0] === a && e[1] === b) return e[2];
+  if (a === 'caddy' && b === 'fgh') return 'route';
+  if (a === 'vps') return 'host';
+  return 'call';
+}
+function svcType(svc, step){
+  if (['dfb', 'ffb', 'gfb'].includes(svc)) return 'data';
+  if (['ext', 'gscapi', 'gchrome'].includes(svc)) return 'task';
+  if (['sw', 'dash'].includes(svc)) return 'call';
+  if (svc === 'wp' && /đăng|đẩy|cập nhật|tải ảnh|chèn|dán/i.test(step.label)) return 'publish';
+  return 'api';
+}
 function subMap(id){ return MAPS[id] && id !== cur ? MAPS[id] : null; }
 function homeOf(id){
   if (MAPS[id]) return id;
@@ -450,10 +465,10 @@ function makeEl(n){
   stage.appendChild(el); n.el = el;
   const hb = el.querySelector('.help');
   hb.addEventListener('pointerdown', e => e.stopPropagation());
-  hb.addEventListener('click', e => { e.stopPropagation(); showTip(n.id, hb); });
-  hb.addEventListener('mouseenter', () => showTip(n.id, hb));
+  hb.addEventListener('click', e => { e.stopPropagation(); showTip(n.ref || n.id, hb); });
+  hb.addEventListener('mouseenter', () => showTip(n.ref || n.id, hb));
   hb.addEventListener('mouseleave', hideTip);
-  hb.addEventListener('focus', () => showTip(n.id, hb));
+  hb.addEventListener('focus', () => showTip(n.ref || n.id, hb));
   hb.addEventListener('blur', hideTip);
   hb.addEventListener('dblclick', e => e.stopPropagation());
   drag(el, n);
@@ -464,18 +479,21 @@ function makeEl(n){
   });
 }
 function enter(n){
-  if (n.ghost) openMap(homeOf(n.id), n.id);
-  else if (subMap(n.id)) openMap(n.id);
+  const k = n.ref || n.id;
+  if (n.ghost) openMap(homeOf(k), k);
+  else if (subMap(k)) openMap(k);
+  else if (n.ref && homeOf(k) !== cur) openMap(homeOf(k), k);
 }
 function paint(n){
   if (n.flow) return paintFlow(n);
-  const d = NODES[n.id] || { name: n.id, kind: '', mt: '', st: 'idle' };
-  const el = n.el, a = agg(n.id), st = a ? a.st : d.st;
+  const k = n.ref || n.id, d = NODES[k] || { name: k, kind: '', mt: '', st: 'idle' };
+  const el = n.el, a = agg(k), st = a ? a.st : d.st;
   el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
   el.className = 'node st-' + st + (sel === n.id ? ' sel' : '') + (n.dragging ? ' drag' : '') + (n.ghost ? ' ghost' : '') + (a ? ' has-sub' : '');
   el.querySelector('.hd .dot').className = 'dot ' + st;
   el.querySelector('.kind').textContent = d.kind;
-  el.querySelector('.gtag').hidden = !n.ghost;
+  el.querySelector('.gtag').hidden = !n.ghost && !n.tag;
+  el.querySelector('.gtag').textContent = n.tag || 'ngoài hệ này';
   el.querySelector('.nm').textContent = d.name;
   el.querySelector('.mt').textContent = d.mt;
   el.setAttribute('aria-label', `${d.name} — ${d.mt}${a ? ' — nhấp đúp để mở sơ đồ bên trong' : ''}${n.ghost ? ' — thuộc sơ đồ khác' : ''}`);
@@ -499,6 +517,10 @@ function blocked(A, B){
   return Object.values(byId).some(n => n !== A && n !== B && Math.abs(n.x - A.x) < W && n.y > y0 && n.y < y1);
 }
 function pathD(A, B){
+  if (B.svcRow && A.flow) {
+    const x1 = A.x + W / 2, y1 = A.y + h(A), x2 = B.x + W / 2, y2 = B.y - 3, dy = Math.max(40, (y2 - y1) * 0.55);
+    return `M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}`;
+  }
   if (B.x < A.x + W + 30 && A.x < B.x + W + 30 && blocked(A, B)) {
     const x1 = A.x + W, y1 = A.y + h(A) / 2, x2 = B.x + W + 3, y2 = B.y + h(B) / 2, off = 50 + Math.abs(y2 - y1) * 0.12;
     return `M${x1},${y1} C${x1 + off},${y1} ${x2 + off},${y2} ${x2},${y2}`;
@@ -515,7 +537,7 @@ function pathD(A, B){
   const x1 = A.x + W, y1 = A.y + h(A) / 2, x2 = B.x - 3, y2 = B.y + h(B) / 2, dx = Math.max(40, Math.abs(x2 - x1) / 2);
   return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
 }
-function mapEdges(){ return isFlow() ? flowEdges : (MAPS[cur] || { edges: [] }).edges; }
+function mapEdges(){ return isFlow() || isProc() ? flowEdges : (MAPS[cur] || { edges: [] }).edges; }
 function shownEdges(){ return mapEdges().filter(([a, b]) => byId[a] && byId[b]); }
 function renderEdges(){
   sizeStage();
@@ -527,7 +549,7 @@ function renderEdges(){
     return `<g class="${cls}" data-i="${i}"><path class="base" d="${d}" style="stroke:${t.color}" stroke-width="${t.wide ? 3 : 2.2}" stroke-dasharray="${t.dash}"${mk}></path>${LIVE.has(a + '>' + b) ? `<path class="flow" d="${d}" style="stroke:${t.color}"></path>` : ''}<path class="hit" d="${d}"></path></g>`;
   }).join('');
   stage.querySelectorAll('.elab').forEach(x => x.remove());
-  if (isFlow()) shownEdges().forEach(([a, b, , label]) => {
+  if (isFlow() || isProc()) shownEdges().forEach(([a, b, , label]) => {
     if (!label) return;
     const A = byId[a], B = byId[b], el = document.createElement('div');
     el.className = 'elab';
@@ -554,7 +576,55 @@ function makeFlowEl(n){
   stage.appendChild(el); n.el = el;
   el.addEventListener('pointerdown', e => e.stopPropagation());
   el.addEventListener('click', () => select(n.id));
-  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n.id); } });
+  el.addEventListener('dblclick', e => { e.preventDefault(); if (isFlow()) openMap('p-' + n.lane.id, n.id); });
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && isFlow() && sel === n.id) { e.preventDefault(); openMap('p-' + n.lane.id, n.id); return; }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n.id); }
+  });
+}
+function buildProc(){
+  const m = MAPS[cur], l = m.lane, sys = MAPS[m.sys], ctx = (l.ctx || []).filter(id => NODES[id]);
+  flowEdges = [];
+  const Y = 60;
+  ctx.forEach((id, i) => {
+    const n = byId[id] = { id, x: LANE_X + i * FSTEP, y: Y + 54, ghost: false, tag: id === sys.core ? 'sơ đồ mẹ' : 'sơ đồ ông' };
+    makeEl(n); paint(n);
+    if (i) flowEdges.push([ctx[i - 1], id, relType(ctx[i - 1], id)]);
+  });
+  const x0 = LANE_X + ctx.length * FSTEP;
+  const seq = [{ t: 'trig', d: l.trigger }, ...l.steps.map((d, i) => ({ t: 'step', d, k: i + 1 })), { t: 'out', d: l.output }];
+  const band = document.createElement('div');
+  band.className = 'lane' + (l.dead ? ' dead' : '');
+  band.innerHTML = `<div class="lt"><i class="dot ${laneSt(l)}"></i><b>${esc(l.title)}</b><span class="no">quy trình trong ${esc(sys.title)}</span>${l.dead ? `<span class="why">${esc(l.dead)}</span>` : ''}</div>`;
+  band.dataset.lane = l.id;
+  stage.insertBefore(band, stage.firstChild);
+  let prev = null, mh = 0;
+  seq.forEach((it, k) => {
+    const id = `${l.id}#${k}`;
+    const n = byId[id] = { id, x: x0 + k * FSTEP, y: Y + 54, flow: it, lane: l, dead: !!l.dead };
+    makeFlowEl(n); paintFlow(n);
+    mh = Math.max(mh, n.el.offsetHeight);
+    if (prev) flowEdges.push([prev.id, id, 'next', prev.flow.t === 'step' ? prev.flow.d.out : '']);
+    prev = n;
+  });
+  if (ctx.length) flowEdges.push([ctx[ctx.length - 1], `${l.id}#0`, 'module']);
+  band.style.left = (x0 - 24) + 'px'; band.style.top = Y + 'px';
+  band.style.width = (seq.length * FSTEP - FGAP + 48) + 'px'; band.style.height = (54 + mh + 18) + 'px';
+  const rowY = Y + 54 + mh + 130;
+  let si = 0;
+  l.steps.forEach((st, i) => {
+    const col = i + 1;
+    st.calls.forEach(c => {
+      if (!NODES[c]) return;
+      const sid = 's:' + c;
+      if (!byId[sid]) {
+        byId[sid] = { id: sid, ref: c, x: x0 + (si + 1) * FSTEP, y: rowY, ghost: false, tag: 'dịch vụ', svcRow: true };
+        si++;
+        makeEl(byId[sid]); paint(byId[sid]);
+      }
+      flowEdges.push([`${l.id}#${col}`, sid, svcType(c, st)]);
+    });
+  });
 }
 function paintFlow(n){
   const f = n.flow, d = f.d, el = n.el;
@@ -585,6 +655,7 @@ function buildFlow(focus){
     band.className = 'lane' + (ln.dead ? ' dead' : '');
     band.innerHTML = `<div class="lt"><i class="dot ${laneSt(ln)}"></i><span class="no">${li + 1}</span><b>${esc(ln.title)}</b>${ln.dead ? `<span class="why">${esc(ln.dead)}</span>` : ''}</div>`;
     band.dataset.lane = ln.id;
+    band.title = 'Nhấp đúp để mở quy trình đầy đủ';
     stage.insertBefore(band, stage.firstChild);
     const head = Math.max(48, band.querySelector('.lt').offsetHeight + 20);
     let prev = null, mh = 0;
@@ -603,7 +674,9 @@ function buildFlow(focus){
   stage.querySelectorAll('.lane').forEach(b => { b.style.width = wd + 'px'; });
 }
 function edgeText(e){
-  const t = etOf(e), A = NODES[e[0]] || {}, B = NODES[e[1]] || {};
+  const ref = i => (byId[i] && byId[i].ref) || i;
+  const fl = i => byId[i] && byId[i].flow ? { name: byId[i].flow.d.label } : null;
+  const t = etOf(e), A = fl(e[0]) || NODES[ref(e[0])] || {}, B = fl(e[1]) || NODES[ref(e[1])] || {};
   return `<b>${esc(t.label)}</b>${esc(A.name)} → ${esc(B.name)}<br>${esc(t.hint)}${LIVE.has(e[0] + '>' + e[1]) ? '<br>Đang có việc chạy qua.' : ''}`;
 }
 svg.addEventListener('mousemove', ev => {
@@ -643,7 +716,7 @@ function fitView(){
   ns.forEach(n => { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + W); y1 = Math.max(y1, n.y + h(n)); });
   const pad = 40, ww = wrap.clientWidth, wh = wrap.clientHeight;
   const fit = Math.min((ww - pad * 2) / (x1 - x0), (wh - pad * 2) / (y1 - y0));
-  if (isFlow() && fit < 0.55) {
+  if ((isFlow() || isProc()) && fit < 0.55) {
     view.k = Math.min(0.75, Math.max(0.45, (ww - pad * 2) / (x1 - x0)));
     view.x = pad - x0 * view.k; view.y = pad - y0 * view.k;
     applyView(); return;
@@ -677,6 +750,11 @@ const panEnd = e => {
   if (wrap.hasPointerCapture(e.pointerId)) wrap.releasePointerCapture(e.pointerId);
 };
 wrap.addEventListener('pointerup', panEnd);
+wrap.addEventListener('dblclick', e => {
+  if (!isFlow() || e.target.closest('.node, .zoom')) return;
+  const band = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.classList && x.classList.contains('lane'));
+  if (band) openMap('p-' + band.dataset.lane);
+});
 wrap.addEventListener('pointercancel', panEnd);
 document.getElementById('z-in').addEventListener('click', () => zoomCenter(1.2));
 document.getElementById('z-out').addEventListener('click', () => zoomCenter(1 / 1.2));
@@ -684,6 +762,7 @@ document.getElementById('z-fit').addEventListener('click', fitView);
 
 let saveT = null;
 function saveLayout(){
+  if (MAPS[cur] && MAPS[cur].kind) return;
   clearTimeout(saveT);
   const map = cur, pos = {};
   Object.values(byId).forEach(n => pos[n.id] = { x: n.x, y: n.y });
@@ -738,16 +817,17 @@ function buildMap(focus){
   byId = {};
   const m = MAPS[cur];
   if (m.kind === 'flow') buildFlow(focus);
+  else if (m.kind === 'proc') buildProc();
   else {
     m.nodes.forEach(x => { byId[x.id] = { id: x.id, x: x.x, y: x.y, ghost: false }; });
     m.ghosts.forEach(x => { byId[x.id] = { id: x.id, x: x.x, y: x.y, ghost: true }; });
     Object.values(byId).forEach(n => { makeEl(n); paint(n); });
   }
   crumbs();
-  document.getElementById('b-reset').hidden = m.kind === 'flow';
+  document.getElementById('b-reset').hidden = !!m.kind;
   document.getElementById('b-reset').textContent = m.parent ? 'Sắp lại sơ đồ này' : 'Sắp lại mặc định';
   if (focus && byId[focus]) sel = focus;
-  if (!sel || !byId[sel]) sel = byId[cur] ? cur : (m.core || m.nodes[0].id);
+  if (!sel || !byId[sel]) sel = byId[cur] ? cur : m.kind === 'proc' ? `${m.lane.id}#0` : (m.core || m.nodes[0].id);
   renderEdges();
   if (views[cur]) { Object.assign(view, views[cur]); applyView(); } else fitView();
   select(sel);
@@ -777,7 +857,8 @@ function drawFlowSide(n){
   document.getElementById('s-dot').className = 'dot ' + st;
   document.getElementById('s-desc').textContent = (n.dead ? '⚠ ' + n.lane.dead + ' ' : '') + (d.detail || '');
   const act = document.getElementById('s-act');
-  if (act.dataset.html !== '') { act.innerHTML = ''; act.dataset.html = ''; }
+  const actHtml = isFlow() ? `<button class="btn" type="button" data-open="p-${n.lane.id}" data-focus="${n.id}">⤢ Mở quy trình đầy đủ</button>` : '';
+  if (act.dataset.html !== actHtml) { act.innerHTML = actHtml; act.dataset.html = actHtml; }
   const rows = [];
   if (f.t === 'step') { rows.push(['Vào', d.in], ['Ra', d.out]); }
   if (f.t === 'trig' && d.live && NODES[d.live]) rows.push(['Hiện tại', NODES[d.live].mt]);
@@ -795,19 +876,19 @@ function flowLogIds(n){
 }
 function drawSide(){
   if (byId[sel] && byId[sel].flow) return drawFlowSide(byId[sel]);
-  const n = byId[sel], d = n && NODES[n.id];
+  const n = byId[sel], k = n && (n.ref || n.id), d = n && NODES[k];
   if (!d) return;
-  const a = agg(n.id), st = a ? a.st : d.st;
+  const a = agg(k), st = a ? a.st : d.st;
   document.getElementById('s-kind').textContent = d.kind + (n.ghost ? ' · thuộc sơ đồ khác' : '');
   document.getElementById('s-name').textContent = d.name;
   document.getElementById('s-dot').className = 'dot ' + st;
   document.getElementById('s-desc').textContent = d.desc || '';
   const act = document.getElementById('s-act');
-  const actHtml = a ? `<button class="btn" type="button" data-open="${n.id}">⧉ Mở sơ đồ bên trong (${a.total} ${a.unit})</button>`
-    : n.ghost ? `<button class="btn" type="button" data-open="${homeOf(n.id)}" data-focus="${n.id}">↗ Tới sơ đồ ${esc((MAPS[homeOf(n.id)] || {}).title || '')}</button>` : '';
+  const actHtml = a ? `<button class="btn" type="button" data-open="${k}">⧉ Mở sơ đồ bên trong (${a.total} ${a.unit})</button>`
+    : (n.ghost || n.ref) ? `<button class="btn" type="button" data-open="${homeOf(k)}" data-focus="${k}">↗ Tới sơ đồ ${esc((MAPS[homeOf(k)] || {}).title || '')}</button>` : '';
   if (act.dataset.html !== actHtml) { act.innerHTML = actHtml; act.dataset.html = actHtml; }
   const inner = document.getElementById('s-inner');
-  const sm = a && MAPS[n.id];
+  const sm = a && MAPS[k];
   inner.innerHTML = !a ? '' : sm.kind === 'flow'
     ? '<span class="eyebrow">Các chức năng</span>' + sm.lanes.map(l => `<div class="lk"><i class="dot ${l.dead ? 'na' : laneSt(l)}"></i><span><b>${esc(l.title)}</b>${l.dead ? ' · không dùng / hỏng' : ''}</span></div>`).join('')
     : '<span class="eyebrow">Bên trong</span>' + sm.nodes.map(x => { const c = NODES[x.id] || {}; return `<div class="lk"><i class="dot ${c.st}"></i><span><b>${esc(c.name)}</b> · ${esc(c.mt)}</span></div>`; }).join('');
@@ -820,7 +901,7 @@ function drawSide(){
   if (d.at) meta.push(['Đo lúc', fmtT(d.at)]);
   document.getElementById('s-meta').innerHTML = meta.map(([k, v]) => `<span>${esc(k)}</span><span>${esc(v)}</span>`).join('');
   const sp = document.getElementById('s-spark');
-  sp.hidden = n.id !== 'vps' || !SERIES.cpu.length;
+  sp.hidden = k !== 'vps' || !SERIES.cpu.length;
   if (!sp.hidden) sp.innerHTML = `<svg viewBox="0 0 240 56" preserveAspectRatio="none" aria-label="CPU và RAM 2 giờ gần nhất">${line(SERIES.cpu, 'var(--accent)')}${line(SERIES.ram, 'var(--ok)')}</svg>
     <div class="lg"><span style="color:var(--accent)">— CPU %</span><span style="color:var(--ok)">— RAM %</span><span>${SERIES.cpu.length} lần đo gần nhất</span></div>`;
 }
@@ -834,7 +915,7 @@ function line(arr, color){
 const LV_RANK = { INFO: 0, OK: 0, WARN: 1, ERROR: 2 };
 function drawLog(toBottom){
   const fn = byId[sel] && byId[sel].flow ? byId[sel] : null;
-  const d = fn ? { log: flowLogIds(fn).flatMap(i => (NODES[i] && NODES[i].log || []).map(e => ({ ...e, msg: (NODES[i].name) + ': ' + e.msg }))).sort((a, b) => a.at - b.at) } : sel && NODES[sel];
+  const d = fn ? { log: flowLogIds(fn).flatMap(i => (NODES[i] && NODES[i].log || []).map(e => ({ ...e, msg: (NODES[i].name) + ': ' + e.msg }))).sort((a, b) => a.at - b.at) } : sel && NODES[(byId[sel] && byId[sel].ref) || sel];
   const box = document.getElementById('s-log');
   if (!d) { box.innerHTML = '<div class="empty">Bấm một ô trên bản đồ để xem nhật ký của nó.</div>'; return; }
   const f = document.getElementById('s-lv').value, min = f ? LV_RANK[f] : 0;
@@ -859,7 +940,10 @@ function apply(s, withLog){
     const o = NODES[d.id];
     NODES[d.id] = { ...(o || {}), ...d, log: o ? o.log : (d.log || []) };
   });
-  if (s.maps && !Object.keys(MAPS).length) s.maps.forEach(m => { MAPS[m.id] = m; });
+  if (s.maps && !Object.keys(MAPS).length) {
+    s.maps.forEach(m => { MAPS[m.id] = m; });
+    s.maps.filter(m => m.kind === 'flow').forEach(m => m.lanes.forEach(l => { MAPS['p-' + l.id] = { id: 'p-' + l.id, parent: m.id, kind: 'proc', title: l.title, sys: m.id, lane: l }; }));
+  }
   LIVE = new Set(s.live || []); SERIES = s.series || SERIES;
   (s.events || []).forEach(e => {
     const d = NODES[e.node];
