@@ -49,6 +49,11 @@ svg.edges path.live{stroke:var(--edge-live);stroke-dasharray:6 6;animation:flow 
 .node.drag{cursor:grabbing;z-index:5}
 .node.st-fail{border-color:var(--fail)}
 .node .hd{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line)}
+.help{margin-left:auto;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);color:var(--mut);font:600 11px var(--f-body);display:grid;place-items:center;cursor:help;padding:0;flex:none}
+.help:hover,.help:focus-visible{color:var(--fg);border-color:var(--accent);outline:none}
+.tip{position:fixed;z-index:50;max-width:280px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.5;color:var(--fg);box-shadow:0 6px 24px rgba(0,0,0,.45);pointer-events:none}
+.tip b{display:block;font:600 13px var(--f-display);margin-bottom:3px}
+.desc{font-size:12.5px;color:var(--mut);line-height:1.5}
 .node .kind{font:500 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
 .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--idle);display:inline-block}
 .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.fail{background:var(--fail);animation:blink 1.4s ease-in-out infinite}
@@ -109,6 +114,7 @@ svg.edges path.live{stroke:var(--edge-live);stroke-dasharray:6 6;animation:flow 
     <div class="top">
       <span class="eyebrow" id="s-kind">Node</span>
       <h2><i class="dot" id="s-dot"></i><span id="s-name">Chọn một node</span></h2>
+      <p class="desc" id="s-desc"></p>
       <div class="meta" id="s-meta"></div>
       <div class="spark" id="s-spark" hidden></div>
     </div>
@@ -138,14 +144,37 @@ function fmtT(ms){
 }
 function h(n){ return n.el ? n.el.offsetHeight : 80; }
 
+const tip = document.createElement('div');
+tip.className = 'tip'; tip.hidden = true; tip.setAttribute('role', 'tooltip');
+document.body.appendChild(tip);
+let tipFor = null;
+function showTip(n, btn){
+  tip.innerHTML = `<b>${esc(n.name)}</b>${esc(n.desc || 'Chưa có mô tả.')}`;
+  tip.hidden = false; tipFor = n.id;
+  const r = btn.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = r.left + r.width / 2 - tw / 2, y = r.top - th - 8;
+  if (y < 6) y = r.bottom + 8;
+  x = Math.max(6, Math.min(window.innerWidth - tw - 6, x));
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip(){ tip.hidden = true; tipFor = null; }
+wrap.addEventListener('wheel', hideTip, { passive: true });
+
 function upsert(d){
   let n = byId[d.id];
   if (!n) {
     n = byId[d.id] = { ...d, log: d.log || [] };
     const el = document.createElement('div');
     el.className = 'node'; el.tabIndex = 0; el.dataset.id = d.id; el.setAttribute('role', 'button');
-    el.innerHTML = '<span class="port in"></span><span class="port out"></span><div class="hd"><i class="dot"></i><span class="kind"></span></div><div class="nm"></div><div class="mt"></div><div class="prog" hidden><i></i></div>';
+    el.innerHTML = '<span class="port in"></span><span class="port out"></span><div class="hd"><i class="dot"></i><span class="kind"></span><button type="button" class="help" aria-label="Chức năng">?</button></div><div class="nm"></div><div class="mt"></div><div class="prog" hidden><i></i></div>';
     stage.appendChild(el); n.el = el;
+    const hb = el.querySelector('.help');
+    hb.addEventListener('pointerdown', e => e.stopPropagation());
+    hb.addEventListener('click', e => { e.stopPropagation(); showTip(n, hb); });
+    hb.addEventListener('mouseenter', () => showTip(n, hb));
+    hb.addEventListener('mouseleave', hideTip);
+    hb.addEventListener('focus', () => showTip(n, hb));
+    hb.addEventListener('blur', hideTip);
     drag(el, n);
     el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n.id); } });
   } else {
@@ -290,6 +319,7 @@ function drawSide(){
   document.getElementById('s-kind').textContent = n.kind;
   document.getElementById('s-name').textContent = n.name;
   document.getElementById('s-dot').className = 'dot ' + n.st;
+  document.getElementById('s-desc').textContent = n.desc || '';
   const meta = Object.entries(n.meta || {});
   if (n.at) meta.push(['Đo lúc', fmtT(n.at)]);
   document.getElementById('s-meta').innerHTML = meta.map(([k, v]) => `<span>${esc(k)}</span><span>${esc(v)}</span>`).join('');
