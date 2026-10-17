@@ -5,7 +5,9 @@
  * Endpoints:
  *   GET  /api/config        → Read config.json and return as JSON
  *   POST /api/config        → Receive JSON body, overwrite config.json
- *   GET  /admin             → Serve admin.html
+ *   GET  /admin             → Serve hub.html (ban do he thong)
+ *   GET  /admin/config      → Serve admin.html
+ *   GET  /admin/api/*       → lib/hub.js (state, stream SSE, layout)
  *   GET  /                  → Serve index.html
  *   GET  /*                 → Serve static files o thu muc goc (html, css, js, anh) — khong phuc vu config/.git/server.js
  *
@@ -19,6 +21,7 @@ const fs   = require("fs");
 const path = require("path");
 const https = require("https");
 const { exec } = require("child_process");
+const hub = require("./lib/hub");
 
 const PORT        = process.env.PORT || 3050;
 const CONFIG_FILE = path.join(__dirname, "config.json");
@@ -29,7 +32,7 @@ const ADMIN_AUTH_FILE = path.join(__dirname, "admin_auth.json");
 
 // Static chi phuc vu file o thu muc goc, dung duoi an toan, tru cac file noi bo.
 const STATIC_EXT  = new Set([".html", ".css", ".js", ".png", ".ico", ".svg", ".jpg", ".jpeg", ".webp", ".gif", ".woff", ".woff2"]);
-const STATIC_DENY = new Set(["server.js", "admin.html", "fix_gsc.js", "temp_old.js"]);
+const STATIC_DENY = new Set(["server.js", "admin.html", "hub.html", "fix_gsc.js", "temp_old.js"]);
 
 // ── MIME types ────────────────────────────────────────────────────────────────
 const MIME = {
@@ -128,7 +131,7 @@ const server = http.createServer(async (req, res) => {
   const url = req.url.split("?")[0]; // strip query string
 
   // ── Khu vuc admin: bat buoc Basic Auth ───────────────────────────────────
-  if (url === "/admin" || url === "/admin/" || url === "/api/config" || url.startsWith("/api/git-pull-deploy")) {
+  if (url === "/admin" || url.startsWith("/admin/") || url === "/api/config" || url.startsWith("/api/git-pull-deploy")) {
     if (!checkAdminAuth(req, res)) return;
   }
 
@@ -545,7 +548,17 @@ const server = http.createServer(async (req, res) => {
 
   // ── GET /admin → serve admin.html ────────────────────────────────────────
   if (req.method === "GET" && (url === "/admin" || url === "/admin/")) {
+    serveFile(res, path.join(STATIC_DIR, "hub.html"));
+    return;
+  }
+  if (req.method === "GET" && (url === "/admin/config" || url === "/admin/config/")) {
     serveFile(res, path.join(STATIC_DIR, "admin.html"));
+    return;
+  }
+  if (url.startsWith("/admin/api/")) {
+    if (await hub.handle(req, res, url)) return;
+    res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("404 Not Found");
     return;
   }
 
@@ -589,6 +602,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
+  hub.start();
   console.log(`✅  Dashboard server running on http://localhost:${PORT}`);
   console.log(`   Admin panel : http://localhost:${PORT}/admin`);
   console.log(`   Config API  : http://localhost:${PORT}/api/config`);
