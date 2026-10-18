@@ -105,6 +105,48 @@ svg.edges g.gh path.base{opacity:.55}
 .chip .dot{width:7px;height:7px}
 .elab{position:absolute;font:10.5px/1.3 var(--f-mono);color:var(--mut);text-align:center;pointer-events:none;display:flex;align-items:flex-end;justify-content:center}
 .elab span{background:var(--canvas);padding:0 3px;border-radius:3px}
+body[data-mode="wf"] .main,body[data-mode="wf"] footer.legend,body[data-mode="wf"] #crumbs,body[data-mode="wf"] #b-up,body[data-mode="wf"] #b-reset{display:none!important}
+body:not([data-mode="wf"]) #wfb{display:none!important}
+.modes{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+.modes button{all:unset;cursor:pointer;padding:5px 12px;border-radius:6px;font:500 13px var(--f-body);color:var(--mut)}
+.modes button:hover{color:var(--fg)}
+.modes button:focus-visible{outline:2px solid var(--accent)}
+.modes button.on{background:var(--accent-soft);color:var(--accent)}
+.wfb{flex:1;display:grid;grid-template-columns:270px minmax(0,1fr) 360px;min-height:0}
+.pal{border-right:1px solid var(--node-line);background:var(--panel2);display:flex;flex-direction:column;min-height:0}
+.pal input{margin:10px 10px 6px;font:13px var(--f-body);background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+.pal input:focus{outline:none;border-color:var(--accent)}
+#pal-list{overflow:auto;padding:0 8px 14px;flex:1;min-height:0}
+.pgh{all:unset;box-sizing:border-box;cursor:pointer;display:flex;gap:6px;align-items:center;width:100%;padding:8px 6px 4px;font:600 12.5px var(--f-display);color:var(--fg)}
+.pgh:focus-visible{outline:2px solid var(--accent)}
+.pgh .n{margin-left:auto;font:11px var(--f-mono);color:var(--mut)}
+.pi{border:1px solid var(--node-line);border-left:3px solid var(--e-next);border-radius:6px;background:var(--node);padding:5px 8px;margin:4px 0;cursor:grab;display:flex;flex-direction:column;gap:1px;font-size:12.5px}
+.pi:hover{border-color:var(--accent)}
+.pi b{font-weight:500}
+.pi span{font:10.5px var(--f-mono);color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pi.trig{border-left-color:var(--accent)} .pi.logic{border-left-color:var(--e-schedule)} .pi.svc{border-left-color:var(--e-api)} .pi.out{border-left-color:var(--e-module)}
+.wcol{display:flex;flex-direction:column;min-width:0;min-height:0}
+.wbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.wbar select{font:13px var(--f-body);background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 8px;max-width:280px}
+.wsave{font:12px var(--f-mono);color:var(--mut)} .wsave.err{color:var(--fail)} .wsave.ok{color:var(--ok)}
+.wbadge{font:500 11px var(--f-mono);color:var(--warn);border:1px solid var(--warn);border-radius:4px;padding:1px 6px}
+#wwrap{flex:1}
+.wempty{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);font-size:14px;pointer-events:none;text-align:center;padding:20px}
+.wn{cursor:grab}
+.wn.logic{border-left-color:var(--e-schedule)} .wn.svc{border-left-color:var(--e-api)} .wn.step{border-left-color:var(--e-next)}
+.wn.bad{box-shadow:0 0 0 3px var(--fail),var(--node-shadow)}
+.wport{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--node);border:2px solid var(--e-next);margin-top:-7px;z-index:2;box-sizing:border-box}
+.wport.in{left:-9px} .wport.out{right:-9px;cursor:crosshair}
+.wport.out:hover{background:var(--e-next);transform:scale(1.25)}
+.wpl{position:absolute;right:12px;font:10px var(--f-mono);color:var(--mut);background:var(--node);padding:0 3px;border-radius:3px}
+#wwrap.linking,#wwrap.linking *{cursor:crosshair!important}
+#wside .top{max-height:none;flex:1}
+.fld{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mut)}
+.fld input,.fld textarea{font:13px var(--f-body);background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;resize:vertical}
+.fld input:focus,.fld textarea:focus{outline:none;border-color:var(--accent)}
+.iss{font-size:12.5px;padding:6px 9px;border-radius:6px;border:1px solid var(--line);line-height:1.45}
+.iss.err{border-color:var(--fail);color:var(--fail)} .iss.warn{border-color:var(--warn)} .iss.ok{border-color:var(--ok);color:var(--ok)} .iss.info{color:var(--mut)}
+@media (max-width:900px){.wfb{grid-template-columns:minmax(0,1fr)}.pal{max-height:34vh;border-right:none;border-bottom:1px solid var(--line)}#wwrap{height:60vh;flex:none}}
 .io{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12.5px;color:var(--mut)}
 .io b{color:var(--fg);font-weight:500}
 .src{font:11.5px var(--f-mono);color:var(--mut);overflow-wrap:anywhere}
@@ -212,6 +254,7 @@ svg.edges g.gh path.base{opacity:.55}
 <body>
 <header class="bar">
   <h1>Bản đồ hệ thống</h1>
+  <nav class="modes" aria-label="Chế độ"><button type="button" data-mode="map" class="on">🗺 Sơ đồ hệ thống</button><button type="button" data-mode="wf">🧩 Quy trình tuỳ chỉnh</button></nav>
   <nav class="crumbs" id="crumbs" aria-label="Vị trí sơ đồ"></nav>
   <button class="btn" type="button" id="b-up" hidden>‹ Lên sơ đồ tổng</button>
   <span class="kpi"><i class="dot ok"></i><strong id="k-ok">0</strong> chạy tốt</span>
@@ -246,6 +289,30 @@ svg.edges g.gh path.base{opacity:.55}
     </div>
     <div class="log" id="s-log"></div>
   </aside>
+</div>
+<div class="wfb" id="wfb">
+  <aside class="pal" aria-label="Kho node">
+    <input type="search" id="pal-q" placeholder="Tìm node… (gõ không dấu được)" aria-label="Tìm node">
+    <div id="pal-list"></div>
+  </aside>
+  <div class="wcol">
+    <div class="wbar">
+      <select id="wf-sel" aria-label="Chọn quy trình"></select>
+      <button class="btn" type="button" id="wf-new">+ Mới</button>
+      <button class="btn" type="button" id="wf-ren">Đổi tên</button>
+      <button class="btn" type="button" id="wf-dup">Nhân bản</button>
+      <button class="btn" type="button" id="wf-del">Xoá</button>
+      <span class="sp"></span>
+      <button class="btn" type="button" id="wf-check">✓ Kiểm tra</button>
+      <span class="wsave" id="wf-save"></span>
+      <span class="wbadge">Chỉ thiết kế, chưa chạy</span>
+    </div>
+    <div class="stage-wrap" id="wwrap"><div class="stage" id="wstage"><svg class="edges" id="wedges" aria-hidden="true"></svg></div>
+      <div class="wempty" id="wempty">Kéo node từ kho bên trái thả vào đây<br>hoặc bấm vào node trong kho để thêm</div>
+      <div class="zoom"><button type="button" id="wz-out" aria-label="Thu nhỏ">−</button><output id="wz-val">100%</output><button type="button" id="wz-in" aria-label="Phóng to">+</button><button type="button" class="fit" id="wz-fit">Vừa khung</button></div>
+    </div>
+  </div>
+  <aside class="side" id="wside" aria-live="polite"></aside>
 </div>
 <footer class="legend">
   <div class="grp"><span class="gt">Trạng thái</span>
@@ -285,6 +352,19 @@ svg.edges g.gh path.base{opacity:.55}
           <li>Trong sơ đồ con, các ô <b>viền đứt, mờ, ghi "ngoài hệ này"</b> là ô của sơ đồ khác, chỉ hiện để biết hệ con này nối ra đâu. Nhấp đúp vào chúng để tới sơ đồ của chúng.</li>
           <li>Thanh trên cùng có đường dẫn <b>Hệ thống › SEO Writer</b>; bấm "Hệ thống" hoặc nút <b>‹ Lên sơ đồ tổng</b> để quay ra.</li>
           <li>Một ô có thể xuất hiện ở nhiều sơ đồ (ví dụ Serper dùng chung cho SEO Writer, Dashboard và GSC Bulk Tool); số liệu và nhật ký là một.</li>
+        </ul>
+      </section>
+      <section data-sec="wf" data-grp="Bắt đầu">
+        <h3>Quy trình tuỳ chỉnh</h3>
+        <p>Tab <b>🧩 Quy trình tuỳ chỉnh</b> là nơi tự ghép quy trình riêng kiểu n8n từ các node có sẵn. Giai đoạn này <b>chỉ thiết kế</b>, quy trình chưa chạy thật.</p>
+        <ul>
+          <li><b>Kho node</b> bên trái: ⚡ Trigger (bấm tay, hẹn giờ, webhook, khi có sự kiện), 🔀 Logic (điều kiện, chia nhánh, lặp, chờ, gộp, biến đổi, kết quả), các bước của từng tool (lấy từ sơ đồ hệ thống) và 🌐 dịch vụ ngoài. Ô tìm kiếm gõ không dấu được.</li>
+          <li><b>Thêm node</b>: kéo từ kho thả vào khung, hoặc bấm vào node trong kho.</li>
+          <li><b>Nối</b>: kéo từ chấm tròn bên phải một node, thả lên node khác. Node Điều kiện / Lặp có nhiều cổng ra, mỗi cổng có nhãn.</li>
+          <li><b>Sửa</b>: bấm vào node để đổi tên, điền cấu hình (lịch cron, điều kiện…), ghi chú; xem Vào / Ra và trạng thái thật của dịch vụ node gọi tới.</li>
+          <li><b>Xoá</b>: chọn node hoặc dây rồi bấm phím Delete (hoặc nút Xoá ở khung phải).</li>
+          <li><b>Nhiều quy trình</b>: chọn ở ô đầu thanh công cụ; + Mới, Đổi tên, Nhân bản, Xoá. Mọi thay đổi tự lưu trên máy chủ.</li>
+          <li><b>✓ Kiểm tra</b>: báo thiếu Trigger, node chưa được nối, node không đi tới được, vòng lặp không qua node Lặp, ô cấu hình còn trống. Node có lỗi được viền đỏ.</li>
         </ul>
       </section>
       <section data-sec="ops" data-grp="Bắt đầu">
@@ -1160,7 +1240,377 @@ function closeGuide(){ document.getElementById('guide').hidden = true; document.
 document.getElementById('b-guide').addEventListener('click', openGuide);
 document.getElementById('g-x').addEventListener('click', closeGuide);
 document.getElementById('g-ok').addEventListener('click', closeGuide);
-boot();
+const WFB = (() => {
+  const wwrap = document.getElementById('wwrap'), wstage = document.getElementById('wstage'), wsvg = document.getElementById('wedges');
+  const GROUPS = [['trigger', '⚡ Trigger'], ['logic', '🔀 Logic'], ['step:sw', 'SEO Writer'], ['step:ex', 'Chuyên gia SEO'], ['step:dash', 'Dashboard'], ['step:gsct', 'GSC Bulk Tool'], ['step:fin', 'Quản lý tài chính'], ['svc', '🌐 Dịch vụ ngoài']];
+  const PORT_Y0 = 46, PORT_DY = 22;
+  let CAT = {}, LIST = [], wf = null, view = { k: 1, x: 40, y: 40 }, sel = null, ready = false, saveT = null, conn = null, issues = null;
+  let collapsed = {};
+  try { collapsed = JSON.parse(localStorage.getItem('wf-collapsed')) || { 'step:dash': true, 'step:gsct': true, 'step:fin': true, 'svc': true }; } catch (e) {}
+  const gid = () => 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const grpOf = it => it.group === 'step' ? 'step:' + it.sys : it.group;
+  const typeCls = it => it.group === 'trigger' ? 'trig' : it.group === 'logic' ? (it.key === 'logic.end' ? 'out' : 'logic') : it.group === 'svc' ? 'svc' : 'step';
+
+  async function api(url, body){
+    const r = await fetch(url, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+  async function init(){
+    if (ready) return;
+    ready = true;
+    try {
+      const [c, w] = await Promise.all([api('/admin/api/catalog'), api('/admin/api/workflows')]);
+      c.items.forEach(it => { CAT[it.key] = it; });
+      LIST = w.list || [];
+    } catch (e) { setSave('err', 'Không tải được: ' + e.message); ready = false; return; }
+    renderPalette();
+    let last = null;
+    try { last = localStorage.getItem('wf-cur'); } catch (e) {}
+    const fresh = !LIST.length;
+    if (fresh) LIST.push(newWf('Quy trình 1'));
+    open(LIST.find(x => x.id === last) ? last : LIST[0].id);
+    if (fresh) save();
+  }
+  function newWf(name){ return { id: 'wf' + Date.now().toString(36), name, nodes: [], edges: [] }; }
+
+  function renderPalette(){
+    const q = norm(document.getElementById('pal-q').value.trim());
+    const box = document.getElementById('pal-list');
+    box.innerHTML = GROUPS.map(([g, title]) => {
+      const items = Object.values(CAT).filter(it => grpOf(it) === g && (!q || norm(it.label + ' ' + (it.detail || '') + ' ' + (it.kind || '')).includes(q)));
+      if (!items.length) return '';
+      const open = q || !collapsed[g];
+      return `<div class="pg"><button type="button" class="pgh" data-g="${g}" aria-expanded="${open}">${open ? '▾' : '▸'} ${esc(title)} <span class="n">${items.length}</span></button>${open ? items.map(it => `<div class="pi ${typeCls(it)}" draggable="true" data-key="${esc(it.key)}" title="${esc(it.detail || '')}"><b>${esc(it.label)}</b>${it.out ? `<span>${esc(it.in ? it.in + ' → ' : '')}${esc(it.out)}</span>` : ''}</div>`).join('') : ''}</div>`;
+    }).join('') || '<div class="empty">Không có node khớp.</div>';
+  }
+  document.getElementById('pal-q').addEventListener('input', renderPalette);
+  document.getElementById('pal-list').addEventListener('click', e => {
+    const h = e.target.closest('.pgh');
+    if (h) { collapsed[h.dataset.g] = !collapsed[h.dataset.g]; try { localStorage.setItem('wf-collapsed', JSON.stringify(collapsed)); } catch (x) {} renderPalette(); return; }
+    const it = e.target.closest('.pi');
+    if (!it || !wf) return;
+    const last = wf.nodes[wf.nodes.length - 1];
+    if (last) addNode(it.dataset.key, last.x + W + 90, last.y);
+    else addNode(it.dataset.key, (wwrap.clientWidth / 2 - view.x) / view.k - W / 2, (wwrap.clientHeight / 2 - view.y) / view.k - 40);
+  });
+  document.getElementById('pal-list').addEventListener('dragstart', e => {
+    const it = e.target.closest('.pi');
+    if (it) { e.dataTransfer.setData('text/plain', it.dataset.key); e.dataTransfer.effectAllowed = 'copy'; }
+  });
+  wwrap.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  wwrap.addEventListener('drop', e => {
+    e.preventDefault();
+    const key = e.dataTransfer.getData('text/plain');
+    if (!CAT[key]) return;
+    const r = wwrap.getBoundingClientRect();
+    addNode(key, (e.clientX - r.left - view.x) / view.k - W / 2, (e.clientY - r.top - view.y) / view.k - 20);
+  });
+
+  function addNode(key, x, y){
+    if (!wf) return;
+    const it = CAT[key];
+    const n = { id: gid(), key, x: Math.max(0, Math.round(x)), y: Math.max(0, Math.round(y)), label: it.label, note: '', cfg: {} };
+    wf.nodes.push(n);
+    sel = { t: 'node', id: n.id };
+    issues = null;
+    draw(); save();
+    const el = wstage.querySelector(`.wn[data-id="${n.id}"]`), r = el && el.getBoundingClientRect(), wr = wwrap.getBoundingClientRect();
+    if (r && (r.right > wr.right - 20 || r.left < wr.left || r.bottom > wr.bottom - 20 || r.top < wr.top)) { view.x = wr.width / 2 - (n.x + W / 2) * view.k; view.y = wr.height / 2 - (n.y + 60) * view.k; applyV(); }
+  }
+
+  function open(id){
+    wf = LIST.find(x => x.id === id);
+    if (!wf) return;
+    try { localStorage.setItem('wf-cur', id); } catch (e) {}
+    sel = null; issues = null;
+    renderSelect();
+    draw(); fit();
+  }
+  function renderSelect(){
+    document.getElementById('wf-sel').innerHTML = LIST.map(x => `<option value="${x.id}"${wf && x.id === wf.id ? ' selected' : ''}>${esc(x.name)} (${x.nodes.length})</option>`).join('');
+  }
+  document.getElementById('wf-sel').addEventListener('change', e => open(e.target.value));
+  document.getElementById('wf-new').addEventListener('click', () => {
+    const name = prompt('Tên quy trình mới:', 'Quy trình ' + (LIST.length + 1));
+    if (!name) return;
+    const w = newWf(name.trim().slice(0, 120));
+    LIST.push(w); wf = w; save(); open(w.id);
+  });
+  document.getElementById('wf-ren').addEventListener('click', () => {
+    if (!wf) return;
+    const name = prompt('Đổi tên quy trình:', wf.name);
+    if (!name) return;
+    wf.name = name.trim().slice(0, 120); renderSelect(); save();
+  });
+  document.getElementById('wf-dup').addEventListener('click', () => {
+    if (!wf) return;
+    const map = {}, w = newWf(wf.name + ' (bản sao)');
+    w.nodes = wf.nodes.map(n => { const id = gid(); map[n.id] = id; return { ...n, id, cfg: { ...n.cfg }, x: n.x + 30, y: n.y + 30 }; });
+    w.edges = wf.edges.map(e => ({ ...e, from: map[e.from], to: map[e.to] }));
+    LIST.push(w); wf = w; save(); open(w.id);
+  });
+  document.getElementById('wf-del').addEventListener('click', async () => {
+    if (!wf || !confirm(`Xoá quy trình “${wf.name}”? Không khôi phục được.`)) return;
+    const id = wf.id;
+    try { await api('/admin/api/workflows/delete', { id }); } catch (e) { setSave('err', 'Lỗi xoá: ' + e.message); return; }
+    LIST = LIST.filter(x => x.id !== id);
+    if (!LIST.length) { LIST.push(newWf('Quy trình 1')); wf = LIST[0]; save(); }
+    open(LIST[0].id);
+  });
+  document.getElementById('wf-check').addEventListener('click', () => { issues = check(); sel = null; draw(); });
+
+  function setSave(st, txt){ const el = document.getElementById('wf-save'); el.className = 'wsave ' + st; el.textContent = txt; }
+  function save(){
+    if (!wf) return;
+    const w = wf;
+    clearTimeout(saveT);
+    setSave('busy', 'Đang lưu…');
+    saveT = setTimeout(async () => {
+      try { await api('/admin/api/workflows', w); setSave('ok', 'Đã lưu ' + new Date().toTimeString().slice(0, 5)); renderSelect(); }
+      catch (e) { setSave('err', 'Lỗi lưu: ' + e.message); }
+    }, 500);
+  }
+
+  function nodeH(n){ const el = wstage.querySelector(`.wn[data-id="${n.id}"]`); return el ? el.offsetHeight : 90; }
+  function outPos(n, i){ return [n.x + W, n.y + PORT_Y0 + i * PORT_DY]; }
+  function inPos(n){ return [n.x, n.y + PORT_Y0]; }
+  function curve(x1, y1, x2, y2){
+    const dx = Math.max(50, Math.abs(x2 - x1) / 2);
+    return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+  }
+  function draw(){
+    wstage.querySelectorAll('.wn').forEach(x => x.remove());
+    document.getElementById('wempty').hidden = !!(wf && wf.nodes.length);
+    if (!wf) return;
+    const bad = new Set((issues || []).flatMap(i => i.nodes || []));
+    wf.nodes.forEach(n => {
+      const it = CAT[n.key] || { label: n.key, ports: ['ra'], group: 'step', kind: '?' };
+      const el = document.createElement('div');
+      el.className = `node fnode wn ${typeCls(it)}${sel && sel.t === 'node' && sel.id === n.id ? ' sel' : ''}${bad.has(n.id) ? ' bad' : ''}`;
+      el.dataset.id = n.id; el.tabIndex = 0;
+      el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+      const calls = it.calls || [];
+      const st = calls.length ? worstOf(calls) : '';
+      const sub = Object.entries(n.cfg || {}).filter(([, v]) => v).map(([k, v]) => v).join(' · ') || (it.out ? `${it.in ? it.in + ' → ' : ''}${it.out}` : it.detail || '');
+      const ports = it.ports || ['ra'];
+      el.innerHTML = `<div class="hd"><i class="dot ${st === 'idle' ? 'ok' : st}"></i><span class="kind">${esc(it.group === 'trigger' ? '⚡ Trigger' : it.group === 'logic' ? '🔀 ' + it.kind : it.kind)}</span></div><div class="nm">${esc(n.label || it.label)}</div><div class="mt">${esc(sub)}</div>${calls.length ? `<div class="chips">${calls.map(c => { const x = NODES[c] || { name: c, st: 'idle' }; return `<span class="chip"><i class="dot ${x.st}"></i>${esc(SHORT[c] || x.name)}</span>`; }).join('')}</div>` : ''}`
+        + (it.group !== 'trigger' ? `<span class="wport in" data-id="${n.id}" style="top:${PORT_Y0}px" title="Cổng vào"></span>` : '')
+        + ports.map((p, i) => `<span class="wport out" data-id="${n.id}" data-i="${i}" style="top:${PORT_Y0 + i * PORT_DY}px" title="Cổng ra: ${esc(p)}"></span>${ports.length > 1 ? `<span class="wpl" style="top:${PORT_Y0 + i * PORT_DY - 8}px">${esc(p)}</span>` : ''}`).join('');
+      el.style.minHeight = (PORT_Y0 + Math.max(0, ports.length - 1) * PORT_DY + 24) + 'px';
+      wstage.appendChild(el);
+      nodeDrag(el, n);
+    });
+    edges();
+    side();
+    sizeStage();
+  }
+  function sizeStage(){
+    let mx = 600, my = 400;
+    (wf ? wf.nodes : []).forEach(n => { mx = Math.max(mx, n.x + W + 200); my = Math.max(my, n.y + 300); });
+    wstage.style.width = mx + 'px'; wstage.style.height = my + 'px';
+    wsvg.setAttribute('width', mx); wsvg.setAttribute('height', my); wsvg.setAttribute('viewBox', `0 0 ${mx} ${my}`);
+  }
+  function edges(){
+    const byN = {}; wf.nodes.forEach(n => { byN[n.id] = n; });
+    wf.edges = wf.edges.filter(e => byN[e.from] && byN[e.to]);
+    wsvg.innerHTML = `<defs><marker id="war" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 Z" style="fill:var(--e-next)"></path></marker></defs>`
+      + wf.edges.map((e, i) => {
+        const [x1, y1] = outPos(byN[e.from], e.port || 0), [x2, y2] = inPos(byN[e.to]);
+        const d = curve(x1, y1, x2 - 3, y2), on = sel && sel.t === 'edge' && sel.i === i;
+        return `<g data-i="${i}" class="${on ? 'hl' : ''}"><path class="base" d="${d}" style="stroke:${on ? 'var(--accent)' : 'var(--e-next)'}" stroke-width="${on ? 3.4 : 2.4}" marker-end="url(#war)"></path><path class="hit" d="${d}"></path></g>`;
+      }).join('') + '<path id="wtemp" d="" style="stroke:var(--accent)" stroke-width="2.2" stroke-dasharray="6 5" fill="none"></path>';
+  }
+  wsvg.addEventListener('click', e => {
+    const g = e.target.closest('g[data-i]');
+    if (g && e.target.classList.contains('hit')) { sel = { t: 'edge', i: +g.dataset.i }; draw(); }
+  });
+
+  function nodeDrag(el, n){
+    let sx, sy, ox, oy, moved = false;
+    el.addEventListener('pointerdown', e => {
+      if (e.button !== 0 || e.target.classList.contains('wport')) return;
+      e.stopPropagation();
+      sx = e.clientX; sy = e.clientY; ox = n.x; oy = n.y; moved = false;
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', e => {
+      if (!el.hasPointerCapture(e.pointerId)) return;
+      if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 3) moved = true;
+      if (!moved) return;
+      n.x = Math.max(0, Math.round(ox + (e.clientX - sx) / view.k)); n.y = Math.max(0, Math.round(oy + (e.clientY - sy) / view.k));
+      el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; edges();
+    });
+    const end = e => {
+      if (!el.hasPointerCapture(e.pointerId)) return;
+      el.releasePointerCapture(e.pointerId);
+      if (moved) { sizeStage(); save(); } else { sel = { t: 'node', id: n.id }; draw(); }
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+
+  wstage.addEventListener('pointerdown', e => {
+    const p = e.target.closest('.wport.out');
+    if (!p) return;
+    e.stopPropagation(); e.preventDefault();
+    const n = wf.nodes.find(x => x.id === p.dataset.id);
+    conn = { from: n.id, port: +p.dataset.i, x1: outPos(n, +p.dataset.i)[0], y1: outPos(n, +p.dataset.i)[1] };
+    wwrap.classList.add('linking');
+  });
+  window.addEventListener('pointermove', e => {
+    if (!conn) return;
+    const r = wwrap.getBoundingClientRect();
+    const x = (e.clientX - r.left - view.x) / view.k, y = (e.clientY - r.top - view.y) / view.k;
+    const t = document.getElementById('wtemp');
+    if (t) t.setAttribute('d', curve(conn.x1, conn.y1, x, y));
+  });
+  window.addEventListener('pointerup', e => {
+    if (!conn) return;
+    const c = conn; conn = null;
+    wwrap.classList.remove('linking');
+    const t = document.getElementById('wtemp'); if (t) t.setAttribute('d', '');
+    const target = document.elementsFromPoint(e.clientX, e.clientY).map(x => x.closest && x.closest('.wn')).find(Boolean);
+    if (!target) return;
+    const to = target.dataset.id, tn = wf.nodes.find(x => x.id === to), it = tn && CAT[tn.key];
+    if (!tn || to === c.from || (it && it.group === 'trigger')) return;
+    if (wf.edges.some(x => x.from === c.from && x.port === c.port && x.to === to)) return;
+    wf.edges.push({ from: c.from, port: c.port, to });
+    issues = null; sel = { t: 'edge', i: wf.edges.length - 1 };
+    draw(); save();
+  });
+
+  function del(){
+    if (!sel || !wf) return;
+    if (sel.t === 'node') { wf.nodes = wf.nodes.filter(n => n.id !== sel.id); wf.edges = wf.edges.filter(x => x.from !== sel.id && x.to !== sel.id); }
+    else if (sel.t === 'edge') wf.edges.splice(sel.i, 1);
+    sel = null; issues = null; draw(); save();
+  }
+  document.addEventListener('keydown', e => {
+    if (document.body.dataset.mode !== 'wf' || !sel) return;
+    if (/input|textarea|select/i.test(document.activeElement.tagName)) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); del(); }
+  });
+
+  function check(){
+    const out = [], byN = {};
+    wf.nodes.forEach(n => { byN[n.id] = n; });
+    const trig = wf.nodes.filter(n => (CAT[n.key] || {}).group === 'trigger');
+    if (!wf.nodes.length) return [{ lv: 'warn', msg: 'Quy trình đang trống: kéo node từ kho bên trái vào.' }];
+    if (!trig.length) out.push({ lv: 'err', msg: 'Chưa có Trigger: quy trình không biết khi nào bắt đầu.' });
+    const hasIn = new Set(wf.edges.map(e => e.to));
+    const orphan = wf.nodes.filter(n => (CAT[n.key] || {}).group !== 'trigger' && !hasIn.has(n.id));
+    if (orphan.length) out.push({ lv: 'warn', msg: `${orphan.length} node chưa được nối vào (không bao giờ chạy tới): ${orphan.map(n => n.label).join(', ')}.`, nodes: orphan.map(n => n.id) });
+    const reach = new Set(), stack = trig.map(n => n.id);
+    while (stack.length) { const id = stack.pop(); if (reach.has(id)) continue; reach.add(id); wf.edges.filter(e => e.from === id).forEach(e => stack.push(e.to)); }
+    const unreached = wf.nodes.filter(n => !reach.has(n.id) && !orphan.includes(n) && (CAT[n.key] || {}).group !== 'trigger');
+    if (trig.length && unreached.length) out.push({ lv: 'warn', msg: `${unreached.length} node không đi tới được từ Trigger nào: ${unreached.map(n => n.label).join(', ')}.`, nodes: unreached.map(n => n.id) });
+    const color = {}, cyc = [];
+    const dfs = id => { color[id] = 1; for (const e of wf.edges.filter(x => x.from === id)) { const isLoop = (CAT[byN[id].key] || {}).key === 'logic.loop'; if (color[e.to] === 1 && !isLoop && (CAT[byN[e.to].key] || {}).key !== 'logic.loop') cyc.push(e.to); else if (!color[e.to]) dfs(e.to); } color[id] = 2; };
+    wf.nodes.forEach(n => { if (!color[n.id]) dfs(n.id); });
+    if (cyc.length) out.push({ lv: 'err', msg: 'Có vòng lặp không đi qua node “Lặp qua danh sách”: quy trình sẽ chạy mãi.', nodes: cyc });
+    const ends = wf.nodes.filter(n => !wf.edges.some(e => e.from === n.id) && (CAT[n.key] || {}).key !== 'logic.end');
+    if (ends.length && !wf.nodes.some(n => n.key === 'logic.end')) out.push({ lv: 'info', msg: 'Gợi ý: thêm node “Kết quả” ở cuối để ghi rõ quy trình cho ra gì.' });
+    wf.nodes.forEach(n => { const it = CAT[n.key]; (it && it.cfg || []).forEach(f => { if (!f.opt && f.k !== 'params' && f.k !== 'action' && f.k !== 'tz' && !(n.cfg || {})[f.k]) out.push({ lv: 'warn', msg: `“${n.label}” chưa điền ${f.label.toLowerCase()}.`, nodes: [n.id] }); }); });
+    if (!out.length) out.push({ lv: 'ok', msg: 'Không thấy lỗi: có Trigger, mọi node đều được nối và đi tới được.' });
+    return out;
+  }
+
+  function side(){
+    const box = document.getElementById('wside');
+    if (sel && sel.t === 'node') {
+      const n = wf.nodes.find(x => x.id === sel.id);
+      if (!n) { sel = null; return side(); }
+      const it = CAT[n.key] || {};
+      const ins = wf.edges.filter(e => e.to === n.id).map(e => wf.nodes.find(x => x.id === e.from)).filter(Boolean);
+      const outs = wf.edges.filter(e => e.from === n.id).map(e => ({ n: wf.nodes.find(x => x.id === e.to), p: (it.ports || [])[e.port || 0] })).filter(x => x.n);
+      box.innerHTML = `<div class="top"><span class="eyebrow">${esc(it.group === 'step' ? 'Bước của ' + it.kind : it.kind || '')}</span>
+        <label class="fld"><span>Tên node</span><input id="wn-label" value="${esc(n.label)}"></label>
+        <p class="desc">${esc(it.detail || '')}</p>
+        ${(it.cfg || []).map(f => `<label class="fld"><span>${esc(f.label)}</span><input data-cfg="${f.k}" placeholder="${esc(f.ph || '')}" value="${esc((n.cfg || {})[f.k] || '')}"></label>`).join('')}
+        <label class="fld"><span>Ghi chú</span><textarea id="wn-note" rows="3" placeholder="Ghi chú cho chính bạn">${esc(n.note || '')}</textarea></label>
+        ${it.in || it.out ? `<div class="io">${it.in ? `<span>Vào</span><b>${esc(it.in)}</b>` : ''}${it.out ? `<span>Ra</span><b>${esc(it.out)}</b>` : ''}</div>` : ''}
+        ${(it.calls || []).length ? '<span class="eyebrow">Gọi tới</span>' + it.calls.map(c => { const x = NODES[c] || { name: c, st: 'idle', mt: '' }; return `<div class="lk"><i class="dot ${x.st}"></i><span><b>${esc(x.name)}</b> · ${esc(x.mt)}</span></div>`; }).join('') : ''}
+        ${it.src ? `<span class="eyebrow">Nguồn code</span><div class="src">${esc(it.src)}</div>` : ''}
+        <span class="eyebrow">Nối</span><div class="lk">Vào từ: ${ins.length ? ins.map(x => '<b>' + esc(x.label) + '</b>').join(', ') : '<i>chưa có</i>'}</div><div class="lk">Ra tới: ${outs.length ? outs.map(x => '<b>' + esc(x.n.label) + '</b>' + ((it.ports || []).length > 1 ? ` (${esc(x.p)})` : '')).join(', ') : '<i>chưa có</i>'}</div>
+        <div class="sacts"><button class="btn" type="button" id="wn-del">🗑 Xoá node</button></div></div>`;
+      box.querySelector('#wn-label').addEventListener('input', e => { n.label = e.target.value.slice(0, 120); const el = wstage.querySelector(`.wn[data-id="${n.id}"] .nm`); if (el) el.textContent = n.label; save(); });
+      box.querySelector('#wn-note').addEventListener('input', e => { n.note = e.target.value.slice(0, 2000); save(); });
+      box.querySelectorAll('[data-cfg]').forEach(inp => inp.addEventListener('input', e => { n.cfg = n.cfg || {}; n.cfg[e.target.dataset.cfg] = e.target.value.slice(0, 500); const mt = wstage.querySelector(`.wn[data-id="${n.id}"] .mt`); if (mt) mt.textContent = Object.values(n.cfg).filter(Boolean).join(' · '); save(); }));
+      box.querySelector('#wn-del').addEventListener('click', del);
+      return;
+    }
+    if (sel && sel.t === 'edge') {
+      const e = wf.edges[sel.i];
+      if (!e) { sel = null; return side(); }
+      const a = wf.nodes.find(x => x.id === e.from), b = wf.nodes.find(x => x.id === e.to), it = CAT[a.key] || {};
+      box.innerHTML = `<div class="top"><span class="eyebrow">Dây nối</span><h2>${esc(a.label)} → ${esc(b.label)}</h2>
+        ${(it.ports || []).length > 1 ? `<p class="desc">Đi ra từ cổng “${esc(it.ports[e.port || 0])}”.</p>` : ''}
+        ${it.out ? `<div class="io"><span>Dữ liệu đi qua</span><b>${esc(it.out)}</b></div>` : ''}
+        ${(CAT[b.key] || {}).in ? `<div class="io"><span>Bước sau cần</span><b>${esc(CAT[b.key].in)}</b></div>` : ''}
+        <div class="sacts"><button class="btn" type="button" id="we-del">🗑 Xoá dây</button></div></div>`;
+      box.querySelector('#we-del').addEventListener('click', del);
+      return;
+    }
+    const nT = wf ? wf.nodes.filter(n => (CAT[n.key] || {}).group === 'trigger').length : 0;
+    box.innerHTML = `<div class="top"><span class="eyebrow">Quy trình</span><h2>${esc(wf ? wf.name : '')}</h2>
+      <div class="io"><span>Số node</span><b>${wf ? wf.nodes.length : 0}</b><span>Số dây</span><b>${wf ? wf.edges.length : 0}</b><span>Trigger</span><b>${nT}</b></div>
+      <p class="desc">Kéo node từ kho bên trái thả vào khung (hoặc bấm vào node trong kho). Kéo từ chấm bên phải một node sang node khác để nối. Bấm vào node / dây để sửa hoặc xoá (phím Delete).</p>
+      ${issues ? '<span class="eyebrow">Kết quả kiểm tra</span>' + issues.map(i => `<div class="iss ${i.lv}">${esc(i.msg)}</div>`).join('') : '<p class="desc">Bấm <b>Kiểm tra</b> để soát lỗi nối.</p>'}
+      <p class="desc mut">Giai đoạn 1: chỉ thiết kế, quy trình chưa chạy thật.</p></div>`;
+  }
+
+  function applyV(){
+    wstage.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.k})`;
+    wwrap.style.backgroundSize = `${22 * view.k}px ${22 * view.k}px`;
+    wwrap.style.backgroundPosition = `${view.x}px ${view.y}px`;
+    document.getElementById('wz-val').textContent = Math.round(view.k * 100) + '%';
+  }
+  function zoomAt(k, cx, cy){ k = Math.min(2, Math.max(0.3, k)); view.x = cx - (cx - view.x) * k / view.k; view.y = cy - (cy - view.y) * k / view.k; view.k = k; applyV(); }
+  function fit(){
+    if (!wf || !wf.nodes.length) { view = { k: 1, x: 40, y: 40 }; applyV(); return; }
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    wf.nodes.forEach(n => { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + W); y1 = Math.max(y1, n.y + nodeH(n)); });
+    const ww = wwrap.clientWidth, wh = wwrap.clientHeight, k = Math.min(1.1, Math.max(0.3, Math.min((ww - 80) / (x1 - x0), (wh - 80) / (y1 - y0))));
+    view = { k, x: (ww - (x1 - x0) * k) / 2 - x0 * k, y: (wh - (y1 - y0) * k) / 2 - y0 * k }; applyV();
+  }
+  wwrap.addEventListener('wheel', e => { e.preventDefault(); const r = wwrap.getBoundingClientRect(); zoomAt(view.k * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015)), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  let pan = null;
+  wwrap.addEventListener('pointerdown', e => {
+    if (e.button !== 0 && e.button !== 1) return;
+    if (e.target.closest('.wn, .zoom') || (e.target.classList && e.target.classList.contains('hit'))) return;
+    pan = { px: e.clientX, py: e.clientY, x: view.x, y: view.y, id: e.pointerId, moved: false };
+    wwrap.setPointerCapture(e.pointerId);
+  });
+  wwrap.addEventListener('pointermove', e => {
+    if (!pan || e.pointerId !== pan.id) return;
+    if (Math.abs(e.clientX - pan.px) + Math.abs(e.clientY - pan.py) > 3) { pan.moved = true; wwrap.classList.add('pan'); }
+    view.x = pan.x + e.clientX - pan.px; view.y = pan.y + e.clientY - pan.py; applyV();
+  });
+  wwrap.addEventListener('pointerup', e => {
+    if (!pan || e.pointerId !== pan.id) return;
+    const moved = pan.moved; pan = null; wwrap.classList.remove('pan');
+    if (wwrap.hasPointerCapture(e.pointerId)) wwrap.releasePointerCapture(e.pointerId);
+    if (!moved && sel) { sel = null; draw(); }
+  });
+  document.getElementById('wz-in').addEventListener('click', () => zoomAt(view.k * 1.2, wwrap.clientWidth / 2, wwrap.clientHeight / 2));
+  document.getElementById('wz-out').addEventListener('click', () => zoomAt(view.k / 1.2, wwrap.clientWidth / 2, wwrap.clientHeight / 2));
+  document.getElementById('wz-fit').addEventListener('click', fit);
+
+  return { init, refresh(){ if (ready && wf) { draw(); } } };
+})();
+
+function setMode(m){
+  document.body.dataset.mode = m;
+  document.querySelectorAll('.modes button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  try { localStorage.setItem('hub-mode', m); } catch (e) {}
+  hideTip();
+  if (m === 'wf') WFB.init();
+  else renderEdges();
+}
+document.querySelector('.modes').addEventListener('click', e => { const b = e.target.closest('button[data-mode]'); if (b) setMode(b.dataset.mode); });
+
+boot().then(() => { let m = 'map'; try { m = localStorage.getItem('hub-mode') || 'map'; } catch (e) {} setMode(m); });
 </script>
 </body>
 </html>
