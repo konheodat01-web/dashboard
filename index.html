@@ -26,11 +26,12 @@
     }
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('dash-theme')==='dark'?'dark':'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
   <title>Quản lý công việc</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c0392b'/%3E%3Crect x='7' y='9' width='18' height='2.5' rx='1.2' fill='white'/%3E%3Crect x='7' y='14.7' width='18' height='2.5' rx='1.2' fill='white'/%3E%3Crect x='7' y='20.5' width='12' height='2.5' rx='1.2' fill='white'/%3E%3Ccircle cx='25' cy='22' r='5' fill='%2327ae60'/%3E%3Cpath d='M22.5 22l2 2 3-3' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style_v5.css?v=20261022_1">
-  <link rel="stylesheet" href="seo_expert.css?v=20260924_6">
-  <link rel="stylesheet" href="seo_audit.css?v=20261011_3">
+  <link rel="stylesheet" href="style_v5.css?v=20261022_t1">
+  <link rel="stylesheet" href="seo_expert.css?v=20261022_t1">
+  <link rel="stylesheet" href="seo_audit.css?v=20261022_t1">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
 </head>
@@ -221,9 +222,9 @@
     <button id="navSyncBtn" onclick="forceSyncToCloud()" style="display:none;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:500" title="Đẩy toàn bộ dữ liệu lên đám mây">☁ Sync</button>
     <!-- Tiến trình viết hàng loạt: 🔄 đang chạy + 🔔 xong — LUÔN hiển thị, ở bên phải cùng -->
     <div style="width:1px;height:22px;background:rgba(255,255,255,.15);margin:0 2px"></div>
-    <div id="procCircleWrap" onclick="wstToggleProcPopup('running')" title="Tiến trình đang chạy ngầm — bấm xem để tránh tạo lệnh trùng" style="position:relative;cursor:pointer;font-size:17px;line-height:1;padding:3px 5px">🔄<span id="procCircleBadge" style="position:absolute;top:-5px;right:-4px;background:#3fb950;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;padding:0 3px;display:none"></span></div>
+    <div id="procCircleWrap" onclick="wstToggleProcPopup('running')" title="Tiến trình đang chạy ngầm — bấm xem để tránh tạo lệnh trùng" style="position:relative;cursor:pointer;font-size:17px;line-height:1;padding:3px 5px">🔄<span id="procCircleBadge" style="position:absolute;top:-5px;right:-4px;background:var(--t-success);color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;padding:0 3px;display:none"></span></div>
     <div id="procBellWrap" onclick="wstToggleProcPopup('bell')" title="Thông báo tiến trình đã xong" style="position:relative;cursor:pointer;font-size:17px;line-height:1;padding:3px 5px">🔔<span id="procBellBadge" style="position:absolute;top:-5px;right:-4px;background:#e74c3c;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;padding:0 3px;display:none"></span></div>
-    <div id="procPopup" style="display:none;position:fixed;top:52px;right:16px;z-index:9998;width:320px;max-height:60vh;overflow:auto;background:#161b22;border:1px solid #30363d;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);color:#e6edf3;font-size:12px"></div>
+    <div id="procPopup" style="display:none;position:fixed;top:52px;right:16px;z-index:9998;width:320px;max-height:60vh;overflow:auto;background:var(--t-subtle);border:1px solid var(--t-border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);color:var(--t-fg2);font-size:12px"></div>
   </div>
 </header>
 
@@ -271,6 +272,7 @@
   
   <!-- Bottom actions: footer aligned -->
   <div class="sidebar-footer" id="navBottomMenu">
+    <button type="button" class="theme-toggle" onclick="dashToggleTheme()" title="Đổi giao diện sáng / tối"><i class="fa fa-moon-o"></i> <span>Giao diện tối</span></button>
     <button type="button" onclick="openChangePassword()"><i class="fa fa-key"></i> Đổi mật khẩu</button>
     <button type="button" onclick="openSettings()"><i class="fa fa-cog"></i> Cài đặt</button>
     <button type="button" onclick="openBackupModal()"><i class="fa fa-history"></i> Lịch sử dữ liệu</button>
@@ -291,9 +293,9 @@
 
 <!-- QUẢN LÝ HÓA ĐƠN -->
 <div id="page-staff" class="page is-hidden">
-  <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden;background:#0d1117;border-color:#30363d">
-    <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px;background:#161b22;border-bottom:1px solid #30363d">
-      <div class="panel-title" style="color:#c9d1d9">👥 Quản lý nhân viên</div>
+  <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden;background:var(--t-canvas);border-color:var(--t-border)">
+    <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px;background:var(--t-subtle);border-bottom:1px solid var(--t-border)">
+      <div class="panel-title" style="color:var(--t-fg)">👥 Quản lý nhân viên</div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
         <button onclick="openStaffModal()" class="btn btn-primary btn-sm">➕ Thêm nhân viên</button>
       </div>
@@ -302,11 +304,11 @@
       <table class="table" style="min-width:700px;width:100%">
         <thead>
           <tr>
-            <th style="width:200px;padding:12px 10px;font-size:12px;text-transform:uppercase;color:#8b949e">Tên đăng nhập</th>
-            <th style="width:200px;padding:12px 10px;font-size:12px;text-transform:uppercase;color:#8b949e">Tên hiển thị</th>
-            <th style="width:120px;padding:12px 10px;font-size:12px;text-transform:uppercase;color:#8b949e;text-align:center">Trạng thái</th>
-            <th style="padding:12px 10px;font-size:12px;text-transform:uppercase;color:#8b949e">Quyền hạn</th>
-            <th style="width:120px;padding:12px 10px;font-size:12px;text-transform:uppercase;color:#8b949e;text-align:right">Thao tác</th>
+            <th style="width:200px;padding:12px 10px;font-size:12px;text-transform:uppercase;color:var(--t-fg-muted)">Tên đăng nhập</th>
+            <th style="width:200px;padding:12px 10px;font-size:12px;text-transform:uppercase;color:var(--t-fg-muted)">Tên hiển thị</th>
+            <th style="width:120px;padding:12px 10px;font-size:12px;text-transform:uppercase;color:var(--t-fg-muted);text-align:center">Trạng thái</th>
+            <th style="padding:12px 10px;font-size:12px;text-transform:uppercase;color:var(--t-fg-muted)">Quyền hạn</th>
+            <th style="width:120px;padding:12px 10px;font-size:12px;text-transform:uppercase;color:var(--t-fg-muted);text-align:right">Thao tác</th>
           </tr>
         </thead>
         <tbody id="staffTbody"></tbody>
@@ -372,43 +374,43 @@
 </div>
 
 <div id="page-billing" class="page is-hidden">
-  <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden;background:#0d1117;border-color:#30363d">
-    <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px;background:#161b22;border-bottom:1px solid #30363d">
-      <div class="panel-title" style="color:#c9d1d9">💳 Quản lý hóa đơn phần mềm</div>
+  <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 90px);overflow:hidden;background:var(--t-canvas);border-color:var(--t-border)">
+    <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px;background:var(--t-subtle);border-bottom:1px solid var(--t-border)">
+      <div class="panel-title" style="color:var(--t-fg)">💳 Quản lý hóa đơn phần mềm</div>
       <div class="toolbar" style="flex-wrap:wrap;gap:6px">
         <button onclick="wstSyncBillingAll()" class="btn btn-sm" style="background:#3498db;color:#fff;border:none">🔄 Đồng bộ API</button>
         <button onclick="openAddBillingModal()" class="btn btn-sm" style="background:#27ae60;color:#fff;border:none">+ Thêm hóa đơn</button>
       </div>
     </div>
     
-    <div style="flex:1;overflow-y:auto;padding:16px;background:#0d1117" class="billing-container">
+    <div style="flex:1;overflow-y:auto;padding:16px;background:var(--t-canvas)" class="billing-container">
       
       <!-- METRIC OVERVIEW CARDS -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;margin-bottom:20px">
-        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
-          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Số dư VPS CloudFly</div>
-          <div id="metric-vps-balance" style="font-size:24px;font-weight:700;margin-top:6px;color:#58a6ff">—</div>
-          <div id="metric-vps-time" style="font-size:11px;color:#8b949e;margin-top:4px">Ước tính dùng: —</div>
+        <div class="card" style="background:var(--t-subtle);border:1px solid var(--t-border);border-radius:8px;padding:16px;color:var(--t-fg)">
+          <div style="font-size:11px;color:var(--t-fg-muted);text-transform:uppercase;font-weight:600">Số dư VPS CloudFly</div>
+          <div id="metric-vps-balance" style="font-size:24px;font-weight:700;margin-top:6px;color:var(--t-accent)">—</div>
+          <div id="metric-vps-time" style="font-size:11px;color:var(--t-fg-muted);margin-top:4px">Ước tính dùng: —</div>
         </div>
-        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
-          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Tokens Serper API</div>
+        <div class="card" style="background:var(--t-subtle);border:1px solid var(--t-border);border-radius:8px;padding:16px;color:var(--t-fg)">
+          <div style="font-size:11px;color:var(--t-fg-muted);text-transform:uppercase;font-weight:600">Tokens Serper API</div>
           <div id="metric-serper-balance" style="font-size:24px;font-weight:700;margin-top:6px;color:#f2a154">—</div>
-          <div id="metric-serper-time" style="font-size:11px;color:#8b949e;margin-top:4px">Ước tính: — lượt check</div>
+          <div id="metric-serper-time" style="font-size:11px;color:var(--t-fg-muted);margin-top:4px">Ước tính: — lượt check</div>
         </div>
-        <div class="card" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;color:#c9d1d9">
-          <div style="font-size:11px;color:#8b949e;text-transform:uppercase;font-weight:600">Tổng chi phí định kỳ/tháng</div>
-          <div id="metric-recurring-cost" style="font-size:24px;font-weight:700;margin-top:6px;color:#3fb950">0 ₫</div>
-          <div id="metric-recurring-count" style="font-size:11px;color:#8b949e;margin-top:4px">0 dịch vụ đang hoạt động</div>
+        <div class="card" style="background:var(--t-subtle);border:1px solid var(--t-border);border-radius:8px;padding:16px;color:var(--t-fg)">
+          <div style="font-size:11px;color:var(--t-fg-muted);text-transform:uppercase;font-weight:600">Tổng chi phí định kỳ/tháng</div>
+          <div id="metric-recurring-cost" style="font-size:24px;font-weight:700;margin-top:6px;color:var(--t-success)">0 ₫</div>
+          <div id="metric-recurring-count" style="font-size:11px;color:var(--t-fg-muted);margin-top:4px">0 dịch vụ đang hoạt động</div>
         </div>
       </div>
 
       <!-- NHÓM 1: DỊCH VỤ TRỪ THEO THỜI LƯỢNG / TIÊU THỤ -->
-      <div class="panel" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:20px">
-        <h3 style="margin-top:0;font-size:14px;color:#c9d1d9;border-bottom:1px solid #30363d;padding-bottom:8px">⏱️ Dịch vụ trả trước & Trừ theo sử dụng (Usage-based)</h3>
+      <div class="panel" style="background:var(--t-subtle);border:1px solid var(--t-border);border-radius:8px;padding:16px;margin-bottom:20px">
+        <h3 style="margin-top:0;font-size:14px;color:var(--t-fg);border-bottom:1px solid var(--t-border);padding-bottom:8px">⏱️ Dịch vụ trả trước & Trừ theo sử dụng (Usage-based)</h3>
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px" class="billing-table">
             <thead>
-              <tr style="border-bottom:1px solid #30363d;color:#8b949e;text-align:left">
+              <tr style="border-bottom:1px solid var(--t-border);color:var(--t-fg-muted);text-align:left">
                 <th style="padding:8px">Dịch vụ</th>
                 <th style="padding:8px">Phương thức tiêu thụ</th>
                 <th style="padding:8px;text-align:center">Số dư hiện tại</th>
@@ -425,12 +427,12 @@
       </div>
 
       <!-- NHÓM 2: DỊCH VỤ GIA HẠN ĐỊNH KỲ -->
-      <div class="panel" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px">
-        <h3 style="margin-top:0;font-size:14px;color:#c9d1d9;border-bottom:1px solid #30363d;padding-bottom:8px">📅 Hóa đơn gia hạn định kỳ (Date-based Recurring)</h3>
+      <div class="panel" style="background:var(--t-subtle);border:1px solid var(--t-border);border-radius:8px;padding:16px">
+        <h3 style="margin-top:0;font-size:14px;color:var(--t-fg);border-bottom:1px solid var(--t-border);padding-bottom:8px">📅 Hóa đơn gia hạn định kỳ (Date-based Recurring)</h3>
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px" class="billing-table">
             <thead>
-              <tr style="border-bottom:1px solid #30363d;color:#8b949e;text-align:left">
+              <tr style="border-bottom:1px solid var(--t-border);color:var(--t-fg-muted);text-align:left">
                 <th style="padding:8px">Dịch vụ</th>
                 <th style="padding:8px">Chi phí</th>
                 <th style="padding:8px;text-align:center">Chu kỳ</th>
@@ -824,7 +826,7 @@
 <div class="modal-overlay" id="wstPostsOverlay" onclick="if(event.target===this)wstClosePostsModal()">
   <div class="modal" style="max-width:920px;width:94%" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <h3 style="margin:0">📋 Bài viết trên <span id="wstPostsSite" style="color:#58a6ff"></span></h3>
+      <h3 style="margin:0">📋 Bài viết trên <span id="wstPostsSite" style="color:var(--t-accent)"></span></h3>
       <button class="modal-close" onclick="wstClosePostsModal()">&times;</button>
     </div>
     <div class="modal-body" style="gap:10px">
@@ -845,13 +847,13 @@
           <option value="">Tất cả danh mục</option>
         </select>
         <button class="btn btn-outline btn-sm" onclick="wstLoadPosts()">🔄 Tải lại</button>
-        <button id="wstPostsScanBtn" class="btn btn-sm" style="background:#3fb950;color:#fff;border:none" onclick="wstCheckSelectedIndex()" title="Check index link đã chọn bằng Serper (site: query)">✅ Check index (Serper)</button>
+        <button id="wstPostsScanBtn" class="btn btn-sm" style="background:var(--t-success);color:#fff;border:none" onclick="wstCheckSelectedIndex()" title="Check index link đã chọn bằng Serper (site: query)">✅ Check index (Serper)</button>
         <button id="wstPostsCopyBtn" class="btn btn-outline btn-sm" onclick="wstCopySelectedPostUrls()" title="Copy URL các bài đã chọn (không chọn gì thì copy toàn bộ đang hiển thị)">📋 Copy URL đã chọn</button>
         <span id="wstPostsInfo" class="sub" style="margin-left:auto">—</span>
       </div>
       <div style="max-height:58vh;overflow:auto;border:1px solid var(--gray-border);border-radius:8px">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead style="position:sticky;top:0;background:#161b22;z-index:2">
+          <thead style="position:sticky;top:0;background:var(--t-subtle);z-index:2">
             <tr>
               <th style="padding:8px 6px;text-align:center;width:34px"><input type="checkbox" id="wstPostsSelAll" onchange="wstToggleAllPosts(this.checked)" title="Chọn tất cả"></th>
               <th style="padding:8px 6px;text-align:left;width:36px">#</th>
@@ -884,7 +886,7 @@
         <button class="modal-close" onclick="wstCloseWriterModal()">&times;</button>
       </div>
     </div>
-    <iframe id="wstWriterFrame" src="about:blank" style="flex:1;width:100%;border:none;background:#0d1117" allow="clipboard-read; clipboard-write"></iframe>
+    <iframe id="wstWriterFrame" src="about:blank" style="flex:1;width:100%;border:none;background:var(--t-canvas)" allow="clipboard-read; clipboard-write"></iframe>
   </div>
 </div>
 
@@ -905,13 +907,13 @@
           <option value="Team 02">M7</option>
         </select>
         <!-- 1. Sắp xếp độ khó -->
-        <select id="wst_sort_difficulty" onchange="renderWsTrack()" style="height:32px;font-size:12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
+        <select id="wst_sort_difficulty" onchange="renderWsTrack()" style="height:32px;font-size:12px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
           <option value="">Sắp xếp mặc định</option>
           <option value="hard_to_easy">Độ khó: Khó ➔ Dễ</option>
           <option value="easy_to_hard">Độ khó: Dễ ➔ Khó</option>
         </select>
         <!-- 2. Lọc độ khó -->
-        <select id="wst_filter_difficulty" onchange="renderWsTrack()" style="height:32px;font-size:12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
+        <select id="wst_filter_difficulty" onchange="renderWsTrack()" style="height:32px;font-size:12px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
           <option value="">Tất cả độ khó</option>
           <option value="Rất Khó" style="color:#ff4d4f">Rất Khó</option>
           <option value="Khó" style="color:#fa8c16">Khó</option>
@@ -920,14 +922,14 @@
           <option value="Rất Dễ" style="color:#ffffff">Rất Dễ</option>
         </select>
         <!-- 4. Lọc tag -->
-        <select id="wst_filter_tag" onchange="renderWsTrack()" style="height:32px;font-size:12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:0 8px;outline:none;cursor:pointer;max-width:150px;">
+        <select id="wst_filter_tag" onchange="renderWsTrack()" style="height:32px;font-size:12px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:0 8px;outline:none;cursor:pointer;max-width:150px;">
           <option value="">Tất cả tag</option>
         </select>
 
         <span id="wstToolsSeo" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
         <button onclick="openWstApiSettings()" class="btn btn-outline btn-sm">🔑 API Rank</button>
         <button onclick="wstBulkCheckRank()" class="btn btn-sm" style="background:#e67e22;color:#fff;border:none">Check Rank</button>
-        <select id="wst_gsc_period" onchange="wstChangeGscPeriod(this.value)" style="height:32px;font-size:12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
+        <select id="wst_gsc_period" onchange="wstChangeGscPeriod(this.value)" style="height:32px;font-size:12px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:0 8px;outline:none;cursor:pointer">
           <option value="24h" selected>📅 GSC: 24 giờ qua</option>
           <option value="7d">📅 GSC: 7 ngày qua</option>
           <option value="28d">📅 GSC: 28 ngày qua</option>
@@ -945,10 +947,10 @@
     </div>
     
     <!-- ADVANCED FILTERS PANEL -->
-    <div id="wstAdvancedFilters" style="display:none; padding:10px 16px; background:#161b22; border-bottom:1px solid var(--gray-border); flex-wrap:wrap; gap:10px; flex-shrink:0;">
+    <div id="wstAdvancedFilters" style="display:none; padding:10px 16px; background:var(--t-subtle); border-bottom:1px solid var(--gray-border); flex-wrap:wrap; gap:10px; flex-shrink:0;">
       <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:11px; color:#8b949e;">Trạng thái web:</span>
-        <select id="wst_filter_status" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+        <span style="font-size:11px; color:var(--t-fg-muted);">Trạng thái web:</span>
+        <select id="wst_filter_status" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:var(--t-muted); color:var(--t-fg); border:1px solid var(--t-border); border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
           <option value="">Tất cả</option>
           <option value="Tốt">🌐 Tốt</option>
           <option value="Lỗi">⚠️ Lỗi</option>
@@ -959,8 +961,8 @@
       </div>
 
       <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:11px; color:#8b949e;">Trạng thái Index:</span>
-        <select id="wst_filter_index" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+        <span style="font-size:11px; color:var(--t-fg-muted);">Trạng thái Index:</span>
+        <select id="wst_filter_index" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:var(--t-muted); color:var(--t-fg); border:1px solid var(--t-border); border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
           <option value="">Tất cả index</option>
           <option value="Đã index">✅ Đã index</option>
           <option value="Một phần">⚠️ Một phần</option>
@@ -969,8 +971,8 @@
       </div>
 
       <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:11px; color:#8b949e;">Kết nối GSC:</span>
-        <select id="wst_filter_gsc" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+        <span style="font-size:11px; color:var(--t-fg-muted);">Kết nối GSC:</span>
+        <select id="wst_filter_gsc" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:var(--t-muted); color:var(--t-fg); border:1px solid var(--t-border); border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
           <option value="">Tất cả</option>
           <option value="connected">✅ Đã kết nối</option>
           <option value="disconnected">❌ Mất kết nối</option>
@@ -979,8 +981,8 @@
       </div>
 
       <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:11px; color:#8b949e;">Clicks (24h):</span>
-        <select id="wst_filter_clicks" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+        <span style="font-size:11px; color:var(--t-fg-muted);">Clicks (24h):</span>
+        <select id="wst_filter_clicks" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:var(--t-muted); color:var(--t-fg); border:1px solid var(--t-border); border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
           <option value="">Tất cả</option>
           <option value="has_clicks">Có clicks (> 0)</option>
           <option value="no_clicks">Không clicks (= 0)</option>
@@ -988,8 +990,8 @@
       </div>
 
       <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:11px; color:#8b949e;">Imps (24h):</span>
-        <select id="wst_filter_imps" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+        <span style="font-size:11px; color:var(--t-fg-muted);">Imps (24h):</span>
+        <select id="wst_filter_imps" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:var(--t-muted); color:var(--t-fg); border:1px solid var(--t-border); border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
           <option value="">Tất cả</option>
           <option value="has_imps">Có imps (> 0)</option>
           <option value="no_imps">Không imps (= 0)</option>
@@ -997,8 +999,8 @@
       </div>
 
       <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:11px; color:#8b949e;">Vị trí (24h):</span>
-        <select id="wst_filter_pos" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+        <span style="font-size:11px; color:var(--t-fg-muted);">Vị trí (24h):</span>
+        <select id="wst_filter_pos" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:var(--t-muted); color:var(--t-fg); border:1px solid var(--t-border); border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
           <option value="">Tất cả</option>
           <option value="top10">Top 1 - 10</option>
           <option value="top11_50">Top 11 - 50</option>
@@ -1006,8 +1008,8 @@
         </select>
       </div>
           <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:11px; color:#8b949e;">Lệnh 301:</span>
-        <select id="wst_filter_redirect301" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:#21262d; color:#c9d1d9; border:1px solid #30363d; border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
+        <span style="font-size:11px; color:var(--t-fg-muted);">Lệnh 301:</span>
+        <select id="wst_filter_redirect301" onchange="renderWsTrack()" style="height:28px; font-size:11px; background:var(--t-muted); color:var(--t-fg); border:1px solid var(--t-border); border-radius:6px; padding:0 8px; outline:none; cursor:pointer;">
           <option value="">Tất cả</option>
           <option value="active">Đang có lệnh 301</option>
           <option value="none">Không có lệnh 301</option>
@@ -1329,10 +1331,10 @@
           <input type="hidden" id="wf_group" value="">
           <div class="form-group" style="position:relative;margin-bottom:12px;">
             <label>Tags (Chủ đề)</label>
-            <div id="wf_tags_container" onclick="document.getElementById('wf_tag_input').focus()" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;border:1px solid #30363d;border-radius:6px;padding:6px;background:#0d1117;align-items:center;cursor:text;">
-              <input type="text" id="wf_tag_input" placeholder="Tìm hoặc tạo tag..." autocomplete="off" style="border:none;background:transparent;color:#c9d1d9;outline:none;flex:1;min-width:120px;padding:0;height:20px;font-size:12px;">
+            <div id="wf_tags_container" onclick="document.getElementById('wf_tag_input').focus()" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;border:1px solid var(--t-border);border-radius:6px;padding:6px;background:var(--t-canvas);align-items:center;cursor:text;">
+              <input type="text" id="wf_tag_input" placeholder="Tìm hoặc tạo tag..." autocomplete="off" style="border:none;background:transparent;color:var(--t-fg);outline:none;flex:1;min-width:120px;padding:0;height:20px;font-size:12px;">
             </div>
-            <div id="wf_tag_suggestions" style="display:none;position:absolute;z-index:100;background:#161b22;border:1px solid #30363d;border-radius:6px;max-height:150px;overflow-y:auto;width:100%;box-shadow:0 8px 16px rgba(0,0,0,0.5);top:100%;left:0;margin-top:4px;">
+            <div id="wf_tag_suggestions" style="display:none;position:absolute;z-index:100;background:var(--t-subtle);border:1px solid var(--t-border);border-radius:6px;max-height:150px;overflow-y:auto;width:100%;box-shadow:0 8px 16px rgba(0,0,0,0.5);top:100%;left:0;margin-top:4px;">
             </div>
           </div>
           <div class="form-group"><label>Ghi chú</label><textarea id="wf_note" rows="2" style="width:100%"></textarea></div>
@@ -1757,12 +1759,12 @@
     });
   </script>
   <script src="firebase.js?v=premium_ui_perfect_v8"></script>
-  <script src="script_v5.js?v=20261011_v88"></script>
+  <script src="script_v5.js?v=20261022_t1"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-  <script src="seo_expert.js?v=20261008_2"></script>
-  <script src="seo_audit_ui.js?v=20261011_5"></script>
-  <script src="content_mgr.js?v=20261022_5"></script>
+  <script src="seo_expert.js?v=20261022_t1"></script>
+  <script src="seo_audit_ui.js?v=20261022_t1"></script>
+  <script src="content_mgr.js?v=20261022_t1"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">
@@ -2166,18 +2168,18 @@
     <div class="modal-body" style="gap:14px;padding:20px;color:var(--text-muted)">
       <div class="form-group" style="width:100%;text-align:left">
         <label>CloudFly API Access Token</label>
-        <input type="password" id="sett_cloudflyToken" placeholder="Nhập API Access Token..." style="width:100%;font-size:12px;padding:6px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">
-        <small style="font-size:10px;color:#8b949e;margin-top:4px;display:block">Dùng để tự động đồng bộ số dư VPS CloudFly. Nhớ cấp phép IP của VPS trên trang CloudFly.</small>
+        <input type="password" id="sett_cloudflyToken" placeholder="Nhập API Access Token..." style="width:100%;font-size:12px;padding:6px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px">
+        <small style="font-size:10px;color:var(--t-fg-muted);margin-top:4px;display:block">Dùng để tự động đồng bộ số dư VPS CloudFly. Nhớ cấp phép IP của VPS trên trang CloudFly.</small>
       </div>
       <div class="form-group" style="width:100%;text-align:left">
         <label>👥 Nhóm (Team)</label>
         <div id="sett_teams"></div>
         <div style="display:flex;gap:6px;margin-top:8px">
           <input type="text" id="sett_team_new" placeholder="Tên nhóm mới..." onkeydown="if(event.key==='Enter')teamAdd()"
-            style="flex:1;font-size:12px;padding:6px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">
+            style="flex:1;font-size:12px;padding:6px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px">
           <button class="btn btn-sm" style="background:#238636;color:#fff;border:none;font-size:12px" onclick="teamAdd()">+ Thêm nhóm</button>
         </div>
-        <small style="font-size:10px;color:#8b949e;margin-top:4px;display:block">Sửa tên / màu lưu ngay. Xoá nhóm đang có dữ liệu sẽ hỏi chuyển website, công việc sang nhóm khác. Nhóm mặc định (🔒) chỉ đổi tên.</small>
+        <small style="font-size:10px;color:var(--t-fg-muted);margin-top:4px;display:block">Sửa tên / màu lưu ngay. Xoá nhóm đang có dữ liệu sẽ hỏi chuyển website, công việc sang nhóm khác. Nhóm mặc định (🔒) chỉ đổi tên.</small>
       </div>
     </div>
     <div class="modal-footer" style="padding:15px;display:flex;justify-content:flex-end;gap:8px">
@@ -2314,20 +2316,20 @@
     </div>
     <div class="modal-body" style="gap:12px">
       <!-- Tab switch -->
-      <div style="display:flex;gap:0;border-bottom:1px solid #30363d;margin-bottom:4px">
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--t-border);margin-bottom:4px">
         <button id="wsImpTabNormal" onclick="wsImpSwitchTab('normal')" style="flex:1;padding:10px;font-size:13px;font-weight:600;border:none;cursor:pointer;border-bottom:2px solid var(--red);color:var(--red);background:transparent;margin-bottom:-1px">🌐 Import thường</button>
         <button id="wsImpTab301" onclick="wsImpSwitchTab('301')" style="flex:1;padding:10px;font-size:13px;font-weight:500;border:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--text-muted);background:transparent;margin-bottom:-1px">🔀 Import 301</button>
       </div>
 
       <!-- NORMAL MODE -->
       <div id="wsImpPanelNormal">
-        <div style="font-size:12px;color:#8b949e;background:rgba(255,255,255,0.03);padding:10px 12px;border:1px solid #30363d;border-radius:6px;line-height:1.7">
+        <div style="font-size:12px;color:var(--t-fg-muted);background:rgba(255,255,255,0.03);padding:10px 12px;border:1px solid var(--t-border);border-radius:6px;line-height:1.7">
           <b>Dán danh sách URL</b> (mỗi dòng 1 URL) hoặc <b>upload file CSV/TXT</b><br>
           Định dạng CSV: <code>brand, url, admin, account, password, status, team, appwppass</code> (yêu cầu đầy đủ đến cột team, appwppass có thể để trống)
         </div>
         <div class="form-group" style="width:100%;margin-top:8px">
           <label>Dán danh sách URL / CSV</label>
-          <textarea id="wsImportText" rows="8" style="width:100%;font-size:12px;font-family:monospace;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px" placeholder="https://debets.sbs&#10;https://ggwin.llc&#10;..."></textarea>
+          <textarea id="wsImportText" rows="8" style="width:100%;font-size:12px;font-family:monospace;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:8px" placeholder="https://debets.sbs&#10;https://ggwin.llc&#10;..."></textarea>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
           <input type="file" id="wsImportFile" accept=".csv,.txt" style="display:none" onchange="wsImportReadFile(this)">
@@ -2344,12 +2346,12 @@
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
           <div class="form-group" style="margin:0">
-            <label style="font-weight:600;color:#f85149">🌐 Website gốc</label>
-            <textarea id="wsImport301Source" rows="8" style="width:100%;font-size:12px;font-family:monospace;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px" placeholder="debets.sbs&#10;ggwin.llc&#10;..."></textarea>
+            <label style="font-weight:600;color:var(--t-danger)">🌐 Website gốc</label>
+            <textarea id="wsImport301Source" rows="8" style="width:100%;font-size:12px;font-family:monospace;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:8px" placeholder="debets.sbs&#10;ggwin.llc&#10;..."></textarea>
           </div>
           <div class="form-group" style="margin:0">
             <label style="font-weight:600;color:#a29bfe">🔀 Website 301 mới</label>
-            <textarea id="wsImport301Target" rows="8" style="width:100%;font-size:12px;font-family:monospace;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px" placeholder="debets301.com&#10;ggwin301.net&#10;..."></textarea>
+            <textarea id="wsImport301Target" rows="8" style="width:100%;font-size:12px;font-family:monospace;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:8px" placeholder="debets301.com&#10;ggwin301.net&#10;..."></textarea>
           </div>
         </div>
       </div>
@@ -2358,7 +2360,7 @@
       <input type="hidden" id="wsImportTeam" value="Team 01">
       <input type="hidden" id="wsImportOwner" value="Công ty">
       <input type="hidden" id="wsImportStatus" value="Tốt">
-      <div id="wsImportPreview" style="max-height:140px;overflow-y:auto;font-size:12px;display:none;border:1px solid #30363d;border-radius:6px;padding:8px;background:#0d1117;color:#c9d1d9"></div>
+      <div id="wsImportPreview" style="max-height:140px;overflow-y:auto;font-size:12px;display:none;border:1px solid var(--t-border);border-radius:6px;padding:8px;background:var(--t-canvas);color:var(--t-fg)"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeWsImportModal()">Huỷ</button>
@@ -2554,59 +2556,59 @@
 
 <!-- QUICK IMPORT MODAL -->
 <div class="modal-overlay" id="quickImportModal" onclick="TaskImporter.close(event)" style="display:none">
-  <div class="modal" style="max-width:640px; background-color:#161b22; border:1px solid #30363d; color:#c9d1d9" onclick="event.stopPropagation()">
-    <div class="modal-header" style="border-bottom:1px solid #30363d">
-      <h3 style="color:#f0f6fc">&#128196; Nhập nhanh từ tin nhắn</h3>
-      <button class="modal-close" onclick="TaskImporter.close()" style="color:#8b949e">&times;</button>
+  <div class="modal" style="max-width:640px; background-color:var(--t-subtle); border:1px solid var(--t-border); color:var(--t-fg)" onclick="event.stopPropagation()">
+    <div class="modal-header" style="border-bottom:1px solid var(--t-border)">
+      <h3 style="color:var(--t-fg3)">&#128196; Nhập nhanh từ tin nhắn</h3>
+      <button class="modal-close" onclick="TaskImporter.close()" style="color:var(--t-fg-muted)">&times;</button>
     </div>
-    <div class="modal-body" style="gap:12px; color:#c9d1d9">
+    <div class="modal-body" style="gap:12px; color:var(--t-fg)">
 
       <!-- STEP 1: paste -->
       <div id="qi_step1">
         <div class="form-group" style="width:100%">
-          <label style="font-size:13px;font-weight:500;color:#c9d1d9">Dán nội dung tin nhắn / yêu cầu công việc vào đây</label>
+          <label style="font-size:13px;font-weight:500;color:var(--t-fg)">Dán nội dung tin nhắn / yêu cầu công việc vào đây</label>
           <textarea id="qi_input" rows="5" placeholder="VD:&#10;sv88.jp.net&#10;Thay logo" 
-            style="width:100%;font-size:13px;line-height:1.6;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9"></textarea>
+            style="width:100%;font-size:13px;line-height:1.6;background-color:var(--t-canvas);border:1px solid var(--t-border);color:var(--t-fg)"></textarea>
           <div id="qi_url_hint" 
-            style="display:none;margin-top:6px;font-size:12px;color:#58a6ff;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.3);border-radius:6px;padding:8px 12px">
+            style="display:none;margin-top:6px;font-size:12px;color:var(--t-accent);background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.3);border-radius:6px;padding:8px 12px">
             🔗 Chế độ URL: mỗi dòng là 1 URL. Các dòng không phải URL sẽ bị bỏ qua tự động.
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%">
           <div class="form-group">
-            <label style="color:#c9d1d9">Dạng task</label>
-            <select id="qi_dang" onchange="TaskImporter.onDangChange()" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+            <label style="color:var(--t-fg)">Dạng task</label>
+            <select id="qi_dang" onchange="TaskImporter.onDangChange()" style="width:100%;background-color:var(--t-canvas);border:1px solid var(--t-border);color:var(--t-fg)">
               <option value="text">📝 Text</option>
               <option value="url" selected>🔗 URL</option>
             </select>
           </div>
           <div class="form-group">
-            <label style="color:#c9d1d9">Giao cho</label>
-            <select id="qi_person" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9"><option value="">-- Chưa chọn --</option><option value="admin">Admin</option><option value="Khác">Khác</option></select>
+            <label style="color:var(--t-fg)">Giao cho</label>
+            <select id="qi_person" style="width:100%;background-color:var(--t-canvas);border:1px solid var(--t-border);color:var(--t-fg)"><option value="">-- Chưa chọn --</option><option value="admin">Admin</option><option value="Khác">Khác</option></select>
           </div>
           <div class="form-group">
-            <label style="color:#c9d1d9">Tên task (tùy chọn)</label>
-            <input type="text" id="qi_taskname" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9" placeholder="Để trống = tự phân tích">
+            <label style="color:var(--t-fg)">Tên task (tùy chọn)</label>
+            <input type="text" id="qi_taskname" style="width:100%;background-color:var(--t-canvas);border:1px solid var(--t-border);color:var(--t-fg)" placeholder="Để trống = tự phân tích">
           </div>
           <div class="form-group">
-            <label style="color:#c9d1d9">Ngày giao</label>
-            <input type="date" id="qi_from" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+            <label style="color:var(--t-fg)">Ngày giao</label>
+            <input type="date" id="qi_from" style="width:100%;background-color:var(--t-canvas);border:1px solid var(--t-border);color:var(--t-fg)">
           </div>
           <div class="form-group">
-            <label style="color:#c9d1d9">Deadline</label>
-            <input type="date" id="qi_deadline" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+            <label style="color:var(--t-fg)">Deadline</label>
+            <input type="date" id="qi_deadline" style="width:100%;background-color:var(--t-canvas);border:1px solid var(--t-border);color:var(--t-fg)">
           </div>
           <div class="form-group">
-            <label style="color:#c9d1d9">Ưu tiên</label>
-            <select id="qi_priority" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+            <label style="color:var(--t-fg)">Ưu tiên</label>
+            <select id="qi_priority" style="width:100%;background-color:var(--t-canvas);border:1px solid var(--t-border);color:var(--t-fg)">
               <option value="Bình thường">🟠 Bình thường</option>
               <option value="Cao">🔴 Cao</option>
               <option value="Thấp">🟢 Thấp</option>
             </select>
           </div>
           <div class="form-group" id="qi_team_row">
-            <label style="color:#c9d1d9">Team</label>
-            <select id="qi_team" style="width:100%;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9">
+            <label style="color:var(--t-fg)">Team</label>
+            <select id="qi_team" style="width:100%;background-color:var(--t-canvas);border:1px solid var(--t-border);color:var(--t-fg)">
               <option value="Team 01">Chaewon</option>
               <option value="Team 02">M7</option>
             </select>
@@ -2614,33 +2616,33 @@
         </div>
         <!-- BƯỚC THỦ CÔNG -->
         <div class="form-group" id="qi_steps_row" style="width:100%; margin-top:10px">
-          <label style="font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;color:#c9d1d9">
-            <span>Các bước thực hiện <span style="font-weight:400;color:#8b949e">(mỗi dòng 1 bước)</span></span>
-            <button onclick="TaskImporter.addDefaultSteps()" style="background:none;border:1px solid #30363d;border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;color:#8b949e">+ Bước mặc định</button>
+          <label style="font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;color:var(--t-fg)">
+            <span>Các bước thực hiện <span style="font-weight:400;color:var(--t-fg-muted)">(mỗi dòng 1 bước)</span></span>
+            <button onclick="TaskImporter.addDefaultSteps()" style="background:none;border:1px solid var(--t-border);border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;color:var(--t-fg-muted)">+ Bước mặc định</button>
           </label>
           <textarea id="qi_steps" rows="4" placeholder="VD:&#10;Viết trang chủ&#10;Thêm ảnh vào docs&#10;Thêm ảnh vào drive&#10;Thêm ảnh vào bài đăng" 
-            style="width:100%;font-size:12px;line-height:1.7;background-color:#0d1117;border:1px solid #30363d;color:#c9d1d9"></textarea>
+            style="width:100%;font-size:12px;line-height:1.7;background-color:var(--t-canvas);border:1px solid var(--t-border);color:var(--t-fg)"></textarea>
         </div>
         <div id="qi_error" style="color:var(--red);font-size:12px;display:none;margin-top:6px"></div>
       </div>
 
       <!-- STEP 2: preview parsed tasks -->
       <div id="qi_step2" style="display:none">
-        <div style="font-size:13px;font-weight:500;margin-bottom:10px;color:#c9d1d9">AI đã phân tích được <span id="qi_count" style="color:#58a6ff">0</span> task — kiểm tra trước khi thêm:</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px;color:var(--t-fg)">AI đã phân tích được <span id="qi_count" style="color:var(--t-accent)">0</span> task — kiểm tra trước khi thêm:</div>
         <div id="qi_preview" style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto"></div>
       </div>
 
-      <div id="qi_loading" style="display:none;text-align:center;padding:24px;color:#8b949e">
+      <div id="qi_loading" style="display:none;text-align:center;padding:24px;color:var(--t-fg-muted)">
         <div style="font-size:24px;margin-bottom:8px">&#129302;</div>
         <div style="font-size:13px">AI đang phân tích nội dung...</div>
       </div>
 
     </div>
-    <div class="modal-footer" style="border-top:1px solid #30363d">
-      <button class="btn btn-outline" onclick="TaskImporter.close()" style="background:transparent; border:none; color:#8b949e">Đóng</button>
-      <button class="btn btn-outline" id="qi_btn_back" style="display:none; background:transparent; border:none; color:#8b949e" onclick="TaskImporter.goBack()">&#8592; Nhập lại</button>
-      <button class="btn btn-primary" id="qi_btn_parse" onclick="TaskImporter.parse()" style="background-color:#21262d; border:1px solid #30363d; color:#c9d1d9">&#129302; Phân tích với AI</button>
-      <button class="btn btn-primary" id="qi_btn_parse_url" style="display:none; background-color:#21262d; border:1px solid #30363d; color:#c9d1d9" onclick="TaskImporter.parseUrl()">🔗 Nhận URL</button>
+    <div class="modal-footer" style="border-top:1px solid var(--t-border)">
+      <button class="btn btn-outline" onclick="TaskImporter.close()" style="background:transparent; border:none; color:var(--t-fg-muted)">Đóng</button>
+      <button class="btn btn-outline" id="qi_btn_back" style="display:none; background:transparent; border:none; color:var(--t-fg-muted)" onclick="TaskImporter.goBack()">&#8592; Nhập lại</button>
+      <button class="btn btn-primary" id="qi_btn_parse" onclick="TaskImporter.parse()" style="background-color:var(--t-muted); border:1px solid var(--t-border); color:var(--t-fg)">&#129302; Phân tích với AI</button>
+      <button class="btn btn-primary" id="qi_btn_parse_url" style="display:none; background-color:var(--t-muted); border:1px solid var(--t-border); color:var(--t-fg)" onclick="TaskImporter.parseUrl()">🔗 Nhận URL</button>
       <button class="btn btn-primary" id="qi_btn_add" style="display:none; background-color:#238636; border:none; color:#ffffff" onclick="TaskImporter.addAll()">&#43; Thêm tất cả vào Kanban</button>
     </div>
   </div>
@@ -2651,34 +2653,34 @@
 
 <!-- GSC DETAIL MODAL -->
 <div id="wstGscDetailModal" style="display:none; position:fixed; top:90px; left:210px; width:calc(100vw - 210px); height:calc(100vh - 90px); z-index:9999; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); justify-content:center; align-items:flex-start; overflow-y:auto;">
-  <div style="background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 12px; width: 95%; max-width: 1100px; height: calc(100vh - 110px); margin-top: 10px; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.5); overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <div style="background: var(--t-subtle); color: var(--t-fg); border: 1px solid var(--t-border); border-radius: 12px; width: 95%; max-width: 1100px; height: calc(100vh - 110px); margin-top: 10px; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.5); overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
     <!-- Header -->
-    <div style="padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; justify-content: space-between; background: #0d1117;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid var(--t-border); display: flex; align-items: center; justify-content: space-between; background: var(--t-canvas);">
       <div>
-        <h3 id="gscModalTitle" style="margin: 0; font-size: 16px; font-weight: 600; color: #f0f6fc;">Google Search Console Analytics</h3>
-        <div id="gscModalSubtitle" style="font-size: 11px; color: #8b949e; margin-top: 4px;"></div>
+        <h3 id="gscModalTitle" style="margin: 0; font-size: 16px; font-weight: 600; color: var(--t-fg3);">Google Search Console Analytics</h3>
+        <div id="gscModalSubtitle" style="font-size: 11px; color: var(--t-fg-muted); margin-top: 4px;"></div>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
         <button id="gscSyncBtn" onclick="wstSyncGscNow()" class="btn btn-sm" style="background: #238636; color: #fff; border: 1px solid rgba(240,246,252,0.1); border-radius: 6px; padding: 6px 12px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 500;">
           <span>🔁 Đồng bộ ngay</span>
         </button>
-        <button onclick="wstCloseGscModal()" style="background: none; border: none; color: #8b949e; font-size: 20px; cursor: pointer; padding: 4px;">&times;</button>
+        <button onclick="wstCloseGscModal()" style="background: none; border: none; color: var(--t-fg-muted); font-size: 20px; cursor: pointer; padding: 4px;">&times;</button>
       </div>
     </div>
     
     <!-- Controls & Tab bar -->
-    <div style="padding: 12px 20px; background: #0d1117; border-bottom: 1px solid #30363d; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div style="padding: 12px 20px; background: var(--t-canvas); border-bottom: 1px solid var(--t-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
       <!-- Tabs -->
-      <div style="display: flex; gap: 4px; background: #161b22; padding: 3px; border-radius: 6px; border: 1px solid #30363d;">
-        <button id="gscTabPerf" onclick="wstSwitchGscTab('perf')" style="background: #21262d; color: #fff; border: none; border-radius: 4px; padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">📊 Hiệu suất</button>
-        <button id="gscTabQueries" onclick="wstSwitchGscTab('queries')" style="background: transparent; color: #8b949e; border: none; border-radius: 4px; padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">🔍 Cụm từ tìm kiếm</button>
-        <button id="gscTabPages" onclick="wstSwitchGscTab('pages')" style="background: transparent; color: #8b949e; border: none; border-radius: 4px; padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">📄 Trang</button>
+      <div style="display: flex; gap: 4px; background: var(--t-subtle); padding: 3px; border-radius: 6px; border: 1px solid var(--t-border);">
+        <button id="gscTabPerf" onclick="wstSwitchGscTab('perf')" style="background: var(--t-muted); color: #fff; border: none; border-radius: 4px; padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">📊 Hiệu suất</button>
+        <button id="gscTabQueries" onclick="wstSwitchGscTab('queries')" style="background: transparent; color: var(--t-fg-muted); border: none; border-radius: 4px; padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">🔍 Cụm từ tìm kiếm</button>
+        <button id="gscTabPages" onclick="wstSwitchGscTab('pages')" style="background: transparent; color: var(--t-fg-muted); border: none; border-radius: 4px; padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;">📄 Trang</button>
       </div>
       
       <!-- Date Range select -->
       <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="font-size: 11px; color: #8b949e;">Khoảng thời gian:</span>
-        <select id="gscDateRange" onchange="wstChangeGscRange()" style="background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; outline: none;">
+        <span style="font-size: 11px; color: var(--t-fg-muted);">Khoảng thời gian:</span>
+        <select id="gscDateRange" onchange="wstChangeGscRange()" style="background: var(--t-muted); color: var(--t-fg); border: 1px solid var(--t-border); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; outline: none;">
           <option value="7d">7 ngày qua</option>
           <option value="28d" selected>28 ngày qua</option>
           <option value="3m">3 tháng qua</option>
@@ -2687,46 +2689,46 @@
     </div>
     
     <!-- Content Area -->
-    <div style="flex: 1; overflow-y: auto; padding: 20px; background: #0d1117; display: flex; flex-direction: column; gap: 20px;">
+    <div style="flex: 1; overflow-y: auto; padding: 20px; background: var(--t-canvas); display: flex; flex-direction: column; gap: 20px;">
       
       <!-- Summary metrics cards -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;" id="gscSummaryCards">
         <!-- Card: Clicks -->
-        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; text-align: center;">
-          <div style="font-size: 11px; color: #8b949e; margin-bottom: 4px;">Tổng số lượt nhấp</div>
-          <div id="gscSumClicks" style="font-size: 20px; font-weight: 700; color: #58a6ff;">—</div>
+        <div style="background: var(--t-subtle); border: 1px solid var(--t-border); border-radius: 8px; padding: 12px 16px; text-align: center;">
+          <div style="font-size: 11px; color: var(--t-fg-muted); margin-bottom: 4px;">Tổng số lượt nhấp</div>
+          <div id="gscSumClicks" style="font-size: 20px; font-weight: 700; color: var(--t-accent);">—</div>
         </div>
         <!-- Card: Impressions -->
-        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; text-align: center;">
-          <div style="font-size: 11px; color: #8b949e; margin-bottom: 4px;">Tổng số lượt hiển thị</div>
-          <div id="gscSumImpressions" style="font-size: 20px; font-weight: 700; color: #3fb950;">—</div>
+        <div style="background: var(--t-subtle); border: 1px solid var(--t-border); border-radius: 8px; padding: 12px 16px; text-align: center;">
+          <div style="font-size: 11px; color: var(--t-fg-muted); margin-bottom: 4px;">Tổng số lượt hiển thị</div>
+          <div id="gscSumImpressions" style="font-size: 20px; font-weight: 700; color: var(--t-success);">—</div>
         </div>
         <!-- Card: CTR -->
-        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; text-align: center;">
-          <div style="font-size: 11px; color: #8b949e; margin-bottom: 4px;">CTR trung bình</div>
+        <div style="background: var(--t-subtle); border: 1px solid var(--t-border); border-radius: 8px; padding: 12px 16px; text-align: center;">
+          <div style="font-size: 11px; color: var(--t-fg-muted); margin-bottom: 4px;">CTR trung bình</div>
           <div id="gscSumCtr" style="font-size: 20px; font-weight: 700; color: #f2a154;">—</div>
         </div>
         <!-- Card: Average Position -->
-        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; text-align: center;">
-          <div style="font-size: 11px; color: #8b949e; margin-bottom: 4px;">Vị trí trung bình</div>
-          <div id="gscSumPosition" style="font-size: 20px; font-weight: 700; color: #bc8cff;">—</div>
+        <div style="background: var(--t-subtle); border: 1px solid var(--t-border); border-radius: 8px; padding: 12px 16px; text-align: center;">
+          <div style="font-size: 11px; color: var(--t-fg-muted); margin-bottom: 4px;">Vị trí trung bình</div>
+          <div id="gscSumPosition" style="font-size: 20px; font-weight: 700; color: var(--t-done);">—</div>
         </div>
       </div>
       
       <!-- Panel: Performance (Chart.js) -->
-      <div id="gscPanelPerf" style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; height: 350px; position: relative;">
+      <div id="gscPanelPerf" style="background: var(--t-subtle); border: 1px solid var(--t-border); border-radius: 8px; padding: 16px; height: 350px; position: relative;">
         <canvas id="gscChart" style="width: 100%; height: 100%;"></canvas>
-        <div id="gscChartLoading" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,27,34,0.85); display: flex; align-items: center; justify-content: center; font-size: 13px; color: #8b949e; border-radius: 8px;">
+        <div id="gscChartLoading" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22,27,34,0.85); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--t-fg-muted); border-radius: 8px;">
           ⏳ Đang tải biểu đồ dữ liệu...
         </div>
       </div>
       
       <!-- Panel: Queries Table -->
-      <div id="gscPanelQueries" style="display: none; background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden;">
+      <div id="gscPanelQueries" style="display: none; background: var(--t-subtle); border: 1px solid var(--t-border); border-radius: 8px; overflow: hidden;">
         <div style="max-height: 450px; overflow-y: auto;">
           <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px;">
             <thead>
-              <tr style="background: #21262d; border-bottom: 1px solid #30363d; color: #8b949e;">
+              <tr style="background: var(--t-muted); border-bottom: 1px solid var(--t-border); color: var(--t-fg-muted);">
                 <th style="padding: 10px 16px;">Cụm từ tìm kiếm</th>
                 <th style="padding: 10px 16px; text-align: right;">Số lượt nhấp</th>
                 <th style="padding: 10px 16px; text-align: right;">Số lượt hiển thị</th>
@@ -2736,7 +2738,7 @@
             </thead>
             <tbody id="gscQueriesTbody">
               <tr>
-                <td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Đang tải danh sách từ khóa...</td>
+                <td colspan="5" style="padding: 24px; text-align: center; color: var(--t-fg-muted);">Đang tải danh sách từ khóa...</td>
               </tr>
             </tbody>
           </table>
@@ -2744,11 +2746,11 @@
       </div>
       
       <!-- Panel: Pages Table -->
-      <div id="gscPanelPages" style="display: none; background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden;">
+      <div id="gscPanelPages" style="display: none; background: var(--t-subtle); border: 1px solid var(--t-border); border-radius: 8px; overflow: hidden;">
         <div style="max-height: 450px; overflow-y: auto;">
           <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12px;">
             <thead>
-              <tr style="background: #21262d; border-bottom: 1px solid #30363d; color: #8b949e;">
+              <tr style="background: var(--t-muted); border-bottom: 1px solid var(--t-border); color: var(--t-fg-muted);">
                 <th style="padding: 10px 16px;">Trang</th>
                 <th style="padding: 10px 16px; text-align: right;">Số lượt nhấp</th>
                 <th style="padding: 10px 16px; text-align: right;">Số lượt hiển thị</th>
@@ -2758,7 +2760,7 @@
             </thead>
             <tbody id="gscPagesTbody">
               <tr>
-                <td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Đang tải danh sách trang...</td>
+                <td colspan="5" style="padding: 24px; text-align: center; color: var(--t-fg-muted);">Đang tải danh sách trang...</td>
               </tr>
             </tbody>
           </table>
@@ -2780,8 +2782,8 @@
     #wstDashboardModalContainer .wst-modal {
       position: fixed;
       top: 8px; left: 8px; right: 8px; bottom: 8px;
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: var(--t-subtle);
+      border: 1px solid var(--t-border);
       border-radius: 14px;
       overflow: hidden;
       box-shadow: 0 20px 60px rgba(0,0,0,.7);
@@ -2795,99 +2797,99 @@
     #wstDashboardModalContainer .wst-cm-host .modal-body { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
     #wstWriterOverlay { z-index: 100001; }
     /* Tab con (Hiệu suất / Vận hành) trong Dashboard từng site */
-    #wstDashboardModalContainer .wst-sub { flex-shrink: 0; display: flex; gap: 6px; padding: 8px 16px; background: #0d1117; border-bottom: 1px solid #21262d; overflow-x: auto; }
-    #wstDashboardModalContainer .wst-sub-btn { padding: 4px 12px; font-size: 11px; font-weight: 600; border-radius: 14px; border: 1px solid #30363d; background: transparent; color: #8b949e; cursor: pointer; white-space: nowrap; font-family: inherit; }
-    #wstDashboardModalContainer .wst-sub-btn:hover { color: #c9d1d9; }
-    #wstDashboardModalContainer .wst-sub-btn.on { background: rgba(31,111,235,.2); border-color: #58a6ff; color: #e6edf3; }
+    #wstDashboardModalContainer .wst-sub { flex-shrink: 0; display: flex; gap: 6px; padding: 8px 16px; background: var(--t-canvas); border-bottom: 1px solid var(--t-muted); overflow-x: auto; }
+    #wstDashboardModalContainer .wst-sub-btn { padding: 4px 12px; font-size: 11px; font-weight: 600; border-radius: 14px; border: 1px solid var(--t-border); background: transparent; color: var(--t-fg-muted); cursor: pointer; white-space: nowrap; font-family: inherit; }
+    #wstDashboardModalContainer .wst-sub-btn:hover { color: var(--t-fg); }
+    #wstDashboardModalContainer .wst-sub-btn.on { background: rgba(31,111,235,.2); border-color: var(--t-accent); color: var(--t-fg2); }
     #wstDashboardModalContainer .mh {
-      flex-shrink: 0; padding: 14px 18px; background: #0d1117; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0; padding: 14px 18px; background: var(--t-canvas); border-bottom: 1px solid var(--t-muted); display: flex; align-items: center; gap: 12px;
     }
     #wstDashboardModalContainer .mh-icon {
       width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg,#1a7f37,#2ea043); display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
     }
     #wstDashboardModalContainer .mh-info { flex: 1; min-width: 0; }
-    #wstDashboardModalContainer .mh-name { font-weight: 700; font-size: 14px; color: #e6edf3; }
-    #wstDashboardModalContainer .mh-url { font-size: 11px; color: #58a6ff; margin-top: 1px; }
+    #wstDashboardModalContainer .mh-name { font-weight: 700; font-size: 14px; color: var(--t-fg2); }
+    #wstDashboardModalContainer .mh-url { font-size: 11px; color: var(--t-accent); margin-top: 1px; }
     #wstDashboardModalContainer .mh-tags { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
     #wstDashboardModalContainer .tag { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 20px; white-space: nowrap; }
-    #wstDashboardModalContainer .tg { background: #1a7f3720; color: #3fb950; border: 1px solid #1a7f3740; }
-    #wstDashboardModalContainer .tb { background: #1158bd20; color: #58a6ff; border: 1px solid #1158bd40; }
-    #wstDashboardModalContainer .tp { background: #6e40c920; color: #bc8cff; border: 1px solid #6e40c940; }
-    #wstDashboardModalContainer .to { background: #9e640020; color: #d29922; border: 1px solid #9e640040; }
+    #wstDashboardModalContainer .tg { background: #1a7f3720; color: var(--t-success); border: 1px solid #1a7f3740; }
+    #wstDashboardModalContainer .tb { background: #1158bd20; color: var(--t-accent); border: 1px solid #1158bd40; }
+    #wstDashboardModalContainer .tp { background: #6e40c920; color: var(--t-done); border: 1px solid #6e40c940; }
+    #wstDashboardModalContainer .to { background: #9e640020; color: var(--t-warn); border: 1px solid #9e640040; }
     #wstDashboardModalContainer .btn-x {
-      width: 28px; height: 28px; border-radius: 6px; border: 1px solid #30363d; background: transparent; color: #8b949e; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s;
+      width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--t-border); background: transparent; color: var(--t-fg-muted); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s;
     }
-    #wstDashboardModalContainer .btn-x:hover { background: #21262d; color: #e6edf3; }
+    #wstDashboardModalContainer .btn-x:hover { background: var(--t-muted); color: var(--t-fg2); }
     
     #wstDashboardModalContainer .ms {
-      flex-shrink: 0; display: grid; grid-template-columns: repeat(5, 1fr); background: #0d1117; border-bottom: 1px solid #21262d;
+      flex-shrink: 0; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--t-canvas); border-bottom: 1px solid var(--t-muted);
     }
     #wstDashboardModalContainer .si {
-      padding: 10px 12px; border-right: 1px solid #21262d; display: flex; flex-direction: column; justify-content: center;
+      padding: 10px 12px; border-right: 1px solid var(--t-muted); display: flex; flex-direction: column; justify-content: center;
     }
     #wstDashboardModalContainer .si:last-child { border-right: none; }
-    #wstDashboardModalContainer .sl { font-size: 9px; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; text-align: center; }
+    #wstDashboardModalContainer .sl { font-size: 9px; color: var(--t-fg-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; text-align: center; }
     #wstDashboardModalContainer .sv-group { display: flex; justify-content: space-around; align-items: baseline; gap: 8px; }
     #wstDashboardModalContainer .sv-item { display: flex; flex-direction: column; align-items: center; }
     #wstDashboardModalContainer .sv-num { font-size: 15px; font-weight: 800; }
-    #wstDashboardModalContainer .sv-source { font-size: 8px; color: #8b949e; text-transform: uppercase; margin-top: 1px; }
-    #wstDashboardModalContainer .cb { color: #58a6ff; }
-    #wstDashboardModalContainer .cg { color: #3fb950; }
-    #wstDashboardModalContainer .co { color: #d29922; }
-    #wstDashboardModalContainer .cp { color: #bc8cff; }
+    #wstDashboardModalContainer .sv-source { font-size: 8px; color: var(--t-fg-muted); text-transform: uppercase; margin-top: 1px; }
+    #wstDashboardModalContainer .cb { color: var(--t-accent); }
+    #wstDashboardModalContainer .cg { color: var(--t-success); }
+    #wstDashboardModalContainer .co { color: var(--t-warn); }
+    #wstDashboardModalContainer .cp { color: var(--t-done); }
     #wstDashboardModalContainer .cbing { color: #008373; }
-    #wstDashboardModalContainer .up { color: #3fb950; font-size: 9px; }
-    #wstDashboardModalContainer .dn { color: #f85149; font-size: 9px; }
+    #wstDashboardModalContainer .up { color: var(--t-success); font-size: 9px; }
+    #wstDashboardModalContainer .dn { color: var(--t-danger); font-size: 9px; }
 
     #wstDashboardModalContainer .mt {
-      flex-shrink: 0; display: flex; gap: 2px; padding: 7px 16px 0; background: #0d1117; border-bottom: 1px solid #21262d; overflow-x: auto;
+      flex-shrink: 0; display: flex; gap: 2px; padding: 7px 16px 0; background: var(--t-canvas); border-bottom: 1px solid var(--t-muted); overflow-x: auto;
     }
     #wstDashboardModalContainer .mt::-webkit-scrollbar { height: 0; }
     #wstDashboardModalContainer .tb-btn {
-      padding: 6px 14px; font-size: 12px; font-weight: 600; border: none; background: transparent; color: #8b949e; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; font-family: inherit; transition: color .15s; display: flex; align-items: center; gap: 5px;
+      padding: 6px 14px; font-size: 12px; font-weight: 600; border: none; background: transparent; color: var(--t-fg-muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; font-family: inherit; transition: color .15s; display: flex; align-items: center; gap: 5px;
     }
-    #wstDashboardModalContainer .tb-btn:hover { color: #c9d1d9; }
-    #wstDashboardModalContainer .tb-btn.on { color: #e6edf3; border-bottom-color: #58a6ff; }
+    #wstDashboardModalContainer .tb-btn:hover { color: var(--t-fg); }
+    #wstDashboardModalContainer .tb-btn.on { color: var(--t-fg2); border-bottom-color: var(--t-accent); }
 
-    #wstDashboardModalContainer .mc { flex: 1; min-height: 0; position: relative; overflow: hidden; background: #161b22; }
+    #wstDashboardModalContainer .mc { flex: 1; min-height: 0; position: relative; overflow: hidden; background: var(--t-subtle); }
     #wstDashboardModalContainer .tp-panel {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow-y: auto; padding: 16px 18px; display: none;
     }
     #wstDashboardModalContainer .tp-panel::-webkit-scrollbar { width: 4px; }
-    #wstDashboardModalContainer .tp-panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+    #wstDashboardModalContainer .tp-panel::-webkit-scrollbar-thumb { background: var(--t-border); border-radius: 2px; }
     #wstDashboardModalContainer .tp-panel.on { display: block; }
 
     #wstDashboardModalContainer .mf {
-      flex-shrink: 0; padding: 9px 16px; background: #0d1117; border-top: 1px solid #21262d; display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0; padding: 9px 16px; background: var(--t-canvas); border-top: 1px solid var(--t-muted); display: flex; align-items: center; justify-content: space-between;
     }
-    #wstDashboardModalContainer .mf-info { font-size: 10px; color: #8b949e; }
+    #wstDashboardModalContainer .mf-info { font-size: 10px; color: var(--t-fg-muted); }
     #wstDashboardModalContainer .mf-btns { display: flex; gap: 6px; }
     #wstDashboardModalContainer .btn {
       display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: all .15s;
     }
     #wstDashboardModalContainer .btn-g { background: #238636; color: #fff; }
     #wstDashboardModalContainer .btn-g:hover { background: #2ea043; }
-    #wstDashboardModalContainer .btn-o { background: transparent; border: 1px solid #30363d; color: #c9d1d9; }
-    #wstDashboardModalContainer .btn-o:hover { border-color: #58a6ff; color: #58a6ff; }
-    #wstDashboardModalContainer .btn-d { background: transparent; border: 1px solid #f8514940; color: #f85149; }
+    #wstDashboardModalContainer .btn-o { background: transparent; border: 1px solid var(--t-border); color: var(--t-fg); }
+    #wstDashboardModalContainer .btn-o:hover { border-color: var(--t-accent); color: var(--t-accent); }
+    #wstDashboardModalContainer .btn-d { background: transparent; border: 1px solid #f8514940; color: var(--t-danger); }
     #wstDashboardModalContainer .btn-d:hover { background: #f8514918; }
 
     #wstDashboardModalContainer .sh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
-    #wstDashboardModalContainer .st-title { font-size: 13px; font-weight: 700; color: #e6edf3; }
+    #wstDashboardModalContainer .st-title { font-size: 13px; font-weight: 700; color: var(--t-fg2); }
     #wstDashboardModalContainer .btn-a {
       font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 6px; border: 1px solid #238636; background: #238636; color: #fff; cursor: pointer; font-family: inherit; transition: all .15s;
     }
     #wstDashboardModalContainer .btn-a:hover { background: #2ea043; }
 
     #wstDashboardModalContainer table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    #wstDashboardModalContainer thead tr { background: #0d1117; }
+    #wstDashboardModalContainer thead tr { background: var(--t-canvas); }
     #wstDashboardModalContainer th {
-      padding: 7px 9px; text-align: left; font-size: 9px; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid #21262d;
+      padding: 7px 9px; text-align: left; font-size: 9px; font-weight: 700; color: var(--t-fg-muted); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--t-muted);
     }
     #wstDashboardModalContainer th.c { text-align: center; }
-    #wstDashboardModalContainer td { padding: 8px 9px; border-bottom: 1px solid #21262d; color: #c9d1d9; vertical-align: middle; }
+    #wstDashboardModalContainer td { padding: 8px 9px; border-bottom: 1px solid var(--t-muted); color: var(--t-fg); vertical-align: middle; }
     #wstDashboardModalContainer tr:last-child td { border-bottom: none; }
-    #wstDashboardModalContainer tr:hover td { background: #1c2128; }
+    #wstDashboardModalContainer tr:hover td { background: var(--t-subtle3); }
     #wstDashboardModalContainer td.c { text-align: center; }
 
     #wstDashboardModalContainer .rank-container {
@@ -2896,61 +2898,61 @@
     #wstDashboardModalContainer .rb {
       display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 24px; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 12px;
     }
-    #wstDashboardModalContainer .r1 { background: #9e640030; color: #d29922; }
-    #wstDashboardModalContainer .r2 { background: #1158bd20; color: #58a6ff; }
-    #wstDashboardModalContainer .r3 { background: #6e40c920; color: #bc8cff; }
+    #wstDashboardModalContainer .r1 { background: #9e640030; color: var(--t-warn); }
+    #wstDashboardModalContainer .r2 { background: #1158bd20; color: var(--t-accent); }
+    #wstDashboardModalContainer .r3 { background: #6e40c920; color: var(--t-done); }
     #wstDashboardModalContainer .dt { position: absolute; right: 0; font-size: 9px; font-weight: bold; }
 
     #wstDashboardModalContainer .ib { font-size: 10px; padding: 2px 6px; border-radius: 10px; }
-    #wstDashboardModalContainer .iy { background: #1a7f3720; color: #3fb950; }
-    #wstDashboardModalContainer .in { background: #f8514920; color: #f85149; }
-    #wstDashboardModalContainer .ip { background: #9e640020; color: #d29922; }
-    #wstDashboardModalContainer .kw { background: #1c2128; border: 1px solid #30363d; border-radius: 3px; padding: 2px 6px; font-size: 10px; color: #c9d1d9; }
-    #wstDashboardModalContainer .dbtn { background: none; border: none; cursor: pointer; color: #8b949e; font-size: 11px; }
+    #wstDashboardModalContainer .iy { background: #1a7f3720; color: var(--t-success); }
+    #wstDashboardModalContainer .in { background: #f8514920; color: var(--t-danger); }
+    #wstDashboardModalContainer .ip { background: #9e640020; color: var(--t-warn); }
+    #wstDashboardModalContainer .kw { background: var(--t-subtle3); border: 1px solid var(--t-border); border-radius: 3px; padding: 2px 6px; font-size: 10px; color: var(--t-fg); }
+    #wstDashboardModalContainer .dbtn { background: none; border: none; cursor: pointer; color: var(--t-fg-muted); font-size: 11px; }
 
     #wstDashboardModalContainer .gsc-g { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 13px; }
-    #wstDashboardModalContainer .gsc-c { background: #0d1117; border: 1px solid #21262d; border-radius: 9px; padding: 11px; }
-    #wstDashboardModalContainer .gc-l { font-size: 9px; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    #wstDashboardModalContainer .gsc-c { background: var(--t-canvas); border: 1px solid var(--t-muted); border-radius: 9px; padding: 11px; }
+    #wstDashboardModalContainer .gc-l { font-size: 9px; color: var(--t-fg-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
     #wstDashboardModalContainer .gc-v { font-size: 22px; font-weight: 800; margin-top: 4px; }
-    #wstDashboardModalContainer .gc-t { font-size: 10px; color: #8b949e; margin-top: 2px; }
+    #wstDashboardModalContainer .gc-t { font-size: 10px; color: var(--t-fg-muted); margin-top: 2px; }
     #wstDashboardModalContainer .spark { margin-top: 7px; height: 28px; display: flex; align-items: flex-end; gap: 2px; }
     #wstDashboardModalContainer .bar { flex: 1; border-radius: 2px 2px 0 0; min-width: 2px; }
 
     #wstDashboardModalContainer .tl { position: relative; padding-left: 16px; }
-    #wstDashboardModalContainer .tl::before { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: #21262d; }
-    #wstDashboardModalContainer .tli { position: relative; padding: 9px 0 9px 16px; border-bottom: 1px dashed #21262d; }
+    #wstDashboardModalContainer .tl::before { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--t-muted); }
+    #wstDashboardModalContainer .tli { position: relative; padding: 9px 0 9px 16px; border-bottom: 1px dashed var(--t-muted); }
     #wstDashboardModalContainer .tli:last-child { border-bottom: none; }
-    #wstDashboardModalContainer .tld { position: absolute; left: -16px; top: 13px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid #d29922; background: #0d1117; }
-    #wstDashboardModalContainer .tl-date { font-size: 10px; color: #8b949e; margin-bottom: 3px; }
-    #wstDashboardModalContainer .tl-main { font-size: 12px; color: #c9d1d9; font-weight: 600; }
-    #wstDashboardModalContainer .tl-url { font-size: 10px; color: #58a6ff; margin-top: 2px; }
+    #wstDashboardModalContainer .tld { position: absolute; left: -16px; top: 13px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--t-warn); background: var(--t-canvas); }
+    #wstDashboardModalContainer .tl-date { font-size: 10px; color: var(--t-fg-muted); margin-bottom: 3px; }
+    #wstDashboardModalContainer .tl-main { font-size: 12px; color: var(--t-fg); font-weight: 600; }
+    #wstDashboardModalContainer .tl-url { font-size: 10px; color: var(--t-accent); margin-top: 2px; }
     #wstDashboardModalContainer .tl-tags { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
 
     #wstDashboardModalContainer .sc-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 14px; }
-    #wstDashboardModalContainer .sc-c { background: #0d1117; border: 1px solid #21262d; border-radius: 9px; padding: 11px; }
-    #wstDashboardModalContainer .sc-l { font-size: 9px; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    #wstDashboardModalContainer .sc-c { background: var(--t-canvas); border: 1px solid var(--t-muted); border-radius: 9px; padding: 11px; }
+    #wstDashboardModalContainer .sc-l { font-size: 9px; color: var(--t-fg-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
     #wstDashboardModalContainer .sc-v { font-size: 20px; font-weight: 800; margin-top: 3px; }
 
     #wstDashboardModalContainer .plan-container { display: flex; gap: 16px; height: 100%; overflow: hidden; }
     #wstDashboardModalContainer .kanban-board { flex: 7; display: flex; gap: 10px; height: 100%; }
-    #wstDashboardModalContainer .kanban-col { flex: 1; background: #0d1117; border: 1px solid #21262d; border-radius: 8px; display: flex; flex-direction: column; max-height: 100%; }
-    #wstDashboardModalContainer .kb-header { padding: 10px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #8b949e; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center; }
-    #wstDashboardModalContainer .kb-count { background: #30363d; color: #e6edf3; font-size: 9px; padding: 1px 6px; border-radius: 10px; }
+    #wstDashboardModalContainer .kanban-col { flex: 1; background: var(--t-canvas); border: 1px solid var(--t-muted); border-radius: 8px; display: flex; flex-direction: column; max-height: 100%; }
+    #wstDashboardModalContainer .kb-header { padding: 10px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--t-fg-muted); border-bottom: 1px solid var(--t-muted); display: flex; justify-content: space-between; align-items: center; }
+    #wstDashboardModalContainer .kb-count { background: var(--t-border); color: var(--t-fg2); font-size: 9px; padding: 1px 6px; border-radius: 10px; }
     #wstDashboardModalContainer .kb-list { padding: 10px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-    #wstDashboardModalContainer .kb-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 10px; font-size: 11px; cursor: grab; transition: border-color .15s; }
-    #wstDashboardModalContainer .kb-card:hover { border-color: #58a6ff; }
-    #wstDashboardModalContainer .kb-title { font-weight: 600; color: #e6edf3; margin-bottom: 4px; }
-    #wstDashboardModalContainer .kb-desc { color: #8b949e; line-height: 1.4; margin-bottom: 6px; }
-    #wstDashboardModalContainer .kb-meta { display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #8b949e; }
+    #wstDashboardModalContainer .kb-card { background: var(--t-subtle); border: 1px solid var(--t-border); border-radius: 6px; padding: 10px; font-size: 11px; cursor: grab; transition: border-color .15s; }
+    #wstDashboardModalContainer .kb-card:hover { border-color: var(--t-accent); }
+    #wstDashboardModalContainer .kb-title { font-weight: 600; color: var(--t-fg2); margin-bottom: 4px; }
+    #wstDashboardModalContainer .kb-desc { color: var(--t-fg-muted); line-height: 1.4; margin-bottom: 6px; }
+    #wstDashboardModalContainer .kb-meta { display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: var(--t-fg-muted); }
     #wstDashboardModalContainer .kb-priority { padding: 1px 5px; border-radius: 3px; font-weight: 600; }
-    #wstDashboardModalContainer .prio-high { background: #f8514920; color: #f85149; }
-    #wstDashboardModalContainer .prio-med  { background: #d2992220; color: #d29922; }
-    #wstDashboardModalContainer .prio-low  { background: #3fb95020; color: #3fb950; }
+    #wstDashboardModalContainer .prio-high { background: #f8514920; color: var(--t-danger); }
+    #wstDashboardModalContainer .prio-med  { background: #d2992220; color: var(--t-warn); }
+    #wstDashboardModalContainer .prio-low  { background: #3fb95020; color: var(--t-success); }
 
-    #wstDashboardModalContainer .strategy-panel { flex: 3; background: #0d1117; border: 1px solid #21262d; border-radius: 8px; display: flex; flex-direction: column; padding: 12px; }
-    #wstDashboardModalContainer .sp-title { font-size: 12px; font-weight: 700; color: #e6edf3; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-    #wstDashboardModalContainer .sp-textarea { flex: 1; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; padding: 10px; font-size: 12px; line-height: 1.5; resize: none; font-family: inherit; }
-    #wstDashboardModalContainer .sp-textarea:focus { outline: none; border-color: #58a6ff; }
+    #wstDashboardModalContainer .strategy-panel { flex: 3; background: var(--t-canvas); border: 1px solid var(--t-muted); border-radius: 8px; display: flex; flex-direction: column; padding: 12px; }
+    #wstDashboardModalContainer .sp-title { font-size: 12px; font-weight: 700; color: var(--t-fg2); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    #wstDashboardModalContainer .sp-textarea { flex: 1; background: var(--t-subtle); border: 1px solid var(--t-border); border-radius: 6px; color: var(--t-fg); padding: 10px; font-size: 12px; line-height: 1.5; resize: none; font-family: inherit; }
+    #wstDashboardModalContainer .sp-textarea:focus { outline: none; border-color: var(--t-accent); }
   </style>
   <div class="wst-modal" id="wstDashboardModal">
     <!-- Nội dung Modal sẽ được Javascript render động theo từng Website -->
@@ -2959,9 +2961,9 @@
 
 <!-- POPUP NHẬP LÝ DO PENDING CHO KANBAN (CÔ LẬP KHÔNG DÙNG CHUNG) -->
 <div id="wstPendingModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:999999; align-items:center; justify-content:center;">
-  <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; width:360px; box-shadow:0 8px 32px rgba(0,0,0,.5);">
-    <div style="font-weight:700; font-size:14px; color:#e6edf3; margin-bottom:10px;">⏳ Lý do hoãn (Pending Reason)</div>
-    <textarea id="wstPendingReasonText" style="width:100%; height:80px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#c9d1d9; padding:8px; font-size:12px; resize:none; font-family:inherit; outline:none;" placeholder="Nhập lý do hoãn thẻ công việc này..."></textarea>
+  <div style="background:var(--t-subtle); border:1px solid var(--t-border); border-radius:12px; padding:20px; width:360px; box-shadow:0 8px 32px rgba(0,0,0,.5);">
+    <div style="font-weight:700; font-size:14px; color:var(--t-fg2); margin-bottom:10px;">⏳ Lý do hoãn (Pending Reason)</div>
+    <textarea id="wstPendingReasonText" style="width:100%; height:80px; background:var(--t-canvas); border:1px solid var(--t-border); border-radius:6px; color:var(--t-fg); padding:8px; font-size:12px; resize:none; font-family:inherit; outline:none;" placeholder="Nhập lý do hoãn thẻ công việc này..."></textarea>
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
       <button class="btn btn-o" onclick="wstCancelPendingDrop()" style="font-size:11px; padding:4px 10px;">Hủy</button>
       <button class="btn btn-g" onclick="wstSubmitPendingDrop()" style="font-size:11px; padding:4px 10px;">Xác nhận</button>
@@ -2996,7 +2998,7 @@
     <div class="modal-body" style="padding:16px;overflow:auto;flex:1;min-height:0">
       <table class="table" style="width:100%;border-collapse:collapse;margin-top:10px">
         <thead>
-          <tr style="border-bottom:2px solid #30363d">
+          <tr style="border-bottom:2px solid var(--t-border)">
             <th style="padding:8px;text-align:left;font-size:12px;color:var(--text-muted);white-space:nowrap">WEBSITE</th>
             <th style="padding:8px;text-align:left;font-size:12px;color:var(--text-muted);width:45%">MÃ HTML</th>
             <th style="padding:8px;text-align:center;font-size:12px;color:var(--text-muted);white-space:nowrap">XÁC MINH</th>
@@ -3008,9 +3010,9 @@
         </tbody>
       </table>
     </div>
-    <div class="modal-footer" style="padding:12px 16px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #30363d">
+    <div class="modal-footer" style="padding:12px 16px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--t-border)">
       <button class="btn btn-outline" onclick="closeWstAddGscFormModal()">Hủy</button>
-      <button class="btn btn-primary" id="wstGetGscCodeBtn" onclick="wstGetGscHtmlCodesBulk()" style="background:#f2a154;border-color:#e5893c;color:#0d1117;font-weight:700">Lấy mã</button>
+      <button class="btn btn-primary" id="wstGetGscCodeBtn" onclick="wstGetGscHtmlCodesBulk()" style="background:#f2a154;border-color:#e5893c;color:var(--t-canvas);font-weight:700">Lấy mã</button>
       <button class="btn btn-primary" onclick="wstSubmitAddGscBulk()">Xác nhận</button>
     </div>
   </div>
@@ -3020,18 +3022,18 @@
 
     <!-- MODAL QUẢN LÝ LỆNH 301 -->
     <div class="modal-overlay" id="wstRedirect301Modal" onclick="if(event.target===this)wstCloseRedirect301Modal()" style="display:none">
-        <div class="modal-body" style="width:750px; max-width:95%; padding:20px; border-radius:8px; background:#161b22; color:#c9d1d9; border:1px solid #30363d;">
-            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #30363d; padding-bottom:10px; margin-bottom:15px;">
-                <h3 style="margin:0; font-size:16px; color:#f0f6fc;">🔗 Quản Lý Lệnh 301</h3>
-                <button class="modal-close" onclick="wstCloseRedirect301Modal()" style="background:none; border:none; color:#8b949e; font-size:20px; cursor:pointer;">&times;</button>
+        <div class="modal-body" style="width:750px; max-width:95%; padding:20px; border-radius:8px; background:var(--t-subtle); color:var(--t-fg); border:1px solid var(--t-border);">
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--t-border); padding-bottom:10px; margin-bottom:15px;">
+                <h3 style="margin:0; font-size:16px; color:var(--t-fg3);">🔗 Quản Lý Lệnh 301</h3>
+                <button class="modal-close" onclick="wstCloseRedirect301Modal()" style="background:none; border:none; color:var(--t-fg-muted); font-size:20px; cursor:pointer;">&times;</button>
             </div>
             
             <!-- Form Tạo Lệnh -->
-            <div style="background:#0d1117; border:1px solid #30363d; padding:15px; border-radius:6px; margin-bottom:20px;">
-                <h4 style="margin-top:0; margin-bottom:10px; font-size:13px; color:#f0f6fc;">➕ Tạo Lệnh 301 Mới</h4>
+            <div style="background:var(--t-canvas); border:1px solid var(--t-border); padding:15px; border-radius:6px; margin-bottom:20px;">
+                <h4 style="margin-top:0; margin-bottom:10px; font-size:13px; color:var(--t-fg3);">➕ Tạo Lệnh 301 Mới</h4>
                 <div style="display:flex; gap:10px; align-items:center;">
                     <div style="flex-grow:1;">
-                        <input type="text" id="wst301DestUrl" placeholder="Nhập website đích (ví dụ: https://site-target.com)..." style="width:100%; padding:8px 12px; border:1px solid #30363d; border-radius:6px; background:#0d1117; color:#c9d1d9; font-size:13px;">
+                        <input type="text" id="wst301DestUrl" placeholder="Nhập website đích (ví dụ: https://site-target.com)..." style="width:100%; padding:8px 12px; border:1px solid var(--t-border); border-radius:6px; background:var(--t-canvas); color:var(--t-fg); font-size:13px;">
                     </div>
                     <button id="wst301SubmitBtn" class="btn btn-primary" style="background:#238636 !important; border-color:#2ea44f !important; color:#fff !important; height: 34px;" onclick="wstCreateRedirect301()">Tạo lệnh 301</button>
                     <button id="wst301TplBtn" class="btn" style="display:none; background:#1f6feb !important; border-color:#1f6feb !important; color:#fff !important; height:34px; white-space:nowrap;" onclick="wst301OpenTemplate()" title="Mẫu 301 của nhóm (dùng website đích đang nhập, trống thì lấy lệnh mới nhất)">📝 MẪU 301</button>
@@ -3039,17 +3041,17 @@
             </div>
 
             <!-- Bảng Danh Sách Lệnh -->
-            <h4 style="margin-top:0; margin-bottom:10px; font-size:13px; color:#f0f6fc;">📋 Danh Sách Lệnh Đang Chạy</h4>
-            <div style="max-height:280px; overflow-y:auto; border:1px solid #30363d; border-radius:6px;">
+            <h4 style="margin-top:0; margin-bottom:10px; font-size:13px; color:var(--t-fg3);">📋 Danh Sách Lệnh Đang Chạy</h4>
+            <div style="max-height:280px; overflow-y:auto; border:1px solid var(--t-border); border-radius:6px;">
                 <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
                     <thead>
-                        <tr style="background:#161b22; border-bottom:1px solid #30363d;">
-                            <th style="padding:10px; color:#8b949e;">Ngày tạo</th>
-                            <th style="padding:10px; color:#8b949e;">Website gốc</th>
-                            <th style="padding:10px; color:#8b949e;">Source</th>
-                            <th style="padding:10px; color:#8b949e;">Đích</th>
-                            <th style="padding:10px; color:#8b949e; text-align:center;">Trạng thái</th>
-                            <th style="padding:10px; color:#8b949e; text-align:center;">Thao tác</th>
+                        <tr style="background:var(--t-subtle); border-bottom:1px solid var(--t-border);">
+                            <th style="padding:10px; color:var(--t-fg-muted);">Ngày tạo</th>
+                            <th style="padding:10px; color:var(--t-fg-muted);">Website gốc</th>
+                            <th style="padding:10px; color:var(--t-fg-muted);">Source</th>
+                            <th style="padding:10px; color:var(--t-fg-muted);">Đích</th>
+                            <th style="padding:10px; color:var(--t-fg-muted); text-align:center;">Trạng thái</th>
+                            <th style="padding:10px; color:var(--t-fg-muted); text-align:center;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="wst301TableBody">
@@ -3061,25 +3063,25 @@
     </div>
 
 <div class="modal-overlay" id="backupModal" onclick="if(event.target===this)closeBackupModal()" style="display:none">
-  <div class="modal" style="max-width:750px;width:95%;background:#0d1117;border:1px solid #30363d;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:85vh" onclick="event.stopPropagation()">
-    <div class="modal-header" style="border-bottom:1px solid #30363d;padding:16px">
-      <h3 style="color:#f0f6fc;display:flex;align-items:center;gap:8px;margin:0">🕒 Lịch sử phiên bản & Sao lưu</h3>
-      <button class="modal-close" onclick="closeBackupModal()" style="color:#8b949e;background:none;border:none;font-size:20px;cursor:pointer">&times;</button>
+  <div class="modal" style="max-width:750px;width:95%;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:85vh" onclick="event.stopPropagation()">
+    <div class="modal-header" style="border-bottom:1px solid var(--t-border);padding:16px">
+      <h3 style="color:var(--t-fg3);display:flex;align-items:center;gap:8px;margin:0">🕒 Lịch sử phiên bản & Sao lưu</h3>
+      <button class="modal-close" onclick="closeBackupModal()" style="color:var(--t-fg-muted);background:none;border:none;font-size:20px;cursor:pointer">&times;</button>
     </div>
-    <div class="modal-body" style="gap:16px;padding:20px;color:#c9d1d9;overflow-y:auto;display:flex;flex-direction:column;min-height:0">
+    <div class="modal-body" style="gap:16px;padding:20px;color:var(--t-fg);overflow-y:auto;display:flex;flex-direction:column;min-height:0">
       <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.3);border-radius:8px;padding:12px;margin-bottom:4px;gap:12px">
-        <div style="font-size:12px;color:#58a6ff;line-height:1.6">
+        <div style="font-size:12px;color:var(--t-accent);line-height:1.6">
           Hệ thống tự động chụp và lưu trữ các mốc phiên dữ liệu cục bộ (IndexedDB) và đám mây khi có thay đổi lớn. 
           Bạn có thể khôi phục dữ liệu hoặc chủ động tạo điểm sao lưu thủ công.
         </div>
         <button class="btn btn-primary" onclick="createManualBackup()" style="white-space:nowrap;background:#238636;border-color:#2ea043;color:#fff;font-weight:600;padding:8px 14px">⚡ Tạo sao lưu</button>
       </div>
 
-      <div style="font-weight:600;font-size:13px;color:#f0f6fc;margin-top:4px">Danh sách phiên bản sao lưu (Tối đa 20 bản ghi)</div>
-      <div style="border:1px solid #30363d;border-radius:8px;background:#161b22;overflow:hidden">
+      <div style="font-weight:600;font-size:13px;color:var(--t-fg3);margin-top:4px">Danh sách phiên bản sao lưu (Tối đa 20 bản ghi)</div>
+      <div style="border:1px solid var(--t-border);border-radius:8px;background:var(--t-subtle);overflow:hidden">
         <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
           <thead>
-            <tr style="border-bottom:1px solid #30363d;background:#21262d;color:#8b949e">
+            <tr style="border-bottom:1px solid var(--t-border);background:var(--t-muted);color:var(--t-fg-muted)">
               <th style="padding:10px 12px">Thời gian</th>
               <th style="padding:10px 12px;text-align:center">Nguồn</th>
               <th style="padding:10px 12px;text-align:center">Websites</th>
@@ -3090,13 +3092,13 @@
           </thead>
           <tbody id="backupListTbody">
             <tr>
-              <td colspan="6" style="padding:24px;text-align:center;color:#8b949e">Đang tải danh sách...</td>
+              <td colspan="6" style="padding:24px;text-align:center;color:var(--t-fg-muted)">Đang tải danh sách...</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-    <div class="modal-footer" style="border-top:1px solid #30363d;padding:16px;display:flex;justify-content:flex-end">
+    <div class="modal-footer" style="border-top:1px solid var(--t-border);padding:16px;display:flex;justify-content:flex-end">
       <button class="btn btn-outline" onclick="closeBackupModal()">Đóng</button>
     </div>
   </div>
@@ -3105,28 +3107,28 @@
 <div id="appVersion" style="display:none;position:fixed;bottom:8px;left:120px;font-size:10px;color:#aaa;z-index:9999;pointer-events:none;user-select:none;font-family:monospace;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;">v1.2.0</div>
 <!-- MODAL TẠO LỆNH 301 HÀNG LOẠT -->
 <div id="wstBulk301Modal" class="modal-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;justify-content:center;align-items:center">
-  <div style="background:#161b22;border:1px solid #30363d;border-radius:12px;width:600px;max-width:90%;padding:20px;color:#c9d1d9;display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #30363d;padding-bottom:10px">
+  <div style="background:var(--t-subtle);border:1px solid var(--t-border);border-radius:12px;width:600px;max-width:90%;padding:20px;color:var(--t-fg);display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--t-border);padding-bottom:10px">
       <h3 style="margin:0;font-size:16px;color:#fff;display:flex;align-items:center;gap:8px">🔗 Tạo Lệnh 301 Hàng Loạt</h3>
-      <button onclick="wstCloseBulk301Modal()" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:20px;margin-left:auto">×</button>
+      <button onclick="wstCloseBulk301Modal()" style="background:none;border:none;color:var(--t-fg-muted);cursor:pointer;font-size:20px;margin-left:auto">×</button>
     </div>
     
-    <div style="font-size:12px;color:#8b949e;background:#1f242c;padding:8px 12px;border-radius:6px;border-left:4px solid #10b981">
+    <div style="font-size:12px;color:var(--t-fg-muted);background:var(--t-subtle4);padding:8px 12px;border-radius:6px;border-left:4px solid #10b981">
       Đang chọn <strong id="wstBulk301Count" style="color:#10b981">0</strong> website gốc. Dán danh sách website đích tương ứng (mỗi dòng 1 website). Số lượng dòng dán vào phải khớp hoàn toàn!
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;height:250px">
       <div style="display:flex;flex-direction:column;gap:6px">
-        <span style="font-size:11px;color:#8b949e">Danh sách website gốc (Theo thứ tự):</span>
-        <div id="wstBulk301SourceList" style="flex:1;overflow:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;font-family:monospace;font-size:11px;white-space:pre"></div>
+        <span style="font-size:11px;color:var(--t-fg-muted)">Danh sách website gốc (Theo thứ tự):</span>
+        <div id="wstBulk301SourceList" style="flex:1;overflow:auto;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:6px;padding:8px;font-family:monospace;font-size:11px;white-space:pre"></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <span style="font-size:11px;color:#8b949e">Nhập danh sách website đích (Mỗi dòng 1 web):</span>
-        <textarea id="wstBulk301DestTextarea" placeholder="VD:&#10;domain1.com&#10;domain2.com..." style="flex:1;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;font-family:monospace;font-size:11px;color:#fff;resize:none;outline:none"></textarea>
+        <span style="font-size:11px;color:var(--t-fg-muted)">Nhập danh sách website đích (Mỗi dòng 1 web):</span>
+        <textarea id="wstBulk301DestTextarea" placeholder="VD:&#10;domain1.com&#10;domain2.com..." style="flex:1;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:6px;padding:8px;font-family:monospace;font-size:11px;color:#fff;resize:none;outline:none"></textarea>
       </div>
     </div>
 
-    <div style="display:flex;justify-content:end;gap:10px;border-top:1px solid #30363d;padding-top:10px">
+    <div style="display:flex;justify-content:end;gap:10px;border-top:1px solid var(--t-border);padding-top:10px">
       <button onclick="wstCloseBulk301Modal()" class="btn btn-sm btn-outline" style="height:32px;padding:0 14px">Hủy bỏ</button>
       <button onclick="wstSubmitBulk301()" class="btn btn-sm btn-primary" style="height:32px;padding:0 14px;background:#10b981 !important;border:none">Tạo lệnh hàng loạt</button>
     </div>

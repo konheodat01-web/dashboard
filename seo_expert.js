@@ -1203,7 +1203,7 @@
     // chưa tích hợp: quay lại màn tích hợp; đã tích hợp: về hội thoại
     function backHome() { return unlocked() ? enterChat() : renderGate(); }
     function isOldSite() { return ['nhan301', 'dangchay', 'muallai'].includes((s.integ && s.integ.type) || s.type); }
-    const scoreCol = v => v == null ? '#8b949e' : v >= 80 ? '#3fb950' : v >= 50 ? '#d29922' : '#f85149';
+    const scoreCol = v => v == null ? 'var(--t-fg-muted)' : v >= 80 ? 'var(--t-success)' : v >= 50 ? 'var(--t-warn)' : 'var(--t-danger)';
     function showCheckupBar() {
       const ck = s.checkup;
       if (!ck) return showDiagBar();
@@ -1267,14 +1267,14 @@
       const ck = s.checkup, items = ck.items || [], gs = ck.groups || {};
       ck.status = ckConfirmed() ? 'confirmed' : 'review';
       if (ck.status === 'confirmed') ck.confirmed_at = s.integ.confirmed_at;
-      const gcard = (label, v) => `<div style="flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 12px">
-        <div style="font-size:11px;color:#8b949e">${esc(label)}</div><div style="font-size:22px;font-weight:700;color:${scoreCol(v)}">${v == null ? '—' : v + '/100'}</div></div>`;
+      const gcard = (label, v) => `<div style="flex:1;min-width:120px;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:10px;padding:10px 12px">
+        <div style="font-size:11px;color:var(--t-fg-muted)">${esc(label)}</div><div style="font-size:22px;font-weight:700;color:${scoreCol(v)}">${v == null ? '—' : v + '/100'}</div></div>`;
       msgs.innerHTML = `<div class="sx-report">
         <div class="sx-report-h">🩺 Bệnh án · khám lúc ${esc(ck.at)}${ck.status === 'confirmed' ? ' · <span class="sx-ok">✅ xác nhận ' + esc(ck.confirmed_at || '') + '</span>' : ''}</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0">${gcard('Điểm sức khỏe', ck.score)}${CK_GROUPS.map(g => gcard(g, gs[g])).join('')}</div>
         ${items.length ? `<details ${ck.status === 'confirmed' ? '' : 'open'} style="margin:6px 0"><summary style="cursor:pointer;font-weight:700">📋 Checklist (${items.filter(x => x.st === 'fail').length} lỗi · ${items.filter(x => x.st === 'warn').length} cảnh báo · ${items.filter(x => x.st === 'ok').length} đạt)</summary>
           <div class="sx-msg-ai sx-report-body"><table><thead><tr><th>Nhóm</th><th></th><th>Mục kiểm tra</th><th>Kết quả</th><th>Chi tiết</th></tr></thead><tbody>
-          ${items.map(x => `<tr><td>${esc(x.g)}</td><td>${CK_ICON[x.st]}</td><td><b>${esc(x.name)}</b></td><td>${esc(x.val)}</td><td style="font-size:11.5px;color:#8b949e;word-break:break-all">${esc(x.detail)}</td></tr>`).join('')}
+          ${items.map(x => `<tr><td>${esc(x.g)}</td><td>${CK_ICON[x.st]}</td><td><b>${esc(x.name)}</b></td><td>${esc(x.val)}</td><td style="font-size:11.5px;color:var(--t-fg-muted);word-break:break-all">${esc(x.detail)}</td></tr>`).join('')}
           </tbody></table></div></details>` : ''}
         <div class="sx-msg-ai sx-report-body">${renderMd(ck.report || '', [])}</div>
       </div>`;
@@ -1424,9 +1424,9 @@
       drawPlanDone(true);
     }
 
-    const btnA = 'background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:1px 6px;font-size:11px;cursor:pointer;margin-left:3px';
-    const edIn = 'background:transparent;color:#c9d1d9;border:1px solid transparent;border-radius:4px;padding:2px 4px;font-size:12px;width:100%;box-sizing:border-box;font-family:inherit';
-    const edSel = edIn + ';border-color:#30363d;background:#0d1117';
+    const btnA = 'background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:4px;padding:1px 6px;font-size:11px;cursor:pointer;margin-left:3px';
+    const edIn = 'background:transparent;color:var(--t-fg);border:1px solid transparent;border-radius:4px;padding:2px 4px;font-size:12px;width:100%;box-sizing:border-box;font-family:inherit';
+    const edSel = edIn + ';border-color:var(--t-border);background:var(--t-canvas)';
     const splitSub = sub => { const i = String(sub || '').indexOf(': '); return i < 0 ? [sub || '', ''] : [sub.slice(0, i), sub.slice(i + 2)]; };
     const planSilos = p => { const l = ((p.frame || {}).silos || []).map(x => x.name); (p.rows || []).forEach(r => { if (!l.includes(r.silo)) l.push(r.silo); }); return l; };
     // nhóm bài con (cấp 1) của 1 danh mục: theo khung + nhóm đang có trong bảng
@@ -1442,7 +1442,7 @@
       const kids = r.child || [], [base, lv2] = splitSub(r.sub);
       const opt = (l, v) => l.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
       let h = `<tr data-id="${r.id}">
-        <td style="width:26px;text-align:center">${s.imported.has(r.id) ? '<span title="Đã import vào Quản lý nội dung" style="color:#3fb950">✓</span>' : `<input type="checkbox" class="sx-psel" ${s.psel.has(r.id) ? 'checked' : ''}>`}</td>
+        <td style="width:26px;text-align:center">${s.imported.has(r.id) ? '<span title="Đã import vào Quản lý nội dung" style="color:var(--t-success)">✓</span>' : `<input type="checkbox" class="sx-psel" ${s.psel.has(r.id) ? 'checked' : ''}>`}</td>
         <td class="sx-sub" style="width:36px">${r.stt}</td>
         <td style="width:50px"><input type="number" min="1" class="sx-ed" data-f="month" value="${esc(r.month)}" style="${edIn}"></td>
         <td style="width:140px"><select class="sx-mv" data-f="silo" style="${edSel}">${opt(planSilos(p), r.silo)}</select></td>
@@ -1453,7 +1453,7 @@
         <td style="width:62px;white-space:nowrap"><a href="#" data-a="kids" class="sx-sub" title="Xem / sửa từ khóa phụ">${s.kidsOpen.has(r.id) ? '▾' : '▸'} ${kids.length}</a></td>
         <td style="width:64px"><input type="number" min="0" class="sx-ed" data-f="vol" value="${esc(r.vol || 0)}" style="${edIn}"></td>
         <td><input class="sx-ed" data-f="note" value="${esc(r.note || '')}" style="${edIn}" title="${esc(r.note || '')}"></td>
-        <td style="width:104px;white-space:nowrap;text-align:right"><button data-a="merge" style="${btnA}" title="Gộp bài này vào bài khác (thành từ khóa phụ)">🔗</button><button data-a="up" style="${btnA}" title="Lên">↑</button><button data-a="down" style="${btnA}" title="Xuống">↓</button><button data-a="delrow" style="${btnA};color:#f85149" title="Xoá bài">🗑</button></td>
+        <td style="width:104px;white-space:nowrap;text-align:right"><button data-a="merge" style="${btnA}" title="Gộp bài này vào bài khác (thành từ khóa phụ)">🔗</button><button data-a="up" style="${btnA}" title="Lên">↑</button><button data-a="down" style="${btnA}" title="Xuống">↓</button><button data-a="delrow" style="${btnA};color:var(--t-danger)" title="Xoá bài">🗑</button></td>
       </tr>`;
       if (s.inline && s.inline.id === r.id) {
         h += `<tr data-id="${r.id}"><td></td><td></td><td colspan="10">🔗 Gộp <b>${esc(r.main)}</b> (cùng ${kids.length} từ phụ) thành từ khóa phụ của bài:
@@ -1463,9 +1463,9 @@
       if (s.kidsOpen.has(r.id)) {
         h += `<tr data-id="${r.id}"><td></td><td></td><td colspan="10" style="padding:4px 0 8px">
           <span class="sx-sub">Từ khóa phụ của <b>${esc(r.main)}</b>:</span>
-          ${kids.map(k => `<span style="display:inline-block;background:#21262d;border:1px solid #30363d;border-radius:12px;padding:2px 8px;margin:2px;font-size:11.5px">${esc(k)}
+          ${kids.map(k => `<span style="display:inline-block;background:var(--t-muted);border:1px solid var(--t-border);border-radius:12px;padding:2px 8px;margin:2px;font-size:11.5px">${esc(k)}
             <a href="#" data-a="setmain" data-kw="${esc(k)}" title="Đặt làm TỪ KHÓA CHÍNH (từ khóa chính hiện tại thành từ phụ)" style="text-decoration:none">⭐</a>
-            <a href="#" data-a="delchild" data-kw="${esc(k)}" title="Bỏ từ phụ này" style="text-decoration:none;color:#f85149">✕</a></span>`).join('') || '<span class="sx-sub">(chưa có)</span>'}
+            <a href="#" data-a="delchild" data-kw="${esc(k)}" title="Bỏ từ phụ này" style="text-decoration:none;color:var(--t-danger)">✕</a></span>`).join('') || '<span class="sx-sub">(chưa có)</span>'}
           <input class="sx-addkid" placeholder="+ thêm từ phụ, Enter" style="${edSel};width:200px"></td></tr>`;
       }
       return h;
@@ -1495,12 +1495,12 @@
     // ---------- 🗂 QUẢN LÝ DANH MỤC (cấu trúc) ----------
     function planStructHtml(p) {
       const a = (act, label, title, data) => `<button data-a="${act}" ${data || ''} style="${btnA}" title="${esc(title)}">${label}</button>`;
-      return `<div style="border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin:6px 0 10px">
+      return `<div style="border:1px solid var(--t-border);border-radius:8px;padding:8px 12px;margin:6px 0 10px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><b>🗂 Cấu trúc danh mục</b>${a('addsilo', '＋ Thêm danh mục', 'Thêm danh mục mới')}</div>
         ${planSilos(p).map(silo => {
           const f = ((p.frame || {}).silos || []).find(x => x.name === silo) || {}, sd = `data-silo="${esc(silo)}"`;
           const n = (p.rows || []).filter(r => r.silo === silo).length;
-          return `<div style="padding:4px 0;border-top:1px solid #21262d">
+          return `<div style="padding:4px 0;border-top:1px solid var(--t-muted)">
             📁 <b>${esc(silo)}</b> <span class="sx-sub">— ${n} bài · 🏛 trụ cột: ${esc(f.pillar || '—')}</span>
             ${a('renamesilo', '✏️', 'Đổi tên danh mục', sd)}${a('setpillar', '🏛', 'Đổi tên trang trụ cột', sd)}${a('delsilo', '🗑', 'Xoá danh mục (chuyển bài sang danh mục khác)', sd)}
             <div style="margin:2px 0 0 18px">${(f.subgroups || []).map(b => {
@@ -1527,7 +1527,7 @@
           const subs = {};
           planBasesOf(p, silo).filter(b => b !== 'Trụ cột').forEach(b => { subs[b] = {}; });
           rs.filter(r => r.role !== 'Trụ cột').forEach(r => { const b = r.sub || 'Bài con'; ((subs[b] = subs[b] || {})[''] = subs[b][''] || []).push(r); });
-          return `<details data-key="${esc(ks)}" ${isOpen(ks) || !s.planOpen.size ? 'open' : ''} style="border:1px solid #30363d;border-radius:8px;padding:4px 12px;margin-bottom:10px">
+          return `<details data-key="${esc(ks)}" ${isOpen(ks) || !s.planOpen.size ? 'open' : ''} style="border:1px solid var(--t-border);border-radius:8px;padding:4px 12px;margin-bottom:10px">
             ${sum('📁', silo, rs)}
             <div style="margin:2px 0 6px 4px">🏛 <b>Trụ cột:</b> ${esc(f.pillar || '—')}${pillars.length ? ' — ' + pillars.map(r => `#${r.stt} <b>${esc(r.main)}</b>`).join(', ') : ' <span class="sx-sub">(chưa có bài trụ cột trong kế hoạch)</span>'}</div>
             ${Object.keys(subs).map(b => {
@@ -1624,8 +1624,8 @@
         </div>
         ${status}
         <div style="display:flex;gap:6px;margin:8px 0;align-items:center">
-          <button class="sx-btn sx-pv" data-v="list" style="${!tree ? 'border-color:#58a6ff;color:#e6edf3' : ''}">📋 Bảng kế hoạch (sửa trực tiếp)</button>
-          <button class="sx-btn sx-pv" data-v="tree" style="${tree ? 'border-color:#58a6ff;color:#e6edf3' : ''}">🌳 Sơ đồ danh mục (xem)</button>
+          <button class="sx-btn sx-pv" data-v="list" style="${!tree ? 'border-color:var(--t-accent);color:var(--t-fg2)' : ''}">📋 Bảng kế hoạch (sửa trực tiếp)</button>
+          <button class="sx-btn sx-pv" data-v="tree" style="${tree ? 'border-color:var(--t-accent);color:var(--t-fg2)' : ''}">🌳 Sơ đồ danh mục (xem)</button>
         </div>
         ${tree ? planTreeHtml(p) : `
           <datalist id="sx-dl-type">${((p.frame || {}).types || []).map(t => `<option value="${esc(t)}">`).join('')}</datalist>
@@ -1638,8 +1638,8 @@
             <button data-a="addrow-top" style="${btnA}">＋ Thêm bài</button>
             <button data-a="sortmonth" style="${btnA}" title="Sắp lại toàn bộ theo cột Tháng (giữ thứ tự trong cùng tháng)">↕ Sắp theo tháng</button>
             <button data-a="toimport" style="${btnA};background:#1f6feb;border-color:#1f6feb;color:#fff" title="Chọn bài ở cột ☑ rồi import sang tab ✍️ Nội dung (kiểm tra trùng với bài có sẵn trên web trước)">📥 Import vào Quản lý nội dung (0)</button>
-            <button data-a="delsel" style="${btnA};background:#f85149;border-color:#f85149;color:#fff" title="Chọn bài ở cột ☑ rồi xoá hàng loạt khỏi kế hoạch">🗑 Xoá đã chọn (0)</button>
-            <button data-a="struct" style="${btnA};${f.struct ? 'border-color:#58a6ff' : ''}">🗂 Quản lý danh mục</button>
+            <button data-a="delsel" style="${btnA};background:var(--t-danger);border-color:var(--t-danger);color:#fff" title="Chọn bài ở cột ☑ rồi xoá hàng loạt khỏi kế hoạch">🗑 Xoá đã chọn (0)</button>
+            <button data-a="struct" style="${btnA};${f.struct ? 'border-color:var(--t-accent)' : ''}">🗂 Quản lý danh mục</button>
             <span class="sx-sub sx-pf-info"></span>
           </div>
           <div class="sx-sub" style="margin-bottom:6px">Sửa ô rồi Enter / bấm ra ngoài là lưu · đổi Danh mục / Vai trò là chuyển bài · ▸ Từ phụ: ⭐ đặt làm từ khóa chính, ✕ bỏ · 🔗 gộp bài thành từ phụ của bài khác</div>

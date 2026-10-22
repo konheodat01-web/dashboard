@@ -9,16 +9,16 @@
 (function () {
   const API = '/api/sw-expert/';
   const ST = {                                        // trạng thái bài — mỗi trạng thái 1 màu riêng, không trùng
-    plan: ['Kế hoạch', '#8b949e'], writing: ['Đang viết', '#d29922'], awaiting_images: ['Chờ ảnh', '#bc8cff'],
-    published: ['Đã đăng', '#58a6ff'], optimize: ['Cần tối ưu', '#db6d28'], dropped: ['Bỏ', '#6e7681']
+    plan: ['Kế hoạch', 'var(--t-fg-muted)'], writing: ['Đang viết', 'var(--t-warn)'], awaiting_images: ['Chờ ảnh', 'var(--t-done)'],
+    published: ['Đã đăng', 'var(--t-accent)'], optimize: ['Cần tối ưu', 'var(--t-severe)'], dropped: ['Bỏ', 'var(--t-fg-subtle)']
   };
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const num = n => (Number(n) || 0).toLocaleString('vi-VN');
-  const btn = (extra) => `background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit;${extra || ''}`;
-  const inp = 'background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:4px 7px;font-size:12px;font-family:inherit';
-  const card = (label, val, sub, col) => `<div style="flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 12px">
-    <div style="font-size:11px;color:#8b949e;margin-bottom:4px">${label}</div><div style="font-size:20px;font-weight:700;color:${col}">${val}</div>
-    <div style="font-size:11px;color:#8b949e;margin-top:2px">${sub || '&nbsp;'}</div></div>`;
+  const btn = (extra) => `background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit;${extra || ''}`;
+  const inp = 'background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:4px 7px;font-size:12px;font-family:inherit';
+  const card = (label, val, sub, col) => `<div style="flex:1;min-width:120px;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:10px;padding:10px 12px">
+    <div style="font-size:11px;color:var(--t-fg-muted);margin-bottom:4px">${label}</div><div style="font-size:20px;font-weight:700;color:${col}">${val}</div>
+    <div style="font-size:11px;color:var(--t-fg-muted);margin-top:2px">${sub || '&nbsp;'}</div></div>`;
   const COLS = {
     kw: ['Từ khóa chính', it => it.keyword || ''],
     title: ['Tiêu đề', it => it.title || ''],
@@ -53,8 +53,8 @@
     else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => cb && cb(false));
     else if (cb) cb(false);
   }
-  const box = (title, inner) => `<div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 12px;min-width:0">
-    <div style="font-size:12px;font-weight:700;color:#c9d1d9;margin-bottom:8px">${title}</div>${inner}</div>`;
+  const box = (title, inner) => `<div style="background:var(--t-canvas);border:1px solid var(--t-border);border-radius:10px;padding:10px 12px;min-width:0">
+    <div style="font-size:12px;font-weight:700;color:var(--t-fg);margin-bottom:8px">${title}</div>${inner}</div>`;
 
   async function api(path, opts) {
     const r = await fetch(API + path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts || {}));
@@ -88,12 +88,12 @@
     const s = { cp: 'url', v: null, view: 'dash', f: { q: '', wpcat: '', silo: '', st: '', label: '', month: '', src: '' }, sel: new Set(), limit: 100, busy: '' };
     const domain = () => (typeof wstCurrentUrl === 'function' ? wstCurrentUrl(w) : (w.url || '')).replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-    panel.innerHTML = `<div class="cm-root" style="display:flex;flex-direction:column;gap:12px"><div style="color:#8b949e">Đang tải kho nội dung…</div></div>`;
+    panel.innerHTML = `<div class="cm-root" style="display:flex;flex-direction:column;gap:12px"><div style="color:var(--t-fg-muted)">Đang tải kho nội dung…</div></div>`;
     const root = panel.querySelector('.cm-root');
 
     async function load() {
       try { s.v = await api('content/' + cid); }
-      catch (e) { root.innerHTML = `<div style="color:#f85149">⚠️ Không tải được kho nội dung: ${esc(e.message)}</div>`; return; }
+      catch (e) { root.innerHTML = `<div style="color:var(--t-danger)">⚠️ Không tải được kho nội dung: ${esc(e.message)}</div>`; return; }
       const pend = window._cmPendingImport;
       if (pend && pend.wsId === wsId) {             // đến từ nút 📥 ở bảng kế hoạch
         window._cmPendingImport = null;
@@ -165,103 +165,182 @@
         if (f.src === 'plan' && !it.plan_row) return false;
         if (f.src === 'deleted' && !it.deleted) return false;
         if (f.src !== 'deleted' && it.deleted) return false;
-        if (f.st === 'indexed' ? !isIndexed(it) : f.st === 'notindexed' ? !(isLive(it) && it.index && !it.index.indexed) : (f.st && it.status !== f.st)) return false;
+        if (f.st === 'indexed' ? !isIndexed(it) : f.st === 'notindexed' ? !(isLive(it) && it.index && !it.index.indexed)
+          : f.st === 'unchecked' ? !(isLive(it) && !it.index)
+          : f.st === 'overdue' ? !(!it.wp_id && ['plan', 'writing'].includes(it.status) && monthDue((s.v.settings || {}).start_date, it.month) && monthDue((s.v.settings || {}).start_date, it.month) < new Date())
+          : (f.st && it.status !== f.st)) return false;
         if (q && ![it.keyword, it.title, it.url, it.label, ...(it.wp_cats || []), ...(it.child || [])].some(v => String(v || '').toLowerCase().includes(q))) return false;
         return true;
-      }).sort((a, b) => (a.plan_row && !a.wp_id ? 0 : 1) - (b.plan_row && !b.wp_id ? 0 : 1) || (a.month || 99) - (b.month || 99)
-        || String(b.date || '').localeCompare(String(a.date || '')));
+      }).sort((a, b) => {
+        if (s.sort) {
+          const g = s.sort.k === 'date' ? (x => String(x.date || '')) : s.sort.k === 'month' ? (x => x.month || 0) : (x => String(COLS[s.sort.k][1](x)).toLowerCase());
+          const A = g(a), B = g(b);
+          if (A !== B) return A === '' ? 1 : B === '' ? -1 : (typeof A === 'number' ? A - B : A.localeCompare(B, 'vi')) * s.sort.d;
+        }
+        return (a.plan_row && !a.wp_id ? 0 : 1) - (b.plan_row && !b.wp_id ? 0 : 1) || (a.month || 99) - (b.month || 99)
+          || String(b.date || '').localeCompare(String(a.date || ''));
+      });
+    }
+
+    const TCOLS = [['title', 'Tiêu đề'], ['url', 'URL'], ['kw', 'Từ khóa chính'], ['wpcat', 'Danh mục WP'], ['silo', 'Danh mục'],
+      ['role', 'Vai trò'], ['label', 'Danh mục con'], ['month', 'Tháng'], ['st', 'Trạng thái'], ['idx', 'Index'], ['date', 'Ngày đăng']];
+    const FNAME = { wpcat: 'Danh mục WP', silo: 'Danh mục', st: 'Trạng thái', label: 'Danh mục con', month: 'Tháng', src: 'Nguồn', q: 'Tìm' };
+    const STX = { indexed: 'Đã index', notindexed: 'Chưa index', unchecked: 'Chưa check index', overdue: 'Trễ hạn' };
+    const SRCX = { site: 'Có trên web', plan: 'Từ kế hoạch', deleted: 'Đã xoá trên web' };
+    const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+    const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+    s.colPref = lsGet('cm-cols', {});
+    s.detail = lsGet('cm-detail', false);
+    const blankF = () => ({ q: '', wpcat: '', silo: '', st: '', label: '', month: '', src: '' });
+    const shortDate = d => { const m = String(d || '').slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : ''; };
+    const urlPath = u => String(u || '').replace(/^https?:\/\/[^/]+/, '') || '/';
+    const tag = (txt, col, extra) => `<span class="cm-tag" style="color:${col};background:color-mix(in srgb,${col} 14%,transparent);${extra || ''}">${txt}</span>`;
+
+    function colHasData(k, items, silos) {
+      if (k === 'title' || k === 'url' || k === 'st' || k === 'idx' || k === 'date') return true;
+      if (k === 'silo') return silos.length > 0;
+      return items.some(it => COLS[k][1](it));
     }
 
     function draw(keepView) {
       if (!keepView && s.view !== 'dash') return drawView();
       const v = s.v, items = (v.items || []).filter(it => !it.deleted), set = v.settings || {};
       const live = items.filter(isLive), planOnly = items.filter(it => !it.wp_id);
-      const idx = live.filter(isIndexed).length, checked = live.filter(it => it.index).length;
+      const idx = live.filter(isIndexed).length;
+      const notIdx = live.filter(it => it.index && !it.index.indexed).length, unchecked = live.filter(it => !it.index).length;
       const today = new Date();
       const overdue = planOnly.filter(it => ['plan', 'writing'].includes(it.status) && monthDue(set.start_date, it.month) && monthDue(set.start_date, it.month) < today);
       const byStatus = st => items.filter(it => it.status === st).length;
       const silos = [...new Set([...(v.plan.silos || []), ...items.map(it => it.silo).filter(Boolean)])];
       const labels = [...new Set(items.map(it => it.label).filter(Boolean))].sort();
       const months = [...new Set(items.map(it => it.month).filter(Boolean))].sort((a, b) => a - b);
+      const wpcats = [...new Set(items.flatMap(it => it.wp_cats || []))].sort();
       const opt = (l, cur, first) => `<option value="">${first}</option>` + l.map(x => `<option ${String(x) === String(cur) ? 'selected' : ''} value="${esc(x)}">${esc(x)}</option>`).join('');
-      const scanInfo = v.scan.last_at ? `quét lần cuối ${esc(v.scan.last_at)}${v.scan.last_full_at ? ' · toàn bộ ' + esc(v.scan.last_full_at) : ''}` : 'CHƯA quét web';
+      const scanInfo = v.scan.last_at ? `quét ${esc(v.scan.last_at)}` : 'chưa quét web';
+      const hasPlan = months.length > 0 || silos.length > 0;
 
-      // tiến độ theo tháng (bài có tháng kế hoạch)
       const planned = items.filter(it => it.plan_row && it.month);
       const pm = months.map(m => {
         const rs = planned.filter(it => it.month === m), done = rs.filter(isLive).length;
         const due = monthDue(set.start_date, m);
         return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin:3px 0">
-          <span style="width:92px;color:#8b949e">T${m}${due ? ' · ' + (due.getMonth() + 1) + '/' + due.getFullYear() : ''}</span>
-          <div style="flex:1;background:#21262d;border-radius:4px;height:10px;overflow:hidden"><div style="width:${rs.length ? Math.round(done / rs.length * 100) : 0}%;background:#3fb950;height:100%"></div></div>
-          <span style="width:80px;text-align:right;color:#c9d1d9">${done}/${rs.length}</span></div>`;
-      }).join('') || '<div style="font-size:12px;color:#8b949e">Chưa import bài kế hoạch nào</div>';
+          <span style="width:92px;color:var(--t-fg-muted)">T${m}${due ? ' · ' + (due.getMonth() + 1) + '/' + due.getFullYear() : ''}</span>
+          <div style="flex:1;background:var(--t-muted);border-radius:4px;height:8px;overflow:hidden"><div style="width:${rs.length ? Math.round(done / rs.length * 100) : 0}%;background:var(--t-success);height:100%"></div></div>
+          <span style="width:70px;text-align:right;color:var(--t-fg)">${done}/${rs.length}</span></div>`;
+      }).join('') || '<div style="font-size:12px;color:var(--t-fg-muted)">Chưa import bài kế hoạch nào</div>';
       const bs = silos.map(sl => {
         const rs = items.filter(it => (it.silo || '') === sl);
         return `<tr><td style="padding:3px 6px">${esc(sl)}</td><td style="padding:3px 6px;text-align:right">${rs.length}</td><td style="padding:3px 6px;text-align:right">${rs.filter(isLive).length}</td><td style="padding:3px 6px;text-align:right">${rs.filter(isIndexed).length}</td><td style="padding:3px 6px;text-align:right">${rs.filter(it => !it.wp_id).length}</td></tr>`;
       }).join('');
-      const noCat = items.filter(it => !it.silo).length;
+      const noCat = hasPlan ? items.filter(it => !it.silo && it.wp_id).length : 0;
 
+      const f = s.f, active = Object.keys(f).filter(k => f[k]);
+      const chipOn = (k, val) => active.length === 1 && f[k] === val;
+      const chip = (label, n, k, val, col, tip) => `<span role="button" tabindex="0" data-a="chip" data-k="${k}" data-val="${esc(val)}" class="cm-chip${(k ? chipOn(k, val) : !active.length) ? ' on' : ''}" title="${esc(tip || 'Bấm để lọc')}">${label} <b style="color:${col}">${num(n)}</b></span>`;
+      const chips = [
+        chip('Tổng', items.length, '', '', 'var(--t-fg2)', 'Bỏ mọi bộ lọc'),
+        chip('Có trên web', live.length, 'src', 'site', 'var(--t-accent)'),
+        chip('Đã index', idx, 'st', 'indexed', 'var(--t-success)'),
+        notIdx ? chip('Chưa index', notIdx, 'st', 'notindexed', 'var(--t-danger)') : '',
+        unchecked ? chip('Chưa check index', unchecked, 'st', 'unchecked', 'var(--t-fg-muted)') : '',
+        byStatus('awaiting_images') ? chip('Chờ ảnh', byStatus('awaiting_images'), 'st', 'awaiting_images', 'var(--t-done)') : '',
+        byStatus('optimize') ? chip('Cần tối ưu', byStatus('optimize'), 'st', 'optimize', 'var(--t-severe)') : '',
+        byStatus('plan') ? chip('Kế hoạch', byStatus('plan'), 'st', 'plan', 'var(--t-fg-muted)') : '',
+        byStatus('writing') ? chip('Đang viết', byStatus('writing'), 'st', 'writing', 'var(--t-warn)') : '',
+        overdue.length ? chip('Trễ hạn', overdue.length, 'st', 'overdue', 'var(--t-danger)') : ''
+      ].join('');
+
+      const vis = TCOLS.filter(([k]) => s.colPref[k] != null ? s.colPref[k] : colHasData(k, items, silos));
       const list = filtered(), shown = list.slice(0, s.limit);
+      const showAct = shown.some(it => !it.wp_id);
+      const nImg = (s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x)).length, nWrite = writable().length;
+      const fval = (k, val) => k === 'st' ? (STX[val] || (ST[val] || [val])[0]) : k === 'src' ? (SRCX[val] || val) : k === 'month' ? 'T' + val : val;
+      const sortIc = k => s.sort && s.sort.k === k ? (s.sort.d > 0 ? ' ▲' : ' ▼') : '';
+      const allShownSel = shown.length && shown.every(it => s.sel.has(it.id));
+
       root.innerHTML = `
+        <style>
+          #wst-tab-content .cm-chip{display:inline-flex;align-items:center;gap:5px;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:14px;padding:3px 10px;font-size:12px;color:var(--t-fg-muted);cursor:pointer;font-family:inherit;white-space:nowrap}
+          #wst-tab-content .cm-chip b{font-weight:600}#wst-tab-content .cm-chip:hover{border-color:var(--t-fg-muted)}#wst-tab-content .cm-chip.on{border-color:var(--t-accent);background:color-mix(in srgb,var(--t-accent) 10%,var(--t-canvas));color:var(--t-fg2)}
+          #wst-tab-content .cm-tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;white-space:nowrap;line-height:18px}
+          #wst-tab-content .cm-fchip{display:inline-flex;align-items:center;gap:4px;padding:2px 4px 2px 9px;border-radius:12px;font-size:11.5px;background:color-mix(in srgb,var(--t-accent) 12%,transparent);color:var(--t-accent)}
+          #wst-tab-content .cm-fchip a{color:inherit;text-decoration:none;padding:0 4px;cursor:pointer;font-size:13px}
+          #wst-tab-content .cm-bulk{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--t-warn) 45%,transparent);background:color-mix(in srgb,var(--t-warn) 10%,var(--t-canvas))}
+          #wst-tab-content .cm-tbl{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;user-select:text}
+          #wst-tab-content .cm-tbl th,#wst-tab-content .cm-tbl td{white-space:nowrap;padding:6px 10px;border-bottom:1px solid var(--t-muted);text-align:left;background:var(--t-canvas)}
+          #wst-tab-content .cm-tbl thead th{position:sticky;top:0;z-index:2;background:var(--t-subtle);color:var(--t-fg-muted);font-weight:600;font-size:11.5px;border-bottom:1px solid var(--t-border)}
+          #wst-tab-content .cm-tbl thead th[data-a]{cursor:pointer;user-select:none}#wst-tab-content .cm-tbl thead th[data-a]:hover{color:var(--t-fg2)}
+          #wst-tab-content .cm-tbl .sk0{position:sticky;left:0;z-index:1;width:20px}#wst-tab-content .cm-tbl .sk1{position:sticky;left:41px;z-index:1;max-width:420px;overflow:hidden;text-overflow:ellipsis;box-shadow:inset -1px 0 0 var(--t-border)}
+          #wst-tab-content .cm-tbl thead .sk0,#wst-tab-content .cm-tbl thead .sk1{z-index:3}
+          #wst-tab-content .cm-tbl tbody tr:hover td{background:var(--t-subtle)}
+          #wst-tab-content .cm-tbl tbody tr.sel td{background:color-mix(in srgb,var(--t-accent) 9%,var(--t-canvas))}
+          #wst-tab-content .cm-tbl td.ed{cursor:pointer}#wst-tab-content .cm-tbl td.ed:hover .cm-tag{outline:1px solid var(--t-border)}
+          #wst-tab-content .cm-copied{outline:1px solid var(--t-success);outline-offset:-1px}
+          #wst-tab-content .cm-cols{display:flex;flex-wrap:wrap;gap:4px 14px;padding:8px 12px;border:1px solid var(--t-border);border-radius:8px;background:var(--t-subtle);font-size:12px;color:var(--t-fg)}
+          #wst-tab-content .cm-cols label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+        </style>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <b style="font-size:14px;color:#e6edf3">✍️ Quản lý nội dung</b><span style="font-size:12px;color:#8b949e">${esc(domain())} · ${scanInfo}</span>
+          <b style="font-size:14px;color:var(--t-fg2)">✍️ Nội dung</b><span style="font-size:12px;color:var(--t-fg-muted)">${esc(domain())} · ${scanInfo}</span>
           <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-            <button data-a="scan" style="${btn()}" title="Chỉ lấy bài mới / vừa sửa kể từ lần quét trước + phát hiện bài đã xoá">🔄 Quét bài mới</button>
+            <button data-a="scan" style="${btn()}" title="Lấy bài mới / vừa sửa kể từ lần quét trước + phát hiện bài đã xoá">🔄 Quét bài mới</button>
             <button data-a="scanfull" style="${btn()}" title="Cào lại toàn bộ bài viết + trang">⟳ Quét toàn bộ</button>
-            <button data-a="import" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}">📥 Import từ kế hoạch</button>
-            <button data-a="config" style="${btn()}">⚙️ Cấu hình site</button>
+            <button data-a="import" style="${btn()}" title="Lấy bài từ kế hoạch SEO (🧠 Chuyên gia SEO → 📐 Lập kế hoạch)">📥 Import kế hoạch</button>
+            <button data-a="config" style="${btn()}" title="Cấu hình site: ngày bắt đầu kế hoạch, ghép danh mục WP → danh mục kế hoạch">⚙️</button>
           </span>
         </div>
-        <div class="cm-busy" style="font-size:12px;color:#d29922;min-height:14px">${esc(s.busy)}</div>
-        ${!v.scan.last_full_at ? '<div style="font-size:12px;color:#d29922">● Chưa quét toàn bộ web — bấm ⟳ Quét toàn bộ trước (bắt buộc trước khi import để lọc trùng).</div>' : ''}
-        ${(v.plan_changed.length || v.plan_removed.length) ? `<div style="font-size:12px;color:#d29922;border-left:3px solid #d29922;padding:4px 8px">
+        ${s.busy ? `<div class="cm-busy" style="font-size:12px;color:var(--t-warn)">${esc(s.busy)}</div>` : '<div class="cm-busy" style="display:none"></div>'}
+        ${!v.scan.last_full_at ? '<div style="font-size:12px;color:var(--t-warn)">● Chưa quét toàn bộ web — bấm ⟳ Quét toàn bộ trước (bắt buộc trước khi import để lọc trùng).</div>' : ''}
+        ${(v.plan_changed.length || v.plan_removed.length) ? `<div style="font-size:12px;color:var(--t-warn);border-left:3px solid var(--t-warn);padding:4px 8px">
           ⚠ ${v.plan_changed.length} bài kế hoạch đã đổi so với lúc import${v.plan_removed.length ? ` · ${v.plan_removed.length} bài đã bị bỏ khỏi kế hoạch` : ''}
           ${v.plan_changed.length ? `<button data-a="sync" style="${btn('margin-left:8px')}">Cập nhật ${v.plan_changed.length} bài theo kế hoạch mới</button>` : ''}</div>` : ''}
-        ${noCat ? `<div style="font-size:12px;color:#8b949e">${noCat} bài chưa có danh mục (danh mục WP chưa ghép) — <a href="#" data-a="config" style="color:#58a6ff">ghép ở ⚙️ Cấu hình</a></div>` : ''}
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          ${card('Tổng bài', num(items.length), `${num(live.length)} có trên web · ${num(planOnly.length)} chưa đăng`, '#58a6ff')}
-          ${card('Kế hoạch', num(byStatus('plan')), 'chưa viết', '#8b949e')}
-          ${card('Đang viết', num(byStatus('writing')), '', '#d29922')}
-          ${card('Đã đăng', num(live.length), `${num(byStatus('optimize'))} cần tối ưu`, '#58a6ff')}
-          ${card('Đã index', num(idx), live.length ? `${Math.round(idx / live.length * 100)}% · đã check ${checked}/${live.length}` : '', idx ? '#3fb950' : '#8b949e')}
-          ${card('Trễ hạn', num(overdue.length), set.start_date ? 'so với tháng kế hoạch' : 'chưa đặt ngày bắt đầu', overdue.length ? '#f85149' : '#8b949e')}
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
+        ${noCat ? `<div style="font-size:12px;color:var(--t-fg-muted)">${noCat} bài trên web chưa có danh mục kế hoạch — <a href="#" data-a="config" style="color:var(--t-accent)">ghép danh mục WP ở ⚙️</a></div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chips}
+          ${hasPlan ? `<span role="button" tabindex="0" data-a="detail" class="cm-chip${s.detail ? ' on' : ''}" title="Tiến độ theo tháng + theo danh mục kế hoạch">📊 Chi tiết kế hoạch ${s.detail ? '▴' : '▾'}</span>` : ''}</div>
+        ${hasPlan && s.detail ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
           ${box('📅 Tiến độ theo tháng kế hoạch (đã đăng / kế hoạch)', pm)}
-          ${box('📁 Theo danh mục', `<table style="width:100%;font-size:12px"><tr style="color:#8b949e"><td style="padding:3px 6px">Danh mục</td><td style="padding:3px 6px;text-align:right">Tổng</td><td style="padding:3px 6px;text-align:right">Đã đăng</td><td style="padding:3px 6px;text-align:right">Index</td><td style="padding:3px 6px;text-align:right">Chưa đăng</td></tr>${bs}</table>`)}
-        </div>
+          ${box('📁 Theo danh mục kế hoạch', `<table style="width:100%;font-size:12px"><tr style="color:var(--t-fg-muted)"><td style="padding:3px 6px">Danh mục</td><td style="padding:3px 6px;text-align:right">Tổng</td><td style="padding:3px 6px;text-align:right">Đã đăng</td><td style="padding:3px 6px;text-align:right">Index</td><td style="padding:3px 6px;text-align:right">Chưa đăng</td></tr>${bs}</table>`)}
+        </div>` : ''}
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <input class="cm-q" value="${esc(s.f.q)}" placeholder="🔍 Từ khóa / tiêu đề / URL / danh mục con…" style="${inp};width:220px">
-          <select class="cm-f" data-k="wpcat" style="${inp}" title="Danh mục thật trên WordPress (lấy khi quét web)">${opt([...new Set(items.flatMap(it => it.wp_cats || []))].sort().concat('(trống)'), s.f.wpcat, 'Tất cả danh mục WP')}</select>
-          <select class="cm-f" data-k="silo" style="${inp}" title="Danh mục theo kế hoạch SEO">${opt(silos, s.f.silo, 'Tất cả danh mục')}</select>
-          <select class="cm-f" data-k="st" style="${inp}"><option value="">Tất cả trạng thái</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${s.f.st === k ? 'selected' : ''}>${x[0]}</option>`).join('')}<option value="indexed" ${s.f.st === 'indexed' ? 'selected' : ''}>✅ Đã index</option><option value="notindexed" ${s.f.st === 'notindexed' ? 'selected' : ''}>🚫 Chưa index</option></select>
-          <select class="cm-f" data-k="label" style="${inp}">${opt(labels, s.f.label, 'Tất cả danh mục con')}</select>
-          <select class="cm-f" data-k="month" style="${inp}">${opt(months, s.f.month, 'Tất cả tháng')}</select>
-          <select class="cm-f" data-k="src" style="${inp}"><option value="">Mọi nguồn</option><option value="site" ${s.f.src === 'site' ? 'selected' : ''}>Có trên web</option><option value="plan" ${s.f.src === 'plan' ? 'selected' : ''}>Từ kế hoạch</option><option value="deleted" ${s.f.src === 'deleted' ? 'selected' : ''}>Đã xoá trên web</option></select>
-          <span style="font-size:12px;color:#8b949e">${num(list.length)} bài</span>
+          <input class="cm-q" value="${esc(s.f.q)}" placeholder="🔍 Tìm từ khóa, tiêu đề, URL, danh mục…" style="${inp};width:240px">
+          ${wpcats.length ? `<select class="cm-f" data-k="wpcat" style="${inp}" title="Danh mục thật trên WordPress">${opt(wpcats.concat('(trống)'), f.wpcat, 'Danh mục WP')}</select>` : ''}
+          <select class="cm-f" data-k="st" style="${inp}"><option value="">Trạng thái</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${f.st === k ? 'selected' : ''}>${x[0]}</option>`).join('')}${Object.entries(STX).map(([k, x]) => `<option value="${k}" ${f.st === k ? 'selected' : ''}>${x}</option>`).join('')}</select>
+          ${silos.length ? `<select class="cm-f" data-k="silo" style="${inp}" title="Danh mục theo kế hoạch SEO">${opt(silos, f.silo, 'Danh mục')}</select>` : ''}
+          ${labels.length ? `<select class="cm-f" data-k="label" style="${inp}">${opt(labels, f.label, 'Danh mục con')}</select>` : ''}
+          ${months.length ? `<select class="cm-f" data-k="month" style="${inp}">${opt(months, f.month, 'Tháng')}</select>` : ''}
+          <select class="cm-f" data-k="src" style="${inp}"><option value="">Nguồn</option>${Object.entries(SRCX).map(([k, x]) => `<option value="${k}" ${f.src === k ? 'selected' : ''}>${x}</option>`).join('')}</select>
+          <span style="font-size:12px;color:var(--t-fg-muted)">${num(list.length)} bài</span>
           <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
-            <span style="font-size:12px;color:#8b949e">Đã chọn ${s.sel.size}</span>
-            <select class="cm-cpsel" style="${inp}" title="Chọn thành phần cần copy">${CP.map(([k, l]) => `<option value="${k}" ${s.cp === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
-            <button data-a="cpdo" style="${btn()}" title="Copy thành phần đã chọn của các dòng đang tick (chưa tick dòng nào thì mọi dòng đang lọc). Mỗi bài 1 dòng, nhiều thành phần cách nhau bằng Tab — dán vào Sheets ra đúng cột">📋 Thực hiện Copy${s.sel.size ? ' (' + s.sel.size + ')' : ''}</button>
-            <button data-a="write1" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}" title="Mở SEO Writer cho site này để viết bài NGOÀI kế hoạch (Bước 1 trống, đã điền sẵn site + WP key)">✍️ Viết bài</button>
-            <button data-a="bulkwrite" style="${btn('background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer, điền sẵn các bài đã chọn (chưa đăng) vào bảng Bước 1 — bạn kiểm tra rồi bấm chạy">✍️ Viết hàng loạt${writable().length ? ' (' + writable().length + ')' : ''}</button>
-            <button data-a="bulkimg" style="${btn('background:#d29922;border-color:#d29922;color:#fff')}" title="Mở SEO Writer, nạp sẵn các bài đã chọn vào 'Ảnh hàng loạt' — chỉ áp dụng bài đang 🖼️ Chờ ảnh">🖼️ Làm ảnh hàng loạt${(s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x)).length ? ' (' + (s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x)).length + ')' : ''}</button>
-            <select class="cm-bulkst" style="${inp}"><option value="">Đổi trạng thái…</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}">${x[0]}</option>`).join('')}</select>
-            <button data-a="checkidx" style="${btn('background:#238636;border-color:#238636;color:#fff')}" title="Check index các bài đã chọn bằng Serper (site: URL)">✅ Check index</button>
+            <button data-a="cols" style="${btn(s.colsOpen ? 'border-color:var(--t-accent)' : '')}" title="Chọn cột hiển thị">☰ Cột</button>
+            <button data-a="write1" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}" title="Mở SEO Writer cho site này để viết bài ngoài kế hoạch">✍️ Viết bài</button>
           </span>
         </div>
-        <style>.cm-tbl{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;user-select:text}.cm-tbl td,.cm-tbl th{white-space:nowrap}.cm-tbl td{cursor:text}.cm-tbl tbody tr:hover{background:#161b22}.cm-copied{outline:1px solid #3fb950;outline-offset:-1px}</style>
-        <div class="cm-scroll" style="overflow:auto;max-height:calc(100vh - 360px);min-height:240px;border:1px solid #30363d;border-radius:8px">
+        ${s.colsOpen ? `<div class="cm-cols">${TCOLS.map(([k, l]) => `<label><input type="checkbox" class="cm-colchk" data-k="${k}" ${vis.some(c => c[0] === k) ? 'checked' : ''} ${k === 'title' ? 'disabled' : ''}>${l}${colHasData(k, items, silos) ? '' : ' <span style="color:var(--t-fg-subtle)">(trống)</span>'}</label>`).join('')}<a href="#" data-a="colsreset" style="color:var(--t-accent);margin-left:auto">Mặc định</a></div>` : ''}
+        ${active.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${active.map(k => `<span class="cm-fchip">${FNAME[k]}: ${esc(fval(k, f[k]))}<a data-a="unf" data-k="${k}" title="Bỏ lọc này">×</a></span>`).join('')}<a href="#" data-a="clearf" style="font-size:12px;color:var(--t-fg-muted)">Xoá lọc</a></div>` : ''}
+        ${s.sel.size ? `<div class="cm-bulk">
+          <b style="font-size:12.5px;color:var(--t-fg2)">${s.sel.size} bài đã chọn</b>
+          ${list.length > s.sel.size ? `<a href="#" data-a="selall" style="font-size:12px;color:var(--t-accent)">Chọn cả ${num(list.length)} bài đang lọc</a>` : ''}
+          <span style="width:1px;height:18px;background:var(--t-border);margin:0 4px"></span>
+          <select class="cm-cpsel" style="${inp}" title="Thành phần cần copy">${CP.map(([k, l]) => `<option value="${k}" ${s.cp === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <button data-a="cpdo" style="${btn()}" title="Copy thành phần đã chọn của các bài đã chọn — mỗi bài 1 dòng, nhiều thành phần cách nhau bằng Tab (dán vào Sheets ra đúng cột)">📋 Thực hiện Copy</button>
+          ${nWrite ? `<button data-a="bulkwrite" style="${btn()}" title="Mở SEO Writer, điền sẵn các bài chưa đăng đã chọn">✍️ Viết hàng loạt (${nWrite})</button>` : ''}
+          ${nImg ? `<button data-a="bulkimg" style="${btn()}" title="Mở Ảnh hàng loạt của SEO Writer cho các bài đang Chờ ảnh">🖼️ Làm ảnh (${nImg})</button>` : ''}
+          <select class="cm-bulkst" style="${inp}"><option value="">Đổi trạng thái…</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}">${x[0]}</option>`).join('')}</select>
+          <button data-a="checkidx" style="${btn()}" title="Check index các bài đã chọn bằng Serper">✅ Check index</button>
+          <button data-a="selnone" style="${btn('margin-left:auto;padding:3px 9px')}" title="Bỏ chọn">✕</button>
+        </div>` : ''}
+        <div class="cm-scroll" style="overflow:auto;max-height:calc(100vh - 330px);min-height:240px;border:1px solid var(--t-border);border-radius:8px">
           <table class="cm-tbl">
-            <thead style="position:sticky;top:0;background:#161b22;z-index:1"><tr style="color:#8b949e;text-align:left">
-              <th style="padding:6px"><input type="checkbox" class="cm-all"></th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Tiêu đề</th><th style="padding:6px">URL</th>
-              <th style="padding:6px" title="Danh mục thật trên WordPress (lấy khi quét web)">Danh mục WP</th><th style="padding:6px" title="Danh mục theo kế hoạch SEO">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Tháng</th>
-              <th style="padding:6px">Trạng thái</th><th style="padding:6px">Index</th><th style="padding:6px">Đăng / sửa</th><th style="padding:6px"></th></tr></thead>
-            <tbody>${shown.map(it => rowHtml(it, silos)).join('') || '<tr><td colspan="13" style="padding:14px;color:#8b949e;text-align:center">Không có bài nào</td></tr>'}</tbody>
+            <thead><tr>
+              <th class="sk0"><input type="checkbox" class="cm-all" ${allShownSel ? 'checked' : ''} title="Chọn các bài đang hiện"></th>
+              ${vis.map(([k, l]) => `<th data-a="sort" data-k="${k}" class="${k === 'title' ? 'sk1' : ''}" title="Bấm để sắp xếp">${l}${sortIc(k)}</th>`).join('')}
+              ${showAct ? '<th></th>' : ''}</tr></thead>
+            <tbody>${shown.map(it => rowHtml(it, silos, vis, showAct)).join('') || `<tr><td colspan="${vis.length + 2}" style="padding:16px;color:var(--t-fg-muted);text-align:center">Không có bài nào${active.length ? ' — <a href="#" data-a="clearf" style="color:var(--t-accent)">xoá lọc</a>' : ''}</td></tr>`}</tbody>
           </table>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${list.length > shown.length ? `<button data-a="more" style="${btn()}">Hiện thêm (${shown.length}/${list.length})</button>` : ''}<span style="font-size:11px;color:#6e7681">Tick dòng → chọn thành phần → 📋 Thực hiện Copy · bôi đen hoặc nhấp đúp 1 ô để copy ô đó · Shift + lăn chuột hoặc thanh cuộn dưới bảng để cuộn ngang</span></div>`;
+        ${list.length > shown.length ? `<div><button data-a="more" style="${btn()}">Hiện thêm (${shown.length}/${list.length})</button></div>` : ''}`;
+      const s0 = root.querySelector('.cm-tbl thead .sk0');
+      if (s0) root.querySelectorAll('.cm-tbl .sk1').forEach(e => { e.style.left = s0.offsetWidth + 'px'; });
+      if (s.edit) { const el = root.querySelector('.cm-edsel'); if (el) el.focus(); }
     }
 
     // bài đã chọn viết được = có từ khóa + chưa có trên web (giống điều kiện nút ✍️ Viết từng dòng)
@@ -297,33 +376,39 @@
       return 'https://seo-writer-tool.nthieucloud.shop/?' + qs.join('&') + '#' + frag.concat(extraFrag || []).join('&');
     }
 
-    function rowHtml(it, silos) {
-      const ix = !isLive(it) ? '—' : !it.index ? '<span style="color:#8b949e" title="Chưa check">—</span>' : it.index.indexed ? '<span title="' + esc(it.index.at) + '">✅</span>' : '<span title="' + esc(it.index.at) + '">🚫</span>';
+    function rowHtml(it, silos, vis, showAct) {
       const st = ST[it.status] || ST.plan;
-      const silo = `<select class="cm-silo" style="${inp};max-width:150px;padding:2px 4px"><option value="">—</option>${silos.map(x => `<option ${x === it.silo ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
-      return `<tr data-id="${esc(it.id)}" style="border-top:1px solid #21262d;${it.deleted ? 'opacity:.5;text-decoration:line-through' : ''}">
-        <td style="padding:5px 6px"><input type="checkbox" class="cm-sel" ${s.sel.has(it.id) ? 'checked' : ''}></td>
-        <td style="padding:5px 6px;font-weight:600;color:#e6edf3">${esc(it.keyword || '—')}${(it.child || []).length ? `<div style="font-size:10.5px;color:#8b949e;font-weight:400">+${it.child.length} từ phụ</div>` : ''}</td>
-        <td style="padding:5px 6px;color:#e6edf3">${it.title ? esc(it.title) : it.url ? '' : '<span style="color:#8b949e">(chưa đăng)</span>'}${it.match ? `<div style="font-size:10.5px;color:#8b949e">${esc(it.match)}</div>` : ''}</td>
-        <td style="padding:5px 6px">${it.url ? `<span style="color:#58a6ff">${esc(it.url)}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở bài trong tab mới" style="color:#8b949e;text-decoration:none;margin-left:4px">↗</a>` : '<span style="color:#8b949e">—</span>'}</td>
-        <td style="padding:5px 6px">${(it.wp_cats || []).length ? esc(it.wp_cats.join(', ')) : '<span style="color:#8b949e">—</span>'}</td>
-        <td style="padding:5px 6px">${silo}</td>
-        <td style="padding:5px 6px">${esc(it.role || (it.wp_type === 'page' ? 'Trang' : ''))}</td>
-        <td style="padding:5px 6px">${esc(it.label || '')}</td>
-        <td style="padding:5px 6px">${it.month ? 'T' + it.month : ''}</td>
-        <td style="padding:5px 6px"><select class="cm-st" style="${inp};padding:2px 4px;color:${st[1]}">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select></td>
-        <td style="padding:5px 6px;text-align:center">${ix}</td>
-        <td style="padding:5px 6px;white-space:nowrap;color:#8b949e">${esc(String(it.date || '').slice(0, 10))}${it.modified && it.modified.slice(0, 10) !== String(it.date || '').slice(0, 10) ? '<br>sửa ' + esc(it.modified.slice(0, 10)) : ''}</td>
-        <td style="padding:5px 6px;white-space:nowrap">${it.keyword && !it.wp_id ? `<button data-a="write" style="${btn('padding:3px 8px;background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer điền sẵn từ khóa chính + phụ">✍️ Viết</button>` : ''}${!it.wp_id ? `<button data-a="del" style="${btn('padding:3px 6px;margin-left:3px;color:#f85149')}" title="Xoá khỏi kho (chỉ bài kế hoạch chưa đăng)">🗑</button>` : ''}</td>
+      const ed = k => s.edit && s.edit.id === it.id && s.edit.k === k;
+      const cell = {
+        title: () => `<td class="sk1" data-k="title" title="${esc(it.title || it.keyword || '')}">${it.title ? `<span style="color:var(--t-fg2)">${esc(it.title)}</span>` : `<span style="color:var(--t-fg2)">${esc(it.keyword || '—')}</span> <span style="color:var(--t-fg-subtle);font-size:11px">· chưa đăng</span>`}${it.match ? ` <span style="color:var(--t-fg-subtle);font-size:11px" title="${esc(it.match)}">ⓘ</span>` : ''}</td>`,
+        url: () => `<td data-k="url" title="${esc(it.url || '')}">${it.url ? `<span style="color:var(--t-accent)">${esc(urlPath(it.url))}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở bài trong tab mới" style="color:var(--t-fg-muted);text-decoration:none;margin-left:2px">↗</a>` : '<span style="color:var(--t-fg-subtle)">—</span>'}</td>`,
+        kw: () => `<td data-k="kw">${it.keyword ? `<span style="color:var(--t-fg2);font-weight:600">${esc(it.keyword)}</span>${(it.child || []).length ? ` <span style="color:var(--t-fg-subtle);font-size:11px" title="${esc(it.child.join(', '))}">+${it.child.length}</span>` : ''}` : '<span style="color:var(--t-fg-subtle)">—</span>'}</td>`,
+        wpcat: () => `<td data-k="wpcat">${(it.wp_cats || []).length ? esc(it.wp_cats.join(', ')) : '<span style="color:var(--t-fg-subtle)">—</span>'}</td>`,
+        silo: () => ed('silo')
+          ? `<td data-k="silo"><select class="cm-silo cm-edsel" style="${inp};padding:2px 4px"><option value="">—</option>${silos.map(x => `<option ${x === it.silo ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></td>`
+          : `<td data-k="silo" class="ed" data-a="edit" title="Bấm để đổi danh mục">${it.silo ? tag(esc(it.silo), 'var(--t-fg)') : '<span style="color:var(--t-fg-subtle)">—</span>'}</td>`,
+        role: () => `<td data-k="role">${esc(COLS.role[1](it))}</td>`,
+        label: () => `<td data-k="label">${esc(it.label || '')}</td>`,
+        month: () => `<td data-k="month">${it.month ? 'T' + it.month : ''}</td>`,
+        st: () => ed('st')
+          ? `<td data-k="st"><select class="cm-st cm-edsel" style="${inp};padding:2px 4px">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select></td>`
+          : `<td data-k="st" class="ed" data-a="edit" title="Bấm để đổi trạng thái">${tag(st[0], st[1])}</td>`,
+        idx: () => `<td data-k="idx">${!isLive(it) ? '<span style="color:var(--t-fg-subtle)">—</span>' : !it.index ? '<span style="color:var(--t-fg-subtle)" title="Chưa check index">chưa check</span>' : it.index.indexed ? tag('Có', 'var(--t-success)', '" title="' + esc(it.index.at)) : tag('Chưa', 'var(--t-danger)', '" title="' + esc(it.index.at))}</td>`,
+        date: () => { const d = String(it.date || '').slice(0, 10), m = String(it.modified || '').slice(0, 10); return `<td data-k="date" style="color:var(--t-fg-muted)" title="${d ? 'Đăng ' + esc(d) : ''}${m && m !== d ? ' · sửa ' + esc(m) : ''}">${shortDate(d) || (it.month ? 'T' + it.month : '')}${m && m !== d ? ' <span style="color:var(--t-fg-subtle)">✎</span>' : ''}</td>`; }
+      };
+      return `<tr data-id="${esc(it.id)}" class="${s.sel.has(it.id) ? 'sel' : ''}" style="${it.deleted ? 'opacity:.5;text-decoration:line-through' : ''}">
+        <td class="sk0"><input type="checkbox" class="cm-sel" ${s.sel.has(it.id) ? 'checked' : ''}></td>
+        ${vis.map(([k]) => cell[k]()).join('')}
+        ${showAct ? `<td>${it.keyword && !it.wp_id ? `<button data-a="write" style="${btn('padding:2px 8px')}" title="Mở SEO Writer điền sẵn từ khóa chính + phụ">✍️ Viết</button>` : ''}${!it.wp_id ? `<button data-a="del" style="${btn('padding:2px 6px;margin-left:3px;color:var(--t-danger)')}" title="Xoá khỏi kho (chỉ bài kế hoạch chưa đăng)">🗑</button>` : ''}</td>` : ''}
       </tr>`;
     }
 
     // ══ IMPORT TỪ KẾ HOẠCH ══
     async function drawImport() {
-      root.innerHTML = '<div style="color:#8b949e">Đang tải kế hoạch…</div>';
+      root.innerHTML = '<div style="color:var(--t-fg-muted)">Đang tải kế hoạch…</div>';
       let p;
-      try { p = await api('planfull/' + cid); } catch (e) { root.innerHTML = `<div style="color:#f85149">⚠️ ${esc(e.message)}</div>`; return; }
-      if (p.status !== 'done') { root.innerHTML = `<div style="color:#d29922">Site này chưa có kế hoạch — lập ở 🧠 Chuyên gia SEO → 📐 Lập kế hoạch.</div><div><button data-a="back" style="${btn()}">↩ Quay lại</button></div>`; return; }
+      try { p = await api('planfull/' + cid); } catch (e) { root.innerHTML = `<div style="color:var(--t-danger)">⚠️ ${esc(e.message)}</div>`; return; }
+      if (p.status !== 'done') { root.innerHTML = `<div style="color:var(--t-warn)">Site này chưa có kế hoạch — lập ở 🧠 Chuyên gia SEO → 📐 Lập kế hoạch.</div><div><button data-a="back" style="${btn()}">↩ Quay lại</button></div>`; return; }
       const done = new Set(s.v.imported_rows || []);
       const rows = (p.rows || []).filter(r => !done.has(r.id));
       const F = s.imp = s.imp || { q: '', silo: '', label: '', month: '', sel: new Set() };
@@ -334,9 +419,9 @@
       const paint = () => {
         const vs = vis();
         root.innerHTML = `
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:#e6edf3">📥 Import bài từ kế hoạch</b>
-            <span style="font-size:12px;color:#8b949e">${rows.length} bài chưa import · ${done.size} đã import</span>
-            ${p.confirmed && !p.pending ? '<span style="font-size:12px;color:#3fb950">✅ kế hoạch đã xác nhận</span>' : `<span style="font-size:12px;color:#d29922">● kế hoạch ${p.confirmed ? 'có thay đổi chưa xác nhận' : 'CHƯA xác nhận'}${s.v.settings.require_confirm ? ' — site này cấu hình BẮT BUỘC xác nhận trước khi import' : ''}</span>`}
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:var(--t-fg2)">📥 Import bài từ kế hoạch</b>
+            <span style="font-size:12px;color:var(--t-fg-muted)">${rows.length} bài chưa import · ${done.size} đã import</span>
+            ${p.confirmed && !p.pending ? '<span style="font-size:12px;color:var(--t-success)">✅ kế hoạch đã xác nhận</span>' : `<span style="font-size:12px;color:var(--t-warn)">● kế hoạch ${p.confirmed ? 'có thay đổi chưa xác nhận' : 'CHƯA xác nhận'}${s.v.settings.require_confirm ? ' — site này cấu hình BẮT BUỘC xác nhận trước khi import' : ''}</span>`}
             <button data-a="back" style="${btn('margin-left:auto')}">↩ Quay lại</button></div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
             <input class="im-q" value="${esc(F.q)}" placeholder="🔍 Từ khóa…" style="${inp};width:200px">
@@ -344,16 +429,16 @@
             <select class="im-f" data-k="label" style="${inp}">${opt(labels, F.label, 'Tất cả danh mục con')}</select>
             <select class="im-f" data-k="month" style="${inp}">${opt(months, F.month, 'Tất cả tháng')}</select>
             <button data-a="imall" style="${btn()}">☑ Chọn tất cả theo lọc (${vs.length})</button><button data-a="imnone" style="${btn()}">Bỏ chọn</button>
-            <span style="font-size:12px;color:#8b949e">Đã chọn ${F.sel.size}</span>
+            <span style="font-size:12px;color:var(--t-fg-muted)">Đã chọn ${F.sel.size}</span>
             <button data-a="imcheck" style="${btn('margin-left:auto;background:#1f6feb;border-color:#1f6feb;color:#fff')}" ${F.sel.size ? '' : 'disabled'}>Kiểm tra trùng & import →</button>
           </div>
-          <div style="overflow:auto;border:1px solid #30363d;border-radius:8px;max-height:60vh">
-            <table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:#161b22"><tr style="color:#8b949e;text-align:left">
+          <div style="overflow:auto;border:1px solid var(--t-border);border-radius:8px;max-height:60vh">
+            <table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:var(--t-subtle)"><tr style="color:var(--t-fg-muted);text-align:left">
               <th style="padding:6px"></th><th style="padding:6px">STT</th><th style="padding:6px">Tháng</th><th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Từ phụ</th><th style="padding:6px">TK cụm</th></tr></thead>
-              <tbody>${vs.slice(0, 500).map(r => `<tr data-row="${esc(r.id)}" style="border-top:1px solid #21262d"><td style="padding:4px 6px"><input type="checkbox" class="im-sel" ${F.sel.has(r.id) ? 'checked' : ''}></td>
-                <td style="padding:4px 6px;color:#8b949e">${r.stt}</td><td style="padding:4px 6px">T${r.month}</td><td style="padding:4px 6px">${esc(r.silo)}</td><td style="padding:4px 6px">${esc(r.role)}</td><td style="padding:4px 6px">${esc(r.label || '')}</td>
-                <td style="padding:4px 6px;font-weight:600">${esc(r.main)}</td><td style="padding:4px 6px;color:#8b949e">${(r.child || []).length}</td><td style="padding:4px 6px">${num(r.vol)}</td></tr>`).join('')}</tbody></table>
-            ${vs.length > 500 ? `<div style="padding:6px;font-size:12px;color:#8b949e">Hiện 500/${vs.length} dòng — "Chọn tất cả theo lọc" vẫn chọn đủ ${vs.length} bài.</div>` : ''}
+              <tbody>${vs.slice(0, 500).map(r => `<tr data-row="${esc(r.id)}" style="border-top:1px solid var(--t-muted)"><td style="padding:4px 6px"><input type="checkbox" class="im-sel" ${F.sel.has(r.id) ? 'checked' : ''}></td>
+                <td style="padding:4px 6px;color:var(--t-fg-muted)">${r.stt}</td><td style="padding:4px 6px">T${r.month}</td><td style="padding:4px 6px">${esc(r.silo)}</td><td style="padding:4px 6px">${esc(r.role)}</td><td style="padding:4px 6px">${esc(r.label || '')}</td>
+                <td style="padding:4px 6px;font-weight:600">${esc(r.main)}</td><td style="padding:4px 6px;color:var(--t-fg-muted)">${(r.child || []).length}</td><td style="padding:4px 6px">${num(r.vol)}</td></tr>`).join('')}</tbody></table>
+            ${vs.length > 500 ? `<div style="padding:6px;font-size:12px;color:var(--t-fg-muted)">Hiện 500/${vs.length} dòng — "Chọn tất cả theo lọc" vẫn chọn đủ ${vs.length} bài.</div>` : ''}
           </div>`;
       };
       s.impPaint = paint;
@@ -363,34 +448,34 @@
 
     async function drawPreview() {
       const ids = [...s.imp.sel];
-      root.innerHTML = '<div style="color:#8b949e">Đang kiểm tra trùng với bài có sẵn…</div>';
+      root.innerHTML = '<div style="color:var(--t-fg-muted)">Đang kiểm tra trùng với bài có sẵn…</div>';
       if (!s.v.scan.last_full_at) {
-        root.innerHTML = '<div style="color:#d29922">Chưa quét toàn bộ web — đang quét trước để lọc trùng…</div><div class="cm-busy" style="font-size:12px;color:#d29922"></div>';
+        root.innerHTML = '<div style="color:var(--t-warn)">Chưa quét toàn bộ web — đang quét trước để lọc trùng…</div><div class="cm-busy" style="font-size:12px;color:var(--t-warn)"></div>';
         await scan(true);
         if (!s.v.scan.last_full_at) return;
       }
       let pv;
-      try { pv = await post('contentpreview/' + cid, { rows: ids }); } catch (e) { root.innerHTML = `<div style="color:#f85149">⚠️ ${esc(e.message)}</div><button data-a="import" style="${btn()}">↩ Quay lại</button>`; return; }
+      try { pv = await post('contentpreview/' + cid, { rows: ids }); } catch (e) { root.innerHTML = `<div style="color:var(--t-danger)">⚠️ ${esc(e.message)}</div><button data-a="import" style="${btn()}">↩ Quay lại</button>`; return; }
       s.pv = pv;
       const dec = s.dec = {};
       pv.dup.forEach(d => { dec[d.row] = d.post ? 'link' : 'new'; });
       const blocked = pv.require_confirm && !pv.plan_confirmed;
       root.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:#e6edf3">📥 Kiểm tra trùng trước khi import</b>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:var(--t-fg2)">📥 Kiểm tra trùng trước khi import</b>
           <button data-a="import" style="${btn('margin-left:auto')}">↩ Chọn lại</button></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          ${card('Bài mới', num(pv.new.length), 'sẽ thêm vào kho (Kế hoạch)', '#3fb950')}
-          ${card('Trùng bài có sẵn', num(pv.dup.length), 'từ khóa có trong tiêu đề / slug', '#d29922')}
-          ${card('Đã import rồi', num(pv.imported.length), 'bỏ qua', '#8b949e')}
+          ${card('Bài mới', num(pv.new.length), 'sẽ thêm vào kho (Kế hoạch)', 'var(--t-success)')}
+          ${card('Trùng bài có sẵn', num(pv.dup.length), 'từ khóa có trong tiêu đề / slug', 'var(--t-warn)')}
+          ${card('Đã import rồi', num(pv.imported.length), 'bỏ qua', 'var(--t-fg-muted)')}
         </div>
         ${pv.dup.length ? box('⚠ Trùng bài có sẵn trên web — chọn cách xử lý từng bài', `<table style="width:100%;font-size:12px;border-collapse:collapse">
-          <tr style="color:#8b949e"><td style="padding:4px">Bài kế hoạch</td><td style="padding:4px">Bài có sẵn</td><td style="padding:4px">Khớp theo</td><td style="padding:4px">Xử lý</td></tr>
-          ${pv.dup.map(d => `<tr data-row="${esc(d.row)}" style="border-top:1px solid #21262d"><td style="padding:4px"><b>${esc(d.main)}</b><div style="color:#8b949e">#${d.stt} · ${esc(d.silo)} · T${d.month}</div></td>
-            <td style="padding:4px"><a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:#58a6ff">${esc(d.title)}</a>${d.shared_with ? `<div style="color:#d29922">đã gắn cho bài kế hoạch #${d.shared_with} trong lần này</div>` : ''}</td>
-            <td style="padding:4px;color:#8b949e">"${esc(d.by)}"</td>
+          <tr style="color:var(--t-fg-muted)"><td style="padding:4px">Bài kế hoạch</td><td style="padding:4px">Bài có sẵn</td><td style="padding:4px">Khớp theo</td><td style="padding:4px">Xử lý</td></tr>
+          ${pv.dup.map(d => `<tr data-row="${esc(d.row)}" style="border-top:1px solid var(--t-muted)"><td style="padding:4px"><b>${esc(d.main)}</b><div style="color:var(--t-fg-muted)">#${d.stt} · ${esc(d.silo)} · T${d.month}</div></td>
+            <td style="padding:4px"><a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--t-accent)">${esc(d.title)}</a>${d.shared_with ? `<div style="color:var(--t-warn)">đã gắn cho bài kế hoạch #${d.shared_with} trong lần này</div>` : ''}</td>
+            <td style="padding:4px;color:var(--t-fg-muted)">"${esc(d.by)}"</td>
             <td style="padding:4px"><select class="pv-dec" style="${inp}">${d.post ? `<option value="link" selected>Gắn vào bài có sẵn (Cần tối ưu)</option>` : ''}<option value="new" ${d.post ? '' : 'selected'}>Vẫn tạo bài mới</option><option value="skip">Bỏ qua</option></select></td></tr>`).join('')}</table>`) : ''}
-        ${pv.imported.length ? `<div style="font-size:12px;color:#8b949e">Đã import từ trước: ${pv.imported.slice(0, 20).map(d => esc(d.main)).join(', ')}${pv.imported.length > 20 ? '…' : ''}</div>` : ''}
-        ${blocked ? '<div style="color:#f85149;font-size:12px">Site này cấu hình chỉ import kế hoạch ĐÃ xác nhận — xác nhận kế hoạch ở 🧠 Chuyên gia SEO trước.</div>' : ''}
+        ${pv.imported.length ? `<div style="font-size:12px;color:var(--t-fg-muted)">Đã import từ trước: ${pv.imported.slice(0, 20).map(d => esc(d.main)).join(', ')}${pv.imported.length > 20 ? '…' : ''}</div>` : ''}
+        ${blocked ? '<div style="color:var(--t-danger);font-size:12px">Site này cấu hình chỉ import kế hoạch ĐÃ xác nhận — xác nhận kế hoạch ở 🧠 Chuyên gia SEO trước.</div>' : ''}
         <div><button data-a="imgo" style="${btn('background:#238636;border-color:#238636;color:#fff')}" ${blocked || !(pv.new.length + pv.dup.length) ? 'disabled' : ''}>📥 Import ${pv.new.length + pv.dup.length} bài</button></div>`;
     }
 
@@ -400,14 +485,14 @@
       const cats = Object.keys(set.catmap || {}).sort();
       const count = c => (s.v.items || []).filter(it => (it.wp_cats || []).includes(c) && !it.deleted).length;
       root.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px"><b style="font-size:14px;color:#e6edf3">⚙️ Cấu hình quản lý nội dung — ${esc(domain())}</b><button data-a="back" style="${btn('margin-left:auto')}">↩ Quay lại</button></div>
-        ${box('Kế hoạch', `<div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:#c9d1d9">
+        <div style="display:flex;align-items:center;gap:8px"><b style="font-size:14px;color:var(--t-fg2)">⚙️ Cấu hình quản lý nội dung — ${esc(domain())}</b><button data-a="back" style="${btn('margin-left:auto')}">↩ Quay lại</button></div>
+        ${box('Kế hoạch', `<div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--t-fg)">
           <label>Ngày bắt đầu kế hoạch (tính hạn "Tháng 1, 2, …"): <input type="date" class="cf-start" value="${esc(set.start_date || '')}" style="${inp}"></label>
           <label><input type="checkbox" class="cf-req" ${set.require_confirm ? 'checked' : ''}> Chỉ cho import khi kế hoạch ĐÃ xác nhận</label></div>`)}
         ${box('Ghép danh mục WordPress → danh mục kế hoạch', cats.length ? `<table style="font-size:12px;border-collapse:collapse">
-          ${cats.map(c => `<tr style="border-top:1px solid #21262d"><td style="padding:4px 8px">${esc(c)} <span style="color:#8b949e">(${count(c)} bài)</span></td><td style="padding:4px 8px">→</td>
-            <td style="padding:4px 8px"><select class="cf-cat" data-cat="${esc(c)}" style="${inp}"><option value="">(không ghép)</option>${silos.map(x => `<option ${set.catmap[c] === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></td></tr>`).join('')}</table>` : '<div style="font-size:12px;color:#8b949e">Chưa có danh mục WP — quét web trước.</div>')}
-        <div><button data-a="cfsave" style="${btn('background:#238636;border-color:#238636;color:#fff')}">💾 Lưu cấu hình</button> <span class="cm-busy" style="font-size:12px;color:#d29922"></span></div>`;
+          ${cats.map(c => `<tr style="border-top:1px solid var(--t-muted)"><td style="padding:4px 8px">${esc(c)} <span style="color:var(--t-fg-muted)">(${count(c)} bài)</span></td><td style="padding:4px 8px">→</td>
+            <td style="padding:4px 8px"><select class="cf-cat" data-cat="${esc(c)}" style="${inp}"><option value="">(không ghép)</option>${silos.map(x => `<option ${set.catmap[c] === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></td></tr>`).join('')}</table>` : '<div style="font-size:12px;color:var(--t-fg-muted)">Chưa có danh mục WP — quét web trước.</div>')}
+        <div><button data-a="cfsave" style="${btn('background:#238636;border-color:#238636;color:#fff')}">💾 Lưu cấu hình</button> <span class="cm-busy" style="font-size:12px;color:var(--t-warn)"></span></div>`;
     }
 
     function drawView() { if (s.view === 'import') drawImport(); else if (s.view === 'config') drawConfig(); else draw(true); }
@@ -424,9 +509,11 @@
       if (t.classList.contains('im-sel')) { const r = t.closest('tr').dataset.row; t.checked ? s.imp.sel.add(r) : s.imp.sel.delete(r); return s.impPaint(); }
       if (t.classList.contains('pv-dec')) { s.dec[t.closest('tr').dataset.row] = t.value; return; }
       if (t.classList.contains('cm-cpsel')) { s.cp = t.value; return; }
+      if (t.classList.contains('cm-colchk')) { s.colPref[t.dataset.k] = t.checked; lsSet('cm-cols', s.colPref); return draw(true); }
       if (t.classList.contains('cm-sel')) { t.checked ? s.sel.add(id) : s.sel.delete(id); return draw(true); }
       if (t.classList.contains('cm-all')) { filtered().slice(0, s.limit).forEach(it => t.checked ? s.sel.add(it.id) : s.sel.delete(it.id)); return draw(true); }
       try {
+        if (t.classList.contains('cm-st') || t.classList.contains('cm-silo')) s.edit = null;
         if (t.classList.contains('cm-st')) { s.v = await post('contentop/' + cid, { op: 'status', id, value: t.value }); return draw(true); }
         if (t.classList.contains('cm-silo')) { s.v = await post('contentop/' + cid, { op: 'set', id, field: 'silo', value: t.value }); return draw(true); }
         if (t.classList.contains('cm-bulkst') && t.value) {
@@ -436,12 +523,16 @@
         }
       } catch (err) { setBusy('⚠️ ' + err.message); }
     });
+    root.addEventListener('focusout', e => {
+      if (!e.target.classList.contains('cm-edsel')) return;
+      setTimeout(() => { if (s.edit) { s.edit = null; draw(true); } }, 200);
+    });
     root.addEventListener('dblclick', e => {
-      const td = e.target.closest('.cm-tbl tbody td');
+      const td = e.target.closest('.cm-tbl tbody td[data-k]');
       if (!td || e.target.closest('input,button,a,select')) return;
-      const sel = td.querySelector('select');
-      const text = (sel ? sel.options[sel.selectedIndex].text : td.innerText).replace(/\s*↗\s*$/, '').trim();
-      if (text && text !== '—') copyText(text, td);
+      const tr = td.closest('tr[data-id]'), it = tr && (s.v.items || []).find(x => x.id === tr.dataset.id);
+      const text = it && COLS[td.dataset.k] ? COLS[td.dataset.k][1](it) : '';
+      if (text) copyText(text, td);
     });
     root.addEventListener('click', async e => {
       const el = e.target.closest('[data-a]');
@@ -454,6 +545,23 @@
           case 'scan': return scan(false);
           case 'scanfull': return scan(true);
           case 'more': s.limit += 100; return draw(true);
+          case 'chip': {
+            const k = el.dataset.k, val = el.dataset.val, on = k && Object.keys(s.f).filter(x => s.f[x]).length === 1 && s.f[k] === val;
+            s.f = Object.assign(blankF(), k && !on ? { [k]: val } : {}); s.limit = 100; return draw(true);
+          }
+          case 'clearf': s.f = blankF(); s.limit = 100; return draw(true);
+          case 'unf': s.f[el.dataset.k] = ''; s.limit = 100; return draw(true);
+          case 'detail': s.detail = !s.detail; lsSet('cm-detail', s.detail); return draw(true);
+          case 'cols': s.colsOpen = !s.colsOpen; return draw(true);
+          case 'colsreset': s.colPref = {}; lsSet('cm-cols', {}); return draw(true);
+          case 'selall': filtered().forEach(x => s.sel.add(x.id)); return draw(true);
+          case 'selnone': s.sel.clear(); return draw(true);
+          case 'sort': {
+            const k = el.dataset.k;
+            s.sort = !s.sort || s.sort.k !== k ? { k, d: 1 } : s.sort.d > 0 ? { k, d: -1 } : null;
+            return draw(true);
+          }
+          case 'edit': s.edit = { id, k: el.dataset.k }; return draw(true);
           case 'cpdo': {
             const keys = s.cp.split(','), rows = filtered().filter(x => !s.sel.size || s.sel.has(x.id));
             if (!rows.length) return typeof toast === 'function' && toast('Không có dòng nào để copy', '#e74c3c');

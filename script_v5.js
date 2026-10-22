@@ -1,3 +1,19 @@
+function _tc(n){ try { return getComputedStyle(document.documentElement).getPropertyValue('--t-' + n).trim() || '#8b949e'; } catch(e){ return '#8b949e'; } }
+function dashThemeSync(){
+  var dark = document.documentElement.dataset.theme === 'dark';
+  document.querySelectorAll('.theme-toggle').forEach(function(b){ b.innerHTML = dark ? '<i class="fa fa-sun-o"></i> <span>Giao diện sáng</span>' : '<i class="fa fa-moon-o"></i> <span>Giao diện tối</span>'; });
+  document.querySelectorAll('.theme-toggle-mini').forEach(function(b){ b.textContent = dark ? '☀️' : '🌙'; b.title = dark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'; });
+}
+function dashToggleTheme(){
+  var d = document.documentElement, n = d.dataset.theme === 'dark' ? 'light' : 'dark';
+  d.dataset.theme = n;
+  try { localStorage.setItem('dash-theme', n); } catch(e){}
+  dashThemeSync();
+  try {
+    if (window.Chart && Chart.instances) Object.values(Chart.instances).forEach(function(c){ if (c && c._dashTheme) { c._dashTheme(); c.update('none'); } });
+  } catch(e){}
+}
+document.addEventListener('DOMContentLoaded', dashThemeSync);
 
 // SAFEGUARD: Automatically clear removed feature data from browser storage
 try { localStorage.removeItem('wt_giaoviec'); } catch(e) {}
@@ -169,9 +185,9 @@ function _teamEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').
 function teamBadgeHtml(teamVal, size) {
   const t = getTeamById(teamVal);
   if (!t && !teamVal) return '';
-  const color = t ? t.color : '#8b949e';
+  const color = t ? t.color : 'var(--t-fg-muted)';
   const pad = size === 'lg' ? '2px 8px' : '1px 6px';
-  return `<span style="font-size:10px;padding:${pad};border-radius:10px;background:${color}22;color:${color};font-weight:600;white-space:nowrap">${_teamEsc(t ? t.name : teamVal)}</span>`;
+  return `<span style="font-size:10px;padding:${pad};border-radius:10px;background:color-mix(in srgb,${color} 13%,transparent);color:${color};font-weight:600;white-space:nowrap">${_teamEsc(t ? t.name : teamVal)}</span>`;
 }
 
 // <option> cho select team. first = nhãn option rỗng đầu tiên (vd "Tất cả team"), bỏ trống thì không có.
@@ -231,14 +247,14 @@ function renderTeamSettings() {
   box.innerHTML = getTeams().map(t => {
     const u = _teamUsage(t.id);
     const used = `${u.websites} web · ${u.tasks + u.recurring} việc · ${u.indexTasks} link index`;
-    return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #30363d">
+    return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--t-border)">
       <input type="color" value="${t.color}" onchange="teamSetColor('${_teamEsc(t.id)}', this.value)" title="Màu badge" style="width:26px;height:26px;padding:0;border:none;background:none;cursor:pointer">
       <input type="text" value="${_teamEsc(t.name)}" onchange="teamRename('${_teamEsc(t.id)}', this.value)" title="Sửa tên rồi bấm ra ngoài / Enter để lưu"
-        style="flex:1;min-width:0;font-size:12px;padding:5px 7px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">
-      <span style="font-size:10px;color:#8b949e;white-space:nowrap" title="Mã trong ID task index: ${t.code}">${used}</span>
+        style="flex:1;min-width:0;font-size:12px;padding:5px 7px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px">
+      <span style="font-size:10px;color:var(--t-fg-muted);white-space:nowrap" title="Mã trong ID task index: ${t.code}">${used}</span>
       ${t.id === 'Team 01'
-        ? '<span style="font-size:10px;color:#8b949e;width:34px;text-align:center" title="Nhóm mặc định — chỉ đổi tên">🔒</span>'
-        : `<button onclick="teamDelete('${_teamEsc(t.id)}')" class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;color:#f85149;border-color:#f8514960" title="Xoá nhóm">🗑</button>`}
+        ? '<span style="font-size:10px;color:var(--t-fg-muted);width:34px;text-align:center" title="Nhóm mặc định — chỉ đổi tên">🔒</span>'
+        : `<button onclick="teamDelete('${_teamEsc(t.id)}')" class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;color:var(--t-danger);border-color:#f8514960" title="Xoá nhóm">🗑</button>`}
     </div>`;
   }).join('');
 }
@@ -1425,14 +1441,14 @@ function saveAppData(){
       console.log('Firebase push OK');
       if(ind){
         ind.textContent = '☁ Đã đồng bộ';
-        ind.style.color = '#f0f6fc';
+        ind.style.color = 'var(--t-fg3)';
         setTimeout(()=>ind.style.opacity='0', 1500);
       }
     }).catch(e=>{
       console.error('Firebase push FAILED:', e);
       if(ind){
         ind.textContent = '❌ Lỗi đồng bộ';
-        ind.style.color = '#f85149';
+        ind.style.color = 'var(--t-danger)';
         setTimeout(()=>ind.style.opacity='0', 3000);
       }
       throw e;
@@ -1441,7 +1457,7 @@ function saveAppData(){
     console.warn('Firebase not ready, _fbReady=', window._fbReady);
     if(ind){
       ind.textContent = '☁ Đã lưu (Local)';
-      ind.style.color = '#8b949e';
+      ind.style.color = 'var(--t-fg-muted)';
       setTimeout(()=>ind.style.opacity='0', 1500);
     }
     return Promise.resolve();
@@ -2602,8 +2618,8 @@ function wstApplyModeUI(){
     var b = document.getElementById('wstModeBtn_'+k);
     if(!b) return;
     var on = (k === _wstMode);
-    b.style.background   = on ? '#e74c3c' : '#161b22';
-    b.style.color        = on ? '#ffffff' : '#8b949e';
+    b.style.background   = on ? '#e74c3c' : 'var(--t-subtle)';
+    b.style.color        = on ? '#ffffff' : 'var(--t-fg-muted)';
     b.style.fontWeight   = on ? '700' : '500';
     b.style.boxShadow    = on ? 'inset 0 -2px 0 rgba(0,0,0,.25)' : 'none';
     b.style.textShadow   = on ? '0 1px 1px rgba(0,0,0,.3)' : 'none';
@@ -2881,12 +2897,12 @@ function wstShowScanProgress(){
   var old = document.getElementById('wstScanBar'); if (old) old.remove();
   var box = document.createElement('div');
   box.id = 'wstScanBar';
-  box.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:9999;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px 14px;width:320px;box-shadow:0 8px 28px rgba(0,0,0,.4);color:#e6edf3;font-size:12px';
+  box.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:9999;background:var(--t-subtle);border:1px solid var(--t-border);border-radius:10px;padding:12px 14px;width:320px;box-shadow:0 8px 28px rgba(0,0,0,.4);color:var(--t-fg2);font-size:12px';
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
     + '<b>🔎 Check index (Serper)</b>'
     + '<button onclick="_wstScanAbort=true;this.textContent=\'Đang dừng...\'" style="background:#e74c3c;color:#fff;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">Dừng</button></div>'
-    + '<div id="wstScanMsg" style="color:#8b949e;margin-bottom:6px">Bắt đầu...</div>'
-    + '<div style="height:6px;background:#0d1117;border-radius:4px;overflow:hidden"><div id="wstScanFill" style="height:100%;width:0;background:#3fb950;transition:width .3s"></div></div>';
+    + '<div id="wstScanMsg" style="color:var(--t-fg-muted);margin-bottom:6px">Bắt đầu...</div>'
+    + '<div style="height:6px;background:var(--t-canvas);border-radius:4px;overflow:hidden"><div id="wstScanFill" style="height:100%;width:0;background:var(--t-success);transition:width .3s"></div></div>';
   document.body.appendChild(box);
   return {
     set: function(msg, pct){
@@ -2961,14 +2977,14 @@ function wstRowRightContent(w, site){
   var rateCell = '—';
   if (total && idx !== null) {
     var pct = Math.round(idx / total * 100);
-    var col = pct >= 80 ? '#3fb950' : (pct >= 50 ? '#d29922' : '#f85149');
+    var col = pct >= 80 ? 'var(--t-success)' : (pct >= 50 ? 'var(--t-warn)' : 'var(--t-danger)');
     rateCell = '<span style="font-weight:700;color:' + col + '" title="Đã kiểm tra ' + checked + '/' + total + ' bài">' + pct + '%</span>';
   }
   var dom = wstCurrentUrl(w);   // site WordPress thật để viết/đăng bài
   return ''
-    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:#58a6ff">' + num(total) + '</td>'
-    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (idx ? '#3fb950' : '#8b949e') + '">' + num(idx) + '</td>'
-    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (noIdx ? '#f85149' : '#8b949e') + '" title="Gồm cả bài chưa kiểm tra (Tổng − Đã index)">' + num(noIdx) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:var(--t-accent)">' + num(total) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (idx ? 'var(--t-success)' : 'var(--t-fg-muted)') + '">' + num(idx) + '</td>'
+    + '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + (noIdx ? 'var(--t-danger)' : 'var(--t-fg-muted)') + '" title="Gồm cả bài chưa kiểm tra (Tổng − Đã index)">' + num(noIdx) + '</td>'
     + '<td style="padding:8px 6px;text-align:center">' + rateCell + '</td>'
     + '<td style="padding:8px 6px;text-align:center;font-size:11px;color:var(--text-muted);white-space:nowrap">' + (c.lastContentUpdate || '—') + '</td>'
     + '<td style="padding:8px 6px;text-align:center;white-space:nowrap">'
@@ -3041,7 +3057,7 @@ function wstCopySelectedPostUrls(){
   ).map(function(p){ return p.link; }).filter(Boolean);
   if (!urls.length){ if (typeof toast === 'function') toast('Không có URL nào để copy', '#e74c3c'); return; }
   var text = urls.join('\n');
-  var done = function(){ if (typeof toast === 'function') toast('📋 Đã copy ' + urls.length + ' URL', '#3fb950'); };
+  var done = function(){ if (typeof toast === 'function') toast('📋 Đã copy ' + urls.length + ' URL', 'var(--t-success)'); };
   var fallback = function(){
     try {
       var ta = document.createElement('textarea'); ta.value = text;
@@ -3155,33 +3171,33 @@ function wstFilteredPosts(){
 function wstRenderPosts(){
   var body = document.getElementById('wstPostsBody');
   var list = wstFilteredPosts();
-  if (!list.length) { body.innerHTML = '<tr><td colspan="9" style="padding:18px;text-align:center;color:#8b949e">Không có bài/trang nào</td></tr>'; return; }
+  if (!list.length) { body.innerHTML = '<tr><td colspan="9" style="padding:18px;text-align:center;color:var(--t-fg-muted)">Không có bài/trang nào</td></tr>'; return; }
   var selHdr = document.getElementById('wstPostsSelAll'); if (selHdr) selHdr.checked = list.length>0 && list.every(function(p){ return _wstPosts.sel[_wstUrlKey(p.link)]; });
   var fInfo = document.getElementById('wstPostsFilterInfo'); if (fInfo) fInfo.textContent = 'Hiện ' + list.length + '/' + _wstPosts.items.length;
   var d10 = function(s){ return s ? String(s).slice(0, 10) : '—'; };
   body.innerHTML = list.map(function(p, i){
     var title = (p.title && p.title.rendered) || '(không tiêu đề)';
-    var stColor = p.status === 'publish' ? '#3fb950' : (p.status === 'draft' ? '#d29922' : '#8b949e');
+    var stColor = p.status === 'publish' ? 'var(--t-success)' : (p.status === 'draft' ? 'var(--t-warn)' : 'var(--t-fg-muted)');
     // Trạng thái index từ cache (đã check Serper chưa)
     var ic = _wstIndexCache[_wstUrlKey(p.link)];
     var idxCell;
-    if (!ic) idxCell = '<span style="color:#8b949e;font-size:10px">— chưa quét</span>';
-    else if (ic.indexed) idxCell = '<span style="color:#3fb950;font-weight:700;font-size:11px" title="' + (ic.reason||'') + '">✅ Index</span>';
-    else idxCell = '<span style="color:#f85149;font-weight:600;font-size:10px" title="' + (ic.reason||'') + '">🚫 ' + (ic.reason||'Chưa index') + '</span>';
+    if (!ic) idxCell = '<span style="color:var(--t-fg-muted);font-size:10px">— chưa quét</span>';
+    else if (ic.indexed) idxCell = '<span style="color:var(--t-success);font-weight:700;font-size:11px" title="' + (ic.reason||'') + '">✅ Index</span>';
+    else idxCell = '<span style="color:var(--t-danger);font-weight:600;font-size:10px" title="' + (ic.reason||'') + '">🚫 ' + (ic.reason||'Chưa index') + '</span>';
     var _k = _wstUrlKey(p.link);
     var isPage = p._type === 'page';
     var catCell = isPage
-      ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(88,166,255,.15);color:#58a6ff;font-weight:600">📄 Page</span>'
-      : ((p._cats && p._cats.length) ? p._cats.join(', ') : '<span style="color:#8b949e">—</span>');
-    return '<tr style="border-top:1px solid #21262d">'
+      ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(88,166,255,.15);color:var(--t-accent);font-weight:600">📄 Page</span>'
+      : ((p._cats && p._cats.length) ? p._cats.join(', ') : '<span style="color:var(--t-fg-muted)">—</span>');
+    return '<tr style="border-top:1px solid var(--t-muted)">'
       + '<td style="padding:7px 6px;text-align:center"><input type="checkbox" ' + (_wstPosts.sel[_k] ? 'checked' : '') + ' onchange="wstTogglePostSel(&quot;' + _k + '&quot;, this.checked)"></td>'
-      + '<td style="padding:7px 6px;color:#8b949e">' + (i + 1) + '</td>'
+      + '<td style="padding:7px 6px;color:var(--t-fg-muted)">' + (i + 1) + '</td>'
       + '<td style="padding:7px 6px"><div style="font-weight:600">' + title + '</div>'
-        + '<div style="font-size:10px;color:#8b949e;word-break:break-all">' + (p.link || '') + '</div></td>'
+        + '<div style="font-size:10px;color:var(--t-fg-muted);word-break:break-all">' + (p.link || '') + '</div></td>'
       + '<td style="padding:7px 6px;font-size:11px;color:var(--text-muted)">' + catCell + '</td>'
       + '<td style="padding:7px 6px;text-align:center">' + idxCell + '</td>'
-      + '<td style="padding:7px 6px;text-align:center;color:#8b949e">' + d10(p.date) + '</td>'
-      + '<td style="padding:7px 6px;text-align:center;color:#8b949e">' + d10(p.modified) + '</td>'
+      + '<td style="padding:7px 6px;text-align:center;color:var(--t-fg-muted)">' + d10(p.date) + '</td>'
+      + '<td style="padding:7px 6px;text-align:center;color:var(--t-fg-muted)">' + d10(p.modified) + '</td>'
       + '<td style="padding:7px 6px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(139,148,158,.15);color:' + stColor + ';font-weight:600">' + (p.status || '?') + '</span></td>'
       + '<td style="padding:7px 6px;text-align:center">'
         + '<a href="' + (p.link || '#') + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 6px">Xem</a></td>'
@@ -3278,9 +3294,9 @@ function wstToggleProcPopup(mode){
 function _wstEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 var _WST_IMG_ST = {
   done: { icon: '✅', bd: '#2ea043', tip: 'đủ ảnh' },
-  running: { icon: '🎨', bd: '#d29922', tip: 'đang vẽ ảnh' },
-  waiting: { icon: '⏳', bd: '#30363d', tip: 'chờ làm ảnh' },
-  failed: { icon: '❌', bd: '#f85149', tip: 'làm ảnh lỗi 3 lần' }
+  running: { icon: '🎨', bd: 'var(--t-warn)', tip: 'đang vẽ ảnh' },
+  waiting: { icon: '⏳', bd: 'var(--t-border)', tip: 'chờ làm ảnh' },
+  failed: { icon: '❌', bd: 'var(--t-danger)', tip: 'làm ảnh lỗi 3 lần' }
 };
 function _wstKwChips(p){
   var kws = (p.keywords||[]).filter(Boolean);
@@ -3289,17 +3305,17 @@ function _wstKwChips(p){
   var chips = kws.map(function(k){
     var im = per[k], st = im && _WST_IMG_ST[im.state];
     var tip = st ? ' title="' + st.tip + ' · ' + im.done + '/' + im.total + ' ảnh"' : '';
-    return '<span' + tip + ' style="display:inline-block;background:#1c2128;border:1px solid ' + (st ? st.bd : '#30363d') + ';border-radius:10px;padding:1px 7px;margin:2px 3px 0 0;font-size:10.5px;color:#c9d1d9">' + (st ? st.icon + ' ' : '') + _wstEsc(k) + (im && im.state !== 'done' && im.total ? ' <span style="color:#8b949e">' + im.done + '/' + im.total + '</span>' : '') + '</span>';
+    return '<span' + tip + ' style="display:inline-block;background:var(--t-subtle3);border:1px solid ' + (st ? st.bd : 'var(--t-border)') + ';border-radius:10px;padding:1px 7px;margin:2px 3px 0 0;font-size:10.5px;color:var(--t-fg)">' + (st ? st.icon + ' ' : '') + _wstEsc(k) + (im && im.state !== 'done' && im.total ? ' <span style="color:var(--t-fg-muted)">' + im.done + '/' + im.total + '</span>' : '') + '</span>';
   }).join('');
   return '<div style="margin-top:5px;line-height:1.5">' + chips + '</div>';
 }
 function _wstImgLine(p){
   var im = p.img; if (!im) return '';
-  if (!im.pending) return '<div style="font-size:11px;color:#3fb950;margin-top:2px">🖼️ Đủ ảnh ' + im.done + '/' + im.articles + ' bài</div>';
+  if (!im.pending) return '<div style="font-size:11px;color:var(--t-success);margin-top:2px">🖼️ Đủ ảnh ' + im.done + '/' + im.articles + ' bài</div>';
   var st = im.paused ? '⏸ đang tạm dừng'
     : (!im.available && im.resume_at ? '⏳ mọi hồ sơ hết lượt — chạy lại ' + new Date(im.resume_at*1000).toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})
     : (!im.available ? '⚪ chưa có hồ sơ Chạy nền' : '🎨 đang làm'));
-  return '<div style="font-size:11px;color:#d29922;margin-top:2px">🖼️ Làm ảnh: ' + im.done + '/' + im.articles + ' bài đủ ảnh · ' + st + '</div>';
+  return '<div style="font-size:11px;color:var(--t-warn);margin-top:2px">🖼️ Làm ảnh: ' + im.done + '/' + im.articles + ' bài đủ ảnh · ' + st + '</div>';
 }
 function wstRenderProcPopup(){
   var pop = document.getElementById('procPopup'); if (!pop || !_procPopupMode) return;
@@ -3312,16 +3328,16 @@ function wstRenderProcPopup(){
   var rows = list.length ? list.map(function(p){
     var prog = (p.done||0) + '/' + (p.total||0) + ' bài';
     var site = _wstEsc(p.site || '');
-    var siteLine = site ? '<div style="font-size:11px;color:#58a6ff;font-weight:600;margin-bottom:1px">🌐 ' + site + '</div>' : '';
+    var siteLine = site ? '<div style="font-size:11px;color:var(--t-accent);font-weight:600;margin-bottom:1px">🌐 ' + site + '</div>' : '';
     var kwLine = _wstKwChips(p);
     if (running && p.status !== 'running')
-      return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:#8b949e">✅ Viết xong ' + prog + '</div>' + _wstImgLine(p) + kwLine + '</div>';
+      return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid var(--t-muted);cursor:pointer" onmouseover="this.style.background=&quot;var(--t-subtle3)&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:var(--t-fg-muted)">✅ Viết xong ' + prog + '</div>' + _wstImgLine(p) + kwLine + '</div>';
     if (running)
-      return '<div style="padding:9px 12px;border-top:1px solid #21262d">' + siteLine + '<div style="font-size:11px;color:#8b949e;display:flex;justify-content:space-between;align-items:center;gap:8px"><span>⏳ ' + prog + ' · bắt đầu ' + (p.created_at||'').slice(5,16) + '</span><button onclick="event.stopPropagation();wstCancelProcess(&quot;' + p.id + '&quot;)" style="background:#3d1518;color:#f85149;border:1px solid #f85149;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;white-space:nowrap">⏸ Tạm ngưng</button></div>' + kwLine + '</div>';
+      return '<div style="padding:9px 12px;border-top:1px solid var(--t-muted)">' + siteLine + '<div style="font-size:11px;color:var(--t-fg-muted);display:flex;justify-content:space-between;align-items:center;gap:8px"><span>⏳ ' + prog + ' · bắt đầu ' + (p.created_at||'').slice(5,16) + '</span><button onclick="event.stopPropagation();wstCancelProcess(&quot;' + p.id + '&quot;)" style="background:var(--t-danger-bg);color:var(--t-danger);border:1px solid var(--t-danger);border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;white-space:nowrap">⏸ Tạm ngưng</button></div>' + kwLine + '</div>';
     if (p.status === 'cancelled')
-      return '<div style="padding:9px 12px;border-top:1px solid #21262d">' + siteLine + '<div style="font-size:11px;color:#f85149">🚫 Đã hủy · ' + prog + ' xong trước khi dừng</div>' + kwLine + '</div>';
-    return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:#7c5cff">✅ ' + prog + ' xong · bấm mở Lịch sử thêm ảnh →</div>' + _wstImgLine(p) + kwLine + '</div>';
-  }).join('') : '<div style="padding:16px;text-align:center;color:#8b949e">Không có</div>';
+      return '<div style="padding:9px 12px;border-top:1px solid var(--t-muted)">' + siteLine + '<div style="font-size:11px;color:var(--t-danger)">🚫 Đã hủy · ' + prog + ' xong trước khi dừng</div>' + kwLine + '</div>';
+    return '<div onclick="wstOpenBatchHistory()" style="padding:9px 12px;border-top:1px solid var(--t-muted);cursor:pointer" onmouseover="this.style.background=&quot;var(--t-subtle3)&quot;" onmouseout="this.style.background=&quot;&quot;">' + siteLine + '<div style="font-size:11px;color:#7c5cff">✅ ' + prog + ' xong · bấm mở Lịch sử thêm ảnh →</div>' + _wstImgLine(p) + kwLine + '</div>';
+  }).join('') : '<div style="padding:16px;text-align:center;color:var(--t-fg-muted)">Không có</div>';
   
   if (!running) {
     let gscReports = [];
@@ -3334,18 +3350,18 @@ function wstRenderProcPopup(){
        var gscRows = gscReports.map(function(r, idx){
          var time = new Date(r.date).toLocaleString('vi-VN');
          var shortText = 'Đồng bộ GSC: ' + r.totalSuccess + '/' + r.totalScanned + ' web thành công';
-         return '<div onclick="wstShowGscReportDetails(' + idx + ')" style="padding:9px 12px;border-top:1px solid #21262d;cursor:pointer" onmouseover="this.style.background=&quot;#1c2128&quot;" onmouseout="this.style.background=&quot;&quot;">' +
-           '<div style="font-size:12px;color:#3fb950;font-weight:600">📊 ' + shortText + '</div>' +
-           '<div style="font-size:11px;color:#8b949e">' + time + ' · Bấm để xem chi tiết →</div>' +
+         return '<div onclick="wstShowGscReportDetails(' + idx + ')" style="padding:9px 12px;border-top:1px solid var(--t-muted);cursor:pointer" onmouseover="this.style.background=&quot;var(--t-subtle3)&quot;" onmouseout="this.style.background=&quot;&quot;">' +
+           '<div style="font-size:12px;color:var(--t-success);font-weight:600">📊 ' + shortText + '</div>' +
+           '<div style="font-size:11px;color:var(--t-fg-muted)">' + time + ' · Bấm để xem chi tiết →</div>' +
            '</div>';
        }).join('');
-       rows = '<div style="padding:6px 12px;font-size:11px;color:#8b949e;background:#161b22">BÁO CÁO GSC</div>' + gscRows + 
-              '<div style="padding:6px 12px;font-size:11px;color:#8b949e;background:#161b22">TIẾN TRÌNH SEO WRITER</div>' + rows;
+       rows = '<div style="padding:6px 12px;font-size:11px;color:var(--t-fg-muted);background:var(--t-subtle)">BÁO CÁO GSC</div>' + gscRows + 
+              '<div style="padding:6px 12px;font-size:11px;color:var(--t-fg-muted);background:var(--t-subtle)">TIẾN TRÌNH SEO WRITER</div>' + rows;
     }
   }
   
-  pop.innerHTML = '<div style="padding:10px 12px;font-weight:700;border-bottom:1px solid #30363d;display:flex;justify-content:space-between">'
-    + '<span>' + head + '</span><span onclick="wstToggleProcPopup(&quot;' + _procPopupMode + '&quot;)" style="cursor:pointer;color:#8b949e">✕</span></div>' + rows;
+  pop.innerHTML = '<div style="padding:10px 12px;font-weight:700;border-bottom:1px solid var(--t-border);display:flex;justify-content:space-between">'
+    + '<span>' + head + '</span><span onclick="wstToggleProcPopup(&quot;' + _procPopupMode + '&quot;)" style="cursor:pointer;color:var(--t-fg-muted)">✕</span></div>' + rows;
 }
 
 async function wstCancelProcess(pid){
@@ -3373,7 +3389,7 @@ function wstShowGscReportDetails(idx) {
     </div>
     
     <div style="margin-bottom:15px;font-size:14px">
-      <b>Tổng quan:</b> Đã quét thành công <span style="color:#3fb950;font-weight:bold">${r.totalSuccess}/${r.totalScanned}</span> website.
+      <b>Tổng quan:</b> Đã quét thành công <span style="color:var(--t-success);font-weight:bold">${r.totalSuccess}/${r.totalScanned}</span> website.
       <br><span style="font-size:11px;color:var(--text-muted)">Thời gian: ${new Date(r.date).toLocaleString('vi-VN')}</span>
     </div>`;
     
@@ -3921,7 +3937,7 @@ function wstRenderBulkBar(){
   bar.style.display='flex';
   bar.innerHTML = `<span style="font-weight:600;font-size:13px">${_wstSelected.size} web đã chọn</span>
     <div style="display:flex;align-items:center;gap:6px">
-      <select id="wstBulkCopySelect" style="height:26px;font-size:11px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;outline:none;cursor:pointer;padding:0 6px">
+      <select id="wstBulkCopySelect" style="height:26px;font-size:11px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:4px;outline:none;cursor:pointer;padding:0 6px">
         <option value="source">Copy URL gốc</option>
         <option value="301">Copy URL 301</option>
         <option value="both">Copy cả hai</option>
@@ -3930,7 +3946,7 @@ function wstRenderBulkBar(){
       <button onclick="wstExecuteBulkCopy()" class="btn btn-sm btn-outline" style="font-size:11px">Thực hiện Copy</button>
     </div>
     <div style="display:flex;align-items:center;gap:6px">
-      <select id="wstBulk301Select" style="height:26px;font-size:11px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;outline:none;cursor:pointer;padding:0 6px">
+      <select id="wstBulk301Select" style="height:26px;font-size:11px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:4px;outline:none;cursor:pointer;padding:0 6px">
         <option value="create">Tạo lệnh 301 hàng loạt</option>
         <option value="complete">Hoàn thành lệnh 301 hàng loạt</option>
         <option value="cancel">Hủy lệnh 301 hàng loạt</option>
@@ -3938,7 +3954,7 @@ function wstRenderBulkBar(){
       <button onclick="wstExecuteBulk301()" class="btn btn-sm btn-outline" style="font-size:11px;color:#10b981;border-color:#10b981">Thực hiện 301</button>
     </div>
     <button onclick="wstTriggerAddGscBulk()" class="btn btn-sm btn-outline" style="font-size:11px;color:#f2a154;border-color:#e5893c">Thêm GSC</button>
-    <button onclick="wstCheckSelectedSites()" class="btn btn-sm" style="font-size:11px;background:#3fb950;color:#fff;border:none">🔎 Check index (Serper)</button>
+    <button onclick="wstCheckSelectedSites()" class="btn btn-sm" style="font-size:11px;background:var(--t-success);color:#fff;border:none">🔎 Check index (Serper)</button>
     <button onclick="_wstSelected.clear();renderWsTrack()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;margin-left:auto">×</button>`;
 }
 
@@ -4050,9 +4066,9 @@ function wstChangeGscPeriod(val) {
 
 function wstGetSortIndicator(colName) {
   if (_wstSortCol !== colName || _wstSortDir === 'none') {
-    return `<span style="font-size:9px;color:#8b949e;margin-left:4px">⇅</span>`;
+    return `<span style="font-size:9px;color:var(--t-fg-muted);margin-left:4px">⇅</span>`;
   }
-  return `<span style="font-size:9px;color:#58a6ff;margin-left:4px">${_wstSortDir === 'asc' ? '▲' : '▼'}</span>`;
+  return `<span style="font-size:9px;color:var(--t-accent);margin-left:4px">${_wstSortDir === 'asc' ? '▲' : '▼'}</span>`;
 }
 
 function wstHandleSort(colName) {
@@ -4502,7 +4518,7 @@ function renderWsTrack(){
       : baseIcon;
 
     const isPinned = !!site?.pinned;
-    return `<tr style="border-bottom:1px solid #f0f0f0;${isSelected?'background:#fdf2f2;':''}${isPinned?'box-shadow:inset 3px 0 0 #d29922;':''}" onmouseover="if(!${isSelected})this.style.background='#fafafa'" onmouseout="if(!${isSelected})this.style.background=''">
+    return `<tr style="border-bottom:1px solid #f0f0f0;${isSelected?'background:#fdf2f2;':''}${isPinned?'box-shadow:inset 3px 0 0 var(--t-warn);':''}" onmouseover="if(!${isSelected})this.style.background='#fafafa'" onmouseout="if(!${isSelected})this.style.background=''">
       <td style="padding:6px;text-align:center">
         <input type="checkbox" class="wst-chk" data-id="${w.id}" onchange="wstToggleSelect(${w.id},this)" ${isSelected?'checked':''} style="cursor:pointer;accent-color:var(--red)">
       </td>
@@ -4518,7 +4534,7 @@ function renderWsTrack(){
               <div style="font-size:10px;color:${dColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${wstUrlHtml(dW)}</div>
               <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px">
                 <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${dW.status||''}</span>
-                ${(dW.tags?.length ? dW.tags : w.tags || []).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:#58a6ff;border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
+                ${(dW.tags?.length ? dW.tags : w.tags || []).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:var(--t-accent);border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
               </div>
             </div>
           </div>`;
@@ -4534,7 +4550,7 @@ function renderWsTrack(){
               <div style="font-size:10px;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${wstUrlHtml(w)}</div>
               <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px">
                 <span style="font-size:10px;padding:0 5px;border-radius:8px;background:${sc}18;color:${sc}">${w.status||''}</span>
-                ${(w.tags||[]).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:#58a6ff;border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
+                ${(w.tags||[]).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:var(--t-accent);border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
               </div>
             </div>
           </div>`;
@@ -4584,14 +4600,14 @@ function renderWsTrack(){
         const posHtml = renderTrend(gscData.pos, gscData.posPrev, true, (val) => val > 0 ? val.toFixed(1) : '—');
         
         return `
-          <td style="padding:8px 10px;text-align:center;font-weight:600;color:#58a6ff;cursor:pointer" onclick="wstOpenGscModal(${w.id})">${clicksHtml}</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:600;color:var(--t-accent);cursor:pointer" onclick="wstOpenGscModal(${w.id})">${clicksHtml}</td>
           <td style="padding:8px 10px;text-align:center;color:#88d49e;cursor:pointer" onclick="wstOpenGscModal(${w.id})">${impsHtml}</td>
           <td style="padding:8px 10px;text-align:center;color:#f2a154;cursor:pointer" onclick="wstOpenGscModal(${w.id})">${ctrHtml}</td>
           <td style="padding:8px 10px;text-align:center;color:#c5a3ff;font-weight:600;cursor:pointer" onclick="wstOpenGscModal(${w.id})">${posHtml}</td>
         `;
       })()}
       <td id="rank_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600">
-        ${wstIsCMB(w) ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(130,80,223,.15);color:#a371f7;font-weight:700" title="Đang cấu hình bot Google thu thập dữ liệu — chưa vận hành, không check rank">CMB</span>'
+        ${wstIsCMB(w) ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(130,80,223,.15);color:var(--t-done2);font-weight:700" title="Đang cấu hình bot Google thu thập dữ liệu — chưa vận hành, không check rank">CMB</span>'
           : !last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank)}
       </td>
       <td id="index_td_${w.id}" style="padding:8px 4px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="${wstIsCMB(w) ? 'CMB — đang cấu hình bot, chưa vận hành: index mặc định ❌, không check' : `Trạng thái: ${lastIndexedVal || 'Chưa kiểm tra'}${lastIndexedDate ? `\nNgày check: ${lastIndexedDate}` : ''}\n(Click để check index tự động bằng Serper/GSC)`}">${wstIsCMB(w) ? '❌' : indexIcon}</td>
@@ -4639,15 +4655,15 @@ function renderWsTrack(){
           const gscStatus = siteTarget?.gscConnectionStatus || 'not_connected';
           const gscEmail = siteTarget?.gscEmail || '';
           if (gscStatus === 'connected') {
-            return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:#3fb950;border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="website thuộc tài sản gsc email: ${gscEmail}">GSC</span>`;
+            return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:rgba(46,160,67,0.15);color:var(--t-success);border:1px solid rgba(46,160,67,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="website thuộc tài sản gsc email: ${gscEmail}">GSC</span>`;
           } else if (gscStatus === 'disconnected') {
-            return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="mất kết nối tài khoản gsc email: ${gscEmail}">GSC</span>`;
+            return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:rgba(248,81,73,0.15);color:var(--t-danger);border:1px solid rgba(248,81,73,0.4);border-radius:4px;font-weight:700;margin-right:4px;display:inline-block;vertical-align:middle" title="mất kết nối tài khoản gsc email: ${gscEmail}">GSC</span>`;
           } else {
-            return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:#21262d;color:#8b949e;border:1px solid #30363d;border-radius:4px;margin-right:4px;display:inline-block;vertical-align:middle" title="chưa ghi nhận email sở hữu">GSC</span>`;
+            return `<span class="wst-gsc-badge" style="font-size:9px;padding:2px 5px;background:var(--t-muted);color:var(--t-fg-muted);border:1px solid var(--t-border);border-radius:4px;margin-right:4px;display:inline-block;vertical-align:middle" title="chưa ghi nhận email sở hữu">GSC</span>`;
           }
         })()}
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>
-        <button onclick="wstTogglePin(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle;${isPinned ? 'background:rgba(210,153,34,0.18);border-color:#d29922' : 'opacity:.45;filter:grayscale(1)'}" title="${isPinned ? 'Bỏ ghim' : 'Ghim lên đầu — luôn hiện, không bị bộ lọc ẩn'}">📌</button>
+        <button onclick="wstTogglePin(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle;${isPinned ? 'background:rgba(210,153,34,0.18);border-color:var(--t-warn)' : 'opacity:.45;filter:grayscale(1)'}" title="${isPinned ? 'Bỏ ghim' : 'Ghim lên đầu — luôn hiện, không bị bộ lọc ẩn'}">📌</button>
         <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c;vertical-align:middle" title="Bỏ theo dõi">×</button>
       </td>`}
     </tr>`;
@@ -6707,7 +6723,7 @@ function renderWebsites(){
           <span style="font-weight:600;font-size:13px">${wstBrandHtml(w)}</span>
           ${teamBadgeHtml(w.team || 'Team 01')}
           ${w.group?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fff3cd;color:#856404">${w.group}</span>`:''}
-          ${(w.tags||[]).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:#58a6ff;border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
+          ${(w.tags||[]).map(t => `<span style="font-size:9px;padding:1px 4px;border-radius:4px;background:#1f6feb20;color:var(--t-accent);border:1px solid #1f6feb40;white-space:nowrap;">${t}</span>`).join('')}
         </div>
         <div style="font-size:11px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${wstUrlHtml(w)}</div>
         ${w.note?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${w.note}</div>`:''}
@@ -7359,10 +7375,10 @@ function goEditWebsite(){
 
       <div class="form-group" style="position:relative;">
         <label>Tags (Chủ đề)</label>
-        <div id="we_tags_container" onclick="document.getElementById('we_tag_input').focus()" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;border:1px solid #30363d;border-radius:6px;padding:6px;background:#0d1117;align-items:center;cursor:text;">
-          <input type="text" id="we_tag_input" placeholder="Tìm hoặc tạo tag..." autocomplete="off" style="border:none;background:transparent;color:#c9d1d9;outline:none;flex:1;min-width:120px;padding:0;height:20px;font-size:12px;">
+        <div id="we_tags_container" onclick="document.getElementById('we_tag_input').focus()" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;border:1px solid var(--t-border);border-radius:6px;padding:6px;background:var(--t-canvas);align-items:center;cursor:text;">
+          <input type="text" id="we_tag_input" placeholder="Tìm hoặc tạo tag..." autocomplete="off" style="border:none;background:transparent;color:var(--t-fg);outline:none;flex:1;min-width:120px;padding:0;height:20px;font-size:12px;">
         </div>
-        <div id="we_tag_suggestions" style="display:none;position:absolute;z-index:100;background:#161b22;border:1px solid #30363d;border-radius:6px;max-height:150px;overflow-y:auto;width:100%;box-shadow:0 8px 16px rgba(0,0,0,0.5);top:100%;left:0;margin-top:4px;">
+        <div id="we_tag_suggestions" style="display:none;position:absolute;z-index:100;background:var(--t-subtle);border:1px solid var(--t-border);border-radius:6px;max-height:150px;overflow-y:auto;width:100%;box-shadow:0 8px 16px rgba(0,0,0,0.5);top:100%;left:0;margin-top:4px;">
         </div>
       </div>
 
@@ -10855,7 +10871,7 @@ const TaskImporter = {
     const t = this.parsedTasks[0];
     const colList = cols ? cols.map(c => c.label) : ['Cần làm', 'Đang làm', 'Pending', 'Hoàn thành'];
     document.getElementById('qi_preview').innerHTML = `
-      <div style="background:#161b22;border-radius:8px;padding:12px 14px;border:1px solid #30363d">
+      <div style="background:var(--t-subtle);border-radius:8px;padding:12px 14px;border:1px solid var(--t-border)">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <span class="badge ${TASK_TYPE_COLORS[t.type] || 'badge-gray'}" style="font-size:11px">${t.type}</span>
           ${t._loaiBai ? `<span class="badge badge-red" style="font-size:11px">${t._loaiBai}</span>` : ''}
@@ -10863,23 +10879,23 @@ const TaskImporter = {
           ${t.person ? `<span class="tag-person ${t.person === 'Hải' ? 'tag-hai' : t.person === 'Hiếu' ? 'tag-hieu' : ''}" style="font-size:11px">${t.person}</span>` : ''}
         </div>
         <div style="margin-bottom:6px">
-          <label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Tên task</label>
+          <label style="font-size:11px;color:var(--t-fg-muted);display:block;margin-bottom:3px">Tên task</label>
           <input type="text" value="${t.name.replace(/"/g, '&quot;')}" oninput="TaskImporter.parsedTasks[0].name=this.value"
-            style="width:100%;font-size:14px;font-weight:600;border:1px solid #30363d;background-color:#0d1117;color:#c9d1d9;border-radius:6px;padding:6px 8px;box-sizing:border-box">
+            style="width:100%;font-size:14px;font-weight:600;border:1px solid var(--t-border);background-color:var(--t-canvas);color:var(--t-fg);border-radius:6px;padding:6px 8px;box-sizing:border-box">
         </div>
-        <div style="margin-bottom:10px;font-size:11px;color:#8b949e">
-          Kanban: <b style="color:#c9d1d9">${colList.join(' → ')}</b>
+        <div style="margin-bottom:10px;font-size:11px;color:var(--t-fg-muted)">
+          Kanban: <b style="color:var(--t-fg)">${colList.join(' → ')}</b>
         </div>
-        <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:#c9d1d9">Task con (${t.cards.length} thẻ — vào cột "${colList[0]}")</div>
+        <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:var(--t-fg)">Task con (${t.cards.length} thẻ — vào cột "${colList[0]}")</div>
         <div data-cards style="display:flex;flex-direction:column;gap:4px">
           ${t.cards.map((c, i) => `
-            <div style="display:flex;align-items:center;gap:6px;background-color:#0d1117;border-radius:5px;padding:5px 8px;border:1px solid #30363d">
-              <span style="font-size:11px;color:#8b949e;min-width:20px">${i + 1}.</span>
+            <div style="display:flex;align-items:center;gap:6px;background-color:var(--t-canvas);border-radius:5px;padding:5px 8px;border:1px solid var(--t-border)">
+              <span style="font-size:11px;color:var(--t-fg-muted);min-width:20px">${i + 1}.</span>
               <input type="text" value="${c.name.replace(/"/g, '&quot;')}" 
                 oninput="TaskImporter.parsedTasks[0].cards[${i}].name=this.value"
-                style="flex:1;font-size:12px;border:none;outline:none;background:transparent;color:#c9d1d9">
+                style="flex:1;font-size:12px;border:none;outline:none;background:transparent;color:var(--t-fg)">
               <button onclick="TaskImporter.parsedTasks[0].cards.splice(${i},1);TaskImporter.repreview()" 
-                style="background:none;border:none;cursor:pointer;color:#8b949e;font-size:14px;padding:0 2px">&#10005;</button>
+                style="background:none;border:none;cursor:pointer;color:var(--t-fg-muted);font-size:14px;padding:0 2px">&#10005;</button>
             </div>`).join('')}
         </div>
       </div>`;
@@ -10888,13 +10904,13 @@ const TaskImporter = {
     const t = this.parsedTasks[0];
     if (!t) return;
     const cardsHtml = t.cards.map((c, i) => `
-      <div style="display:flex;align-items:center;gap:6px;background-color:#0d1117;border-radius:5px;padding:5px 8px;border:1px solid #30363d">
-        <span style="font-size:11px;color:#8b949e;min-width:20px">${i + 1}.</span>
+      <div style="display:flex;align-items:center;gap:6px;background-color:var(--t-canvas);border-radius:5px;padding:5px 8px;border:1px solid var(--t-border)">
+        <span style="font-size:11px;color:var(--t-fg-muted);min-width:20px">${i + 1}.</span>
         <input type="text" value="${c.name.replace(/"/g, '&quot;')}" 
           oninput="TaskImporter.parsedTasks[0].cards[${i}].name=this.value"
-          style="flex:1;font-size:12px;border:none;outline:none;background:transparent;color:#c9d1d9">
+          style="flex:1;font-size:12px;border:none;outline:none;background:transparent;color:var(--t-fg)">
         <button onclick="TaskImporter.parsedTasks[0].cards.splice(${i},1);TaskImporter.repreview()" 
-          style="background:none;border:none;cursor:pointer;color:#8b949e;font-size:14px;padding:0 2px">&#10005;</button>
+          style="background:none;border:none;cursor:pointer;color:var(--t-fg-muted);font-size:14px;padding:0 2px">&#10005;</button>
       </div>`).join('');
     const cardList = document.getElementById('qi_preview').querySelector('[data-cards]');
     if (cardList) cardList.innerHTML = cardsHtml;
@@ -10949,12 +10965,12 @@ const TaskImporter = {
     }).length;
 
     document.getElementById('qi_preview').innerHTML = `
-      <div style="background:#161b22;border-radius:8px;padding:12px 14px;margin-bottom:10px;border:1px solid #30363d">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#f0f6fc">${t.name}</div>
+      <div style="background:var(--t-subtle);border-radius:8px;padding:12px 14px;margin-bottom:10px;border:1px solid var(--t-border)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--t-fg3)">${t.name}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
           <span style="font-size:12px;background:rgba(46,160,67,0.15);border:1px solid rgba(46,160,67,0.3);border-radius:20px;padding:2px 10px;color:#56d364">✅ Trong kho: ${inKho}</span>
-          <span style="font-size:12px;background:rgba(248,81,73,0.15);border:1px solid rgba(248,81,73,0.3);border-radius:20px;padding:2px 10px;color:#f85149">🔍 Chưa có: ${t.cards.length - inKho}</span>
-          <span style="font-size:12px;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.3);border-radius:20px;padding:2px 10px;color:#58a6ff">Tổng: ${t.cards.length} URL</span>
+          <span style="font-size:12px;background:rgba(248,81,73,0.15);border:1px solid rgba(248,81,73,0.3);border-radius:20px;padding:2px 10px;color:var(--t-danger)">🔍 Chưa có: ${t.cards.length - inKho}</span>
+          <span style="font-size:12px;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.3);border-radius:20px;padding:2px 10px;color:var(--t-accent)">Tổng: ${t.cards.length} URL</span>
         </div>
         <div data-cards style="display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto">
           ${t.cards.map((card, i) => {
@@ -10966,13 +10982,13 @@ const TaskImporter = {
             });
             const icon = ws ? (WS_STATUS_ICON[ws.status] || '✅') : '🔍';
             const tip = ws ? (ws.brand + ' — ' + ws.status) : 'Chưa có trong kho';
-            const tipColor = icon === '✅' ? '#56d364' : icon === '🔍' ? '#8b949e' : '#f85149';
-            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background-color:#0d1117;border-radius:6px;border:1px solid #30363d">
+            const tipColor = icon === '✅' ? '#56d364' : icon === '🔍' ? 'var(--t-fg-muted)' : 'var(--t-danger)';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background-color:var(--t-canvas);border-radius:6px;border:1px solid var(--t-border)">
               <span style="font-size:14px" title="${tip}">${icon}</span>
-              <span style="flex:1;font-size:12px;color:#c9d1d9">${url}</span>
+              <span style="flex:1;font-size:12px;color:var(--t-fg)">${url}</span>
               <span style="font-size:11px;color:${tipColor}">${tip}</span>
               <button onclick="TaskImporter.parsedTasks[0].cards.splice(${i},1);TaskImporter.repreviewUrl()" 
-                style="background:none;border:none;cursor:pointer;color:#8b949e;font-size:14px;padding:0 2px">✕</button>
+                style="background:none;border:none;cursor:pointer;color:var(--t-fg-muted);font-size:14px;padding:0 2px">✕</button>
             </div>`;
           }).join('')}
         </div>
@@ -10994,8 +11010,8 @@ const TaskImporter = {
       if (summaryBadges) {
         summaryBadges.innerHTML = `
           <span style="font-size:12px;background:rgba(46,160,67,0.15);border:1px solid rgba(46,160,67,0.3);border-radius:20px;padding:2px 10px;color:#56d364">✅ Trong kho: ${inKho}</span>
-          <span style="font-size:12px;background:rgba(248,81,73,0.15);border:1px solid rgba(248,81,73,0.3);border-radius:20px;padding:2px 10px;color:#f85149">🔍 Chưa có: ${t.cards.length - inKho}</span>
-          <span style="font-size:12px;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.3);border-radius:20px;padding:2px 10px;color:#58a6ff">Tổng: ${t.cards.length} URL</span>`;
+          <span style="font-size:12px;background:rgba(248,81,73,0.15);border:1px solid rgba(248,81,73,0.3);border-radius:20px;padding:2px 10px;color:var(--t-danger)">🔍 Chưa có: ${t.cards.length - inKho}</span>
+          <span style="font-size:12px;background:rgba(56,139,253,0.15);border:1px solid rgba(56,139,253,0.3);border-radius:20px;padding:2px 10px;color:var(--t-accent)">Tổng: ${t.cards.length} URL</span>`;
       }
       const cardList = container.querySelector('[data-cards]');
       if (cardList) {
@@ -11008,13 +11024,13 @@ const TaskImporter = {
           });
           const icon = ws ? (WS_STATUS_ICON[ws.status] || '✅') : '🔍';
           const tip = ws ? (ws.brand + ' — ' + ws.status) : 'Chưa có trong kho';
-          const tipColor = icon === '✅' ? '#56d364' : icon === '🔍' ? '#8b949e' : '#f85149';
-          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background-color:#0d1117;border-radius:6px;border:1px solid #30363d">
+          const tipColor = icon === '✅' ? '#56d364' : icon === '🔍' ? 'var(--t-fg-muted)' : 'var(--t-danger)';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background-color:var(--t-canvas);border-radius:6px;border:1px solid var(--t-border)">
             <span style="font-size:14px" title="${tip}">${icon}</span>
-            <span style="flex:1;font-size:12px;color:#c9d1d9">${url}</span>
+            <span style="flex:1;font-size:12px;color:var(--t-fg)">${url}</span>
             <span style="font-size:11px;color:${tipColor}">${tip}</span>
             <button onclick="TaskImporter.parsedTasks[0].cards.splice(${i},1);TaskImporter.repreviewUrl()" 
-              style="background:none;border:none;cursor:pointer;color:#8b949e;font-size:14px;padding:0 2px">✕</button>
+              style="background:none;border:none;cursor:pointer;color:var(--t-fg-muted);font-size:14px;padding:0 2px">✕</button>
           </div>`;
         }).join('');
       }
@@ -11298,8 +11314,8 @@ function wsImportPreview(){
   if(!items.length){ el.style.display = 'none'; return; }
   
   el.style.display = 'block';
-  el.innerHTML = '<div style="font-weight:600;margin-bottom:6px;color:#f0f6fc">Đang tải cấu trúc dữ liệu (' + items.length + ' website):</div>'
-    + items.map(w=>`<div style="padding:4px 0;border-bottom:1px solid #30363d;display:flex;justify-content:space-between"><span style="font-weight:500;color:#c9d1d9">${wstBrandHtml(w)}</span><span style="color:var(--blue)">${wstUrlHtml(w)}</span></div>`).join('');
+  el.innerHTML = '<div style="font-weight:600;margin-bottom:6px;color:var(--t-fg3)">Đang tải cấu trúc dữ liệu (' + items.length + ' website):</div>'
+    + items.map(w=>`<div style="padding:4px 0;border-bottom:1px solid var(--t-border);display:flex;justify-content:space-between"><span style="font-weight:500;color:var(--t-fg)">${wstBrandHtml(w)}</span><span style="color:var(--blue)">${wstUrlHtml(w)}</span></div>`).join('');
 }
 
 // Bổ sung sự kiện cập nhật preview khi gõ text
@@ -11532,13 +11548,13 @@ function wstSetGscBadge(state, progress) {
   if (!badge) return;
   badge.style.display = 'inline-flex';
   const styles = {
-    ready:    { text: '☁️ GSC: Sẵn sàng',         color: '#8b949e', bg: 'rgba(139,148,158,0.1)', border: 'rgba(139,148,158,0.2)' },
-    syncing:  { text: `🔄 Đang đồng bộ... (${progress||''})`, color: '#58a6ff', bg: 'rgba(88,166,255,0.1)', border: 'rgba(88,166,255,0.3)' },
-    done:     { text: '✅ GSC: Đã cập nhật',        color: '#3fb950', bg: 'rgba(63,185,80,0.1)',  border: 'rgba(63,185,80,0.3)' },
-    noscope:  { text: '⚠️ GSC: Thiếu quyền',        color: '#d29922', bg: 'rgba(210,153,34,0.1)', border: 'rgba(210,153,34,0.3)' },
-    nomatch:  { text: 'ℹ️ GSC: 0 web trùng khớp',   color: '#8b949e', bg: 'rgba(139,148,158,0.1)', border: 'rgba(139,148,158,0.2)' },
-    expired:  { text: '⚠️ GSC: Hết hạn token',      color: '#d29922', bg: 'rgba(210,153,34,0.1)', border: 'rgba(210,153,34,0.3)' },
-    error:    { text: '❌ GSC: Lỗi kết nối',        color: '#f85149', bg: 'rgba(248,81,73,0.1)',  border: 'rgba(248,81,73,0.3)' }
+    ready:    { text: '☁️ GSC: Sẵn sàng',         color: 'var(--t-fg-muted)', bg: 'rgba(139,148,158,0.1)', border: 'rgba(139,148,158,0.2)' },
+    syncing:  { text: `🔄 Đang đồng bộ... (${progress||''})`, color: 'var(--t-accent)', bg: 'rgba(88,166,255,0.1)', border: 'rgba(88,166,255,0.3)' },
+    done:     { text: '✅ GSC: Đã cập nhật',        color: 'var(--t-success)', bg: 'rgba(63,185,80,0.1)',  border: 'rgba(63,185,80,0.3)' },
+    noscope:  { text: '⚠️ GSC: Thiếu quyền',        color: 'var(--t-warn)', bg: 'rgba(210,153,34,0.1)', border: 'rgba(210,153,34,0.3)' },
+    nomatch:  { text: 'ℹ️ GSC: 0 web trùng khớp',   color: 'var(--t-fg-muted)', bg: 'rgba(139,148,158,0.1)', border: 'rgba(139,148,158,0.2)' },
+    expired:  { text: '⚠️ GSC: Hết hạn token',      color: 'var(--t-warn)', bg: 'rgba(210,153,34,0.1)', border: 'rgba(210,153,34,0.3)' },
+    error:    { text: '❌ GSC: Lỗi kết nối',        color: 'var(--t-danger)', bg: 'rgba(248,81,73,0.1)',  border: 'rgba(248,81,73,0.3)' }
   };
   const s = styles[state] || styles.ready;
   badge.textContent = s.text;
@@ -12238,11 +12254,11 @@ function wstSwitchGscTab(tab) {
     const btn = document.getElementById(`gscTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
     if (btn) {
       if (t === tab) {
-        btn.style.background = '#21262d';
+        btn.style.background = 'var(--t-muted)';
         btn.style.color = '#fff';
       } else {
         btn.style.background = 'transparent';
-        btn.style.color = '#8b949e';
+        btn.style.color = 'var(--t-fg-muted)';
       }
     }
   });
@@ -12338,8 +12354,8 @@ async function wstLoadGscDetailData() {
   const queriesTbody = document.getElementById('gscQueriesTbody');
   const pagesTbody = document.getElementById('gscPagesTbody');
   
-  if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">⏳ Đang tải cụm từ tìm kiếm...</td></tr>';
-  if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">⏳ Đang tải danh sách trang...</td></tr>';
+  if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: var(--t-fg-muted);">⏳ Đang tải cụm từ tìm kiếm...</td></tr>';
+  if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: var(--t-fg-muted);">⏳ Đang tải danh sách trang...</td></tr>';
   
   let finalGscUrl = site.gscPropertyUrl || site.url;
   if (!finalGscUrl) {
@@ -12366,16 +12382,16 @@ async function wstLoadGscDetailData() {
     
     const queries = qData.rows || [];
     if (queries.length === 0) {
-      if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Không tìm thấy dữ liệu từ khóa.</td></tr>';
+      if (queriesTbody) queriesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: var(--t-fg-muted);">Không tìm thấy dữ liệu từ khóa.</td></tr>';
     } else {
       if (queriesTbody) {
         queriesTbody.innerHTML = queries.map(q => `
-          <tr style="border-bottom: 1px solid #30363d; height: 38px;">
-            <td style="padding: 8px 16px; color: #c9d1d9; font-weight: 500;">${q.keys[0]}</td>
-            <td style="padding: 8px 16px; text-align: right; color: #58a6ff; font-weight: 600;">${q.clicks.toLocaleString()}</td>
-            <td style="padding: 8px 16px; text-align: right; color: #8b949e;">${q.impressions.toLocaleString()}</td>
+          <tr style="border-bottom: 1px solid var(--t-border); height: 38px;">
+            <td style="padding: 8px 16px; color: var(--t-fg); font-weight: 500;">${q.keys[0]}</td>
+            <td style="padding: 8px 16px; text-align: right; color: var(--t-accent); font-weight: 600;">${q.clicks.toLocaleString()}</td>
+            <td style="padding: 8px 16px; text-align: right; color: var(--t-fg-muted);">${q.impressions.toLocaleString()}</td>
             <td style="padding: 8px 16px; text-align: right; color: #f2a154;">${(q.ctr * 100).toFixed(1)}%</td>
-            <td style="padding: 8px 16px; text-align: right; color: #bc8cff; font-weight: 600;">${q.position.toFixed(1)}</td>
+            <td style="padding: 8px 16px; text-align: right; color: var(--t-done); font-weight: 600;">${q.position.toFixed(1)}</td>
           </tr>
         `).join('');
       }
@@ -12396,7 +12412,7 @@ async function wstLoadGscDetailData() {
     
     const pages = pData.rows || [];
     if (pages.length === 0) {
-      if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: #8b949e;">Không tìm thấy dữ liệu trang.</td></tr>';
+      if (pagesTbody) pagesTbody.innerHTML = '<tr><td colspan="5" style="padding: 24px; text-align: center; color: var(--t-fg-muted);">Không tìm thấy dữ liệu trang.</td></tr>';
     } else {
       if (pagesTbody) {
         pagesTbody.innerHTML = pages.map(p => {
@@ -12411,14 +12427,14 @@ async function wstLoadGscDetailData() {
           }
           const isHome = pagePath === '/';
           return `
-            <tr style="border-bottom: 1px solid #30363d; height: 38px; ${isHome ? 'background: rgba(88,166,255,0.06); font-weight: 600;' : ''}">
-              <td style="padding: 8px 16px; color: ${isHome ? '#58a6ff' : '#c9d1d9'}; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${fullUrl}">
+            <tr style="border-bottom: 1px solid var(--t-border); height: 38px; ${isHome ? 'background: rgba(88,166,255,0.06); font-weight: 600;' : ''}">
+              <td style="padding: 8px 16px; color: ${isHome ? 'var(--t-accent)' : 'var(--t-fg)'}; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${fullUrl}">
                 ${isHome ? '🏠 ' : ''}${pagePath}
               </td>
-              <td style="padding: 8px 16px; text-align: right; color: #58a6ff;">${p.clicks.toLocaleString()}</td>
-              <td style="padding: 8px 16px; text-align: right; color: #8b949e;">${p.impressions.toLocaleString()}</td>
+              <td style="padding: 8px 16px; text-align: right; color: var(--t-accent);">${p.clicks.toLocaleString()}</td>
+              <td style="padding: 8px 16px; text-align: right; color: var(--t-fg-muted);">${p.impressions.toLocaleString()}</td>
               <td style="padding: 8px 16px; text-align: right; color: #f2a154;">${(p.ctr * 100).toFixed(1)}%</td>
-              <td style="padding: 8px 16px; text-align: right; color: #bc8cff;">${p.position.toFixed(1)}</td>
+              <td style="padding: 8px 16px; text-align: right; color: var(--t-done);">${p.position.toFixed(1)}</td>
             </tr>
           `;
         }).join('');
@@ -12624,7 +12640,7 @@ function wstDrawGscChart(history) {
         {
           label: 'Clicks',
           data: clicksData,
-          borderColor: '#58a6ff',
+          borderColor: _tc('accent'),
           backgroundColor: 'rgba(88,166,255,0.1)',
           yAxisID: 'yClicks',
           borderWidth: 2.5,
@@ -12634,7 +12650,7 @@ function wstDrawGscChart(history) {
         {
           label: 'Impressions',
           data: impressionsData,
-          borderColor: '#3fb950',
+          borderColor: _tc('success'),
           backgroundColor: 'rgba(63,185,80,0.1)',
           yAxisID: 'yImps',
           borderWidth: 2.5,
@@ -12652,29 +12668,29 @@ function wstDrawGscChart(history) {
       },
       plugins: {
         legend: {
-          labels: { color: '#c9d1d9', font: { size: 11 } }
+          labels: { color: _tc('fg'), font: { size: 11 } }
         }
       },
       scales: {
         x: {
-          grid: { color: '#30363d' },
-          ticks: { color: '#8b949e', font: { size: 10 } }
+          grid: { color: _tc('border') },
+          ticks: { color: _tc('fg-muted'), font: { size: 10 } }
         },
         yClicks: {
           type: 'linear',
           display: true,
           position: 'left',
-          grid: { color: '#30363d' },
-          ticks: { color: '#58a6ff', font: { size: 10 } },
-          title: { display: true, text: 'Clicks', color: '#58a6ff' }
+          grid: { color: _tc('border') },
+          ticks: { color: _tc('accent'), font: { size: 10 } },
+          title: { display: true, text: 'Clicks', color: _tc('accent') }
         },
         yImps: {
           type: 'linear',
           display: true,
           position: 'right',
           grid: { drawOnChartArea: false },
-          ticks: { color: '#3fb950', font: { size: 10 } },
-          title: { display: true, text: 'Impressions', color: '#3fb950' }
+          ticks: { color: _tc('success'), font: { size: 10 } },
+          title: { display: true, text: 'Impressions', color: _tc('success') }
         }
       }
     }
@@ -12783,13 +12799,13 @@ function wstShowGscGate(wsId, acc){
   wstCloseGscGate();
   var w = websites.find(function(x){ return x.id === wsId; }) || {};
   var who = acc.email ? '<b>' + acc.email + '</b>' : 'Tài khoản Google hiện tại';
-  var dom = '<b style="color:#58a6ff">' + (acc.domain || '—') + '</b>';
+  var dom = '<b style="color:var(--t-accent)">' + (acc.domain || '—') + '</b>';
   var msg = {
     notoken:    'Bạn chưa đăng nhập Google Search Console trong phiên này.',
     expired:    'Phiên đăng nhập Google Search Console đã hết hạn.',
     noscope:    'Lần đăng nhập trước chưa cấp quyền Search Console cho dashboard.',
     noproperty: who + ' không có property Search Console nào khớp với ' + dom + '.',
-    lowperm:    who + ' chỉ có quyền <b style="color:#d29922">' + (WST_GSC_LEVEL_TXT[acc.level] || acc.level) + '</b> với property <code>' + (acc.property || '') + '</code>.',
+    lowperm:    who + ' chỉ có quyền <b style="color:var(--t-warn)">' + (WST_GSC_LEVEL_TXT[acc.level] || acc.level) + '</b> với property <code>' + (acc.property || '') + '</code>.',
     error:      'Không kiểm tra được quyền Search Console (' + (acc.msg || 'lỗi mạng') + ').'
   }[acc.reason] || 'Thiếu quyền Search Console.';
   var hint = (acc.reason === 'noproperty' || acc.reason === 'lowperm')
@@ -12800,14 +12816,14 @@ function wstShowGscGate(wsId, acc){
   ov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:rgba(1,4,9,.72);display:flex;align-items:center;justify-content:center;padding:16px';
   ov.onclick = function(e){ if (e.target === ov) wstCloseGscGate(); };
   ov.innerHTML = ''
-    + '<div style="width:100%;max-width:460px;background:#161b22;border:1px solid #30363d;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.7);overflow:hidden">'
-    +   '<div style="padding:14px 18px;background:#0d1117;border-bottom:1px solid #21262d;font-weight:700;color:#e6edf3">🔐 Cần quyền Google Search Console — ' + (w.brand || '') + '</div>'
-    +   '<div style="padding:16px 18px;font-size:13px;line-height:1.6;color:#c9d1d9">'
+    + '<div style="width:100%;max-width:460px;background:var(--t-subtle);border:1px solid var(--t-border);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.7);overflow:hidden">'
+    +   '<div style="padding:14px 18px;background:var(--t-canvas);border-bottom:1px solid var(--t-muted);font-weight:700;color:var(--t-fg2)">🔐 Cần quyền Google Search Console — ' + (w.brand || '') + '</div>'
+    +   '<div style="padding:16px 18px;font-size:13px;line-height:1.6;color:var(--t-fg)">'
     +     '<div style="margin-bottom:8px">' + msg + '</div>'
-    +     '<div style="color:#8b949e">' + hint + '</div>'
-    +     '<div style="margin-top:10px;font-size:12px;color:#8b949e">Site kiểm tra: ' + dom + ' (URL 301 hiện tại)</div>'
+    +     '<div style="color:var(--t-fg-muted)">' + hint + '</div>'
+    +     '<div style="margin-top:10px;font-size:12px;color:var(--t-fg-muted)">Site kiểm tra: ' + dom + ' (URL 301 hiện tại)</div>'
     +   '</div>'
-    +   '<div style="padding:12px 18px;border-top:1px solid #21262d;display:flex;gap:8px;justify-content:flex-end">'
+    +   '<div style="padding:12px 18px;border-top:1px solid var(--t-muted);display:flex;gap:8px;justify-content:flex-end">'
     +     '<button class="btn btn-outline btn-sm" onclick="wstCloseGscGate()">Đóng</button>'
     +     (acc.reason === 'error' ? '<button class="btn btn-outline btn-sm" onclick="wstCloseGscGate();wstOpenDashboard(' + wsId + ')">🔄 Thử lại</button>' : '')
     +     '<button class="btn btn-sm" style="background:#238636;color:#fff;border:none" onclick="wstGscGateLogin(' + wsId + ')">🔑 Đăng nhập Google</button>'
@@ -12872,13 +12888,14 @@ function wstOpenDashboardUI(wsId) {
       <div class="mh-icon">🌐</div>
       <div class="mh-info">
         <div class="mh-name">${wstBrandHtml(w)}</div>
-        <div class="mh-url">${wstCurrentUrl(w) || w.url || '—'}${wstCurrentUrl(w) && wstCurrentUrl(w) !== String(w.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '') ? ' <span style="color:#8b949e">(gốc: ' + w.url + ')</span>' : ''} · Team: ${getTeamLabel(w.team || 'Team 01')} · Nhóm: ${w.group || 'Chưa phân nhóm'} · Trạng thái: ${w.status || '—'}</div>
+        <div class="mh-url">${wstCurrentUrl(w) || w.url || '—'}${wstCurrentUrl(w) && wstCurrentUrl(w) !== String(w.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '') ? ' <span style="color:var(--t-fg-muted)">(gốc: ' + w.url + ')</span>' : ''} · Team: ${getTeamLabel(w.team || 'Team 01')} · Nhóm: ${w.group || 'Chưa phân nhóm'} · Trạng thái: ${w.status || '—'}</div>
         <div class="mh-tags">
           <span class="tag tg">✅ ${w.status || 'Tốt'}</span>
           <span class="tag tb">📈 Đang theo dõi</span>
           <span class="tag to">🏆 Vị trí: ${avgPosGoogle > 0 ? avgPosGoogle.toFixed(1) : '—'}</span>
         </div>
       </div>
+      <button class="btn-x theme-toggle-mini" onclick="dashToggleTheme()" title="Đổi giao diện sáng / tối" style="margin-right:6px">${document.documentElement.dataset.theme === 'dark' ? '☀️' : '🌙'}</button>
       <button class="btn-x" onclick="wstCloseDashboard()">×</button>
     </div>
 
@@ -12977,9 +12994,9 @@ function wstOpenDashboardUI(wsId) {
                     </td>
                     <td class="c cp" style="font-weight:700">${e.backlinks || '—'}</td>
                     <td class="c"><span class="ib ${indexIcon}">${e.indexed || 'Chưa index'}</span></td>
-                    <td style="color:#8b949e; font-size:11px">${e.note || '—'}</td>
+                    <td style="color:var(--t-fg-muted); font-size:11px">${e.note || '—'}</td>
                   </tr>`;
-              }).join('') || '<tr><td colspan="6" style="text-align:center; padding:32px; color:#8b949e">Chưa ghi nhận lịch sử check rank. Bấm nút (+) ở bảng Web Tracking ngoài để thêm dữ liệu.</td></tr>'}
+              }).join('') || '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--t-fg-muted)">Chưa ghi nhận lịch sử check rank. Bấm nút (+) ở bảng Web Tracking ngoài để thêm dữ liệu.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -12990,9 +13007,9 @@ function wstOpenDashboardUI(wsId) {
         <div class="sh" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
           <span class="st-title" id="wstGscTitleRange">📊 Google Search Console — Chi tiết 28 ngày qua</span>
           <div style="display: flex; align-items: center; gap: 6px;">
-            <a href="#" onclick="wstOpenManualActions(${wsId});return false" style="font-size:11px;color:#d29922;text-decoration:none;margin-right:8px" title="Google không có API án phạt — mở báo cáo trong Search Console">⚠️ Án phạt thủ công ↗</a>
-            <span style="font-size: 11px; color: #8b949e;">Khoảng thời gian:</span>
-            <select id="wstGscDateRangeDetail" onchange="wstChangeGscRangeDetail()" style="background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; outline: none;">
+            <a href="#" onclick="wstOpenManualActions(${wsId});return false" style="font-size:11px;color:var(--t-warn);text-decoration:none;margin-right:8px" title="Google không có API án phạt — mở báo cáo trong Search Console">⚠️ Án phạt thủ công ↗</a>
+            <span style="font-size: 11px; color: var(--t-fg-muted);">Khoảng thời gian:</span>
+            <select id="wstGscDateRangeDetail" onchange="wstChangeGscRangeDetail()" style="background: var(--t-muted); color: var(--t-fg); border: 1px solid var(--t-border); border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; outline: none;">
               <option value="24h">24 giờ qua</option>
               <option value="7d">7 ngày qua</option>
               <option value="28d" selected>28 ngày qua</option>
@@ -13016,7 +13033,7 @@ function wstOpenDashboardUI(wsId) {
           </div>
         </div>
         <div class="st-title" style="margin-bottom:8px">Top cụm từ khóa tìm kiếm (GSC)</div>
-        <div id="wstGscQueriesBox" style="color:#8b949e; font-size:11px; font-style:italic; padding:10px;">Đang tải dữ liệu Google Search Console...</div>
+        <div id="wstGscQueriesBox" style="color:var(--t-fg-muted); font-size:11px; font-style:italic; padding:10px;">Đang tải dữ liệu Google Search Console...</div>
       </div>
 
       <!-- 3. PANEL BING -->
@@ -13116,7 +13133,7 @@ function wstOpenDashboardUI(wsId) {
           finalDate = dates[dates.length - 1];
         }
         
-        return `<div class="mf-info">🕐 Cập nhật hệ thống: <strong>${finalDate}</strong> <span style="font-size:10px;color:#8b949e;margin-left:5px">(Rank: ${rankDate} · GSC: ${gscDate} · Thủ công/Note: ${manualDate})</span> · ID site: ws_${wsId}</div>`;
+        return `<div class="mf-info">🕐 Cập nhật hệ thống: <strong>${finalDate}</strong> <span style="font-size:10px;color:var(--t-fg-muted);margin-left:5px">(Rank: ${rankDate} · GSC: ${gscDate} · Thủ công/Note: ${manualDate})</span> · ID site: ws_${wsId}</div>`;
       })()}
       <div class="mf-btns">
         <button class="btn btn-d" onclick="wstRemoveTrackingFromDashboard(${wsId})">🗑 Bỏ theo dõi</button>
@@ -13152,16 +13169,16 @@ function wstRenderOverview(wsId) {
   let rankTrend = '';
   if (last && prev) {
     const d = rankNum(prev.rank) - rankNum(last.rank);
-    if (d > 0) rankTrend = `<span style="color:#3fb950">▲ ${rankNum(prev.rank) === 999 ? 'vào top' : d}</span>`;
-    else if (d < 0) rankTrend = `<span style="color:#f85149">▼ ${rankNum(last.rank) === 999 ? 'rớt top' : -d}</span>`;
-    else rankTrend = '<span style="color:#8b949e">= giữ hạng</span>';
+    if (d > 0) rankTrend = `<span style="color:var(--t-success)">▲ ${rankNum(prev.rank) === 999 ? 'vào top' : d}</span>`;
+    else if (d < 0) rankTrend = `<span style="color:var(--t-danger)">▼ ${rankNum(last.rank) === 999 ? 'rớt top' : -d}</span>`;
+    else rankTrend = '<span style="color:var(--t-fg-muted)">= giữ hạng</span>';
   }
   const idxTxt = last && last.indexed ? last.indexed : 'Chưa kiểm tra';
   const idxOk = idxTxt === 'Đã index';
 
   // GSC 28 ngày
   const g = typeof wstGetGscPeriodData === 'function' ? wstGetGscPeriodData(wsId, '28d') : {};
-  const pct = (a, b) => (!b ? '' : (a >= b ? `<span style="color:#3fb950">▲ ${Math.round((a - b) / b * 100)}%</span>` : `<span style="color:#f85149">▼ ${Math.round((b - a) / b * 100)}%</span>`));
+  const pct = (a, b) => (!b ? '' : (a >= b ? `<span style="color:var(--t-success)">▲ ${Math.round((a - b) / b * 100)}%</span>` : `<span style="color:var(--t-danger)">▼ ${Math.round((b - a) / b * 100)}%</span>`));
   const cache = (typeof _gscCache !== 'undefined' && _gscCache[wsId]) || {};
 
   // Nội dung
@@ -13173,60 +13190,60 @@ function wstRenderOverview(wsId) {
 
   // Cảnh báo
   const alerts = [];
-  const go = (tab, label) => `<a href="#" onclick="wstSwitchTab(null,'${tab}');return false" style="color:#58a6ff;margin-left:6px">${label} →</a>`;
-  if (last && prev && rankNum(last.rank) > rankNum(prev.rank)) alerts.push(['#f85149', `Rank từ khóa chính tụt: ${esc(strip(prev.rank))} → ${esc(rankTxt)}`, go('rank', 'Xem rank')]);
-  if (last && last.indexed && !idxOk) alerts.push(['#f85149', `Trang chủ: ${esc(idxTxt)} (check ${esc(last.date)})`, '']);
-  if (site.gscConnectionStatus === 'disconnected') alerts.push(['#f85149', 'Mất kết nối Google Search Console', '']);
+  const go = (tab, label) => `<a href="#" onclick="wstSwitchTab(null,'${tab}');return false" style="color:var(--t-accent);margin-left:6px">${label} →</a>`;
+  if (last && prev && rankNum(last.rank) > rankNum(prev.rank)) alerts.push(['var(--t-danger)', `Rank từ khóa chính tụt: ${esc(strip(prev.rank))} → ${esc(rankTxt)}`, go('rank', 'Xem rank')]);
+  if (last && last.indexed && !idxOk) alerts.push(['var(--t-danger)', `Trang chủ: ${esc(idxTxt)} (check ${esc(last.date)})`, '']);
+  if (site.gscConnectionStatus === 'disconnected') alerts.push(['var(--t-danger)', 'Mất kết nối Google Search Console', '']);
   const syncAge = daysAgo(cache.syncedAt);
-  if (syncAge !== null && syncAge > 3) alerts.push(['#d29922', `Số liệu GSC cũ ${syncAge} ngày (đồng bộ lần cuối ${esc(String(cache.syncedAt).slice(0, 10))})`, '']);
-  if (noIdx) alerts.push(['#d29922', `${noIdx}/${total} bài chưa index (hoặc chưa kiểm tra)`, go('content', 'Quản lý nội dung')]);
+  if (syncAge !== null && syncAge > 3) alerts.push(['var(--t-warn)', `Số liệu GSC cũ ${syncAge} ngày (đồng bộ lần cuối ${esc(String(cache.syncedAt).slice(0, 10))})`, '']);
+  if (noIdx) alerts.push(['var(--t-warn)', `${noIdx}/${total} bài chưa index (hoặc chưa kiểm tra)`, go('content', 'Quản lý nội dung')]);
   const contentAge = daysAgo(cs.lastContentUpdate);
-  if (contentAge !== null && contentAge > 30) alerts.push(['#d29922', `${contentAge} ngày chưa cập nhật nội dung (lần cuối ${esc(cs.lastContentUpdate)})`, '']);
-  if (total === null) alerts.push(['#8b949e', 'Chưa quét bài viết trên site', go('content', 'Quét ngay')]);
+  if (contentAge !== null && contentAge > 30) alerts.push(['var(--t-warn)', `${contentAge} ngày chưa cập nhật nội dung (lần cuối ${esc(cs.lastContentUpdate)})`, '']);
+  if (total === null) alerts.push(['var(--t-fg-muted)', 'Chưa quét bài viết trên site', go('content', 'Quét ngay')]);
 
-  const card = (label, val, sub, col) => `<div style="flex:1;min-width:150px;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px 14px">
-      <div style="font-size:11px;color:#8b949e;margin-bottom:6px">${label}</div>
+  const card = (label, val, sub, col) => `<div style="flex:1;min-width:150px;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:var(--t-fg-muted);margin-bottom:6px">${label}</div>
       <div style="font-size:20px;font-weight:700;color:${col}">${val}</div>
-      <div style="font-size:11px;margin-top:4px;color:#8b949e">${sub || '&nbsp;'}</div></div>`;
-  const box = (title, inner) => `<div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px 14px;min-width:0">
-      <div style="font-size:12px;font-weight:700;color:#c9d1d9;margin-bottom:8px">${title}</div>${inner}</div>`;
+      <div style="font-size:11px;margin-top:4px;color:var(--t-fg-muted)">${sub || '&nbsp;'}</div></div>`;
+  const box = (title, inner) => `<div style="background:var(--t-canvas);border:1px solid var(--t-border);border-radius:10px;padding:12px 14px;min-width:0">
+      <div style="font-size:12px;font-weight:700;color:var(--t-fg);margin-bottom:8px">${title}</div>${inner}</div>`;
 
   const kb = site.kanban || {};
   const doing = (kb.doing || []).slice(-6), todo = (kb.todo || []).slice(-6);
-  const kItem = (c, col) => `<div style="font-size:12px;color:#c9d1d9;padding:4px 0;border-bottom:1px solid #21262d"><span style="color:${col}">●</span> ${esc(strip(c.title))}</div>`;
+  const kItem = (c, col) => `<div style="font-size:12px;color:var(--t-fg);padding:4px 0;border-bottom:1px solid var(--t-muted)"><span style="color:${col}">●</span> ${esc(strip(c.title))}</div>`;
   const logs = typeof wstBuildHistoryLogs === 'function' ? wstBuildHistoryLogs(wsId).slice(0, 6) : [];
 
   panel.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button onclick="wstWriteForSite(${wsId})" class="btn btn-sm" style="padding:6px 12px;background:#7c5cff;color:#fff;border:none;border-radius:6px;font-weight:600">✍️ Viết bài</button>
-        <button onclick="wstSwitchTab(null,'content')" class="btn btn-sm" style="padding:6px 12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">🔎 Check index bài viết</button>
-        <button onclick="wstSwitchTab(null,'expert')" class="btn btn-sm" style="padding:6px 12px;background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px">🧠 Hỏi chuyên gia</button>
-        <button onclick="wstOpenManualActions(${wsId})" class="btn btn-sm" style="padding:6px 12px;background:#21262d;color:#d29922;border:1px solid #30363d;border-radius:6px" title="Google không có API — mở báo cáo trong Search Console">⚠️ Án phạt thủ công ↗</button>
+        <button onclick="wstSwitchTab(null,'content')" class="btn btn-sm" style="padding:6px 12px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px">🔎 Check index bài viết</button>
+        <button onclick="wstSwitchTab(null,'expert')" class="btn btn-sm" style="padding:6px 12px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px">🧠 Hỏi chuyên gia</button>
+        <button onclick="wstOpenManualActions(${wsId})" class="btn btn-sm" style="padding:6px 12px;background:var(--t-muted);color:var(--t-warn);border:1px solid var(--t-border);border-radius:6px" title="Google không có API — mở báo cáo trong Search Console">⚠️ Án phạt thủ công ↗</button>
       </div>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         ${card('🏆 Rank từ khóa chính', esc(rankTxt), (rankTrend || '') + (last ? ` <span style="margin-left:4px">· ${esc(site.mainKeyword || w.brand)} · ${esc(String(last.date).slice(0, 10))}</span>` : ''), '#e3b341')}
-        ${card('🔍 Index trang chủ', idxOk ? '✅ Đã index' : (last && last.indexed ? '❌ Chưa' : '—'), last && last.indexed && !idxOk ? esc(idxTxt) : '', idxOk ? '#3fb950' : '#f85149')}
-        ${card('👆 Clicks GSC 28 ngày', (g.clicks || 0).toLocaleString(), pct(g.clicks || 0, g.clicksPrev || 0) + ' <span>so với 28 ngày trước</span>', '#58a6ff')}
-        ${card('👁 Hiển thị GSC 28 ngày', (g.imps || 0).toLocaleString(), pct(g.imps || 0, g.impsPrev || 0) + (g.pos ? ` · vị trí TB ${g.pos.toFixed(1)}` : ''), '#3fb950')}
-        ${card('📄 Tỷ lệ index bài', idxRate === null ? '—' : idxRate + '%', total === null ? 'chưa quét' : `${idx}/${total} bài`, idxRate === null ? '#8b949e' : idxRate >= 80 ? '#3fb950' : idxRate >= 50 ? '#d29922' : '#f85149')}
+        ${card('🔍 Index trang chủ', idxOk ? '✅ Đã index' : (last && last.indexed ? '❌ Chưa' : '—'), last && last.indexed && !idxOk ? esc(idxTxt) : '', idxOk ? 'var(--t-success)' : 'var(--t-danger)')}
+        ${card('👆 Clicks GSC 28 ngày', (g.clicks || 0).toLocaleString(), pct(g.clicks || 0, g.clicksPrev || 0) + ' <span>so với 28 ngày trước</span>', 'var(--t-accent)')}
+        ${card('👁 Hiển thị GSC 28 ngày', (g.imps || 0).toLocaleString(), pct(g.imps || 0, g.impsPrev || 0) + (g.pos ? ` · vị trí TB ${g.pos.toFixed(1)}` : ''), 'var(--t-success)')}
+        ${card('📄 Tỷ lệ index bài', idxRate === null ? '—' : idxRate + '%', total === null ? 'chưa quét' : `${idx}/${total} bài`, idxRate === null ? 'var(--t-fg-muted)' : idxRate >= 80 ? 'var(--t-success)' : idxRate >= 50 ? 'var(--t-warn)' : 'var(--t-danger)')}
       </div>
 
       ${box('⚠ Cần chú ý', alerts.length
-        ? alerts.map(a => `<div style="font-size:12px;color:#c9d1d9;padding:5px 0 5px 10px;border-left:3px solid ${a[0]};margin-bottom:4px">${a[1]}${a[2]}</div>`).join('')
-        : '<div style="font-size:12px;color:#3fb950">✅ Không có cảnh báo nào</div>')}
+        ? alerts.map(a => `<div style="font-size:12px;color:var(--t-fg);padding:5px 0 5px 10px;border-left:3px solid ${a[0]};margin-bottom:4px">${a[1]}${a[2]}</div>`).join('')
+        : '<div style="font-size:12px;color:var(--t-success)">✅ Không có cảnh báo nào</div>')}
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
-        ${box(`📝 Việc đang làm <a href="#" onclick="wstSwitchTab(null,'plan');return false" style="color:#58a6ff;font-weight:400;margin-left:6px">Kanban →</a>`,
+        ${box(`📝 Việc đang làm <a href="#" onclick="wstSwitchTab(null,'plan');return false" style="color:var(--t-accent);font-weight:400;margin-left:6px">Kanban →</a>`,
           (doing.length || todo.length)
-            ? doing.map(c => kItem(c, '#58a6ff')).join('') + todo.map(c => kItem(c, '#d29922')).join('')
-              + '<div style="font-size:10px;color:#8b949e;margin-top:6px"><span style="color:#58a6ff">●</span> đang làm · <span style="color:#d29922">●</span> vấn đề cần xử lý</div>'
-            : '<div style="font-size:12px;color:#8b949e">Chưa có việc nào</div>')}
-        ${box(`🕒 Thay đổi gần nhất <a href="#" onclick="wstSwitchTab(null,'history');return false" style="color:#58a6ff;font-weight:400;margin-left:6px">Lịch sử →</a>`,
+            ? doing.map(c => kItem(c, 'var(--t-accent)')).join('') + todo.map(c => kItem(c, 'var(--t-warn)')).join('')
+              + '<div style="font-size:10px;color:var(--t-fg-muted);margin-top:6px"><span style="color:var(--t-accent)">●</span> đang làm · <span style="color:var(--t-warn)">●</span> vấn đề cần xử lý</div>'
+            : '<div style="font-size:12px;color:var(--t-fg-muted)">Chưa có việc nào</div>')}
+        ${box(`🕒 Thay đổi gần nhất <a href="#" onclick="wstSwitchTab(null,'history');return false" style="color:var(--t-accent);font-weight:400;margin-left:6px">Lịch sử →</a>`,
           logs.length
-            ? logs.map(l => `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #21262d"><span style="color:#8b949e;font-size:11px">${esc(l.date)}</span><br><span style="color:#c9d1d9">${esc(strip(l.detail))}</span></div>`).join('')
-            : '<div style="font-size:12px;color:#8b949e">Chưa có</div>')}
+            ? logs.map(l => `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--t-muted)"><span style="color:var(--t-fg-muted);font-size:11px">${esc(l.date)}</span><br><span style="color:var(--t-fg)">${esc(strip(l.detail))}</span></div>`).join('')
+            : '<div style="font-size:12px;color:var(--t-fg-muted)">Chưa có</div>')}
       </div>
     </div>`;
 }
@@ -13296,17 +13313,17 @@ function wstRenderContentCards(){
   var idx = has(c.indexed) ? c.indexed : null;
   var noIdx = (total !== null && idx !== null) ? Math.max(0, total - idx) : null;
   var pct = (total && idx !== null) ? Math.round(idx / total * 100) : null;
-  var pcol = pct === null ? '#8b949e' : (pct >= 80 ? '#3fb950' : (pct >= 50 ? '#d29922' : '#f85149'));
+  var pcol = pct === null ? 'var(--t-fg-muted)' : (pct >= 80 ? 'var(--t-success)' : (pct >= 50 ? 'var(--t-warn)' : 'var(--t-danger)'));
   var card = function(label, val, col, tip){
-    return '<div title="' + (tip || '') + '" style="flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px 14px">'
-      + '<div style="font-size:11px;color:#8b949e;margin-bottom:6px">' + label + '</div>'
+    return '<div title="' + (tip || '') + '" style="flex:1;min-width:120px;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:10px;padding:12px 14px">'
+      + '<div style="font-size:11px;color:var(--t-fg-muted);margin-bottom:6px">' + label + '</div>'
       + '<div style="font-size:22px;font-weight:700;color:' + col + '">' + val + '</div></div>';
   };
-  box.innerHTML = card('Tổng bài', total === null ? '—' : total, '#58a6ff')
-    + card('Đã index', idx === null ? '—' : idx, idx ? '#3fb950' : '#8b949e')
-    + card('Chưa index', noIdx === null ? '—' : noIdx, noIdx ? '#f85149' : '#8b949e', 'Gồm cả bài chưa kiểm tra (Tổng − Đã index)')
+  box.innerHTML = card('Tổng bài', total === null ? '—' : total, 'var(--t-accent)')
+    + card('Đã index', idx === null ? '—' : idx, idx ? 'var(--t-success)' : 'var(--t-fg-muted)')
+    + card('Chưa index', noIdx === null ? '—' : noIdx, noIdx ? 'var(--t-danger)' : 'var(--t-fg-muted)', 'Gồm cả bài chưa kiểm tra (Tổng − Đã index)')
     + card('Tỷ lệ index', pct === null ? '—' : pct + '%', pcol)
-    + card('Cập nhật nội dung', c.lastContentUpdate || '—', '#c9d1d9');
+    + card('Cập nhật nội dung', c.lastContentUpdate || '—', 'var(--t-fg)');
 }
 
 function wstRenderContentTab(wsId){
@@ -13320,7 +13337,7 @@ function wstRenderContentTab(wsId){
   panel.innerHTML = ''
     + '<div style="display:flex;flex-direction:column;gap:12px;height:100%;min-height:0">'
     +   '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-    +     '<span style="font-size:13px;color:#8b949e">Site WordPress hiện tại: <b style="color:#58a6ff">' + dom + '</b></span>'
+    +     '<span style="font-size:13px;color:var(--t-fg-muted)">Site WordPress hiện tại: <b style="color:var(--t-accent)">' + dom + '</b></span>'
     +     '<button onclick="wstWriteForSite(' + wsId + ')" class="btn btn-sm" style="margin-left:auto;padding:6px 14px;background:#7c5cff;color:#fff;border:none;border-radius:6px;font-weight:600">✍️ Viết bài</button>'
     +   '</div>'
     +   '<div id="wstCmCards" style="display:flex;gap:10px;flex-wrap:wrap"></div>'
@@ -13380,7 +13397,7 @@ function wstRenderServices() {
 
   const listBody = document.getElementById('wstServiceListBody');
   if (services.length === 0) {
-    listBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:#8b949e">Chưa ghi nhận đợt mua dịch vụ nào.</td></tr>';
+    listBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--t-fg-muted)">Chưa ghi nhận đợt mua dịch vụ nào.</td></tr>';
     return;
   }
 
@@ -13393,7 +13410,7 @@ function wstRenderServices() {
         <td><span class="tag ${typeClass}">${typeLabel}</span></td>
         <td>${s.description || '—'}</td>
         <td class="c cp" style="font-weight:700">+${s.amount || 0}</td>
-        <td style="color:#8b949e">${s.note || '—'}</td>
+        <td style="color:var(--t-fg-muted)">${s.note || '—'}</td>
         <td class="c"><button class="dbtn" onclick="wstDeleteService('${s.id}')">🗑</button></td>
       </tr>
     `;
@@ -13453,10 +13470,10 @@ function wstRenderKanban() {
   if (!site.kanban) site.kanban = kanban;
 
   const cols = [
-    { id: 'todo', label: '⚠️ Vấn đề', color: '#f85149' },
-    { id: 'doing', label: '⚙️ Đang làm', color: '#58a6ff' },
+    { id: 'todo', label: '⚠️ Vấn đề', color: 'var(--t-danger)' },
+    { id: 'doing', label: '⚙️ Đang làm', color: 'var(--t-accent)' },
     { id: 'done', label: '✅ Hoàn thành', color: '#2ea043' },
-    { id: 'pending', label: '⏳ Pending', color: '#bc8cff' }
+    { id: 'pending', label: '⏳ Pending', color: 'var(--t-done)' }
   ];
 
   const board = document.getElementById('wstKanbanBoard');
@@ -13471,7 +13488,7 @@ function wstRenderKanban() {
     colEl.innerHTML = `
       <div class="kb-header">
         <span style="color:${col.color}">${col.label}</span>
-        <span class="kb-count" style="background:#30363d">${list.length}</span>
+        <span class="kb-count" style="background:var(--t-border)">${list.length}</span>
       </div>
       <div class="kb-list" id="wst-kb-list-${col.id}" style="min-height:100px;"></div>
       <button class="btn btn-o" onclick="wstAddKanbanTaskPrompt('${col.id}')" style="margin: 8px 10px; font-size:10px; justify-content:center;">+ Thêm thẻ</button>
@@ -13480,14 +13497,14 @@ function wstRenderKanban() {
     // Drop events
     colEl.addEventListener('dragover', e => {
       e.preventDefault();
-      colEl.style.background = '#21262d';
+      colEl.style.background = 'var(--t-muted)';
     });
     colEl.addEventListener('dragleave', () => {
-      colEl.style.background = '#0d1117';
+      colEl.style.background = 'var(--t-canvas)';
     });
     colEl.addEventListener('drop', e => {
       e.preventDefault();
-      colEl.style.background = '#0d1117';
+      colEl.style.background = 'var(--t-canvas)';
       if (!_wstDragCardId) return;
 
       const cardSource = wstFindCardById(_wstDragCardId);
@@ -13517,18 +13534,18 @@ function wstRenderKanban() {
       const prioLabel = card.priority === 'high' ? 'Cao' : card.priority === 'med' ? 'T.Bình' : 'Thấp';
       const prioClass = card.priority === 'high' ? 'prio-high' : card.priority === 'med' ? 'prio-med' : 'prio-low';
       const reasonHtml = (col.id === 'pending' && card.pendingReason) 
-        ? `<div style="font-size:10px; color:#bc8cff; border-top:1px dashed #30363d; margin-top:5px; padding-top:4px;">⏳ Hoãn vì: ${card.pendingReason}</div>`
+        ? `<div style="font-size:10px; color:var(--t-done); border-top:1px dashed var(--t-border); margin-top:5px; padding-top:4px;">⏳ Hoãn vì: ${card.pendingReason}</div>`
         : '';
 
       cardEl.innerHTML = `
         <div class="kb-title" style="display:flex; justify-content:space-between; align-items:flex-start;">
           <span>${card.title}</span>
-          <span style="cursor:pointer; color:#8b949e;" onclick="wstDeleteKanbanCard('${col.id}', '${card.id}')">&times;</span>
+          <span style="cursor:pointer; color:var(--t-fg-muted);" onclick="wstDeleteKanbanCard('${col.id}', '${card.id}')">&times;</span>
         </div>
         <div class="kb-desc">${card.desc || ''}</div>
         <div class="kb-meta">
           <span class="kb-priority ${prioClass}">${prioLabel}</span>
-          <span style="font-size:8px; color:#8b949e;">${card.createdAt}</span>
+          <span style="font-size:8px; color:var(--t-fg-muted);">${card.createdAt}</span>
         </div>
         ${reasonHtml}
       `;
@@ -13679,7 +13696,7 @@ async function wstLoadGscQueries(range = '28d') {
       qBox.innerHTML = `
         <table style="width:100%;">
           <thead>
-            <tr style="background:#0d1117">
+            <tr style="background:var(--t-canvas)">
               <th>Từ khóa Google</th>
               <th class="c">Clicks</th>
               <th class="c">Imps</th>
@@ -13898,27 +13915,27 @@ const WST_HISTORY_TYPE_TXT = { '301_received': 'Web 301', gsc_synced: 'GSC Sync'
 
 // HTML danh sách lịch sử (tab 🕒 Lịch sử trong Dashboard)
 function wstHistoryListHtml(displayLogs) {
-  return displayLogs.length === 0 ? '<div style="color:#8b949e;text-align:center;padding:24px">Chưa có lịch sử ghi nhận thay đổi nào.</div>' : `
+  return displayLogs.length === 0 ? '<div style="color:var(--t-fg-muted);text-align:center;padding:24px">Chưa có lịch sử ghi nhận thay đổi nào.</div>' : `
           <div style="display:flex;flex-direction:column;gap:12px">
             ${displayLogs.map(l => {
               let icon = '📝';
-              let badgeColor = '#58a6ff';
+              let badgeColor = 'var(--t-accent)';
               let badgeBg = 'rgba(88,166,255,0.1)';
-              if (l.type === '301_received') { icon = '🔗'; badgeColor = '#bc8cff'; badgeBg = 'rgba(188,140,255,0.1)'; }
-              else if (l.type === 'gsc_synced') { icon = '☁️'; badgeColor = '#3fb950'; badgeBg = 'rgba(63,185,80,0.1)'; }
+              if (l.type === '301_received') { icon = '🔗'; badgeColor = 'var(--t-done)'; badgeBg = 'rgba(188,140,255,0.1)'; }
+              else if (l.type === 'gsc_synced') { icon = '☁️'; badgeColor = 'var(--t-success)'; badgeBg = 'rgba(63,185,80,0.1)'; }
               else if (l.type === 'rank_check') { icon = '🎯'; badgeColor = '#f2a154'; badgeBg = 'rgba(242,161,84,0.1)'; }
               
               return `
-                <div style="display:flex;gap:12px;border-bottom:1px solid #21262d;padding-bottom:10px">
+                <div style="display:flex;gap:12px;border-bottom:1px solid var(--t-muted);padding-bottom:10px">
                   <div style="font-size:16px;padding-top:2px">${icon}</div>
                   <div style="flex:1">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                      <span style="font-size:11px;color:#8b949e;font-weight:600">${l.date}</span>
+                      <span style="font-size:11px;color:var(--t-fg-muted);font-weight:600">${l.date}</span>
                       <span style="font-size:9px;color:${badgeColor};background:${badgeBg};padding:2px 6px;border-radius:10px;font-weight:600;text-transform:uppercase">
                         ${l.type === '301_received' ? 'Web 301' : l.type === 'gsc_synced' ? 'GSC Sync' : l.type === 'rank_check' ? 'Serper Rank' : 'Thủ công'}
                       </span>
                     </div>
-                    <div style="font-size:12px;color:#c9d1d9">${l.detail}</div>
+                    <div style="font-size:12px;color:var(--t-fg)">${l.detail}</div>
                   </div>
                 </div>
               `;
@@ -13932,7 +13949,7 @@ function wstRenderHistoryTab(wsId) {
   const panel = document.getElementById('wst-tab-history');
   if (!panel) return;
   panel.innerHTML = `
-    <div style="font-size:13px;font-weight:700;color:#c9d1d9;margin-bottom:12px">🕒 Lịch sử thay đổi dữ liệu</div>
+    <div style="font-size:13px;font-weight:700;color:var(--t-fg);margin-bottom:12px">🕒 Lịch sử thay đổi dữ liệu</div>
     <div style="max-width:900px">${wstHistoryListHtml(wstBuildHistoryLogs(wsId))}</div>`;
 }
 
@@ -14120,14 +14137,14 @@ function wstSelectAddGscType(type) {
       const finalPassword = targetWs.password || w.password || '';
       
       const tr = document.createElement('tr');
-      tr.style.cssText = 'border-bottom:1px solid #21262d;';
+      tr.style.cssText = 'border-bottom:1px solid var(--t-muted);';
       tr.innerHTML = `
-        <td style="padding:10px 8px;font-size:12px;color:#e6edf3;max-width:200px;word-break:break-all">
+        <td style="padding:10px 8px;font-size:12px;color:var(--t-fg2);max-width:200px;word-break:break-all">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-weight:600">${displayUrl}</span>
             ${finalAdmin ? `
               <button onclick="wstGoToAdminAndCopy('${joinAdminUrl(targetWs.url, finalAdmin, true).replace(/'/g, "\\'")}', '${finalAccount.replace(/'/g, "\\'")}', '${finalPassword.replace(/'/g, "\\'")}')" 
-                      style="background:none;border:none;color:#58a6ff;cursor:pointer;padding:2px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.2s" 
+                      style="background:none;border:none;color:var(--t-accent);cursor:pointer;padding:2px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.2s" 
                       onmouseover="this.style.background='rgba(56,139,253,0.15)'" 
                       onmouseout="this.style.background='none'" 
                       title="Mở Admin & Copy tài khoản/mật khẩu">
@@ -14137,9 +14154,9 @@ function wstSelectAddGscType(type) {
           </div>
         </td>
         <td style="padding:10px 8px;width:55%">
-          <div style="display:flex;align-items:center;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:4px 8px;gap:8px">
-            <input type="text" readonly class="form-control" style="flex:1;font-family:monospace;font-size:11px;background:none;border:none;color:#c9d1d9;padding:4px 0;outline:none;width:100%" placeholder="<meta name='google-site-verification' content='...' />" />
-            <button class="btn btn-copy" onclick="wstCopyGscCode(this)" style="background:none;border:none;color:#8b949e;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;transition:color 0.2s" title="Copy mã">
+          <div style="display:flex;align-items:center;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:6px;padding:4px 8px;gap:8px">
+            <input type="text" readonly class="form-control" style="flex:1;font-family:monospace;font-size:11px;background:none;border:none;color:var(--t-fg);padding:4px 0;outline:none;width:100%" placeholder="<meta name='google-site-verification' content='...' />" />
+            <button class="btn btn-copy" onclick="wstCopyGscCode(this)" style="background:none;border:none;color:var(--t-fg-muted);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;transition:color 0.2s" title="Copy mã">
               <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
             </button>
           </div>
@@ -14153,7 +14170,7 @@ function wstSelectAddGscType(type) {
           </button>
         </td>
         <td style="padding:10px 8px;text-align:center;min-width:160px">
-          <span style="color:#484f58;font-size:11px">—</span>
+          <span style="color:var(--t-border2);font-size:11px">—</span>
         </td>
       `;
       tbody.appendChild(tr);
@@ -14286,7 +14303,7 @@ async function wstGetGscHtmlCodesBulk() {
         if (verifyBtn) {
           verifyBtn.disabled = true;
           verifyBtn.style.background = '#1f6feb';
-          verifyBtn.style.borderColor = '#388bfd';
+          verifyBtn.style.borderColor = 'var(--t-accent3)';
           verifyBtn.innerHTML = '✓ Thành công';
         }
 
@@ -14380,17 +14397,17 @@ function wstGoToAdminAndCopy(url, user, pass) {
     
     loader.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:99999;font-family:sans-serif;opacity:0;pointer-events:none;transition:opacity 0.15s ease-out;';
     loader.innerHTML = `
-      <div style="background:#161b22;border:1px solid #30363d;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 12px 32px rgba(0,0,0,0.6);transform:scale(0.9);transition:transform 0.15s ease-out">
+      <div style="background:var(--t-subtle);border:1px solid var(--t-border);border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 12px 32px rgba(0,0,0,0.6);transform:scale(0.9);transition:transform 0.15s ease-out">
         <div style="position:relative;width:64px;height:64px">
           <svg width="64" height="64" viewBox="0 0 64 64" style="transform:rotate(-90deg)">
-            <circle cx="32" cy="32" r="28" stroke="#21262d" stroke-width="4" fill="transparent" />
+            <circle cx="32" cy="32" r="28" style="stroke:var(--t-muted)" stroke-width="4" fill="transparent" />
             <circle id="wstLoaderCircle" cx="32" cy="32" r="28" stroke="#2ea44f" stroke-width="4" fill="transparent" 
                     stroke-dasharray="175.93" stroke-dashoffset="175.93" stroke-linecap="round"
                     style="transition:stroke-dashoffset 0.4s linear" />
           </svg>
           <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:22px">🚀</div>
         </div>
-        <div style="color:#e6edf3;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">Nạp Clipboard...</div>
+        <div style="color:var(--t-fg2);font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">Nạp Clipboard...</div>
       </div>
     `;
     
@@ -14458,8 +14475,8 @@ async function wstVerifyIndividualGsc(btn, domain) {
   const originalHtml = btn.innerHTML;
   const originalBg = btn.style.background;
   btn.disabled = true;
-  btn.style.background = '#21262d';
-  btn.style.borderColor = '#30363d';
+  btn.style.background = 'var(--t-muted)';
+  btn.style.borderColor = 'var(--t-border)';
   btn.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite;margin-right:4px">⏳</span> Check...';
   
   let siteUrl = domain.replace('(Không có 301)', '').trim();
@@ -14516,7 +14533,7 @@ async function wstVerifyIndividualGsc(btn, domain) {
     wstMarkGscVerified(domain);                     // tích xanh xác minh
     btn.disabled = true;
     btn.style.background = '#1f6feb';
-    btn.style.borderColor = '#388bfd';
+    btn.style.borderColor = 'var(--t-accent3)';
     btn.innerHTML = 'Thành công';
     
     // Thay thế ô nhập mã HTML thành nhãn xác minh thành công
@@ -14550,7 +14567,7 @@ async function wstVerifyIndividualGsc(btn, domain) {
     const sitemapCell = verifyTd ? verifyTd.nextElementSibling : null;
     if (sitemapCell) {
       sitemapCell.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:center;gap:6px;color:#8b949e;font-size:11px">
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;color:var(--t-fg-muted);font-size:11px">
           <span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Chờ đồng bộ...
         </div>
       `;
@@ -14572,7 +14589,7 @@ async function wstVerifyIndividualGsc(btn, domain) {
 
 async function wstLoadAndSubmitSitemaps(siteUrl, token, cell) {
   cell.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:center;gap:6px;color:#8b949e;font-size:11px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:6px;color:var(--t-fg-muted);font-size:11px">
       <span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Đang nạp...
     </div>
   `;
@@ -14652,8 +14669,8 @@ async function wstLoadAndSubmitSitemaps(siteUrl, token, cell) {
            style="position:relative;display:inline-flex;align-items:center;justify-content:center;background:${badgeBg};border:1px solid ${badgeBorder};border-radius:6px;padding:6px 12px;color:${badgeColor};font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;user-select:none">
         Đã nạp ${successCount}/4 sitemap
         
-        <div class="sitemap-tooltip" style="visibility:hidden;width:230px;background:#161b22;border:1px solid #30363d;box-shadow:0 8px 24px rgba(0,0,0,0.5);color:#c9d1d9;text-align:left;border-radius:8px;padding:12px;position:absolute;z-index:9999;bottom:125%;left:50%;transform:translateX(-50%);opacity:0;transition:opacity 0.2s;font-weight:normal;font-family:sans-serif;pointer-events:none">
-          <div style="font-weight:600;margin-bottom:8px;color:#e6edf3;font-size:11px;border-bottom:1px solid #30363d;padding-bottom:6px">Chi tiết sitemap:</div>
+        <div class="sitemap-tooltip" style="visibility:hidden;width:230px;background:var(--t-subtle);border:1px solid var(--t-border);box-shadow:0 8px 24px rgba(0,0,0,0.5);color:var(--t-fg);text-align:left;border-radius:8px;padding:12px;position:absolute;z-index:9999;bottom:125%;left:50%;transform:translateX(-50%);opacity:0;transition:opacity 0.2s;font-weight:normal;font-family:sans-serif;pointer-events:none">
+          <div style="font-weight:600;margin-bottom:8px;color:var(--t-fg2);font-size:11px;border-bottom:1px solid var(--t-border);padding-bottom:6px">Chi tiết sitemap:</div>
           <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;font-size:11px">
             ${sitemapsStatus.map(item => `
               <li style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -14663,7 +14680,7 @@ async function wstLoadAndSubmitSitemaps(siteUrl, token, cell) {
             `).join('')}
           </ul>
           <!-- Arrow -->
-          <div style="position:absolute;top:100%;left:50%;margin-left:-5px;border-width:5px;border-style:solid;border-color:#30363d transparent transparent transparent"></div>
+          <div style="position:absolute;top:100%;left:50%;margin-left:-5px;border-width:5px;border-style:solid;border-color:var(--t-border) transparent transparent transparent"></div>
         </div>
       </div>
     `;
@@ -14874,16 +14891,16 @@ function renderBilling(silent = false) {
     // Hiển thị thêm chi phí cố định/tháng nếu có cấu hình
     const noteCostText = b.monthlyCostVnd > 0 ? ` | Chi phí: ${fmt(b.monthlyCostVnd)}/tháng` : "";
 
-    return `<tr style="border-bottom:1px solid #30363d">
+    return `<tr style="border-bottom:1px solid var(--t-border)">
       <td style="padding:10px;font-weight:600">
         ${b.name} 
-        <div style="font-size:10px;color:#8b949e;font-weight:normal">
+        <div style="font-size:10px;color:var(--t-fg-muted);font-weight:normal">
           ${b.note || ''}${noteCostText}
         </div>
       </td>
       <td style="padding:10px">${burnRateText}</td>
-      <td style="padding:10px;text-align:center;font-weight:bold;color:${expired ? 'var(--red)' : warning ? '#f2a154' : '#58a6ff'}">${formattedBalance}</td>
-      <td style="padding:10px;text-align:center;color:#8b949e">${timeRemainingText}</td>
+      <td style="padding:10px;text-align:center;font-weight:bold;color:${expired ? 'var(--red)' : warning ? '#f2a154' : 'var(--t-accent)'}">${formattedBalance}</td>
+      <td style="padding:10px;text-align:center;color:var(--t-fg-muted)">${timeRemainingText}</td>
       <td style="padding:10px;text-align:center">${statusBadge}</td>
       <td style="padding:10px;text-align:center">
         <div style="display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:nowrap">
@@ -14931,12 +14948,12 @@ function renderBilling(silent = false) {
     const cycleText = b.cycle === 'monthly' ? "Hàng tháng" : b.cycle === 'yearly' ? "Hàng năm" : "Một lần";
     const formattedPrice = b.currency === 'VND' ? fmt(b.price) : `$${b.price}`;
 
-    return `<tr style="border-bottom:1px solid #30363d">
-      <td style="padding:10px;font-weight:600">${b.name} <div style="font-size:10px;color:#8b949e;font-weight:normal">${b.note || ''}</div></td>
+    return `<tr style="border-bottom:1px solid var(--t-border)">
+      <td style="padding:10px;font-weight:600">${b.name} <div style="font-size:10px;color:var(--t-fg-muted);font-weight:normal">${b.note || ''}</div></td>
       <td style="padding:10px;font-weight:bold">${formattedPrice}</td>
       <td style="padding:10px;text-align:center">${cycleText}</td>
-      <td style="padding:10px;text-align:center;color:${expired ? 'var(--red)' : warning ? '#f2a154' : '#c9d1d9'}">${b.nextBillingDate || '—'}</td>
-      <td style="padding:10px;text-align:center;color:#8b949e">${timeRemainingText}</td>
+      <td style="padding:10px;text-align:center;color:${expired ? 'var(--red)' : warning ? '#f2a154' : 'var(--t-fg)'}">${b.nextBillingDate || '—'}</td>
+      <td style="padding:10px;text-align:center;color:var(--t-fg-muted)">${timeRemainingText}</td>
       <td style="padding:10px;text-align:center">${statusBadge}</td>
       <td style="padding:10px;text-align:center">
         <div style="display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:nowrap">
@@ -14962,7 +14979,7 @@ function renderBilling(silent = false) {
       if (vps.balance < vps.warningThreshold) {
         metricVpsBal.style.color = '#f59e0b';
       } else {
-        metricVpsBal.style.color = '#58a6ff';
+        metricVpsBal.style.color = 'var(--t-accent)';
       }
     } else {
       metricVpsTime.innerText = `Ước tính dùng: 0 ngày`;
@@ -15316,7 +15333,7 @@ async function openBackupModal() {
   document.getElementById("backupModal").style.display = "flex";
   const tbody = document.getElementById("backupListTbody");
   if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:#8b949e"><i class="fa fa-spinner fa-spin"></i> Đang tải dữ liệu lịch sử sao lưu...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--t-fg-muted)"><i class="fa fa-spinner fa-spin"></i> Đang tải dữ liệu lịch sử sao lưu...</td></tr>`;
   }
   
   try {
@@ -15362,7 +15379,7 @@ async function openBackupModal() {
   } catch (err) {
     console.error("Failed to load backups:", err);
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:#f85149">❌ Không thể tải danh sách sao lưu. Chi tiết: ${err.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--t-danger)">❌ Không thể tải danh sách sao lưu. Chi tiết: ${err.message}</td></tr>`;
     }
   }
 }
@@ -15376,7 +15393,7 @@ function renderBackupList(list) {
   const tbody = document.getElementById("backupListTbody");
   if (!tbody) return;
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:#8b949e">Chưa có phiên bản sao lưu nào được tạo</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--t-fg-muted)">Chưa có phiên bản sao lưu nào được tạo</td></tr>`;
     return;
   }
   
@@ -15389,18 +15406,18 @@ function renderBackupList(list) {
     const tCount = Array.isArray(p.tasks) ? p.tasks.length : 0;
     const bCount = Array.isArray(p.billings) ? p.billings.length : 0;
     
-    let badgeColor = "#58a6ff"; // Cloud (Blue)
-    if (b.source === "Local") badgeColor = "#8b949e"; // Local (Gray)
+    let badgeColor = "var(--t-accent)"; // Cloud (Blue)
+    if (b.source === "Local") badgeColor = "var(--t-fg-muted)"; // Local (Gray)
     else if (b.source === "Local + Cloud") badgeColor = "#238636"; // Cả hai (Green)
     
-    const badgeHtml = `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${badgeColor}22;color:${badgeColor};border:1px solid ${badgeColor}44;font-weight:600">${b.source}</span>`;
+    const badgeHtml = `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:color-mix(in srgb,${badgeColor} 13%,transparent);color:${badgeColor};border:1px solid color-mix(in srgb,${badgeColor} 27%,transparent);font-weight:600">${b.source}</span>`;
     
-    return `<tr style="border-bottom:1px solid #30363d;transition:background .15s" onmouseover="this.style.background='#21262d'" onmouseout="this.style.background='transparent'">
-      <td style="padding:10px 12px;font-weight:600;color:#f0f6fc">${timeStr}</td>
+    return `<tr style="border-bottom:1px solid var(--t-border);transition:background .15s" onmouseover="this.style.background='var(--t-muted)'" onmouseout="this.style.background='transparent'">
+      <td style="padding:10px 12px;font-weight:600;color:var(--t-fg3)">${timeStr}</td>
       <td style="padding:10px 12px;text-align:center">${badgeHtml}</td>
-      <td style="padding:10px 12px;text-align:center;color:#58a6ff;font-weight:bold">${wCount}</td>
+      <td style="padding:10px 12px;text-align:center;color:var(--t-accent);font-weight:bold">${wCount}</td>
       <td style="padding:10px 12px;text-align:center;color:#f2a154">${bCount}</td>
-      <td style="padding:10px 12px;text-align:center;color:#8b949e">${tCount}</td>
+      <td style="padding:10px 12px;text-align:center;color:var(--t-fg-muted)">${tCount}</td>
       <td style="padding:10px 12px;text-align:center">
         <button class="btn btn-sm" style="background:#1f6feb;border:none;color:#fff;font-size:11px;padding:3px 8px" onclick="restoreBackupVersion('${b.source}', ${b.ts})">🔄 Khôi phục</button>
       </td>
@@ -15563,13 +15580,13 @@ function wst301AskDest() {
   ov.id = 'wst301TplOverlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;padding:16px';
   // chỉ đóng bằng nút (click ra ngoài KHÔNG đóng)
-  ov.innerHTML = `<div style="width:100%;max-width:420px;background:#161b22;border:1px solid #30363d;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.7)">
-    <div style="padding:12px 16px;border-bottom:1px solid #21262d;font-weight:700;color:#f0f6fc">📝 Mẫu 301 — website đích (C)</div>
+  ov.innerHTML = `<div style="width:100%;max-width:420px;background:var(--t-subtle);border:1px solid var(--t-border);border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.7)">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--t-muted);font-weight:700;color:var(--t-fg3)">📝 Mẫu 301 — website đích (C)</div>
     <div style="padding:14px 16px">
-      <input id="wst301AskC" placeholder="vd: site-moi.com" style="width:100%;box-sizing:border-box;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px 10px;font-size:13px">
-      <div id="wst301AskErr" style="color:#f85149;font-size:12px;margin-top:6px;min-height:14px"></div>
+      <input id="wst301AskC" placeholder="vd: site-moi.com" style="width:100%;box-sizing:border-box;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:8px 10px;font-size:13px">
+      <div id="wst301AskErr" style="color:var(--t-danger);font-size:12px;margin-top:6px;min-height:14px"></div>
     </div>
-    <div style="padding:10px 16px;border-top:1px solid #21262d;display:flex;justify-content:flex-end;gap:8px">
+    <div style="padding:10px 16px;border-top:1px solid var(--t-muted);display:flex;justify-content:flex-end;gap:8px">
       <button class="btn btn-outline btn-sm" onclick="document.getElementById('wst301TplOverlay').remove()">Huỷ</button>
       <button class="btn btn-sm" id="wst301AskGo" style="background:#238636;color:#fff;border:none">Tiếp →</button>
     </div></div>`;
@@ -15599,21 +15616,21 @@ function wst301OpenTemplate() {
   // chỉ đóng bằng nút (click ra ngoài KHÔNG đóng)
   const tpl = d && WST_301_TEMPLATES[d.team];
   const teamName = typeof getTeamLabel === 'function' ? getTeamLabel(d ? d.team : '') : '';
-  const sel = 'background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 8px;font-size:13px';
+  const sel = 'background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:6px 8px;font-size:13px';
   let body;
-  if (!d) body = '<div style="color:#f85149">Không tìm thấy website</div>';
-  else if (!tpl) body = `<div style="color:#8b949e">Chưa thiết lập mẫu 301 cho nhóm <b>${teamName}</b>.</div>`;
-  else if (d.empty) body = '<div style="color:#8b949e">Site chưa có lệnh 301 nào — nhập website đích ở ô "Tạo Lệnh 301 Mới" để lấy mẫu cho lệnh sắp tạo.</div>';
+  if (!d) body = '<div style="color:var(--t-danger)">Không tìm thấy website</div>';
+  else if (!tpl) body = `<div style="color:var(--t-fg-muted)">Chưa thiết lập mẫu 301 cho nhóm <b>${teamName}</b>.</div>`;
+  else if (d.empty) body = '<div style="color:var(--t-fg-muted)">Site chưa có lệnh 301 nào — nhập website đích ở ô "Tạo Lệnh 301 Mới" để lấy mẫu cho lệnh sắp tạo.</div>';
   else body = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <select id="wst301TplBot" style="${sel}"><option value="">— Bot —</option><option>Đóng bot</option><option selected>Mở bot</option></select>
       <select id="wst301TplVi" style="${sel}"><option value="">— vi-vn —</option><option>Set vi-vn</option><option>Gỡ vi-vn</option><option>Không set vi-vn</option></select>
     </div>
-    <pre id="wst301TplText" style="white-space:pre-wrap;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;font-size:13px;color:#e6edf3;margin:0;font-family:inherit"></pre>`;
-  ov.innerHTML = `<div style="width:100%;max-width:460px;background:#161b22;border:1px solid #30363d;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.7)">
-    <div style="padding:12px 16px;border-bottom:1px solid #21262d;font-weight:700;color:#f0f6fc">📝 Mẫu 301 — ${teamName}</div>
+    <pre id="wst301TplText" style="white-space:pre-wrap;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:6px;padding:12px;font-size:13px;color:var(--t-fg2);margin:0;font-family:inherit"></pre>`;
+  ov.innerHTML = `<div style="width:100%;max-width:460px;background:var(--t-subtle);border:1px solid var(--t-border);border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.7)">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--t-muted);font-weight:700;color:var(--t-fg3)">📝 Mẫu 301 — ${teamName}</div>
     <div style="padding:14px 16px">${body}</div>
-    <div style="padding:10px 16px;border-top:1px solid #21262d;display:flex;justify-content:flex-end;gap:8px">
+    <div style="padding:10px 16px;border-top:1px solid var(--t-muted);display:flex;justify-content:flex-end;gap:8px">
       <button class="btn btn-outline btn-sm" onclick="document.getElementById('wst301TplOverlay').remove()">Đóng</button>
       ${tpl && !d.empty ? '<button class="btn btn-sm" id="wst301TplCreate" style="background:#238636;color:#fff;border:none" title="Tạo lệnh 301 tới C (đưa vào hàng chờ Đang 301) — giống nút Tạo lệnh 301 ở ngoài">Tạo lệnh 301</button><button class="btn btn-sm" id="wst301TplCopy" style="background:#1f6feb;color:#fff;border:none">📋 Copy</button>' : ''}
     </div></div>`;
@@ -15683,9 +15700,9 @@ function wstRenderRedirect301Table() {
   tbody.innerHTML = redirectCmds.map(cmd => {
     const isRunning = cmd.status === 'Đang 301';
     const statusBg = isRunning ? 'rgba(16,185,129,0.15)' : 'rgba(56,139,253,0.15)';
-    const statusColor = isRunning ? '#10b981' : '#58a6ff';
+    const statusColor = isRunning ? '#10b981' : 'var(--t-accent)';
     
-    return '<tr style="border-bottom:1px solid #30363d;">' +
+    return '<tr style="border-bottom:1px solid var(--t-border);">' +
       '<td style="padding:10px;">' + cmd.createdAt + '</td>' +
       '<td style="padding:10px;word-break:break-all;">' + siteUrlGoc + '</td>' +
       '<td style="padding:10px;word-break:break-all;">' + String(srcMap[cmd.id] || '—').replace(/^https?:\/\//, '').replace(/\/$/, '') + '</td>' +
@@ -15697,7 +15714,7 @@ function wstRenderRedirect301Table() {
       '</td>' +
       '<td style="padding:10px;text-align:center;white-space:nowrap;">' +
         (isRunning ? '<button class="btn btn-sm" style="background:#238636 !important;color:#fff !important;border-color:#2ea44f !important;margin-right:5px;font-size:10px;padding:2px 6px;" onclick="wstCompleteRedirect301(\'' + cmd.id + '\')">Hoàn thành</button>' : '') +
-        '<button class="btn btn-sm" style="background:rgba(248,81,73,0.15) !important;color:#f85149 !important;border:1px solid rgba(248,81,73,0.4) !important;font-size:10px;padding:2px 6px;" onclick="wstCancelRedirect301(\'' + cmd.id + '\')">Hủy lệnh</button>' +
+        '<button class="btn btn-sm" style="background:rgba(248,81,73,0.15) !important;color:var(--t-danger) !important;border:1px solid rgba(248,81,73,0.4) !important;font-size:10px;padding:2px 6px;" onclick="wstCancelRedirect301(\'' + cmd.id + '\')">Hủy lệnh</button>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -15829,9 +15846,9 @@ function wstRender301Cell(w, site) {
   if (_wstMode === 'content') return '';
   const redirectCmds = site?.redirectCommands || [];
   const hasActiveRedirect = redirectCmds.some(cmd => cmd.status === 'Đang 301');
-  const btnBg = hasActiveRedirect ? '#10b981' : '#21262d';
-  const btnColor = hasActiveRedirect ? '#ffffff' : '#8b949e';
-  const btnBorder = hasActiveRedirect ? '1px solid #10b981' : '1px solid #30363d';
+  const btnBg = hasActiveRedirect ? '#10b981' : 'var(--t-muted)';
+  const btnColor = hasActiveRedirect ? '#ffffff' : 'var(--t-fg-muted)';
+  const btnBorder = hasActiveRedirect ? '1px solid #10b981' : '1px solid var(--t-border)';
   
   let dateText = '';
   if (redirectCmds.length > 0) {
@@ -16057,36 +16074,36 @@ function renderStaffList() {
     if(s.permissions.seowriter) perms.push('SEO');
     
     const permColors = {
-      'Truy cập web': {bg: '#1f6feb20', color: '#58a6ff', border: '#1f6feb40'},
+      'Truy cập web': {bg: '#1f6feb20', color: 'var(--t-accent)', border: '#1f6feb40'},
       'Sửa web': {bg: '#d2992220', color: '#e3b341', border: '#d2992240'},
-      'Tài chính': {bg: '#8957e520', color: '#a371f7', border: '#8957e540'},
-      'Tools': {bg: '#23863620', color: '#3fb950', border: '#2ea04340'},
+      'Tài chính': {bg: '#8957e520', color: 'var(--t-done2)', border: '#8957e540'},
+      'Tools': {bg: '#23863620', color: 'var(--t-success)', border: '#2ea04340'},
       'SEO': {bg: '#bf398920', color: '#f778ba', border: '#bf398940'},
     };
     const permHtml = perms.length > 0 
       ? perms.map(p => {
-          const c = permColors[p] || {bg: '#30363d', color: '#c9d1d9', border: '#30363d'};
+          const c = permColors[p] || {bg: 'var(--t-border)', color: 'var(--t-fg)', border: 'var(--t-border)'};
           return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:${c.bg};color:${c.color};border:1px solid ${c.border};font-size:11px;margin:2px 2px;white-space:nowrap">${p}</span>`;
         }).join('')
       : `<span style="font-size:12px;color:var(--text-muted);font-style:italic">Không có quyền</span>`;
 
     const statusHtml = s.status === 'Hoạt động' 
-      ? `<span style="display:inline-block;padding:4px 10px;border-radius:12px;background:#23863620;color:#3fb950;border:1px solid #2ea04340;font-size:11px;font-weight:600">Hoạt động</span>` 
+      ? `<span style="display:inline-block;padding:4px 10px;border-radius:12px;background:#23863620;color:var(--t-success);border:1px solid #2ea04340;font-size:11px;font-weight:600">Hoạt động</span>` 
       : `<span style="display:inline-block;padding:4px 10px;border-radius:12px;background:#da363320;color:#ff7b72;border:1px solid #da363340;font-size:11px;font-weight:600">Khóa</span>`;
 
     const avatarLetter = (s.fullName || s.username || '?').charAt(0).toUpperCase();
 
     return `
-      <tr style="border-bottom:1px solid #30363d; transition:background 0.2s" onmouseover="this.style.background='#1c2128'" onmouseout="this.style.background=''">
+      <tr style="border-bottom:1px solid var(--t-border); transition:background 0.2s" onmouseover="this.style.background='var(--t-subtle3)'" onmouseout="this.style.background=''">
         <td style="padding:12px 10px;">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg, #7c5cff, #4a34b2);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:16px;flex-shrink:0">
               ${avatarLetter}
             </div>
-            <div style="font-weight:600;color:#c9d1d9;font-size:14px">${s.username}</div>
+            <div style="font-weight:600;color:var(--t-fg);font-size:14px">${s.username}</div>
           </div>
         </td>
-        <td style="padding:12px 10px;color:#8b949e;font-size:13px">${s.fullName || '-'}</td>
+        <td style="padding:12px 10px;color:var(--t-fg-muted);font-size:13px">${s.fullName || '-'}</td>
         <td style="padding:12px 10px;text-align:center">${statusHtml}</td>
         <td style="padding:12px 10px;">
           <div style="display:flex;flex-wrap:wrap;gap:4px">
@@ -16094,7 +16111,7 @@ function renderStaffList() {
           </div>
         </td>
         <td style="padding:12px 10px;text-align:right">
-          <button class="btn btn-sm" onclick="editStaff(${idx})" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;transition:0.2s;padding:6px 12px" onmouseover="this.style.background='#30363d';this.style.color='#fff'" onmouseout="this.style.background='#21262d';this.style.color='#c9d1d9'" title="Chỉnh sửa">
+          <button class="btn btn-sm" onclick="editStaff(${idx})" style="background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;transition:0.2s;padding:6px 12px" onmouseover="this.style.background='var(--t-border)';this.style.color='#fff'" onmouseout="this.style.background='var(--t-muted)';this.style.color='#c9d1d9'" title="Chỉnh sửa">
             ✏️ Sửa
           </button>
         </td>
@@ -16251,12 +16268,12 @@ function handleTagInput() {
   
   let html = '';
   matches.forEach(t => {
-    html += `<div class="tag-sugg-item" onclick="addTag('${t.replace(/'/g, "\\'")}')" onmouseover="this.style.background='#30363d'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:#c9d1d9;border-bottom:1px solid #30363d;transition:background 0.2s;">${t}</div>`;
+    html += `<div class="tag-sugg-item" onclick="addTag('${t.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--t-border)'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:var(--t-fg);border-bottom:1px solid var(--t-border);transition:background 0.2s;">${t}</div>`;
   });
   
   const rawVal = document.getElementById('wf_tag_input').value.trim();
   if(rawVal && !available.find(t => t.toLowerCase() === rawVal.toLowerCase()) && !_currentFormTags.find(t => t.toLowerCase() === rawVal.toLowerCase())) {
-    html += `<div class="tag-sugg-item" onclick="addTag('${rawVal.replace(/'/g, "\\'")}')" onmouseover="this.style.background='#30363d'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:#58a6ff;transition:background 0.2s;">+ Tạo tag: <b>${rawVal}</b></div>`;
+    html += `<div class="tag-sugg-item" onclick="addTag('${rawVal.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--t-border)'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:var(--t-accent);transition:background 0.2s;">+ Tạo tag: <b>${rawVal}</b></div>`;
   }
   
   if(html) {
@@ -16338,12 +16355,12 @@ function handleWeTagInput() {
   
   let html = '';
   matches.forEach(t => {
-    html += `<div class="tag-sugg-item" onclick="addWeTag('${t.replace(/'/g, "\\'")}')" onmouseover="this.style.background='#30363d'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:#c9d1d9;border-bottom:1px solid #30363d;transition:background 0.2s;">${t}</div>`;
+    html += `<div class="tag-sugg-item" onclick="addWeTag('${t.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--t-border)'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:var(--t-fg);border-bottom:1px solid var(--t-border);transition:background 0.2s;">${t}</div>`;
   });
   
   const rawVal = document.getElementById('we_tag_input').value.trim();
   if(rawVal && !available.find(t => t.toLowerCase() === rawVal.toLowerCase()) && !_weFormTags.find(t => t.toLowerCase() === rawVal.toLowerCase())) {
-    html += `<div class="tag-sugg-item" onclick="addWeTag('${rawVal.replace(/'/g, "\\'")}')" onmouseover="this.style.background='#30363d'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:#58a6ff;transition:background 0.2s;">+ Tạo tag: <b>${rawVal}</b></div>`;
+    html += `<div class="tag-sugg-item" onclick="addWeTag('${rawVal.replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--t-border)'" onmouseout="this.style.background='transparent'" style="padding:6px 10px;cursor:pointer;color:var(--t-accent);transition:background 0.2s;">+ Tạo tag: <b>${rawVal}</b></div>`;
   }
   
   if(html) {

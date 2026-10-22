@@ -69,8 +69,8 @@
       box.className = '';
       box.innerHTML = `<table class="sa-hist"><tr><th>Website</th><th>Điểm</th><th>Đạt / Cảnh báo / Không đạt</th><th>Thời gian</th><th></th></tr>${items.map(h => `<tr>
         <td style="word-break:break-all">${esc(h.url)}</td><td><span class="sa-pill ${cls(h.score)}">${h.score}</span></td>
-        <td>${h.counts ? `<span style="color:#3fb950">${h.counts.passed || 0}</span> / <span style="color:#d29922">${h.counts.warning || 0}</span> / <span style="color:#f85149">${h.counts.failed || 0}</span>` : ''}</td>
-        <td style="color:#8b949e">${new Date(h.created).toLocaleString('vi-VN')}</td>
+        <td>${h.counts ? `<span style="color:var(--t-success)">${h.counts.passed || 0}</span> / <span style="color:var(--t-warn)">${h.counts.warning || 0}</span> / <span style="color:var(--t-danger)">${h.counts.failed || 0}</span>` : ''}</td>
+        <td style="color:var(--t-fg-muted)">${new Date(h.created).toLocaleString('vi-VN')}</td>
         <td style="text-align:right;white-space:nowrap"><button class="sa-btn ghost sm" onclick="saOpen('${h.guid}')">Xem</button> <button class="sa-btn ghost sm" onclick="saDel('${h.guid}')" title="Xoá">🗑</button></td></tr>`).join('')}</table>`;
     } catch (e) { box.textContent = 'Không tải được lịch sử: ' + e.message; }
   }
@@ -84,7 +84,7 @@
       <div class="sa-top"><div class="u">Đang phân tích<br><b>${esc(ST.url)}</b></div><button class="sa-btn ghost sm" onclick="saCancel()">Huỷ</button></div>
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Đang kiểm tra các tiêu chí…</span><b>${done}/${total} · ${pct}%</b></div>
       <div class="sa-bar"><i style="width:${pct}%"></i></div>
-      ${ST.note ? `<div style="margin-top:10px;font-size:13px;color:#d29922">⏳ ${esc(ST.note)}</div>` : ''}
+      ${ST.note ? `<div style="margin-top:10px;font-size:13px;color:var(--t-warn)">⏳ ${esc(ST.note)}</div>` : ''}
       <div class="sa-gchips">${ST.meta.groups.map(g => `<span class="sa-gchip ${byG[g.key] && byG[g.key][0] === byG[g.key][1] ? 'done' : ''}">${g.icon} ${esc(g.label)} ${byG[g.key] ? byG[g.key][0] + '/' + byG[g.key][1] : ''}</span>`).join('')}</div>
       <ul class="sa-feed">${last.map(slug => { const c = ST.meta.checks.find(x => x.slug === slug), r = ST.results[slug]; return `<li><span class="sa-ico ${r.status}">${ICON[r.status]}</span><b>${esc(c.name)}</b><span>${esc(r.message)}</span></li>`; }).join('') || '<li><span>Đang tải trang…</span></li>'}</ul>
     </div></div>`;
@@ -108,7 +108,7 @@
     const tot = n.passed + n.warning + n.failed || 1, r = 38, C = 2 * Math.PI * r;
     let off = 0;
     const seg = (v, col) => { const len = v / tot * C; const el = v ? `<circle cx="48" cy="48" r="${r}" fill="none" stroke="${col}" stroke-width="12" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}"/>` : ''; off += len; return el; };
-    return `<div class="wrap"><svg width="96" height="96"><circle cx="48" cy="48" r="${r}" fill="none" stroke="#21262d" stroke-width="12"/>${seg(n.passed, '#3fb950')}${seg(n.warning, '#d29922')}${seg(n.failed, '#f85149')}</svg><div class="c">✅</div></div>`;
+    return `<div class="wrap"><svg width="96" height="96"><circle cx="48" cy="48" r="${r}" fill="none" style="stroke:var(--t-muted)" stroke-width="12"/>${seg(n.passed, '#3fb950')}${seg(n.warning, '#d29922')}${seg(n.failed, '#f85149')}</svg><div class="c">✅</div></div>`;
   }
 
   const VITALS = [
@@ -151,13 +151,13 @@
         <button class="sa-btn ghost sm" onclick="saRerun()">↻ Phân tích lại</button>
         <button class="sa-btn sm" onclick="saPdf()">⬇ Xuất PDF</button>
       </div></div>
-    ${ST.report && ST.report.error ? `<div class="sa-card" style="border-color:#f85149;color:#f85149">${esc(ST.report.error)}</div>` : ''}
+    ${ST.report && ST.report.error ? `<div class="sa-card" style="border-color:var(--t-danger);color:var(--t-danger)">${esc(ST.report.error)}</div>` : ''}
     <div class="sa-layout">
       <nav class="sa-nav"><button class="${ST.tab === 'overview' ? 'on' : ''}" onclick="saTab('overview')"><span>📊</span><span class="l">Tổng quan</span></button><hr>${nav}</nav>
       <div>
         ${ST.tab === 'overview' ? `<div class="sa-scorebox ${band}">
           <div><div class="k">Điểm SEO tổng thể</div><div class="n">${sc}<small>/ 100</small></div><div class="r">${rate(sc)}</div></div>
-          <div class="sa-donut">${donut(all.n)}<div class="sa-legend"><div><i style="background:#3fb950"></i>Đạt: ${all.n.passed} mục</div><div><i style="background:#d29922"></i>Cần cải thiện: ${all.n.warning} mục</div><div><i style="background:#f85149"></i>Không đạt: ${all.n.failed} mục</div>${all.n.skipped ? `<div><i style="background:#6e7681"></i>Chưa đo được: ${all.n.skipped} mục</div>` : ''}</div></div>
+          <div class="sa-donut">${donut(all.n)}<div class="sa-legend"><div><i style="background:var(--t-success)"></i>Đạt: ${all.n.passed} mục</div><div><i style="background:var(--t-warn)"></i>Cần cải thiện: ${all.n.warning} mục</div><div><i style="background:var(--t-danger)"></i>Không đạt: ${all.n.failed} mục</div>${all.n.skipped ? `<div><i style="background:var(--t-fg-subtle)"></i>Chưa đo được: ${all.n.skipped} mục</div>` : ''}</div></div>
         </div>${vitalsHtml()}${kpisHtml()}` : ''}
         ${groups.map(g => { const gs = groupStats(g.key); return `<div class="sa-sec"><div class="sa-sec-h"><div><h2>${g.icon} ${esc(g.label)}</h2><p>${gs.total} tiêu chí đã kiểm tra</p></div><span class="sa-pill ${tone(gs.n.passed, gs.total)}">${gs.n.passed}/${gs.total} đạt</span></div>
           ${ST.meta.checks.filter(c => c.group === g.key).map(checkHtml).join('')}</div>`; }).join('')}
@@ -179,9 +179,9 @@
   }
 
   function mini(r, c) {
-    if (!c.relevance || r.status === 'skipped') return `<div class="sa-mini" title="Không tính điểm"><svg width="30" height="30"><circle cx="15" cy="15" r="12" fill="none" stroke="#30363d" stroke-width="3"/></svg><b style="color:#8b949e">—</b></div>`;
+    if (!c.relevance || r.status === 'skipped') return `<div class="sa-mini" title="Không tính điểm"><svg width="30" height="30"><circle cx="15" cy="15" r="12" fill="none" style="stroke:var(--t-border)" stroke-width="3"/></svg><b style="color:var(--t-fg-muted)">—</b></div>`;
     const p = r.status === 'passed' ? 100 : r.status === 'warning' ? 50 : 0, C = 2 * Math.PI * 12, col = SCOL[r.status];
-    return `<div class="sa-mini" title="Điểm tiêu chí này: ${p}%"><svg width="30" height="30"><circle cx="15" cy="15" r="12" fill="none" stroke="#30363d" stroke-width="3"/><circle cx="15" cy="15" r="12" fill="none" stroke="${col}" stroke-width="3" stroke-dasharray="${C * p / 100} ${C}"/></svg><b style="color:${col}">${p}%</b></div>`;
+    return `<div class="sa-mini" title="Điểm tiêu chí này: ${p}%"><svg width="30" height="30"><circle cx="15" cy="15" r="12" fill="none" style="stroke:var(--t-border)" stroke-width="3"/><circle cx="15" cy="15" r="12" fill="none" stroke="${col}" stroke-width="3" stroke-dasharray="${C * p / 100} ${C}"/></svg><b style="color:${col}">${p}%</b></div>`;
   }
 
   function checkHtml(c) {
@@ -275,7 +275,7 @@
   window.saInit = async function () {
     const el = root(); if (!el || el.dataset.ready) return;
     el.dataset.ready = '1';
-    try { await ensureMeta(); } catch (e) { el.innerHTML = '<div class="sa-card" style="color:#f85149">Không tải được công cụ: ' + esc(e.message) + '</div>'; return; }
+    try { await ensureMeta(); } catch (e) { el.innerHTML = '<div class="sa-card" style="color:var(--t-danger)">Không tải được công cụ: ' + esc(e.message) + '</div>'; return; }
     render();
   };
   const pg = document.getElementById('page-seoaudit');
