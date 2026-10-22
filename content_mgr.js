@@ -35,8 +35,9 @@
     ['role', 'Copy vai trò'], ['month', 'Copy tháng'], ['st', 'Copy trạng thái'], ['idx', 'Copy index'], ['date', 'Copy ngày đăng'],
     ['title,url', 'Copy tiêu đề + URL'], ['kw,url', 'Copy từ khóa + URL'], ['kw,title,url', 'Copy từ khóa + tiêu đề + URL'],
     ['kw,title,url,silo,role,label,month,st,idx,date', 'Copy cả dòng']];
-  function copyText(text, el, msg) {
+  function copyText(text, el, msg, cb) {
     const done = () => {
+      if (cb) cb(true);
       if (el) { el.classList.add('cm-copied'); setTimeout(() => el.classList.remove('cm-copied'), 700); }
       if (typeof toast === 'function') toast('📋 ' + (msg || 'Đã copy: ' + text.slice(0, 60)), '#238636', 2000);
     };
@@ -48,7 +49,8 @@
     ta.remove();
     window.getSelection().removeAllRanges();
     if (ok) done();
-    else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => {});
+    else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => cb && cb(false));
+    else if (cb) cb(false);
   }
   const box = (title, inner) => `<div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 12px;min-width:0">
     <div style="font-size:12px;font-weight:700;color:#c9d1d9;margin-bottom:8px">${title}</div>${inner}</div>`;
@@ -452,7 +454,13 @@
             const keys = s.cp.split(','), rows = filtered().filter(x => !s.sel.size || s.sel.has(x.id));
             if (!rows.length) return typeof toast === 'function' && toast('Không có dòng nào để copy', '#e74c3c');
             const text = rows.map(x => keys.map(k => COLS[k][1](x).replace(/[\t\n]+/g, ' ')).join('\t')).join('\n');
-            return copyText(text, null, `Đã copy ${rows.length} dòng — ${keys.map(k => COLS[k][0]).join(' + ')}`);
+            const old = el.innerHTML, oldCss = el.style.cssText;
+            const flash = ok => {
+              el.innerHTML = ok ? `✓ Đã copy ${rows.length} dòng` : '✗ Không copy được';
+              el.style.cssText = oldCss + (ok ? ';background:#238636;border-color:#238636;color:#fff' : ';background:#da3633;border-color:#da3633;color:#fff');
+              clearTimeout(el._t); el._t = setTimeout(() => { el.innerHTML = old; el.style.cssText = oldCss; }, 2000);
+            };
+            return copyText(text, null, `Đã copy ${rows.length} dòng — ${keys.map(k => COLS[k][0]).join(' + ')}`, flash);
           }
           case 'back': s.view = 'dash'; return draw(true);
           case 'import': s.view = 'import'; return drawImport();
