@@ -23,6 +23,7 @@
     kw: ['Từ khóa chính', it => it.keyword || ''],
     title: ['Tiêu đề', it => it.title || ''],
     url: ['URL', it => it.url || ''],
+    wpcat: ['Danh mục WP', it => (it.wp_cats || []).join(', ')],
     silo: ['Danh mục', it => it.silo || ''],
     role: ['Vai trò', it => it.role || (it.wp_type === 'page' ? 'Trang' : '')],
     label: ['Danh mục con', it => it.label || ''],
@@ -31,10 +32,10 @@
     idx: ['Index', it => !isLive(it) || !it.index ? '' : it.index.indexed ? 'Đã index' : 'Chưa index'],
     date: ['Ngày đăng', it => String(it.date || '').slice(0, 10)],
   };
-  const CP = [['url', 'Copy URL'], ['title', 'Copy tiêu đề'], ['kw', 'Copy từ khóa chính'], ['silo', 'Copy danh mục'], ['label', 'Copy danh mục con'],
+  const CP = [['url', 'Copy URL'], ['title', 'Copy tiêu đề'], ['kw', 'Copy từ khóa chính'], ['wpcat', 'Copy danh mục WP'], ['silo', 'Copy danh mục'], ['label', 'Copy danh mục con'],
     ['role', 'Copy vai trò'], ['month', 'Copy tháng'], ['st', 'Copy trạng thái'], ['idx', 'Copy index'], ['date', 'Copy ngày đăng'],
     ['title,url', 'Copy tiêu đề + URL'], ['kw,url', 'Copy từ khóa + URL'], ['kw,title,url', 'Copy từ khóa + tiêu đề + URL'],
-    ['kw,title,url,silo,role,label,month,st,idx,date', 'Copy cả dòng']];
+    ['kw,title,url,wpcat,silo,role,label,month,st,idx,date', 'Copy cả dòng']];
   function copyText(text, el, msg, cb) {
     const done = () => {
       if (cb) cb(true);
@@ -84,7 +85,7 @@
     const cid = 'ws' + wsId;
     const w = (typeof websites !== 'undefined' ? websites : []).find(x => x.id === wsId);
     if (!panel || !w) return;
-    const s = { cp: 'url', v: null, view: 'dash', f: { q: '', silo: '', st: '', label: '', month: '', src: '' }, sel: new Set(), limit: 100, busy: '' };
+    const s = { cp: 'url', v: null, view: 'dash', f: { q: '', wpcat: '', silo: '', st: '', label: '', month: '', src: '' }, sel: new Set(), limit: 100, busy: '' };
     const domain = () => (typeof wstCurrentUrl === 'function' ? wstCurrentUrl(w) : (w.url || '')).replace(/^https?:\/\//, '').replace(/\/$/, '');
 
     panel.innerHTML = `<div class="cm-root" style="display:flex;flex-direction:column;gap:12px"><div style="color:#8b949e">Đang tải kho nội dung…</div></div>`;
@@ -157,6 +158,7 @@
       const f = s.f, q = f.q.trim().toLowerCase();
       return (s.v.items || []).filter(it => {
         if (f.silo && (it.silo || '') !== f.silo) return false;
+        if (f.wpcat && !(f.wpcat === '(trống)' ? !(it.wp_cats || []).length : (it.wp_cats || []).includes(f.wpcat))) return false;
         if (f.label && (it.label || '') !== f.label) return false;
         if (f.month && String(it.month || '') !== f.month) return false;
         if (f.src === 'site' && !it.wp_id) return false;
@@ -164,7 +166,7 @@
         if (f.src === 'deleted' && !it.deleted) return false;
         if (f.src !== 'deleted' && it.deleted) return false;
         if (f.st === 'indexed' ? !isIndexed(it) : f.st === 'notindexed' ? !(isLive(it) && it.index && !it.index.indexed) : (f.st && it.status !== f.st)) return false;
-        if (q && ![it.keyword, it.title, it.url, it.label, ...(it.child || [])].some(v => String(v || '').toLowerCase().includes(q))) return false;
+        if (q && ![it.keyword, it.title, it.url, it.label, ...(it.wp_cats || []), ...(it.child || [])].some(v => String(v || '').toLowerCase().includes(q))) return false;
         return true;
       }).sort((a, b) => (a.plan_row && !a.wp_id ? 0 : 1) - (b.plan_row && !b.wp_id ? 0 : 1) || (a.month || 99) - (b.month || 99)
         || String(b.date || '').localeCompare(String(a.date || '')));
@@ -231,7 +233,8 @@
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           <input class="cm-q" value="${esc(s.f.q)}" placeholder="🔍 Từ khóa / tiêu đề / URL / danh mục con…" style="${inp};width:220px">
-          <select class="cm-f" data-k="silo" style="${inp}">${opt(silos, s.f.silo, 'Tất cả danh mục')}</select>
+          <select class="cm-f" data-k="wpcat" style="${inp}" title="Danh mục thật trên WordPress (lấy khi quét web)">${opt([...new Set(items.flatMap(it => it.wp_cats || []))].sort().concat('(trống)'), s.f.wpcat, 'Tất cả danh mục WP')}</select>
+          <select class="cm-f" data-k="silo" style="${inp}" title="Danh mục theo kế hoạch SEO">${opt(silos, s.f.silo, 'Tất cả danh mục')}</select>
           <select class="cm-f" data-k="st" style="${inp}"><option value="">Tất cả trạng thái</option>${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${s.f.st === k ? 'selected' : ''}>${x[0]}</option>`).join('')}<option value="indexed" ${s.f.st === 'indexed' ? 'selected' : ''}>✅ Đã index</option><option value="notindexed" ${s.f.st === 'notindexed' ? 'selected' : ''}>🚫 Chưa index</option></select>
           <select class="cm-f" data-k="label" style="${inp}">${opt(labels, s.f.label, 'Tất cả danh mục con')}</select>
           <select class="cm-f" data-k="month" style="${inp}">${opt(months, s.f.month, 'Tất cả tháng')}</select>
@@ -253,9 +256,9 @@
           <table class="cm-tbl">
             <thead style="position:sticky;top:0;background:#161b22;z-index:1"><tr style="color:#8b949e;text-align:left">
               <th style="padding:6px"><input type="checkbox" class="cm-all"></th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Tiêu đề</th><th style="padding:6px">URL</th>
-              <th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Tháng</th>
+              <th style="padding:6px" title="Danh mục thật trên WordPress (lấy khi quét web)">Danh mục WP</th><th style="padding:6px" title="Danh mục theo kế hoạch SEO">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Tháng</th>
               <th style="padding:6px">Trạng thái</th><th style="padding:6px">Index</th><th style="padding:6px">Đăng / sửa</th><th style="padding:6px"></th></tr></thead>
-            <tbody>${shown.map(it => rowHtml(it, silos)).join('') || '<tr><td colspan="12" style="padding:14px;color:#8b949e;text-align:center">Không có bài nào</td></tr>'}</tbody>
+            <tbody>${shown.map(it => rowHtml(it, silos)).join('') || '<tr><td colspan="13" style="padding:14px;color:#8b949e;text-align:center">Không có bài nào</td></tr>'}</tbody>
           </table>
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${list.length > shown.length ? `<button data-a="more" style="${btn()}">Hiện thêm (${shown.length}/${list.length})</button>` : ''}<span style="font-size:11px;color:#6e7681">Tick dòng → chọn thành phần → 📋 Thực hiện Copy · bôi đen hoặc nhấp đúp 1 ô để copy ô đó · Shift + lăn chuột hoặc thanh cuộn dưới bảng để cuộn ngang</span></div>`;
@@ -303,6 +306,7 @@
         <td style="padding:5px 6px;font-weight:600;color:#e6edf3">${esc(it.keyword || '—')}${(it.child || []).length ? `<div style="font-size:10.5px;color:#8b949e;font-weight:400">+${it.child.length} từ phụ</div>` : ''}</td>
         <td style="padding:5px 6px;color:#e6edf3">${it.title ? esc(it.title) : it.url ? '' : '<span style="color:#8b949e">(chưa đăng)</span>'}${it.match ? `<div style="font-size:10.5px;color:#8b949e">${esc(it.match)}</div>` : ''}</td>
         <td style="padding:5px 6px">${it.url ? `<span style="color:#58a6ff">${esc(it.url)}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở bài trong tab mới" style="color:#8b949e;text-decoration:none;margin-left:4px">↗</a>` : '<span style="color:#8b949e">—</span>'}</td>
+        <td style="padding:5px 6px">${(it.wp_cats || []).length ? esc(it.wp_cats.join(', ')) : '<span style="color:#8b949e">—</span>'}</td>
         <td style="padding:5px 6px">${silo}</td>
         <td style="padding:5px 6px">${esc(it.role || (it.wp_type === 'page' ? 'Trang' : ''))}</td>
         <td style="padding:5px 6px">${esc(it.label || '')}</td>
