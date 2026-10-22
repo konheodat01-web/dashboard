@@ -213,16 +213,17 @@
             <button data-a="checkidx" style="${btn('background:#238636;border-color:#238636;color:#fff')}" title="Check index các bài đã chọn bằng Serper (site: URL)">✅ Check index</button>
           </span>
         </div>
-        <div style="overflow:auto;border:1px solid #30363d;border-radius:8px">
-          <table style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead style="position:sticky;top:0;background:#161b22"><tr style="color:#8b949e;text-align:left">
-              <th style="padding:6px"><input type="checkbox" class="cm-all"></th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Tiêu đề / URL</th>
+        <style>.cm-tbl{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;user-select:text}.cm-tbl td,.cm-tbl th{white-space:nowrap}.cm-tbl td{cursor:text}.cm-tbl tbody tr:hover{background:#161b22}.cm-copied{outline:1px solid #3fb950;outline-offset:-1px}</style>
+        <div class="cm-scroll" style="overflow:auto;max-height:calc(100vh - 360px);min-height:240px;border:1px solid #30363d;border-radius:8px">
+          <table class="cm-tbl">
+            <thead style="position:sticky;top:0;background:#161b22;z-index:1"><tr style="color:#8b949e;text-align:left">
+              <th style="padding:6px"><input type="checkbox" class="cm-all"></th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Tiêu đề</th><th style="padding:6px">URL</th>
               <th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Tháng</th>
               <th style="padding:6px">Trạng thái</th><th style="padding:6px">Index</th><th style="padding:6px">Đăng / sửa</th><th style="padding:6px"></th></tr></thead>
-            <tbody>${shown.map(it => rowHtml(it, silos)).join('') || '<tr><td colspan="11" style="padding:14px;color:#8b949e;text-align:center">Không có bài nào</td></tr>'}</tbody>
+            <tbody>${shown.map(it => rowHtml(it, silos)).join('') || '<tr><td colspan="12" style="padding:14px;color:#8b949e;text-align:center">Không có bài nào</td></tr>'}</tbody>
           </table>
         </div>
-        ${list.length > shown.length ? `<div><button data-a="more" style="${btn()}">Hiện thêm (${shown.length}/${list.length})</button></div>` : ''}`;
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${list.length > shown.length ? `<button data-a="more" style="${btn()}">Hiện thêm (${shown.length}/${list.length})</button>` : ''}<span style="font-size:11px;color:#6e7681">Bôi đen để copy · nhấp đúp 1 ô để copy cả ô · Shift + lăn chuột hoặc thanh cuộn dưới bảng để cuộn ngang</span></div>`;
     }
 
     // bài đã chọn viết được = có từ khóa + chưa có trên web (giống điều kiện nút ✍️ Viết từng dòng)
@@ -265,7 +266,8 @@
       return `<tr data-id="${esc(it.id)}" style="border-top:1px solid #21262d;${it.deleted ? 'opacity:.5;text-decoration:line-through' : ''}">
         <td style="padding:5px 6px"><input type="checkbox" class="cm-sel" ${s.sel.has(it.id) ? 'checked' : ''}></td>
         <td style="padding:5px 6px;font-weight:600;color:#e6edf3">${esc(it.keyword || '—')}${(it.child || []).length ? `<div style="font-size:10.5px;color:#8b949e;font-weight:400">+${it.child.length} từ phụ</div>` : ''}</td>
-        <td style="padding:5px 6px;max-width:340px">${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener" style="color:#58a6ff;text-decoration:none">${esc(it.title || it.url)}</a>` : '<span style="color:#8b949e">(chưa đăng)</span>'}${it.match ? `<div style="font-size:10.5px;color:#8b949e">${esc(it.match)}</div>` : ''}</td>
+        <td style="padding:5px 6px;color:#e6edf3">${it.title ? esc(it.title) : it.url ? '' : '<span style="color:#8b949e">(chưa đăng)</span>'}${it.match ? `<div style="font-size:10.5px;color:#8b949e">${esc(it.match)}</div>` : ''}</td>
+        <td style="padding:5px 6px">${it.url ? `<span style="color:#58a6ff">${esc(it.url)}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở bài trong tab mới" style="color:#8b949e;text-decoration:none;margin-left:4px">↗</a>` : '<span style="color:#8b949e">—</span>'}</td>
         <td style="padding:5px 6px">${silo}</td>
         <td style="padding:5px 6px">${esc(it.role || (it.wp_type === 'page' ? 'Trang' : ''))}</td>
         <td style="padding:5px 6px">${esc(it.label || '')}</td>
@@ -393,6 +395,23 @@
           s.sel.clear(); return draw(true);
         }
       } catch (err) { setBusy('⚠️ ' + err.message); }
+    });
+    root.addEventListener('dblclick', e => {
+      const td = e.target.closest('.cm-tbl tbody td');
+      if (!td || e.target.closest('input,button,a,select')) return;
+      const sel = td.querySelector('select');
+      const text = (sel ? sel.options[sel.selectedIndex].text : td.innerText).trim();
+      if (!text || text === '—') return;
+      const done = () => { td.classList.add('cm-copied'); setTimeout(() => td.classList.remove('cm-copied'), 700); if (typeof toast === 'function') toast('📋 Đã copy: ' + text.slice(0, 60), '#238636', 1500); };
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (er) {}
+      ta.remove();
+      window.getSelection().removeAllRanges();
+      if (ok) done();
+      else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => {});
     });
     root.addEventListener('click', async e => {
       const el = e.target.closest('[data-a]');
