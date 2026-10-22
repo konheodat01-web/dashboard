@@ -19,6 +19,34 @@
   const card = (label, val, sub, col) => `<div style="flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 12px">
     <div style="font-size:11px;color:#8b949e;margin-bottom:4px">${label}</div><div style="font-size:20px;font-weight:700;color:${col}">${val}</div>
     <div style="font-size:11px;color:#8b949e;margin-top:2px">${sub || '&nbsp;'}</div></div>`;
+  const COLS = {
+    kw: ['Từ khóa chính', it => it.keyword || ''],
+    title: ['Tiêu đề', it => it.title || ''],
+    url: ['URL', it => it.url || ''],
+    silo: ['Danh mục', it => it.silo || ''],
+    role: ['Vai trò', it => it.role || (it.wp_type === 'page' ? 'Trang' : '')],
+    label: ['Danh mục con', it => it.label || ''],
+    month: ['Tháng', it => it.month ? 'T' + it.month : ''],
+    st: ['Trạng thái', it => (ST[it.status] || ST.plan)[0]],
+    idx: ['Index', it => !isLive(it) || !it.index ? '' : it.index.indexed ? 'Đã index' : 'Chưa index'],
+    date: ['Đăng / sửa', it => String(it.date || '').slice(0, 10)],
+  };
+  const cpb = (a, c, tip) => `<button data-a="${a}" data-c="${c}" class="cm-cpb" title="${tip}">📋</button>`;
+  function copyText(text, el) {
+    const done = () => {
+      if (el) { el.classList.add('cm-copied'); setTimeout(() => el.classList.remove('cm-copied'), 700); }
+      if (typeof toast === 'function') toast('📋 Đã copy: ' + (text.includes('\n') ? text.split('\n').length + ' dòng' : text.slice(0, 60)), '#238636', 1500);
+    };
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (er) {}
+    ta.remove();
+    window.getSelection().removeAllRanges();
+    if (ok) done();
+    else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => {});
+  }
   const box = (title, inner) => `<div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:10px 12px;min-width:0">
     <div style="font-size:12px;font-weight:700;color:#c9d1d9;margin-bottom:8px">${title}</div>${inner}</div>`;
 
@@ -213,13 +241,11 @@
             <button data-a="checkidx" style="${btn('background:#238636;border-color:#238636;color:#fff')}" title="Check index các bài đã chọn bằng Serper (site: URL)">✅ Check index</button>
           </span>
         </div>
-        <style>.cm-tbl{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;user-select:text}.cm-tbl td,.cm-tbl th{white-space:nowrap}.cm-tbl td{cursor:text}.cm-tbl tbody tr:hover{background:#161b22}.cm-copied{outline:1px solid #3fb950;outline-offset:-1px}</style>
+        <style>.cm-tbl{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;user-select:text}.cm-tbl td,.cm-tbl th{white-space:nowrap}.cm-tbl td{cursor:text}.cm-tbl tbody tr:hover{background:#161b22}.cm-copied{outline:1px solid #3fb950;outline-offset:-1px}.cm-cpb{background:none;border:1px solid transparent;border-radius:4px;cursor:pointer;font-size:11px;padding:0 3px;margin-left:4px;opacity:.35;line-height:1.4}.cm-cpb:hover{opacity:1;border-color:#30363d;background:#21262d}.cm-tbl tr:hover .cm-cpb{opacity:.8}.cm-tbl thead .cm-cpb{opacity:.7}</style>
         <div class="cm-scroll" style="overflow:auto;max-height:calc(100vh - 360px);min-height:240px;border:1px solid #30363d;border-radius:8px">
           <table class="cm-tbl">
             <thead style="position:sticky;top:0;background:#161b22;z-index:1"><tr style="color:#8b949e;text-align:left">
-              <th style="padding:6px"><input type="checkbox" class="cm-all"></th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Tiêu đề</th><th style="padding:6px">URL</th>
-              <th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Tháng</th>
-              <th style="padding:6px">Trạng thái</th><th style="padding:6px">Index</th><th style="padding:6px">Đăng / sửa</th><th style="padding:6px"></th></tr></thead>
+              <th style="padding:6px"><input type="checkbox" class="cm-all"></th>${Object.entries(COLS).map(([k, c]) => `<th style="padding:6px">${c[0]}${cpb('cpcol', k, 'Copy cả cột ' + c[0] + ' — các dòng đang chọn (chưa chọn thì mọi dòng đang lọc), mỗi giá trị 1 dòng')}</th>`).join('')}<th style="padding:6px"></th></tr></thead>
             <tbody>${shown.map(it => rowHtml(it, silos)).join('') || '<tr><td colspan="12" style="padding:14px;color:#8b949e;text-align:center">Không có bài nào</td></tr>'}</tbody>
           </table>
         </div>
@@ -262,19 +288,20 @@
     function rowHtml(it, silos) {
       const ix = !isLive(it) ? '—' : !it.index ? '<span style="color:#8b949e" title="Chưa check">—</span>' : it.index.indexed ? '<span title="' + esc(it.index.at) + '">✅</span>' : '<span title="' + esc(it.index.at) + '">🚫</span>';
       const st = ST[it.status] || ST.plan;
+      const c = k => COLS[k][1](it) ? cpb('cpcell', k, 'Copy ô này') : '';
       const silo = `<select class="cm-silo" style="${inp};max-width:150px;padding:2px 4px"><option value="">—</option>${silos.map(x => `<option ${x === it.silo ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
       return `<tr data-id="${esc(it.id)}" style="border-top:1px solid #21262d;${it.deleted ? 'opacity:.5;text-decoration:line-through' : ''}">
         <td style="padding:5px 6px"><input type="checkbox" class="cm-sel" ${s.sel.has(it.id) ? 'checked' : ''}></td>
-        <td style="padding:5px 6px;font-weight:600;color:#e6edf3">${esc(it.keyword || '—')}${(it.child || []).length ? `<div style="font-size:10.5px;color:#8b949e;font-weight:400">+${it.child.length} từ phụ</div>` : ''}</td>
-        <td style="padding:5px 6px;color:#e6edf3">${it.title ? esc(it.title) : it.url ? '' : '<span style="color:#8b949e">(chưa đăng)</span>'}${it.match ? `<div style="font-size:10.5px;color:#8b949e">${esc(it.match)}</div>` : ''}</td>
-        <td style="padding:5px 6px">${it.url ? `<span style="color:#58a6ff">${esc(it.url)}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở bài trong tab mới" style="color:#8b949e;text-decoration:none;margin-left:4px">↗</a>` : '<span style="color:#8b949e">—</span>'}</td>
-        <td style="padding:5px 6px">${silo}</td>
-        <td style="padding:5px 6px">${esc(it.role || (it.wp_type === 'page' ? 'Trang' : ''))}</td>
-        <td style="padding:5px 6px">${esc(it.label || '')}</td>
-        <td style="padding:5px 6px">${it.month ? 'T' + it.month : ''}</td>
-        <td style="padding:5px 6px"><select class="cm-st" style="${inp};padding:2px 4px;color:${st[1]}">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select></td>
-        <td style="padding:5px 6px;text-align:center">${ix}</td>
-        <td style="padding:5px 6px;white-space:nowrap;color:#8b949e">${esc(String(it.date || '').slice(0, 10))}${it.modified && it.modified.slice(0, 10) !== String(it.date || '').slice(0, 10) ? '<br>sửa ' + esc(it.modified.slice(0, 10)) : ''}</td>
+        <td style="padding:5px 6px;font-weight:600;color:#e6edf3">${esc(it.keyword || '—')}${c('kw')}${(it.child || []).length ? `<div style="font-size:10.5px;color:#8b949e;font-weight:400">+${it.child.length} từ phụ</div>` : ''}</td>
+        <td style="padding:5px 6px;color:#e6edf3">${it.title ? esc(it.title) : it.url ? '' : '<span style="color:#8b949e">(chưa đăng)</span>'}${c('title')}${it.match ? `<div style="font-size:10.5px;color:#8b949e">${esc(it.match)}</div>` : ''}</td>
+        <td style="padding:5px 6px">${it.url ? `<span style="color:#58a6ff">${esc(it.url)}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở bài trong tab mới" style="color:#8b949e;text-decoration:none;margin-left:4px">↗</a>${c('url')}` : '<span style="color:#8b949e">—</span>'}</td>
+        <td style="padding:5px 6px">${silo}${c('silo')}</td>
+        <td style="padding:5px 6px">${esc(it.role || (it.wp_type === 'page' ? 'Trang' : ''))}${c('role')}</td>
+        <td style="padding:5px 6px">${esc(it.label || '')}${c('label')}</td>
+        <td style="padding:5px 6px">${it.month ? 'T' + it.month : ''}${c('month')}</td>
+        <td style="padding:5px 6px"><select class="cm-st" style="${inp};padding:2px 4px;color:${st[1]}">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select>${c('st')}</td>
+        <td style="padding:5px 6px;text-align:center">${ix}${c('idx')}</td>
+        <td style="padding:5px 6px;white-space:nowrap;color:#8b949e">${esc(String(it.date || '').slice(0, 10))}${it.modified && it.modified.slice(0, 10) !== String(it.date || '').slice(0, 10) ? '<br>sửa ' + esc(it.modified.slice(0, 10)) : ''}${c('date')}</td>
         <td style="padding:5px 6px;white-space:nowrap">${it.keyword && !it.wp_id ? `<button data-a="write" style="${btn('padding:3px 8px;background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer điền sẵn từ khóa chính + phụ">✍️ Viết</button>` : ''}${!it.wp_id ? `<button data-a="del" style="${btn('padding:3px 6px;margin-left:3px;color:#f85149')}" title="Xoá khỏi kho (chỉ bài kế hoạch chưa đăng)">🗑</button>` : ''}</td>
       </tr>`;
     }
@@ -399,19 +426,10 @@
     root.addEventListener('dblclick', e => {
       const td = e.target.closest('.cm-tbl tbody td');
       if (!td || e.target.closest('input,button,a,select')) return;
-      const sel = td.querySelector('select');
-      const text = (sel ? sel.options[sel.selectedIndex].text : td.innerText).trim();
-      if (!text || text === '—') return;
-      const done = () => { td.classList.add('cm-copied'); setTimeout(() => td.classList.remove('cm-copied'), 700); if (typeof toast === 'function') toast('📋 Đã copy: ' + text.slice(0, 60), '#238636', 1500); };
-      const ta = document.createElement('textarea');
-      ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
-      document.body.appendChild(ta); ta.select();
-      let ok = false;
-      try { ok = document.execCommand('copy'); } catch (er) {}
-      ta.remove();
-      window.getSelection().removeAllRanges();
-      if (ok) done();
-      else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => {});
+      const b = td.querySelector('.cm-cpb'), tr = td.closest('tr[data-id]');
+      const it = b && tr && (s.v.items || []).find(x => x.id === tr.dataset.id);
+      const text = it ? COLS[b.dataset.c][1](it) : '';
+      if (text) copyText(text, td);
     });
     root.addEventListener('click', async e => {
       const el = e.target.closest('[data-a]');
@@ -424,6 +442,12 @@
           case 'scan': return scan(false);
           case 'scanfull': return scan(true);
           case 'more': s.limit += 100; return draw(true);
+          case 'cpcell': return it && copyText(COLS[el.dataset.c][1](it), el.closest('td'));
+          case 'cpcol': {
+            const rows = filtered().filter(x => !s.sel.size || s.sel.has(x.id));
+            const vals = rows.map(COLS[el.dataset.c][1]);
+            return vals.length ? copyText(vals.join('\n'), el.closest('th')) : null;
+          }
           case 'back': s.view = 'dash'; return draw(true);
           case 'import': s.view = 'import'; return drawImport();
           case 'config': s.view = 'config'; return drawConfig();
