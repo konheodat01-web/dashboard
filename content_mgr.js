@@ -29,13 +29,16 @@
     month: ['Tháng', it => it.month ? 'T' + it.month : ''],
     st: ['Trạng thái', it => (ST[it.status] || ST.plan)[0]],
     idx: ['Index', it => !isLive(it) || !it.index ? '' : it.index.indexed ? 'Đã index' : 'Chưa index'],
-    date: ['Đăng / sửa', it => String(it.date || '').slice(0, 10)],
+    date: ['Ngày đăng', it => String(it.date || '').slice(0, 10)],
   };
-  const cpb = (a, c, tip) => `<button data-a="${a}" data-c="${c}" class="cm-cpb" title="${tip}">📋</button>`;
-  function copyText(text, el) {
+  const CP = [['url', 'Copy URL'], ['title', 'Copy tiêu đề'], ['kw', 'Copy từ khóa chính'], ['silo', 'Copy danh mục'], ['label', 'Copy danh mục con'],
+    ['role', 'Copy vai trò'], ['month', 'Copy tháng'], ['st', 'Copy trạng thái'], ['idx', 'Copy index'], ['date', 'Copy ngày đăng'],
+    ['title,url', 'Copy tiêu đề + URL'], ['kw,url', 'Copy từ khóa + URL'], ['kw,title,url', 'Copy từ khóa + tiêu đề + URL'],
+    ['kw,title,url,silo,role,label,month,st,idx,date', 'Copy cả dòng']];
+  function copyText(text, el, msg) {
     const done = () => {
       if (el) { el.classList.add('cm-copied'); setTimeout(() => el.classList.remove('cm-copied'), 700); }
-      if (typeof toast === 'function') toast('📋 Đã copy: ' + (text.includes('\n') ? text.split('\n').length + ' dòng' : text.slice(0, 60)), '#238636', 1500);
+      if (typeof toast === 'function') toast('📋 ' + (msg || 'Đã copy: ' + text.slice(0, 60)), '#238636', 2000);
     };
     const ta = document.createElement('textarea');
     ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
@@ -79,7 +82,7 @@
     const cid = 'ws' + wsId;
     const w = (typeof websites !== 'undefined' ? websites : []).find(x => x.id === wsId);
     if (!panel || !w) return;
-    const s = { v: null, view: 'dash', f: { q: '', silo: '', st: '', label: '', month: '', src: '' }, sel: new Set(), limit: 100, busy: '' };
+    const s = { cp: 'url', v: null, view: 'dash', f: { q: '', silo: '', st: '', label: '', month: '', src: '' }, sel: new Set(), limit: 100, busy: '' };
     const domain = () => (typeof wstCurrentUrl === 'function' ? wstCurrentUrl(w) : (w.url || '')).replace(/^https?:\/\//, '').replace(/\/$/, '');
 
     panel.innerHTML = `<div class="cm-root" style="display:flex;flex-direction:column;gap:12px"><div style="color:#8b949e">Đang tải kho nội dung…</div></div>`;
@@ -234,6 +237,8 @@
           <span style="font-size:12px;color:#8b949e">${num(list.length)} bài</span>
           <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <span style="font-size:12px;color:#8b949e">Đã chọn ${s.sel.size}</span>
+            <select class="cm-cpsel" style="${inp}" title="Chọn thành phần cần copy">${CP.map(([k, l]) => `<option value="${k}" ${s.cp === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+            <button data-a="cpdo" style="${btn()}" title="Copy thành phần đã chọn của các dòng đang tick (chưa tick dòng nào thì mọi dòng đang lọc). Mỗi bài 1 dòng, nhiều thành phần cách nhau bằng Tab — dán vào Sheets ra đúng cột">📋 Thực hiện Copy${s.sel.size ? ' (' + s.sel.size + ')' : ''}</button>
             <button data-a="write1" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}" title="Mở SEO Writer cho site này để viết bài NGOÀI kế hoạch (Bước 1 trống, đã điền sẵn site + WP key)">✍️ Viết bài</button>
             <button data-a="bulkwrite" style="${btn('background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer, điền sẵn các bài đã chọn (chưa đăng) vào bảng Bước 1 — bạn kiểm tra rồi bấm chạy">✍️ Viết hàng loạt${writable().length ? ' (' + writable().length + ')' : ''}</button>
             <button data-a="bulkimg" style="${btn('background:#d29922;border-color:#d29922;color:#fff')}" title="Mở SEO Writer, nạp sẵn các bài đã chọn vào 'Ảnh hàng loạt' — chỉ áp dụng bài đang 🖼️ Chờ ảnh">🖼️ Làm ảnh hàng loạt${(s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x)).length ? ' (' + (s.v.items || []).filter(x => s.sel.has(x.id) && needsImg(x)).length + ')' : ''}</button>
@@ -241,15 +246,17 @@
             <button data-a="checkidx" style="${btn('background:#238636;border-color:#238636;color:#fff')}" title="Check index các bài đã chọn bằng Serper (site: URL)">✅ Check index</button>
           </span>
         </div>
-        <style>.cm-tbl{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;user-select:text}.cm-tbl td,.cm-tbl th{white-space:nowrap}.cm-tbl td{cursor:text}.cm-tbl tbody tr:hover{background:#161b22}.cm-copied{outline:1px solid #3fb950;outline-offset:-1px}.cm-cpb{background:none;border:1px solid transparent;border-radius:4px;cursor:pointer;font-size:11px;padding:0 3px;margin-left:4px;opacity:.35;line-height:1.4}.cm-cpb:hover{opacity:1;border-color:#30363d;background:#21262d}.cm-tbl tr:hover .cm-cpb{opacity:.8}.cm-tbl thead .cm-cpb{opacity:.7}</style>
+        <style>.cm-tbl{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;user-select:text}.cm-tbl td,.cm-tbl th{white-space:nowrap}.cm-tbl td{cursor:text}.cm-tbl tbody tr:hover{background:#161b22}.cm-copied{outline:1px solid #3fb950;outline-offset:-1px}</style>
         <div class="cm-scroll" style="overflow:auto;max-height:calc(100vh - 360px);min-height:240px;border:1px solid #30363d;border-radius:8px">
           <table class="cm-tbl">
             <thead style="position:sticky;top:0;background:#161b22;z-index:1"><tr style="color:#8b949e;text-align:left">
-              <th style="padding:6px"><input type="checkbox" class="cm-all"></th>${Object.entries(COLS).map(([k, c]) => `<th style="padding:6px">${c[0]}${cpb('cpcol', k, 'Copy cả cột ' + c[0] + ' — các dòng đang chọn (chưa chọn thì mọi dòng đang lọc), mỗi giá trị 1 dòng')}</th>`).join('')}<th style="padding:6px"></th></tr></thead>
+              <th style="padding:6px"><input type="checkbox" class="cm-all"></th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Tiêu đề</th><th style="padding:6px">URL</th>
+              <th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Tháng</th>
+              <th style="padding:6px">Trạng thái</th><th style="padding:6px">Index</th><th style="padding:6px">Đăng / sửa</th><th style="padding:6px"></th></tr></thead>
             <tbody>${shown.map(it => rowHtml(it, silos)).join('') || '<tr><td colspan="12" style="padding:14px;color:#8b949e;text-align:center">Không có bài nào</td></tr>'}</tbody>
           </table>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${list.length > shown.length ? `<button data-a="more" style="${btn()}">Hiện thêm (${shown.length}/${list.length})</button>` : ''}<span style="font-size:11px;color:#6e7681">Bôi đen để copy · nhấp đúp 1 ô để copy cả ô · Shift + lăn chuột hoặc thanh cuộn dưới bảng để cuộn ngang</span></div>`;
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${list.length > shown.length ? `<button data-a="more" style="${btn()}">Hiện thêm (${shown.length}/${list.length})</button>` : ''}<span style="font-size:11px;color:#6e7681">Tick dòng → chọn thành phần → 📋 Thực hiện Copy · bôi đen hoặc nhấp đúp 1 ô để copy ô đó · Shift + lăn chuột hoặc thanh cuộn dưới bảng để cuộn ngang</span></div>`;
     }
 
     // bài đã chọn viết được = có từ khóa + chưa có trên web (giống điều kiện nút ✍️ Viết từng dòng)
@@ -288,20 +295,19 @@
     function rowHtml(it, silos) {
       const ix = !isLive(it) ? '—' : !it.index ? '<span style="color:#8b949e" title="Chưa check">—</span>' : it.index.indexed ? '<span title="' + esc(it.index.at) + '">✅</span>' : '<span title="' + esc(it.index.at) + '">🚫</span>';
       const st = ST[it.status] || ST.plan;
-      const c = k => COLS[k][1](it) ? cpb('cpcell', k, 'Copy ô này') : '';
       const silo = `<select class="cm-silo" style="${inp};max-width:150px;padding:2px 4px"><option value="">—</option>${silos.map(x => `<option ${x === it.silo ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
       return `<tr data-id="${esc(it.id)}" style="border-top:1px solid #21262d;${it.deleted ? 'opacity:.5;text-decoration:line-through' : ''}">
         <td style="padding:5px 6px"><input type="checkbox" class="cm-sel" ${s.sel.has(it.id) ? 'checked' : ''}></td>
-        <td style="padding:5px 6px;font-weight:600;color:#e6edf3">${esc(it.keyword || '—')}${c('kw')}${(it.child || []).length ? `<div style="font-size:10.5px;color:#8b949e;font-weight:400">+${it.child.length} từ phụ</div>` : ''}</td>
-        <td style="padding:5px 6px;color:#e6edf3">${it.title ? esc(it.title) : it.url ? '' : '<span style="color:#8b949e">(chưa đăng)</span>'}${c('title')}${it.match ? `<div style="font-size:10.5px;color:#8b949e">${esc(it.match)}</div>` : ''}</td>
-        <td style="padding:5px 6px">${it.url ? `<span style="color:#58a6ff">${esc(it.url)}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở bài trong tab mới" style="color:#8b949e;text-decoration:none;margin-left:4px">↗</a>${c('url')}` : '<span style="color:#8b949e">—</span>'}</td>
-        <td style="padding:5px 6px">${silo}${c('silo')}</td>
-        <td style="padding:5px 6px">${esc(it.role || (it.wp_type === 'page' ? 'Trang' : ''))}${c('role')}</td>
-        <td style="padding:5px 6px">${esc(it.label || '')}${c('label')}</td>
-        <td style="padding:5px 6px">${it.month ? 'T' + it.month : ''}${c('month')}</td>
-        <td style="padding:5px 6px"><select class="cm-st" style="${inp};padding:2px 4px;color:${st[1]}">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select>${c('st')}</td>
-        <td style="padding:5px 6px;text-align:center">${ix}${c('idx')}</td>
-        <td style="padding:5px 6px;white-space:nowrap;color:#8b949e">${esc(String(it.date || '').slice(0, 10))}${it.modified && it.modified.slice(0, 10) !== String(it.date || '').slice(0, 10) ? '<br>sửa ' + esc(it.modified.slice(0, 10)) : ''}${c('date')}</td>
+        <td style="padding:5px 6px;font-weight:600;color:#e6edf3">${esc(it.keyword || '—')}${(it.child || []).length ? `<div style="font-size:10.5px;color:#8b949e;font-weight:400">+${it.child.length} từ phụ</div>` : ''}</td>
+        <td style="padding:5px 6px;color:#e6edf3">${it.title ? esc(it.title) : it.url ? '' : '<span style="color:#8b949e">(chưa đăng)</span>'}${it.match ? `<div style="font-size:10.5px;color:#8b949e">${esc(it.match)}</div>` : ''}</td>
+        <td style="padding:5px 6px">${it.url ? `<span style="color:#58a6ff">${esc(it.url)}</span> <a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở bài trong tab mới" style="color:#8b949e;text-decoration:none;margin-left:4px">↗</a>` : '<span style="color:#8b949e">—</span>'}</td>
+        <td style="padding:5px 6px">${silo}</td>
+        <td style="padding:5px 6px">${esc(it.role || (it.wp_type === 'page' ? 'Trang' : ''))}</td>
+        <td style="padding:5px 6px">${esc(it.label || '')}</td>
+        <td style="padding:5px 6px">${it.month ? 'T' + it.month : ''}</td>
+        <td style="padding:5px 6px"><select class="cm-st" style="${inp};padding:2px 4px;color:${st[1]}">${Object.entries(ST).map(([k, x]) => `<option value="${k}" ${it.status === k ? 'selected' : ''}>${x[0]}</option>`).join('')}</select></td>
+        <td style="padding:5px 6px;text-align:center">${ix}</td>
+        <td style="padding:5px 6px;white-space:nowrap;color:#8b949e">${esc(String(it.date || '').slice(0, 10))}${it.modified && it.modified.slice(0, 10) !== String(it.date || '').slice(0, 10) ? '<br>sửa ' + esc(it.modified.slice(0, 10)) : ''}</td>
         <td style="padding:5px 6px;white-space:nowrap">${it.keyword && !it.wp_id ? `<button data-a="write" style="${btn('padding:3px 8px;background:#7c5cff;border-color:#7c5cff;color:#fff')}" title="Mở SEO Writer điền sẵn từ khóa chính + phụ">✍️ Viết</button>` : ''}${!it.wp_id ? `<button data-a="del" style="${btn('padding:3px 6px;margin-left:3px;color:#f85149')}" title="Xoá khỏi kho (chỉ bài kế hoạch chưa đăng)">🗑</button>` : ''}</td>
       </tr>`;
     }
@@ -411,6 +417,7 @@
       if (t.classList.contains('im-f')) { s.imp[t.dataset.k] = t.value; return s.impPaint(); }
       if (t.classList.contains('im-sel')) { const r = t.closest('tr').dataset.row; t.checked ? s.imp.sel.add(r) : s.imp.sel.delete(r); return s.impPaint(); }
       if (t.classList.contains('pv-dec')) { s.dec[t.closest('tr').dataset.row] = t.value; return; }
+      if (t.classList.contains('cm-cpsel')) { s.cp = t.value; return; }
       if (t.classList.contains('cm-sel')) { t.checked ? s.sel.add(id) : s.sel.delete(id); return draw(true); }
       if (t.classList.contains('cm-all')) { filtered().slice(0, s.limit).forEach(it => t.checked ? s.sel.add(it.id) : s.sel.delete(it.id)); return draw(true); }
       try {
@@ -426,10 +433,9 @@
     root.addEventListener('dblclick', e => {
       const td = e.target.closest('.cm-tbl tbody td');
       if (!td || e.target.closest('input,button,a,select')) return;
-      const b = td.querySelector('.cm-cpb'), tr = td.closest('tr[data-id]');
-      const it = b && tr && (s.v.items || []).find(x => x.id === tr.dataset.id);
-      const text = it ? COLS[b.dataset.c][1](it) : '';
-      if (text) copyText(text, td);
+      const sel = td.querySelector('select');
+      const text = (sel ? sel.options[sel.selectedIndex].text : td.innerText).replace(/\s*↗\s*$/, '').trim();
+      if (text && text !== '—') copyText(text, td);
     });
     root.addEventListener('click', async e => {
       const el = e.target.closest('[data-a]');
@@ -442,11 +448,11 @@
           case 'scan': return scan(false);
           case 'scanfull': return scan(true);
           case 'more': s.limit += 100; return draw(true);
-          case 'cpcell': return it && copyText(COLS[el.dataset.c][1](it), el.closest('td'));
-          case 'cpcol': {
-            const rows = filtered().filter(x => !s.sel.size || s.sel.has(x.id));
-            const vals = rows.map(COLS[el.dataset.c][1]);
-            return vals.length ? copyText(vals.join('\n'), el.closest('th')) : null;
+          case 'cpdo': {
+            const keys = s.cp.split(','), rows = filtered().filter(x => !s.sel.size || s.sel.has(x.id));
+            if (!rows.length) return typeof toast === 'function' && toast('Không có dòng nào để copy', '#e74c3c');
+            const text = rows.map(x => keys.map(k => COLS[k][1](x).replace(/[\t\n]+/g, ' ')).join('\t')).join('\n');
+            return copyText(text, null, `Đã copy ${rows.length} dòng — ${keys.map(k => COLS[k][0]).join(' + ')}`);
           }
           case 'back': s.view = 'dash'; return draw(true);
           case 'import': s.view = 'import'; return drawImport();
