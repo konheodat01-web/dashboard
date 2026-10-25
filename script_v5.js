@@ -14386,14 +14386,14 @@ function wstCopyGscCode(btn) {
 }
 
 function ggamcAutoLogin(url, user, pass) {
+  if (!document.documentElement.dataset.ggamc) return Promise.resolve(false);
   return new Promise(resolve => {
     const id = 'al' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const done = ok => { clearTimeout(t); window.removeEventListener('message', h); resolve(ok); };
     const h = e => {
       if (e.source !== window || !e.data || e.data.source !== 'ggamc' || e.data.type !== 'autologin-ack' || e.data.id !== id) return;
-      done(!!e.data.ok);
+      window.removeEventListener('message', h);
+      resolve(!!e.data.ok);
     };
-    const t = setTimeout(() => done(false), 900);
     window.addEventListener('message', h);
     window.postMessage({ source: 'nthieu-dash', type: 'autologin', id, url, user, pass }, location.origin);
   });
