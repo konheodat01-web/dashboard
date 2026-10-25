@@ -6734,7 +6734,7 @@ function renderWebsites(){
         ${(()=>{ const kids=websites.filter(x=>x.is301&&x.sourceUrl&&(x.sourceUrl===w.url||x.sourceUrl===w.url?.replace(/\/$/,''))); return kids.length?`<button onclick="event.stopPropagation();showW301s(${w.id})" style="font-size:10px;padding:1px 7px;border-radius:10px;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;cursor:pointer;white-space:nowrap" title="Xem ${kids.length} web 301">🔀 ×${kids.length}</button>`:'' })()}
         ${!w.is301?`<button onclick="event.stopPropagation();openAdd301ForParent(${w.id},'${(w.url||'').replace(/'/g,"\\'")}')" style="font-size:10px;padding:1px 7px;border-radius:10px;background:#f3e5f5;color:#8e24aa;border:1px solid #d1c4e9;cursor:pointer;white-space:nowrap" title="Thêm web 301 kế thừa từ web này">+ 301</button>`:''}
         <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${WS_STATUS_COLOR[w.status]||'#999'}18;color:${WS_STATUS_COLOR[w.status]||'#999'};white-space:nowrap">${w.status}</span>
-        ${w.admin?`<a href="${joinAdminUrl(w.url,w.admin)}" target="_blank" onclick="event.stopPropagation()" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 8px">Admin</a>`:''}
+        ${w.admin?`<button type="button" onclick="event.stopPropagation();wsQuickAdmin(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 8px" title="Mở trang đăng nhập, copy sẵn tài khoản + mật khẩu (có tiện ích GG AI Mode Capture thì tự đăng nhập)">Admin</button>`:''}
         <button onclick="event.stopPropagation();copyText(this.dataset.url,this)" data-url="${(w.url||'').replace(/"/g,'&quot;')}" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 8px;color:var(--blue);border-color:#b8d4ea" title="Copy URL">🔗</button>
         <button onclick="event.stopPropagation();wsCopyAccount(${w.id},this)" class="btn btn-sm" style="font-size:11px;padding:2px 10px;background:#27ae60;color:#fff;border:none;font-weight:600" title="Copy tài khoản">👤 TK</button>
         <button onclick="event.stopPropagation();wsCopyPassword(${w.id},this)" class="btn btn-sm" style="font-size:11px;padding:2px 10px;background:#2980b9;color:#fff;border:none;font-weight:600" title="Copy mật khẩu">🔑 MK</button>
@@ -12893,6 +12893,7 @@ function wstOpenDashboardUI(wsId) {
           <span class="tag tg">✅ ${w.status || 'Tốt'}</span>
           <span class="tag tb">📈 Đang theo dõi</span>
           <span class="tag to">🏆 Vị trí: ${avgPosGoogle > 0 ? avgPosGoogle.toFixed(1) : '—'}</span>
+          <button type="button" class="tag tql" onclick="wstDashQuickLogin(${w.id})" title="Mở trang đăng nhập WordPress của site hiện tại, copy sẵn tài khoản + mật khẩu. Trình duyệt có tiện ích GG AI Mode Capture thì tự điền và bấm đăng nhập.">🔑 Đăng nhập nhanh</button>
         </div>
       </div>
       <button class="btn-x theme-toggle-mini" onclick="dashToggleTheme()" title="Đổi giao diện sáng / tối" style="margin-right:6px">${document.documentElement.dataset.theme === 'dark' ? '☀️' : '🌙'}</button>
@@ -14384,8 +14385,50 @@ function wstCopyGscCode(btn) {
   }, 1500);
 }
 
+function ggamcAutoLogin(url, user, pass) {
+  return new Promise(resolve => {
+    const id = 'al' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const done = ok => { clearTimeout(t); window.removeEventListener('message', h); resolve(ok); };
+    const h = e => {
+      if (e.source !== window || !e.data || e.data.source !== 'ggamc' || e.data.type !== 'autologin-ack' || e.data.id !== id) return;
+      done(!!e.data.ok);
+    };
+    const t = setTimeout(() => done(false), 900);
+    window.addEventListener('message', h);
+    window.postMessage({ source: 'nthieu-dash', type: 'autologin', id, url, user, pass }, location.origin);
+  });
+}
+
+function wstAdminTargetOf(w) {
+  if (!w) return null;
+  const url = joinAdminUrl(w.url, w.admin || 'wp-admin');
+  let host = '';
+  try { host = new URL(url).host.replace(/^www\./, ''); } catch (e) {}
+  const own = wstNormalizeUrl(w.url || '');
+  const holder = host && own !== wstNormalizeUrl(host) ? (websites.find(x => x.url && wstNormalizeUrl(x.url) === wstNormalizeUrl(host)) || w) : w;
+  return { url, user: holder.account || w.account || '', pass: holder.password || w.password || '' };
+}
+
+function wsQuickAdmin(wsId) {
+  const w = websites.find(x => x.id === wsId);
+  const t = wstAdminTargetOf(w);
+  if (!t || !t.url) return;
+  wstGoToAdminAndCopy(t.url, t.user, t.pass);
+}
+
+function wstDashQuickLogin(wsId) {
+  const w = websites.find(x => x.id === wsId);
+  if (!w) return;
+  const cur = (typeof wstCurrent301Site === 'function' && wstCurrent301Site(w)) || w;
+  if (!cur.url && !w.url) { toast('Website chưa có URL', '#e74c3c'); return; }
+  const url = joinAdminUrl(cur.url || w.url, cur.admin || w.admin || 'wp-admin', true);
+  const user = cur.account || w.account || '', pass = cur.password || w.password || '';
+  if (!user && !pass) toast('Website chưa lưu tài khoản / mật khẩu, chỉ mở trang đăng nhập', '#e67e22', 2200);
+  wstGoToAdminAndCopy(url, user, pass);
+}
+
 function wstGoToAdminAndCopy(url, user, pass) {
-  console.log('wstGoToAdminAndCopy called:', { url, user, pass });
+  const viaExt = user && pass ? ggamcAutoLogin(url, user, pass) : Promise.resolve(false);
   if (user && pass) {
     // 1. Tạo hoặc hiển thị overlay tiến độ vòng tròn
     let loader = document.getElementById('wstTakeoffLoader');
@@ -14429,21 +14472,17 @@ function wstGoToAdminAndCopy(url, user, pass) {
       
       // 3. Chờ 400ms để vòng quay hoàn thành và copy tiếp tài khoản
       setTimeout(() => {
-        navigator.clipboard.writeText(user).then(() => {
-          console.log('Username copied');
-        }).catch(err => console.error(err));
-        
-        window.open(url, '_blank');
-        
-        // Ẩn loader mượt mà
-        loader.style.opacity = '0';
-        loader.style.pointerEvents = 'none';
-        loader.querySelector('div').style.transform = 'scale(0.9)';
-        setTimeout(() => {
-          loader.style.display = 'none';
-        }, 150);
-        
-        toast('✓ Đã copy riêng User & Pass (Win + V) và mở Admin!', '#27ae60', 2000);
+        navigator.clipboard.writeText(user).catch(err => console.error(err));
+        viaExt.then(ok => {
+          if (!ok) window.open(url, '_blank');
+          loader.style.opacity = '0';
+          loader.style.pointerEvents = 'none';
+          loader.querySelector('div').style.transform = 'scale(0.9)';
+          setTimeout(() => {
+            loader.style.display = 'none';
+          }, 150);
+          toast(ok ? '✓ Đã copy User & Pass · tiện ích đang tự đăng nhập' : '✓ Đã copy riêng User & Pass (Win + V) và mở Admin!', '#27ae60', 2200);
+        });
       }, 400);
     } catch (e) {
       console.error(e);
