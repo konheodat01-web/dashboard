@@ -3,3 +3,4 @@ config.json
 node_modules/
 admin_auth.json
 data/
+auth_secret

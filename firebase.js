@@ -54,21 +54,61 @@
     window.location.reload();
   };
 
-  if (sp !== 'main' && window.fetch) {
-    const of = window.fetch.bind(window);
-    window.fetch = function (input, init) {
-      try {
-        const u = new URL(typeof input === 'string' ? input : (input && input.url) || '', location.href);
-        if (u.origin === location.origin && u.pathname.startsWith('/api/')) {
-          init = Object.assign({}, init);
-          const h = new Headers(init.headers || (typeof input !== 'string' && input && input.headers) || {});
-          h.set('X-NT-Space', sp);
-          init.headers = h;
-        }
-      } catch (e) {}
-      return of(input, init);
-    };
+  const SESS = 'nt_sess';
+  const of = window.fetch.bind(window);
+  let renewing = null, warned = false;
+  window.ntToken = () => lsGet(SESS) || '';
+  window.ntLogin = function (payload) {
+    return of('/api/auth/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload || {}) })
+      .then((r) => r.json().catch(() => ({})).then((d) => {
+        if (r.ok && d.token) { lsSet(SESS, d.token); return true; }
+        console.warn('Xác minh phiên máy chủ thất bại:', d.error || r.status);
+        return false;
+      }))
+      .catch((e) => { console.warn('Xác minh phiên máy chủ thất bại:', e); return false; });
+  };
+  window.ntLoginGoogle = (u) => Promise.resolve(u && u.getIdToken ? u.getIdToken() : '')
+    .then((t) => (t ? window.ntLogin({ idToken: t }) : false)).catch(() => false);
+  function renew() {
+    if (!renewing) {
+      renewing = Promise.resolve().then(() => {
+        const u = window.firebase && firebase.auth && firebase.auth().currentUser;
+        return u ? window.ntLoginGoogle(u) : false;
+      }).catch(() => false);
+    }
+    return renewing;
   }
+  function withAuth(input, init) {
+    init = Object.assign({}, init);
+    const h = new Headers(init.headers || (typeof input !== 'string' && input && input.headers) || {});
+    if (sp !== 'main') h.set('X-NT-Space', sp);
+    const t = window.ntToken();
+    if (t) h.set('X-NT-Token', t);
+    init.headers = h;
+    return init;
+  }
+  function warn() {
+    if (warned) return;
+    warned = true;
+    const msg = '🔒 Phiên bảo mật máy chủ đã hết hạn — đăng xuất rồi đăng nhập lại để dùng các tính năng gọi máy chủ.';
+    if (typeof window.toast === 'function') window.toast(msg, '#e74c3c'); else console.warn(msg);
+  }
+  window.fetch = async function (input, init) {
+    let api = false;
+    try {
+      const u = new URL(typeof input === 'string' ? input : (input && input.url) || '', location.href);
+      api = u.origin === location.origin && u.pathname.startsWith('/api/') && u.pathname !== '/api/auth/session';
+    } catch (e) {}
+    if (!api) return of(input, init);
+    if (!window.ntToken()) await renew();
+    let r = await of(input, withAuth(input, init));
+    if (r.status === 401 && r.headers.get('X-NT-Auth') === '1') {
+      lsSet(SESS, null);
+      if (typeof input === 'string' && await renew() && window.ntToken()) r = await of(input, withAuth(input, init));
+      if (r.status === 401 && r.headers.get('X-NT-Auth') === '1') warn();
+    }
+    return r;
+  };
 
   document.addEventListener('DOMContentLoaded', () => {
     const anchor = document.getElementById('loginStatusText');

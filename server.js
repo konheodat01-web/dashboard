@@ -22,6 +22,7 @@ const path = require("path");
 const https = require("https");
 const { exec } = require("child_process");
 const hub = require("./lib/hub");
+const ntauth = require("./lib/ntauth");
 
 const PORT        = process.env.PORT || 3050;
 const CONFIG_FILE = path.join(__dirname, "config.json");
@@ -89,9 +90,10 @@ function getLevel1Auth(domain) {
 }
 
 function ntSpace(req) {
-  const s = String(req.headers["x-nt-space"] || "");
-  return /^s\d\d$/.test(s) ? s : "";
+  return req.ntAuth ? req.ntAuth.space : "";
 }
+
+const NT_OPEN = new Set(["/api/config", "/api/seo-audit/psi-next", "/api/seo-audit/psi-result", "/api/seo-audit/psi-switch", "/api/seo-audit/psi-status"]);
 
 function safeJson(txt) {
   try { return JSON.parse(txt); } catch (e) { return []; }
@@ -101,7 +103,7 @@ function safeJson(txt) {
 function setCORS(res) {
   res.setHeader("Access-Control-Allow-Origin",  "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-NT-Space");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-NT-Space, X-NT-Token");
 }
 
 // ── Basic Auth cho khu vuc admin (tra ve true neu da xac thuc) ───────────────
@@ -138,6 +140,32 @@ const server = http.createServer(async (req, res) => {
   // ── Khu vuc admin: bat buoc Basic Auth ───────────────────────────────────
   if (url === "/admin" || url.startsWith("/admin/") || url === "/api/config" || url.startsWith("/api/git-pull-deploy")) {
     if (!checkAdminAuth(req, res)) return;
+  }
+
+  if (req.method === "POST" && url === "/api/auth/session") {
+    let body = {};
+    try { body = JSON.parse((await readBody(req)) || "{}"); } catch (e) {}
+    const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+    try {
+      const out = await ntauth.login(body, ip);
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      res.end(JSON.stringify(out));
+    } catch (e) {
+      res.writeHead(e.code || 401, { "Content-Type": "application/json; charset=utf-8", "X-NT-Auth": "1" });
+      res.end(JSON.stringify({ error: e.message, auth: true }));
+    }
+    return;
+  }
+
+  if (url.startsWith("/api/") && !NT_OPEN.has(url) && !url.startsWith("/api/git-pull-deploy")) {
+    const tq = new URL(req.url, "http://x").searchParams.get("t") || "";
+    const who = ntauth.check(req.headers["x-nt-token"] || tq);
+    if (!who) {
+      res.writeHead(401, { "Content-Type": "application/json; charset=utf-8", "X-NT-Auth": "1" });
+      res.end(JSON.stringify({ error: "Chưa đăng nhập hoặc phiên đã hết hạn — đăng nhập lại dashboard", detail: "Chưa đăng nhập hoặc phiên đã hết hạn — đăng nhập lại dashboard", auth: true }));
+      return;
+    }
+    req.ntAuth = who;
   }
 
   // ── GET /api/config ──────────────────────────────────────────────────────

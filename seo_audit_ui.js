@@ -199,7 +199,7 @@
 
   function listen(guid) {
     closeEs();
-    const es = new EventSource(API + '/stream?guid=' + encodeURIComponent(guid));
+    const es = new EventSource(API + '/stream?guid=' + encodeURIComponent(guid) + '&t=' + encodeURIComponent(typeof ntToken === 'function' ? ntToken() : ''));
     ST.es = es;
     let t = null;
     es.onmessage = e => {

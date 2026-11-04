@@ -1507,7 +1507,7 @@
             if (input === correctPassword) {
               if (btn) btn.textContent = "Đăng nhập thành công!";
               try { sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
-              executeLoginSuccess();
+              ntLogin({ user: 'admin', pass: input }).then(executeLoginSuccess);
             } else {
               alert('Sai mật khẩu Admin! Vui lòng kiểm tra lại.');
               if (btn) btn.textContent = "Đăng nhập";
@@ -1519,7 +1519,7 @@
               const storedPasswords = JSON.parse(localData);
               if (storedPasswords && input === storedPasswords.admin) {
                 try { sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
-                executeLoginSuccess();
+                ntLogin({ user: 'admin', pass: input }).then(executeLoginSuccess);
                 return;
               }
             }
@@ -1536,7 +1536,7 @@
               Object.keys(localStorage).forEach(k => { if (k.startsWith('wt_')) localStorage.removeItem(k); });
               try { sessionStorage.setItem('wt_session_member', username); localStorage.setItem('wt_activeMember', username); currentMember = username; } catch(e){}
               if (typeof staffProfiles !== 'undefined') staffProfiles = profiles;
-              executeLoginSuccess();
+              ntLogin({ user: username, pass: input }).then(executeLoginSuccess);
             } else {
               alert('Tài khoản hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.');
               if (btn) btn.textContent = "Đăng nhập";
@@ -1552,7 +1552,7 @@
                 Object.keys(localStorage).forEach(k => { if (k.startsWith('wt_')) localStorage.removeItem(k); });
               }
               try { sessionStorage.setItem('wt_session_member', username); localStorage.setItem('wt_activeMember', username); currentMember = username; } catch(e){}
-              executeLoginSuccess();
+              ntLogin({ user: username, pass: input }).then(executeLoginSuccess);
             } else {
               alert('Lỗi mạng hoặc tài khoản không đúng.');
               if (btn) btn.textContent = "Đăng nhập";
@@ -1573,6 +1573,7 @@
           window._fbDataLoaded = false;
           // Wipe all wt_ keys from localStorage
           Object.keys(localStorage).forEach(k => { if (k.startsWith('wt_')) localStorage.removeItem(k); });
+          localStorage.removeItem('nt_sess');
           sessionStorage.removeItem('wt_session_admin'); 
           sessionStorage.removeItem('wt_session_member');
           sessionStorage.removeItem('gsc_access_token');
@@ -1626,7 +1627,7 @@
           if (ntCur !== 'main') {
             if (btn) btn.textContent = "Đăng nhập thành công!";
             try { sessionStorage.removeItem('nt_switch_email'); sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
-            executeLoginSuccess();
+            ntLoginGoogle(user).then(executeLoginSuccess);
             return;
           }
           try { sessionStorage.removeItem('nt_switch_email'); } catch (e) {}
@@ -1644,7 +1645,7 @@
             if (isAllowed) {
               if (btn) btn.textContent = "Đăng nhập thành công!";
               try { sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
-              executeLoginSuccess();
+              ntLoginGoogle(user).then(executeLoginSuccess);
             } else {
               alert(`Tài khoản Google (${email}) không có quyền Admin!`);
               if (btn) btn.innerHTML = oldHtml;
@@ -1655,7 +1656,7 @@
             const defaultAdmins = ["konheodat01@gmail.com", "admin@nthieucloud.shop"];
             if (defaultAdmins.includes(email)) {
               try { sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
-              executeLoginSuccess();
+              ntLoginGoogle(user).then(executeLoginSuccess);
             } else {
               alert(`Tài khoản Google (${email}) không có quyền Admin!`);
               if (btn) btn.innerHTML = oldHtml;
@@ -1781,12 +1782,12 @@
       }
     });
   </script>
-  <script src="firebase.js?v=20261104_sp1"></script>
+  <script src="firebase.js?v=20261104_au1"></script>
   <script src="script_v5.js?v=20261025_ql2"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   <script src="seo_expert.js?v=20261104_sp1"></script>
-  <script src="seo_audit_ui.js?v=20261104_sp1"></script>
+  <script src="seo_audit_ui.js?v=20261104_au1"></script>
   <script src="content_mgr.js?v=20261104_sp1"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
