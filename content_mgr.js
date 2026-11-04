@@ -82,7 +82,7 @@
   };
 
   window.cmMount = function (panel, wsId) {
-    const cid = 'ws' + wsId;
+    const cid = 'ws' + (window.NT_CID || '') + wsId;
     const w = (typeof websites !== 'undefined' ? websites : []).find(x => x.id === wsId);
     if (!panel || !w) return;
     const s = { cp: 'url', v: null, view: 'dash', f: { q: '', wpcat: '', silo: '', st: '', label: '', month: '', src: '' }, sel: new Set(), limit: 100, busy: '' };

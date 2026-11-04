@@ -332,7 +332,7 @@
     if (!w) throw new Error('Không tìm thấy website');
     const host = wstCurrentUrl(w);
     if (!host) throw new Error('Website chưa có URL');
-    const cid = 'ws' + String(wsId).replace(/\D/g, '');
+    const cid = 'ws' + (window.NT_CID || '') + String(wsId).replace(/\D/g, '');
     // danh sách bài: ưu tiên kho Quản lý nội dung (đã quét đủ), không có thì đọc WP REST
     progress('Đang lấy danh sách bài…');
     let posts = [], pages = [];
@@ -781,7 +781,7 @@
     if (panel.dataset.sxWs === String(wsId)) return;          // đã gắn cho site này
     panel.dataset.sxWs = String(wsId);
     panel.style.padding = '0';
-    const cid = 'ws' + String(wsId).replace(/\D/g, '');
+    const cid = 'ws' + (window.NT_CID || '') + String(wsId).replace(/\D/g, '');
     const s = { busy: false, diag: null, checkup: null, integ: {}, answers: {}, type: '', step: 0, mode: 'loading' };
     panel.innerHTML = `<div class="sx-site">
       <div class="sx-site-head">

@@ -88,6 +88,11 @@ function getLevel1Auth(domain) {
   } catch (e) { return null; }
 }
 
+function ntSpace(req) {
+  const s = String(req.headers["x-nt-space"] || "");
+  return /^s\d\d$/.test(s) ? s : "";
+}
+
 function safeJson(txt) {
   try { return JSON.parse(txt); } catch (e) { return []; }
 }
@@ -96,7 +101,7 @@ function safeJson(txt) {
 function setCORS(res) {
   res.setHeader("Access-Control-Allow-Origin",  "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-NT-Space");
 }
 
 // ── Basic Auth cho khu vuc admin (tra ve true neu da xac thuc) ───────────────
@@ -218,7 +223,7 @@ const server = http.createServer(async (req, res) => {
       hostname: "127.0.0.1", port: 8501,
       path: isSeen ? "/api/processes/seen" : "/api/processes",
       method: isSeen ? "POST" : "GET",
-      headers: { "x-access-key": swKey, "Content-Type": "application/json" },
+      headers: { "x-access-key": swKey, "x-nt-space": ntSpace(req), "Content-Type": "application/json" },
     }, (pres) => {
       let body = "";
       pres.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
@@ -246,7 +251,7 @@ const server = http.createServer(async (req, res) => {
       hostname: "127.0.0.1", port: 8501,
       path: "/api/autopilot/cancel-process/" + encodeURIComponent(pid),
       method: "POST",
-      headers: { "x-access-key": swKey, "Content-Type": "application/json" },
+      headers: { "x-access-key": swKey, "x-nt-space": ntSpace(req), "Content-Type": "application/json" },
     }, (pres) => {
       let body = "";
       pres.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
@@ -281,7 +286,7 @@ const server = http.createServer(async (req, res) => {
       path: "/api/expert/" + sub,
       method: req.method,
       timeout: 180000,
-      headers: { "x-access-key": swKey, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(reqBody) },
+      headers: { "x-access-key": swKey, "x-nt-space": ntSpace(req), "Content-Type": "application/json", "Content-Length": Buffer.byteLength(reqBody) },
     }, (pres) => {
       let body = "";
       pres.setEncoding("utf8");   // giai ma UTF-8 theo luong: khong cat doi ky tu tieng Viet giua 2 chunk
@@ -323,7 +328,7 @@ const server = http.createServer(async (req, res) => {
     try {
       if (req.method === "POST" && url === "/api/seo-audit") {
         const body = JSON.parse((await readBody(req)) || "{}");
-        return json(200, { guid: SA.start(body.url) });
+        return json(200, { guid: SA.start(body.url, ntSpace(req)) });
       }
       if (["/api/seo-audit/psi-next", "/api/seo-audit/psi-result", "/api/seo-audit/psi-switch", "/api/seo-audit/psi-status"].includes(url)) {
         let k = "";
@@ -348,12 +353,12 @@ const server = http.createServer(async (req, res) => {
         }
       }
       if (req.method === "GET" && url === "/api/seo-audit/meta") return json(200, { checks: SA.CHECKS, groups: SA.GROUPS });
-      if (req.method === "GET" && url === "/api/seo-audit/history") return json(200, { items: SA.history(50) });
+      if (req.method === "GET" && url === "/api/seo-audit/history") return json(200, { items: SA.history(50, ntSpace(req)) });
       if (req.method === "GET" && url === "/api/seo-audit/report") {
-        const r = SA.load(q.get("guid") || "");
+        const r = SA.load(q.get("guid") || "", ntSpace(req));
         return r ? json(200, r) : json(404, { error: "Không tìm thấy báo cáo" });
       }
-      if (req.method === "DELETE" && url === "/api/seo-audit/report") return json(200, { ok: SA.remove(q.get("guid") || "") });
+      if (req.method === "DELETE" && url === "/api/seo-audit/report") return json(200, { ok: SA.remove(q.get("guid") || "", ntSpace(req)) });
       if (req.method === "GET" && url === "/api/seo-audit/stream") {
         res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", "Connection": "keep-alive", "X-Accel-Buffering": "no" });
         res.write(": ok\n\n");

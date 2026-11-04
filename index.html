@@ -1592,12 +1592,28 @@
         provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
         provider.addScope('https://www.googleapis.com/auth/webmasters');
         provider.addScope('https://www.googleapis.com/auth/siteverification');
-        provider.setCustomParameters({ prompt: 'select_account' });
-        
+        let ntHint = '';
+        try { ntHint = sessionStorage.getItem('nt_switch_email') || ''; } catch (e) {}
+        provider.setCustomParameters(ntHint && ntHint.includes('@') ? { prompt: 'select_account', login_hint: ntHint } : { prompt: 'select_account' });
+
         firebase.auth().signInWithPopup(provider).then((result) => {
           const user = result.user;
           const email = user.email;
           const credential = result.credential;
+          const ntCur = window.NT_SPACE || 'main';
+          const ntTarget = typeof ntSpaceOfEmail === 'function' ? ntSpaceOfEmail(email) : 'main';
+          if (ntTarget !== ntCur) {
+            firebase.auth().signOut().catch(() => {}).then(() => {
+              if (!ntSpaceReady(ntTarget)) {
+                alert(`Tài khoản Google (${email}) có không gian riêng nhưng chưa được cấu hình Firebase. Liên hệ quản trị viên.`);
+                if (btn) btn.innerHTML = oldHtml;
+                return;
+              }
+              if (btn) btn.textContent = 'Đang chuyển không gian…';
+              ntSwitchSpace(ntTarget, email);
+            });
+            return;
+          }
           
           if (credential && credential.accessToken) {
             sessionStorage.setItem('gsc_access_token', credential.accessToken);
@@ -1607,6 +1623,13 @@
           if (user.displayName) sessionStorage.setItem('admin_display_name', user.displayName);
           if (user.photoURL)    sessionStorage.setItem('admin_photo_url',    user.photoURL);
           
+          if (ntCur !== 'main') {
+            if (btn) btn.textContent = "Đăng nhập thành công!";
+            try { sessionStorage.removeItem('nt_switch_email'); sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
+            executeLoginSuccess();
+            return;
+          }
+          try { sessionStorage.removeItem('nt_switch_email'); } catch (e) {}
           firebase.database().ref('passwords/admin_emails').once('value').then(snapshot => {
             const allowedEmails = snapshot.val() || ["konheodat01@gmail.com", "admin@nthieucloud.shop"];
             let isAllowed = false;
@@ -1758,13 +1781,13 @@
       }
     });
   </script>
-  <script src="firebase.js?v=premium_ui_perfect_v8"></script>
+  <script src="firebase.js?v=20261104_sp1"></script>
   <script src="script_v5.js?v=20261025_ql2"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-  <script src="seo_expert.js?v=20261022_t1"></script>
-  <script src="seo_audit_ui.js?v=20261022_t1"></script>
-  <script src="content_mgr.js?v=20261022_t1"></script>
+  <script src="seo_expert.js?v=20261104_sp1"></script>
+  <script src="seo_audit_ui.js?v=20261104_sp1"></script>
+  <script src="content_mgr.js?v=20261104_sp1"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">
