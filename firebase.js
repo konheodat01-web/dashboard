@@ -15,7 +15,15 @@
     s01: {
       label: 'konheodat2001@gmail.com',
       emails: ['konheodat2001@gmail.com'],
-      config: null
+      config: {
+        apiKey: "AIzaSyBE6IQl3ORuKNxsGW-WC6dRXwfNGfqV2GY",
+        authDomain: "nthieucloud-dashboard.firebaseapp.com",
+        databaseURL: "https://nthieucloud-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "nthieucloud-dashboard",
+        storageBucket: "nthieucloud-dashboard.firebasestorage.app",
+        messagingSenderId: "743636961461",
+        appId: "1:743636961461:web:a8c1bd43e9199a33b8d6fc"
+      }
     }
   };
   const KEEP = ['dash-theme', 'nt_space', 'nt_space_data', 'sx_collapsed', 'tk_done_open', 'recur_done_open', 'it_done_open', 'wst_mode'];
