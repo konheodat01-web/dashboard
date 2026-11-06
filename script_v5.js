@@ -3237,6 +3237,11 @@ function wstOpenWriter(domain, brand){
 
 // SEO Writer nhúng ngay trong dashboard (iframe popup) — không mở tab riêng nữa.
 function wstOpenWriterModal(src, label){
+  try{
+    var _sp = localStorage.getItem('nt_space') || 'main';
+    var _h = src.indexOf('#'), _p = _h < 0 ? src : src.slice(0, _h), _f = _h < 0 ? '' : src.slice(_h);
+    if (_p.indexOf('?sp=') < 0 && _p.indexOf('&sp=') < 0) src = _p + (_p.indexOf('?') < 0 ? '?' : '&') + 'sp=' + _sp + _f;
+  }catch(e){}
   var ov = document.getElementById('wstWriterOverlay');
   if (!ov) { window.open(src, '_blank'); return; }   // fallback nếu chưa có modal
   var fr = document.getElementById('wstWriterFrame');
