@@ -340,12 +340,12 @@ body:not([data-mode="wf"]) #wfb{display:none!important}
       </section>
       <section data-sec="levels" data-grp="Bắt đầu">
         <h3>Sơ đồ tổng và sơ đồ con</h3>
-        <p>Bản đồ chia nhiều tầng như một hệ thống thật: <b>sơ đồ tổng</b> chỉ có hạ tầng (VPS, Caddy, Fail2ban, Cron), 5 hệ con (Dashboard, Chuyên gia SEO, SEO Writer, Quản lý tài chính, GSC Bulk Tool) và nhóm Dịch vụ ngoài. Mỗi hệ con có <b>sơ đồ riêng</b> thể hiện các thành phần bên trong của nó.</p>
+        <p>Bản đồ chia nhiều tầng như một hệ thống thật: <b>sơ đồ tổng</b> chỉ có hạ tầng (VPS, Caddy, Fail2ban, Cron), 4 hệ con (Dashboard, SEO Writer, Quản lý tài chính, GSC Bulk Tool) và nhóm Dịch vụ ngoài. Mỗi hệ con có <b>sơ đồ riêng</b> thể hiện các thành phần bên trong của nó.</p>
         <ul>
           <li>Ô có hình <b>xếp chồng</b> và dòng <b>⧉ n chức năng</b> là hệ con: <b>nhấp đúp</b> (hoặc nút "Mở sơ đồ bên trong" ở khung phải) để vào.</li>
           <li>Sơ đồ của mỗi hệ con là <b>dây chuyền</b>: mỗi chức năng một <b>làn</b>, đọc trái sang phải: <b>⚡ Trigger</b> (điều kiện khởi động) → các <b>bước</b> → <b>🏁 Output</b>. Chữ trên dây là dữ liệu đi qua (ra của bước trước = vào của bước sau). Chip dưới mỗi bước là dịch vụ bước đó gọi tới, chấm màu là trạng thái thật của dịch vụ.</li>
           <li>Làn <b>gạch ngang, viền đứt, màu xám</b> là chức năng không dùng nữa hoặc đang hỏng, kèm lý do để bạn dọn.</li>
-          <li><b>SEO Writer</b> và <b>Chuyên gia SEO</b> là một dây chuyền rẽ nhánh: nhiều lối vào (⚡) gộp vào các bước chung, rẽ thành nhánh, rồi hợp lại ở một kết quả (🏁). Chữ trên dây rẽ nhánh cho biết khi nào đi nhánh đó. Chuyên gia SEO nối sang SEO Writer ở cuối (Kho nội dung giao bài cần viết).</li>
+          <li><b>SEO Writer</b> là một dây chuyền rẽ nhánh: nhiều lối vào (⚡) gộp vào các bước chung, rẽ thành nhánh, rồi hợp lại ở một kết quả (🏁). Chữ trên dây rẽ nhánh cho biết khi nào đi nhánh đó.</li>
           <li><b>Nhấp đúp một làn</b> (hoặc nút "⤢ Mở quy trình đầy đủ") để mở sơ đồ cấp 3 của riêng quy trình đó: bên trái là chuỗi ô của <b>sơ đồ ông</b> (Hệ thống) và <b>sơ đồ mẹ</b> (hệ con) dẫn vào Trigger, chỉ gồm những ô quy trình thật sự đi qua; giữa là các bước; hàng dưới là từng dịch vụ nối thẳng vào đúng bước gọi nó.</li>
           <li>Ô <b>Dịch vụ ngoài</b> ở sơ đồ tổng gom tất cả dịch vụ (AI, Google, Serper, Firebase…) để xem tình trạng từng cái.</li>
           <li>Ở sơ đồ tổng, màu của hệ con là màu xấu nhất trong các thành phần bên trong; dòng ⧉ đếm số thành phần tốt (✓), cảnh báo (!), lỗi (✕).</li>
@@ -1242,7 +1242,7 @@ document.getElementById('g-x').addEventListener('click', closeGuide);
 document.getElementById('g-ok').addEventListener('click', closeGuide);
 const WFB = (() => {
   const wwrap = document.getElementById('wwrap'), wstage = document.getElementById('wstage'), wsvg = document.getElementById('wedges');
-  const GROUPS = [['trigger', '⚡ Trigger'], ['logic', '🔀 Logic'], ['step:sw', 'SEO Writer'], ['step:ex', 'Chuyên gia SEO'], ['step:dash', 'Dashboard'], ['step:gsct', 'GSC Bulk Tool'], ['step:fin', 'Quản lý tài chính'], ['svc', '🌐 Dịch vụ ngoài']];
+  const GROUPS = [['trigger', '⚡ Trigger'], ['logic', '🔀 Logic'], ['step:sw', 'SEO Writer'], ['step:dash', 'Dashboard'], ['step:gsct', 'GSC Bulk Tool'], ['step:fin', 'Quản lý tài chính'], ['svc', '🌐 Dịch vụ ngoài']];
   const PORT_Y0 = 46, PORT_DY = 22;
   let CAT = {}, LIST = [], wf = null, view = { k: 1, x: 40, y: 40 }, sel = null, ready = false, saveT = null, conn = null, issues = null;
   let collapsed = {};

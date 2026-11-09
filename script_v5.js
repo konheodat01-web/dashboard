@@ -528,7 +528,6 @@ function renderDashboard() {
       </div>
     </div>
   `;
-  if (typeof sxMount === 'function') sxMount(container); // Van phong Chuyen gia SEO (seo_expert.js)
 }
 
 function statusBadge(s){
@@ -12955,7 +12954,6 @@ function wstOpenDashboardUI(wsId) {
       <button class="tb-btn on" data-group="overview" onclick="wstSwitchTab(this,'overview')">📊 Tổng quan</button>
       <button class="tb-btn" data-group="perf" onclick="wstSwitchTab(this,'rank')">📈 Hiệu suất</button>
       <button class="tb-btn" data-group="content" onclick="wstSwitchTab(this,'content')">✍️ Nội dung</button>
-      <button class="tb-btn" data-group="expert" onclick="wstSwitchTab(this,'expert')">🧠 Chuyên gia SEO</button>
       <button class="tb-btn" data-group="ops" onclick="wstSwitchTab(this,'plan')">🗂 Vận hành</button>
     </div>
     <!-- TAB CON (Hiệu suất / Vận hành) — vẽ bởi wstSwitchTab -->
@@ -13099,8 +13097,6 @@ function wstOpenDashboardUI(wsId) {
 
       <!-- 4.5. PANEL ÁN PHẠT GSC -->
 
-      <!-- 4.8. PANEL CHUYÊN GIA SEO (seo_expert.js — sxSiteMount) -->
-      <div class="tp-panel" id="wst-tab-expert"></div>
 
       <!-- 4.9. PANEL QUẢN LÝ NỘI DUNG (wstRenderContentTab) -->
       <div class="tp-panel" id="wst-tab-content"></div>
@@ -13224,7 +13220,6 @@ function wstRenderOverview(wsId) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button onclick="wstWriteForSite(${wsId})" class="btn btn-sm" style="padding:6px 12px;background:#7c5cff;color:#fff;border:none;border-radius:6px;font-weight:600">✍️ Viết bài</button>
         <button onclick="wstSwitchTab(null,'content')" class="btn btn-sm" style="padding:6px 12px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px">🔎 Check index bài viết</button>
-        <button onclick="wstSwitchTab(null,'expert')" class="btn btn-sm" style="padding:6px 12px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px">🧠 Hỏi chuyên gia</button>
         <button onclick="wstOpenManualActions(${wsId})" class="btn btn-sm" style="padding:6px 12px;background:var(--t-muted);color:var(--t-warn);border:1px solid var(--t-border);border-radius:6px" title="Google không có API — mở báo cáo trong Search Console">⚠️ Án phạt thủ công ↗</button>
       </div>
 
@@ -13265,7 +13260,6 @@ const WST_TAB_GROUPS = {
   overview: [],
   perf:     [['rank', '📈 Rank'], ['gsc', '📊 Google (GSC)'], ['bing', '🔍 Bing']],
   content:  [],
-  expert:   [],
   ops:      [['plan', '📝 Kế hoạch & Strategy'], ['dichvu', '🛠️ Dịch vụ'], ['history', '🕒 Lịch sử']]
 };
 function wstTabGroupOf(tabId) {
@@ -13293,9 +13287,6 @@ function wstSwitchTab(btn, tabId) {
 
   if (tabId === 'overview') {
     wstRenderOverview(_wstActiveSiteId);
-  }
-  if (tabId === 'expert' && typeof sxSiteMount === 'function') {
-    sxSiteMount(document.getElementById('wst-tab-expert'), _wstActiveSiteId);
   }
   if (tabId === 'content') {
     wstRenderContentTab(_wstActiveSiteId);

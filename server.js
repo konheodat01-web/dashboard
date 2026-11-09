@@ -297,11 +297,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── /api/sw-expert/* → SEO Writer /api/expert/* (Chuyên gia SEO ở tab Báo cáo) ──
+  // ── /api/sw-content/* → SEO Writer /api/content* (tab ✍️ Nội dung của website) ──
   // Chuyen nguyen method + body + status; key SEO Writer gan o server, khong lo ra browser.
-  if (url.startsWith("/api/sw-expert/") && ["GET", "POST", "DELETE"].includes(req.method)) {
-    const sub = url.slice("/api/sw-expert/".length);
-    if (!/^[a-z]+(\/[a-z0-9]{1,40})?$/i.test(sub)) {
+  if (url.startsWith("/api/sw-content/") && ["GET", "POST", "DELETE"].includes(req.method)) {
+    const sub = url.slice("/api/sw-content/".length);
+    if (!/^content(scan|op)?\/[a-z0-9]{1,40}$/i.test(sub)) {
       res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ detail: "Đường dẫn không hợp lệ" }));
       return;
@@ -311,7 +311,7 @@ const server = http.createServer(async (req, res) => {
     const reqBody = req.method === "POST" ? await readBody(req) : "";
     const pr = http.request({
       hostname: "127.0.0.1", port: 8501,
-      path: "/api/expert/" + sub,
+      path: "/api/" + sub,
       method: req.method,
       timeout: 180000,
       headers: { "x-access-key": swKey, "x-nt-space": ntSpace(req), "Content-Type": "application/json", "Content-Length": Buffer.byteLength(reqBody) },
@@ -331,21 +331,6 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ detail: "Không kết nối được SEO Writer: " + e.message }));
     });
     pr.end(reqBody);
-    return;
-  }
-
-  // ── POST /api/site-diagnose → chan doan index 1 site tu ben ngoai (lib/site_diagnose.js) ──
-  // Body {domain, urls:[bai mau], all_links:[moi bai]}. Dung cho tab Chuyen gia SEO (seo_expert.js).
-  if (req.method === "POST" && url === "/api/site-diagnose") {
-    try {
-      const input = JSON.parse((await readBody(req)) || "{}");
-      const out = await require("./lib/site_diagnose").run(input, getLevel1Auth);
-      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(out));
-    } catch (e) {
-      res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: e.message }));
-    }
     return;
   }
 
@@ -406,21 +391,6 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       return json(400, { error: e.message });
     }
-  }
-
-  // ── POST /api/site-checkup → KHÁM BỆNH website (checklist chuẩn SEO từ bên ngoài, lib/site_checkup.js) ──
-  // Body {domain, urls:[≤30 bài mẫu], all_links:[mọi bài], about:[≤3 trang giới thiệu]}. Dùng cho 🩺 Khám bệnh (seo_expert.js).
-  if (req.method === "POST" && url === "/api/site-checkup") {
-    try {
-      const input = JSON.parse((await readBody(req)) || "{}");
-      const out = await require("./lib/site_checkup").run(input, getLevel1Auth);
-      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(out));
-    } catch (e) {
-      res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
   }
 
   // ── GET /api/wp-posts?domain=&type=&per_page= ────────────────────────────

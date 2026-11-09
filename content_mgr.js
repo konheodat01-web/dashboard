@@ -1,13 +1,11 @@
 /* ══ QUẢN LÝ NỘI DUNG THEO SITE — tab "✍️ Nội dung" trong Dashboard từng site (nút 📊) ══
- * Kho nội dung = bài CÓ SẴN trên web (trình duyệt cào WordPress REST) + bài KẾ HOẠCH import từ "📐 Lập kế hoạch".
- * Lưu ở SEO Writer: content_inventory/ws<id>.json (qua proxy /api/sw-expert/content*) — lần sau chỉ quét bài mới / vừa sửa.
- * Chủ site chốt 27/9/2026: lọc trùng theo từ khóa (không Serper), quét khi bấm, không có người phụ trách / hạn chót,
- * ghép danh mục WP tự động + ghép tay 1 lần, kế hoạch đổi thì báo + nút cập nhật, cấu hình riêng từng site.
+ * Kho nội dung = bài CÓ SẴN trên web (trình duyệt cào WordPress REST).
+ * Lưu ở SEO Writer: content_inventory/ws<id>.json (qua proxy /api/sw-content/*) — lần sau chỉ quét bài mới / vừa sửa.
  * Cần globals của script_v5.js: websites, wstCurrentUrl, wstCurrent301Site, wstFetchWp, wstCheckIndexSerper, wtApiKey,
  * wstRecomputeSiteStats, getWstSite, wstOpenWriterModal.
  */
 (function () {
-  const API = '/api/sw-expert/';
+  const API = '/api/sw-content/';
   const ST = {                                        // trạng thái bài — mỗi trạng thái 1 màu riêng, không trùng
     plan: ['Kế hoạch', 'var(--t-fg-muted)'], writing: ['Đang viết', 'var(--t-warn)'], awaiting_images: ['Chờ ảnh', 'var(--t-done)'],
     published: ['Đã đăng', 'var(--t-accent)'], optimize: ['Cần tối ưu', 'var(--t-severe)'], dropped: ['Bỏ', 'var(--t-fg-subtle)']
@@ -75,12 +73,6 @@
     return new Date(d.getFullYear(), d.getMonth() + Number(m), 0);
   }
 
-  // Gọi từ bảng kế hoạch (🧠 Chuyên gia SEO → 📐 Lập kế hoạch): chuyển sang tab ✍️ Nội dung và vào thẳng bước kiểm tra trùng
-  window.cmOpenImport = function (wsId, rowIds) {
-    window._cmPendingImport = { wsId, ids: rowIds };
-    if (typeof wstSwitchTab === 'function') wstSwitchTab(null, 'content');
-  };
-
   window.cmMount = function (panel, wsId) {
     const cid = 'ws' + (window.NT_CID || '') + wsId;
     const w = (typeof websites !== 'undefined' ? websites : []).find(x => x.id === wsId);
@@ -94,13 +86,6 @@
     async function load() {
       try { s.v = await api('content/' + cid); }
       catch (e) { root.innerHTML = `<div style="color:var(--t-danger)">⚠️ Không tải được kho nội dung: ${esc(e.message)}</div>`; return; }
-      const pend = window._cmPendingImport;
-      if (pend && pend.wsId === wsId) {             // đến từ nút 📥 ở bảng kế hoạch
-        window._cmPendingImport = null;
-        s.imp = { q: '', silo: '', label: '', month: '', sel: new Set(pend.ids) };
-        s.view = 'import';
-        return drawPreview();
-      }
       draw();
     }
     function setBusy(msg) { s.busy = msg || ''; const b = root.querySelector('.cm-busy'); if (b) b.textContent = s.busy; }
@@ -141,7 +126,7 @@
         s.v = await post('contentscan/' + cid, { domain: host, full, posts: pack(posts, 'post').concat(pack(pages, 'page')), all_ids: { post: idsPost, page: idsPage } });
         syncStats();
         const r = s.v.scan.last_result || {};
-        setBusy(`✓ Quét xong: ${r.new || 0} bài mới · ${r.updated || 0} cập nhật · ${r.linked || 0} bài kế hoạch tự nhận là đã đăng · ${r.deleted || 0} bài đã xoá trên web`);
+        setBusy(`✓ Quét xong: ${r.new || 0} bài mới · ${r.updated || 0} cập nhật · ${r.deleted || 0} bài đã xoá trên web`);
         draw(true);
       } catch (e) { setBusy('⚠️ ' + e.message); }
     }
@@ -162,7 +147,6 @@
         if (f.label && (it.label || '') !== f.label) return false;
         if (f.month && String(it.month || '') !== f.month) return false;
         if (f.src === 'site' && !it.wp_id) return false;
-        if (f.src === 'plan' && !it.plan_row) return false;
         if (f.src === 'deleted' && !it.deleted) return false;
         if (f.src !== 'deleted' && it.deleted) return false;
         if (f.st === 'indexed' ? !isIndexed(it) : f.st === 'notindexed' ? !(isLive(it) && it.index && !it.index.indexed)
@@ -186,7 +170,7 @@
       ['role', 'Vai trò'], ['label', 'Danh mục con'], ['month', 'Tháng'], ['st', 'Trạng thái'], ['idx', 'Index'], ['date', 'Ngày đăng']];
     const FNAME = { wpcat: 'Danh mục WP', silo: 'Danh mục', st: 'Trạng thái', label: 'Danh mục con', month: 'Tháng', src: 'Nguồn', q: 'Tìm' };
     const STX = { indexed: 'Đã index', notindexed: 'Chưa index', unchecked: 'Chưa check index', overdue: 'Trễ hạn' };
-    const SRCX = { site: 'Có trên web', plan: 'Từ kế hoạch', deleted: 'Đã xoá trên web' };
+    const SRCX = { site: 'Có trên web', deleted: 'Đã xoá trên web' };
     const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
     const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
     s.colPref = lsGet('cm-cols', {});
@@ -203,7 +187,6 @@
     }
 
     function draw(keepView) {
-      if (!keepView && s.view !== 'dash') return drawView();
       const v = s.v, items = (v.items || []).filter(it => !it.deleted), set = v.settings || {};
       const live = items.filter(isLive), planOnly = items.filter(it => !it.wp_id);
       const idx = live.filter(isIndexed).length;
@@ -211,7 +194,7 @@
       const today = new Date();
       const overdue = planOnly.filter(it => ['plan', 'writing'].includes(it.status) && monthDue(set.start_date, it.month) && monthDue(set.start_date, it.month) < today);
       const byStatus = st => items.filter(it => it.status === st).length;
-      const silos = [...new Set([...(v.plan.silos || []), ...items.map(it => it.silo).filter(Boolean)])];
+      const silos = [...new Set(items.map(it => it.silo).filter(Boolean))];
       const labels = [...new Set(items.map(it => it.label).filter(Boolean))].sort();
       const months = [...new Set(items.map(it => it.month).filter(Boolean))].sort((a, b) => a - b);
       const wpcats = [...new Set(items.flatMap(it => it.wp_cats || []))].sort();
@@ -232,7 +215,6 @@
         const rs = items.filter(it => (it.silo || '') === sl);
         return `<tr><td style="padding:3px 6px">${esc(sl)}</td><td style="padding:3px 6px;text-align:right">${rs.length}</td><td style="padding:3px 6px;text-align:right">${rs.filter(isLive).length}</td><td style="padding:3px 6px;text-align:right">${rs.filter(isIndexed).length}</td><td style="padding:3px 6px;text-align:right">${rs.filter(it => !it.wp_id).length}</td></tr>`;
       }).join('');
-      const noCat = hasPlan ? items.filter(it => !it.silo && it.wp_id).length : 0;
 
       const f = s.f, active = Object.keys(f).filter(k => f[k]);
       const chipOn = (k, val) => active.length === 1 && f[k] === val;
@@ -284,16 +266,10 @@
           <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
             <button data-a="scan" style="${btn()}" title="Lấy bài mới / vừa sửa kể từ lần quét trước + phát hiện bài đã xoá">🔄 Quét bài mới</button>
             <button data-a="scanfull" style="${btn()}" title="Cào lại toàn bộ bài viết + trang">⟳ Quét toàn bộ</button>
-            <button data-a="import" style="${btn()}" title="Lấy bài từ kế hoạch SEO (🧠 Chuyên gia SEO → 📐 Lập kế hoạch)">📥 Import kế hoạch</button>
-            <button data-a="config" style="${btn()}" title="Cấu hình site: ngày bắt đầu kế hoạch, ghép danh mục WP → danh mục kế hoạch">⚙️</button>
           </span>
         </div>
         ${s.busy ? `<div class="cm-busy" style="font-size:12px;color:var(--t-warn)">${esc(s.busy)}</div>` : '<div class="cm-busy" style="display:none"></div>'}
         ${!v.scan.last_full_at ? '<div style="font-size:12px;color:var(--t-warn)">● Chưa quét toàn bộ web — bấm ⟳ Quét toàn bộ trước (bắt buộc trước khi import để lọc trùng).</div>' : ''}
-        ${(v.plan_changed.length || v.plan_removed.length) ? `<div style="font-size:12px;color:var(--t-warn);border-left:3px solid var(--t-warn);padding:4px 8px">
-          ⚠ ${v.plan_changed.length} bài kế hoạch đã đổi so với lúc import${v.plan_removed.length ? ` · ${v.plan_removed.length} bài đã bị bỏ khỏi kế hoạch` : ''}
-          ${v.plan_changed.length ? `<button data-a="sync" style="${btn('margin-left:8px')}">Cập nhật ${v.plan_changed.length} bài theo kế hoạch mới</button>` : ''}</div>` : ''}
-        ${noCat ? `<div style="font-size:12px;color:var(--t-fg-muted)">${noCat} bài trên web chưa có danh mục kế hoạch — <a href="#" data-a="config" style="color:var(--t-accent)">ghép danh mục WP ở ⚙️</a></div>` : ''}
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chips}
           ${hasPlan ? `<span role="button" tabindex="0" data-a="detail" class="cm-chip${s.detail ? ' on' : ''}" title="Tiến độ theo tháng + theo danh mục kế hoạch">📊 Chi tiết kế hoạch ${s.detail ? '▴' : '▾'}</span>` : ''}</div>
         ${hasPlan && s.detail ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
@@ -403,111 +379,13 @@
       </tr>`;
     }
 
-    // ══ IMPORT TỪ KẾ HOẠCH ══
-    async function drawImport() {
-      root.innerHTML = '<div style="color:var(--t-fg-muted)">Đang tải kế hoạch…</div>';
-      let p;
-      try { p = await api('planfull/' + cid); } catch (e) { root.innerHTML = `<div style="color:var(--t-danger)">⚠️ ${esc(e.message)}</div>`; return; }
-      if (p.status !== 'done') { root.innerHTML = `<div style="color:var(--t-warn)">Site này chưa có kế hoạch — lập ở 🧠 Chuyên gia SEO → 📐 Lập kế hoạch.</div><div><button data-a="back" style="${btn()}">↩ Quay lại</button></div>`; return; }
-      const done = new Set(s.v.imported_rows || []);
-      const rows = (p.rows || []).filter(r => !done.has(r.id));
-      const F = s.imp = s.imp || { q: '', silo: '', label: '', month: '', sel: new Set() };
-      const silos = [...new Set(rows.map(r => r.silo))], labels = [...new Set(rows.map(r => r.label).filter(Boolean))].sort(), months = [...new Set(rows.map(r => r.month))].sort((a, b) => a - b);
-      const opt = (l, cur, first) => `<option value="">${first}</option>` + l.map(x => `<option ${String(x) === String(cur) ? 'selected' : ''} value="${esc(x)}">${esc(x)}</option>`).join('');
-      const vis = () => rows.filter(r => (!F.silo || r.silo === F.silo) && (!F.label || (r.label || '') === F.label) && (!F.month || String(r.month) === F.month)
-        && (!F.q || [r.main, ...(r.child || [])].some(x => String(x).toLowerCase().includes(F.q.toLowerCase()))));
-      const paint = () => {
-        const vs = vis();
-        root.innerHTML = `
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:var(--t-fg2)">📥 Import bài từ kế hoạch</b>
-            <span style="font-size:12px;color:var(--t-fg-muted)">${rows.length} bài chưa import · ${done.size} đã import</span>
-            ${p.confirmed && !p.pending ? '<span style="font-size:12px;color:var(--t-success)">✅ kế hoạch đã xác nhận</span>' : `<span style="font-size:12px;color:var(--t-warn)">● kế hoạch ${p.confirmed ? 'có thay đổi chưa xác nhận' : 'CHƯA xác nhận'}${s.v.settings.require_confirm ? ' — site này cấu hình BẮT BUỘC xác nhận trước khi import' : ''}</span>`}
-            <button data-a="back" style="${btn('margin-left:auto')}">↩ Quay lại</button></div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <input class="im-q" value="${esc(F.q)}" placeholder="🔍 Từ khóa…" style="${inp};width:200px">
-            <select class="im-f" data-k="silo" style="${inp}">${opt(silos, F.silo, 'Tất cả danh mục')}</select>
-            <select class="im-f" data-k="label" style="${inp}">${opt(labels, F.label, 'Tất cả danh mục con')}</select>
-            <select class="im-f" data-k="month" style="${inp}">${opt(months, F.month, 'Tất cả tháng')}</select>
-            <button data-a="imall" style="${btn()}">☑ Chọn tất cả theo lọc (${vs.length})</button><button data-a="imnone" style="${btn()}">Bỏ chọn</button>
-            <span style="font-size:12px;color:var(--t-fg-muted)">Đã chọn ${F.sel.size}</span>
-            <button data-a="imcheck" style="${btn('margin-left:auto;background:#1f6feb;border-color:#1f6feb;color:#fff')}" ${F.sel.size ? '' : 'disabled'}>Kiểm tra trùng & import →</button>
-          </div>
-          <div style="overflow:auto;border:1px solid var(--t-border);border-radius:8px;max-height:60vh">
-            <table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:var(--t-subtle)"><tr style="color:var(--t-fg-muted);text-align:left">
-              <th style="padding:6px"></th><th style="padding:6px">STT</th><th style="padding:6px">Tháng</th><th style="padding:6px">Danh mục</th><th style="padding:6px">Vai trò</th><th style="padding:6px">Danh mục con</th><th style="padding:6px">Từ khóa chính</th><th style="padding:6px">Từ phụ</th><th style="padding:6px">TK cụm</th></tr></thead>
-              <tbody>${vs.slice(0, 500).map(r => `<tr data-row="${esc(r.id)}" style="border-top:1px solid var(--t-muted)"><td style="padding:4px 6px"><input type="checkbox" class="im-sel" ${F.sel.has(r.id) ? 'checked' : ''}></td>
-                <td style="padding:4px 6px;color:var(--t-fg-muted)">${r.stt}</td><td style="padding:4px 6px">T${r.month}</td><td style="padding:4px 6px">${esc(r.silo)}</td><td style="padding:4px 6px">${esc(r.role)}</td><td style="padding:4px 6px">${esc(r.label || '')}</td>
-                <td style="padding:4px 6px;font-weight:600">${esc(r.main)}</td><td style="padding:4px 6px;color:var(--t-fg-muted)">${(r.child || []).length}</td><td style="padding:4px 6px">${num(r.vol)}</td></tr>`).join('')}</tbody></table>
-            ${vs.length > 500 ? `<div style="padding:6px;font-size:12px;color:var(--t-fg-muted)">Hiện 500/${vs.length} dòng — "Chọn tất cả theo lọc" vẫn chọn đủ ${vs.length} bài.</div>` : ''}
-          </div>`;
-      };
-      s.impPaint = paint;
-      s.impVis = vis;
-      paint();
-    }
-
-    async function drawPreview() {
-      const ids = [...s.imp.sel];
-      root.innerHTML = '<div style="color:var(--t-fg-muted)">Đang kiểm tra trùng với bài có sẵn…</div>';
-      if (!s.v.scan.last_full_at) {
-        root.innerHTML = '<div style="color:var(--t-warn)">Chưa quét toàn bộ web — đang quét trước để lọc trùng…</div><div class="cm-busy" style="font-size:12px;color:var(--t-warn)"></div>';
-        await scan(true);
-        if (!s.v.scan.last_full_at) return;
-      }
-      let pv;
-      try { pv = await post('contentpreview/' + cid, { rows: ids }); } catch (e) { root.innerHTML = `<div style="color:var(--t-danger)">⚠️ ${esc(e.message)}</div><button data-a="import" style="${btn()}">↩ Quay lại</button>`; return; }
-      s.pv = pv;
-      const dec = s.dec = {};
-      pv.dup.forEach(d => { dec[d.row] = d.post ? 'link' : 'new'; });
-      const blocked = pv.require_confirm && !pv.plan_confirmed;
-      root.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px;color:var(--t-fg2)">📥 Kiểm tra trùng trước khi import</b>
-          <button data-a="import" style="${btn('margin-left:auto')}">↩ Chọn lại</button></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          ${card('Bài mới', num(pv.new.length), 'sẽ thêm vào kho (Kế hoạch)', 'var(--t-success)')}
-          ${card('Trùng bài có sẵn', num(pv.dup.length), 'từ khóa có trong tiêu đề / slug', 'var(--t-warn)')}
-          ${card('Đã import rồi', num(pv.imported.length), 'bỏ qua', 'var(--t-fg-muted)')}
-        </div>
-        ${pv.dup.length ? box('⚠ Trùng bài có sẵn trên web — chọn cách xử lý từng bài', `<table style="width:100%;font-size:12px;border-collapse:collapse">
-          <tr style="color:var(--t-fg-muted)"><td style="padding:4px">Bài kế hoạch</td><td style="padding:4px">Bài có sẵn</td><td style="padding:4px">Khớp theo</td><td style="padding:4px">Xử lý</td></tr>
-          ${pv.dup.map(d => `<tr data-row="${esc(d.row)}" style="border-top:1px solid var(--t-muted)"><td style="padding:4px"><b>${esc(d.main)}</b><div style="color:var(--t-fg-muted)">#${d.stt} · ${esc(d.silo)} · T${d.month}</div></td>
-            <td style="padding:4px"><a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--t-accent)">${esc(d.title)}</a>${d.shared_with ? `<div style="color:var(--t-warn)">đã gắn cho bài kế hoạch #${d.shared_with} trong lần này</div>` : ''}</td>
-            <td style="padding:4px;color:var(--t-fg-muted)">"${esc(d.by)}"</td>
-            <td style="padding:4px"><select class="pv-dec" style="${inp}">${d.post ? `<option value="link" selected>Gắn vào bài có sẵn (Cần tối ưu)</option>` : ''}<option value="new" ${d.post ? '' : 'selected'}>Vẫn tạo bài mới</option><option value="skip">Bỏ qua</option></select></td></tr>`).join('')}</table>`) : ''}
-        ${pv.imported.length ? `<div style="font-size:12px;color:var(--t-fg-muted)">Đã import từ trước: ${pv.imported.slice(0, 20).map(d => esc(d.main)).join(', ')}${pv.imported.length > 20 ? '…' : ''}</div>` : ''}
-        ${blocked ? '<div style="color:var(--t-danger);font-size:12px">Site này cấu hình chỉ import kế hoạch ĐÃ xác nhận — xác nhận kế hoạch ở 🧠 Chuyên gia SEO trước.</div>' : ''}
-        <div><button data-a="imgo" style="${btn('background:#238636;border-color:#238636;color:#fff')}" ${blocked || !(pv.new.length + pv.dup.length) ? 'disabled' : ''}>📥 Import ${pv.new.length + pv.dup.length} bài</button></div>`;
-    }
-
-    // ══ CẤU HÌNH SITE ══
-    function drawConfig() {
-      const set = s.v.settings || {}, silos = s.v.plan.silos || [];
-      const cats = Object.keys(set.catmap || {}).sort();
-      const count = c => (s.v.items || []).filter(it => (it.wp_cats || []).includes(c) && !it.deleted).length;
-      root.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px"><b style="font-size:14px;color:var(--t-fg2)">⚙️ Cấu hình quản lý nội dung — ${esc(domain())}</b><button data-a="back" style="${btn('margin-left:auto')}">↩ Quay lại</button></div>
-        ${box('Kế hoạch', `<div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--t-fg)">
-          <label>Ngày bắt đầu kế hoạch (tính hạn "Tháng 1, 2, …"): <input type="date" class="cf-start" value="${esc(set.start_date || '')}" style="${inp}"></label>
-          <label><input type="checkbox" class="cf-req" ${set.require_confirm ? 'checked' : ''}> Chỉ cho import khi kế hoạch ĐÃ xác nhận</label></div>`)}
-        ${box('Ghép danh mục WordPress → danh mục kế hoạch', cats.length ? `<table style="font-size:12px;border-collapse:collapse">
-          ${cats.map(c => `<tr style="border-top:1px solid var(--t-muted)"><td style="padding:4px 8px">${esc(c)} <span style="color:var(--t-fg-muted)">(${count(c)} bài)</span></td><td style="padding:4px 8px">→</td>
-            <td style="padding:4px 8px"><select class="cf-cat" data-cat="${esc(c)}" style="${inp}"><option value="">(không ghép)</option>${silos.map(x => `<option ${set.catmap[c] === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></td></tr>`).join('')}</table>` : '<div style="font-size:12px;color:var(--t-fg-muted)">Chưa có danh mục WP — quét web trước.</div>')}
-        <div><button data-a="cfsave" style="${btn('background:#238636;border-color:#238636;color:#fff')}">💾 Lưu cấu hình</button> <span class="cm-busy" style="font-size:12px;color:var(--t-warn)"></span></div>`;
-    }
-
-    function drawView() { if (s.view === 'import') drawImport(); else if (s.view === 'config') drawConfig(); else draw(true); }
-
     // ══ SỰ KIỆN ══
     root.addEventListener('input', e => {
       if (e.target.classList.contains('cm-q')) { s.f.q = e.target.value; s.limit = 100; const pos = e.target.selectionStart; draw(true); const q = root.querySelector('.cm-q'); q.focus(); q.setSelectionRange(pos, pos); }
-      if (e.target.classList.contains('im-q')) { s.imp.q = e.target.value; const pos = e.target.selectionStart; s.impPaint(); const q = root.querySelector('.im-q'); q.focus(); q.setSelectionRange(pos, pos); }
     });
     root.addEventListener('change', async e => {
       const t = e.target, tr = t.closest('tr[data-id]'), id = tr && tr.dataset.id;
       if (t.classList.contains('cm-f')) { s.f[t.dataset.k] = t.value; s.limit = 100; return draw(true); }
-      if (t.classList.contains('im-f')) { s.imp[t.dataset.k] = t.value; return s.impPaint(); }
-      if (t.classList.contains('im-sel')) { const r = t.closest('tr').dataset.row; t.checked ? s.imp.sel.add(r) : s.imp.sel.delete(r); return s.impPaint(); }
-      if (t.classList.contains('pv-dec')) { s.dec[t.closest('tr').dataset.row] = t.value; return; }
       if (t.classList.contains('cm-cpsel')) { s.cp = t.value; return; }
       if (t.classList.contains('cm-colchk')) { s.colPref[t.dataset.k] = t.checked; lsSet('cm-cols', s.colPref); return draw(true); }
       if (t.classList.contains('cm-sel')) { t.checked ? s.sel.add(id) : s.sel.delete(id); return draw(true); }
@@ -574,32 +452,8 @@
             };
             return copyText(text, null, `Đã copy ${rows.length} dòng — ${keys.map(k => COLS[k][0]).join(' + ')}`, flash);
           }
-          case 'back': s.view = 'dash'; return draw(true);
-          case 'import': s.view = 'import'; return drawImport();
-          case 'config': s.view = 'config'; return drawConfig();
-          case 'imall': s.impVis().forEach(r => s.imp.sel.add(r.id)); return s.impPaint();
-          case 'imnone': s.imp.sel.clear(); return s.impPaint();
-          case 'imcheck': return drawPreview();
-          case 'imgo': {
-            const ids = s.pv.new.map(d => d.row).concat(s.pv.dup.map(d => d.row));
-            el.disabled = true; el.textContent = 'Đang import…';
-            const r = await post('contentimport/' + cid, { rows: ids, decisions: s.dec });
-            s.v = r; s.imp.sel.clear(); s.view = 'dash';
-            s.busy = `✓ Đã import ${r.new} bài mới · ${r.linked} bài gắn vào bài có sẵn (Cần tối ưu)`;
-            return draw(true);
-          }
-          case 'sync':
-            if (!confirm(`Cập nhật ${s.v.plan_changed.length} bài theo kế hoạch mới (từ khóa, từ phụ, danh mục, danh mục con, tháng)?`)) return;
-            s.v = await post('contentsync/' + cid, { ids: s.v.plan_changed });
-            s.busy = '✓ Đã cập nhật theo kế hoạch'; return draw(true);
-          case 'cfsave': {
-            const catmap = {};
-            root.querySelectorAll('.cf-cat').forEach(x => { catmap[x.dataset.cat] = x.value; });
-            s.v = await post('contentop/' + cid, { op: 'settings', value: { start_date: root.querySelector('.cf-start').value, require_confirm: root.querySelector('.cf-req').checked, catmap } });
-            s.view = 'dash'; s.busy = '✓ Đã lưu cấu hình'; return draw(true);
-          }
           case 'del':
-            if (!confirm(`Xoá "${it.keyword}" khỏi kho nội dung? (bài vẫn còn trong kế hoạch, import lại được)`)) return;
+            if (!confirm(`Xoá "${it.keyword}" khỏi kho nội dung? (bài trên web không bị ảnh hưởng)`)) return;
             s.v = await post('contentop/' + cid, { op: 'delete', id }); s.sel.delete(id); return draw(true);
           case 'write': {
             const qs = ['kw=' + encodeURIComponent(it.keyword), 'sec=' + encodeURIComponent((it.child || []).join(', '))];
