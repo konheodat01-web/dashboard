@@ -4668,6 +4668,7 @@ function renderWsTrack(){
           }
         })()}
         <button onclick="wstOpenDashboard(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle" title="Xem Dashboard">📊</button>
+        <button onclick="wstWriteForSite(${w.id})" class="btn btn-sm" style="font-size:11px;padding:2px 6px;background:#7c5cff;color:#fff;border:none;border-radius:4px;vertical-align:middle" title="Viết bài cho ${w.brand} (không cần mở Dashboard)">✍️</button>
         <button onclick="wstTogglePin(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 6px;vertical-align:middle;${isPinned ? 'background:rgba(210,153,34,0.18);border-color:var(--t-warn)' : 'opacity:.45;filter:grayscale(1)'}" title="${isPinned ? 'Bỏ ghim' : 'Ghim lên đầu — luôn hiện, không bị bộ lọc ẩn'}">📌</button>
         <button onclick="wstRemoveTracking(${w.id})" class="btn btn-sm btn-outline" style="font-size:11px;padding:2px 5px;color:#e74c3c;border-color:#e74c3c;vertical-align:middle" title="Bỏ theo dõi">×</button>
       </td>`}
