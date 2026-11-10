@@ -297,6 +297,42 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── /api/sw-kw/* → SEO Writer /api/kw/* (tab Kho từ khóa) ──
+  if (req.method === "POST" && url.startsWith("/api/sw-kw/")) {
+    const sub = url.slice("/api/sw-kw/".length);
+    if (!/^(state|list|import|topic|assign|report|plan-check|plan-add)$/.test(sub)) {
+      res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ detail: "Đường dẫn không hợp lệ" }));
+      return;
+    }
+    let swKey = "";
+    try { swKey = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
+    const reqBody = await readBody(req);
+    const pr = http.request({
+      hostname: "127.0.0.1", port: 8501,
+      path: "/api/kw/" + sub,
+      method: "POST",
+      timeout: 180000,
+      headers: { "x-access-key": swKey, "x-nt-space": ntSpace(req), "Content-Type": "application/json", "Content-Length": Buffer.byteLength(reqBody) },
+    }, (pres) => {
+      let body = "";
+      pres.setEncoding("utf8");
+      pres.on("data", (c) => { body += c; });
+      pres.on("end", () => {
+        res.writeHead(pres.statusCode, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(body);
+      });
+    });
+    pr.on("timeout", () => pr.destroy(new Error("timeout")));
+    pr.on("error", (e) => {
+      if (res.headersSent) return;
+      res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ detail: "Không kết nối được SEO Writer: " + e.message }));
+    });
+    pr.end(reqBody);
+    return;
+  }
+
   // ── /api/sw-content/* → SEO Writer /api/content* (tab ✍️ Nội dung của website) ──
   // Chuyen nguyen method + body + status; key SEO Writer gan o server, khong lo ra browser.
   if (url.startsWith("/api/sw-content/") && ["GET", "POST", "DELETE"].includes(req.method)) {
