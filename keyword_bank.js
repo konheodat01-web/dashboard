@@ -215,6 +215,7 @@
       el.innerHTML = `<b style="font-size:12.5px">${n} từ khóa chính đã chọn</b>
         <select class="kb-site" style="${inp};max-width:320px"><option value="">Chọn website…</option>${so}</select>
         <button data-a="toplan" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}">➕ Thêm vào kế hoạch của website</button>
+        <button data-a="unmain" style="${btn()}">↩ Bỏ về Chưa xử lý</button>
         <button data-a="selnone" style="${btn('margin-left:auto;padding:3px 9px')}">Bỏ chọn</button>`;
     }
   }
@@ -229,7 +230,7 @@
       <td style="font-weight:600;color:var(--t-fg2)">${esc(k.text)}</td><td style="text-align:right">${num(k.avg)}</td><td>${esc(k.comp)}</td>
       <td>${k.bid_lo == null && k.bid_hi == null ? '—' : esc((k.bid_lo ?? '') + ' – ' + (k.bid_hi ?? ''))}</td><td>${esc(k.chg3)}</td><td>${esc(k.chgy)}</td>
       ${withLabel ? `<td>${k.label === 'dropped' ? '✕ Bỏ' : '🚫 Vô nghĩa'}</td>` : ''}</tr>`).join('');
-    return `<div style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="9" style="padding:16px;color:var(--t-fg-muted)">Không có từ khóa nào</td></tr>`}</tbody></table></div>
+    return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="9" style="padding:16px;color:var(--t-fg-muted)">Không có từ khóa nào</td></tr>`}</tbody></table></div>
       ${S.items.length < S.total ? `<div style="margin-top:8px"><button data-a="more" style="${btn()}">Hiện thêm (${S.items.length}/${num(S.total)})</button></div>` : ''}`;
   }
 
@@ -258,11 +259,17 @@
         <td><a data-a="detail" data-m="${esc(m.id)}" style="cursor:pointer;color:var(--t-accent)">${r.mine.length ? (open ? '▾' : '▸') + ' ' + r.mine.length + ' của bạn' : '—'}</a></td></tr>
         ${open && r.mine.length ? `<tr class="kb-detail"><td></td><td colspan="6" style="padding:6px 10px 10px">${r.mine.map(d => `<div style="font-size:12px;color:var(--t-fg-muted)">• <b style="color:var(--t-fg)">${esc(d.domain || d.cid)}</b> · ${esc(d.via)} · ${esc(d.status)} — ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--t-accent)">${esc(d.title)}</a>` : esc(d.title)}</div>`).join('')}</td></tr>` : ''}`;
     }).join('');
-    return `<div style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr><th class="sk0"><input type="checkbox" class="kb-all"></th><th>Chủ đề</th><th>Từ khóa chính</th><th>Lượt tìm/tháng</th><th>Phụ</th><th title="Tổng số website của cả 2 tài khoản đã có bài/kế hoạch khớp từ khóa chính">Đã viết (cả 2 tài khoản)</th><th>Website của tài khoản này</th></tr></thead><tbody>${rows || `<tr><td colspan="7" style="padding:16px;color:var(--t-fg-muted)">Chưa có từ khóa chính nào được xử lý</td></tr>`}</tbody></table></div>`;
+    return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr><th class="sk0"><input type="checkbox" class="kb-all"></th><th>Chủ đề</th><th>Từ khóa chính</th><th>Lượt tìm/tháng</th><th>Phụ</th><th title="Tổng số website của cả 2 tài khoản đã có bài/kế hoạch khớp từ khóa chính">Đã viết (cả 2 tài khoản)</th><th>Website của tài khoản này</th></tr></thead><tbody>${rows || `<tr><td colspan="7" style="padding:16px;color:var(--t-fg-muted)">Chưa có từ khóa chính nào được xử lý</td></tr>`}</tbody></table></div>`;
   }
 
   function draw() {
     if (!root) return;
+    const same = root.dataset.v === S.view;
+    const old = root.querySelector('.kb-scroll');
+    const keep = same && old ? [old.scrollTop, old.scrollLeft] : null;
+    const anc = [];
+    for (let p = root.parentElement; p; p = p.parentElement) if (p.scrollTop) anc.push([p, p.scrollTop]);
+    const wy = window.scrollY;
     const c = S.counts || {};
     const body = S.view === 'topics' ? topicsView() : S.view === 'processed' ? processedView() : kwTable(S.items, S.view === 'excluded');
     const showSearch = S.view !== 'topics';
@@ -282,7 +289,14 @@
       ${showSearch ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="kb-q" value="${esc(S.q)}" placeholder="🔍 Tìm từ khóa…" style="${inp};width:260px">${S.view === 'unprocessed' || S.view === 'excluded' ? `<select class="kb-sort" style="${inp}"><option value="avg" ${S.sort === 'avg' ? 'selected' : ''}>Lượt tìm giảm dần</option><option value="text" ${S.sort === 'text' ? 'selected' : ''}>A → Z</option></select><span style="font-size:12px;color:var(--t-fg-muted)">${num(S.total)} từ khóa · bấm giữ và kéo để chọn nhanh</span>` : '<span style="font-size:12px;color:var(--t-fg-muted)">Bấm giữ và kéo để chọn nhanh nhiều từ khóa chính</span>'}</div>` : ''}
       ${body}
       <div id="kbBar" style="display:none;position:sticky;bottom:8px;z-index:6;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--t-warn) 40%,var(--t-border));background:var(--t-subtle);box-shadow:0 4px 16px rgba(0,0,0,.4)"></div></div>`;
+    root.dataset.v = S.view;
     bar();
+    if (same) {
+      const sc = root.querySelector('.kb-scroll');
+      if (sc && keep) { sc.scrollTop = keep[0]; sc.scrollLeft = keep[1]; }
+      anc.forEach(([p, t]) => { p.scrollTop = t; });
+      if (window.scrollY !== wy) window.scrollTo(window.scrollX, wy);
+    }
   }
 
   function applyRow(tr, on) {
@@ -370,6 +384,14 @@
           case 'dropped': return assign('label', { label: 'dropped' });
           case 'restore': return assign('restore');
           case 'toplan': return addToPlan();
+          case 'unmain': {
+            const ids = [...S.sel];
+            if (!ids.length || !confirm(`Bỏ ${ids.length} từ khóa chính về Chưa xử lý? Từ khóa phụ của chúng cũng về Chưa xử lý (nếu không thuộc từ khóa chính khác).`)) return;
+            await api('assign', { action: 'remove_main', main_ids: ids });
+            S.sel.clear();
+            say(`✓ Đã bỏ ${ids.length} từ khóa chính về Chưa xử lý`);
+            return load();
+          }
           case 'detail': { const m = el.dataset.m; S.open.has(m) ? S.open.delete(m) : S.open.add(m); return draw(); }
           case 'addmain': {
             const text = prompt('Từ khóa chính mới (gõ tay):');
