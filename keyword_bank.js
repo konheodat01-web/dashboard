@@ -105,6 +105,35 @@
     return ov;
   }
 
+  function mergeMains() {
+    const ids = [...S.sel];
+    const ms = S.topics.flatMap(t => t.mains.filter(m => ids.includes(m.id)).map(m => ({ id: m.id, topic: t.name, kw: m.kw, subs: m.subs })));
+    if (ms.length < 2) { say('Chọn ít nhất 2 từ khóa chính để gộp', '#e67e22'); return; }
+    const seen = new Set();
+    const uniq = list => list.filter(k => k && !seen.has(k.id) && seen.add(k.id));
+    const groups = ms.map(m => ({ m, words: uniq([m.kw].concat(m.subs)) }));
+    const total = seen.size;
+    const best = ms.slice().sort((a, b) => (Number(b.kw.avg) || 0) - (Number(a.kw.avg) || 0))[0].kw.id;
+    const row = (k, isMain) => `<label style="display:flex;gap:8px;align-items:center;padding:5px 10px ${isMain ? '5px 10px' : '5px 30px'};border-bottom:1px solid var(--t-muted);cursor:pointer"><input type="radio" name="mg-keep" value="${esc(k.id)}" ${k.id === best ? 'checked' : ''}><span style="flex:1;${isMain ? 'font-weight:700;color:var(--t-fg2)' : ''}">${isMain ? '★ ' : ''}${esc(k.text)}</span><span style="color:var(--t-fg-muted);font-size:11px">${num(k.avg)}/tháng</span></label>`;
+    const ov = modal(`<div style="font-weight:700;margin-bottom:4px">⤵ Gộp ${ms.length} từ khóa chính (${total} từ khóa)</div>
+      <div style="font-size:12px;color:var(--t-fg-muted);margin-bottom:8px">Chọn 1 từ làm từ khóa chính — tất cả từ còn lại (các từ khóa chính khác và mọi từ khóa phụ của chúng) thành từ khóa phụ của nó.</div>
+      <div class="mg-list" style="max-height:52vh;overflow:auto;border:1px solid var(--t-border);border-radius:8px">${groups.map(g => `<div style="font-size:11px;color:var(--t-fg-muted);padding:6px 10px 2px;background:var(--t-canvas)">📁 ${esc(g.m.topic)}</div>` + g.words.map(k => row(k, k.id === g.m.kw.id)).join('')).join('')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end"><button class="mg-cancel" style="${btn()}">Hủy</button><button class="mg-ok" style="${btn('background:#238636;border-color:#238636;color:#fff')}">Gộp</button></div>`);
+    ov.querySelector('.mg-cancel').onclick = () => ov.remove();
+    ov.querySelector('.mg-ok').onclick = async () => {
+      const r = ov.querySelector('input[name=mg-keep]:checked');
+      if (!r) return;
+      const keep = r.value, name = (r.closest('label').querySelector('span') || {}).textContent || '';
+      ov.remove();
+      try {
+        await api('assign', { action: 'merge', main_ids: ms.map(m => m.id), kw_ids: [keep] });
+        S.sel.clear();
+        say(`✓ Đã gộp ${total} từ khóa vào "${name.replace(/^★\s*/, '')}"`);
+        await load();
+      } catch (e) { fail(e); }
+    };
+  }
+
   function pickMains(onOk) {
     const mains = allMains();
     if (!mains.length) { say('Chưa có từ khóa chính nào — tạo chủ đề và đặt từ khóa chính trước', '#e67e22'); return; }
@@ -222,6 +251,7 @@
       el.innerHTML = `<b style="font-size:12.5px">${n} từ khóa chính đã chọn</b>
         <select class="kb-site" style="${inp};max-width:320px"><option value="">Chọn website…</option>${so}</select>
         <button data-a="toplan" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}">➕ Thêm vào kế hoạch của website</button>
+        ${n >= 2 ? `<button data-a="merge" style="${btn()}">⤵ Gộp</button>` : ''}
         <button data-a="unmain" style="${btn()}">↩ Bỏ về Chưa xử lý</button>
         <button data-a="selnone" style="${btn('margin-left:auto;padding:3px 9px')}">Bỏ chọn</button>`;
     }
@@ -392,6 +422,7 @@
           case 'dropped': return assign('label', { label: 'dropped' });
           case 'restore': return assign('restore');
           case 'toplan': return addToPlan();
+          case 'merge': return mergeMains();
           case 'unmain': {
             const ids = [...S.sel];
             if (!ids.length || !confirm(`Bỏ ${ids.length} từ khóa chính về Chưa xử lý? Từ khóa phụ của chúng cũng về Chưa xử lý (nếu không thuộc từ khóa chính khác).`)) return;
