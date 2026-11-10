@@ -6,6 +6,7 @@
   const inp = 'background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit';
   const S = { view: 'unprocessed', q: '', sort: 'avg', items: [], total: 0, counts: {}, topics: [], sel: new Set(), anchor: null, report: {}, open: new Set(), limit: 200, busy: '', siteId: '', topicId: '' };
   let root = null, drag = null, loadSeq = 0;
+  const PAGE = 1000;
 
   async function api(path, body) {
     const r = await fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
@@ -29,9 +30,15 @@
     const seq = ++loadSeq;
     try {
       if (S.view === 'unprocessed' || S.view === 'excluded') {
-        const d = await api('list', { view: S.view, q: S.q, sort: S.sort, offset: 0, limit: S.limit });
-        if (seq !== loadSeq) return;
-        S.items = d.items; S.total = d.total; S.counts = d.counts;
+        let items = [], d = null;
+        for (let off = 0; off < S.limit; off += PAGE) {
+          const n = Math.min(PAGE, S.limit - off);
+          d = await api('list', { view: S.view, q: S.q, sort: S.sort, offset: off, limit: n });
+          if (seq !== loadSeq) return;
+          items = items.concat(d.items);
+          if (d.items.length < n || items.length >= d.total) break;
+        }
+        S.items = items; S.total = d.total; S.counts = d.counts;
         const st = await api('state');
         S.topics = st.topics;
       } else {
@@ -231,7 +238,7 @@
       <td>${k.bid_lo == null && k.bid_hi == null ? '—' : esc((k.bid_lo ?? '') + ' – ' + (k.bid_hi ?? ''))}</td><td>${esc(k.chg3)}</td><td>${esc(k.chgy)}</td>
       ${withLabel ? `<td>${k.label === 'dropped' ? '✕ Bỏ' : '🚫 Vô nghĩa'}</td>` : ''}</tr>`).join('');
     return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="9" style="padding:16px;color:var(--t-fg-muted)">Không có từ khóa nào</td></tr>`}</tbody></table></div>
-      ${S.items.length < S.total ? `<div style="margin-top:8px"><button data-a="more" style="${btn()}">Hiện thêm (${S.items.length}/${num(S.total)})</button></div>` : ''}`;
+      ${S.items.length < S.total ? `<div style="margin-top:8px;display:flex;gap:6px"><button data-a="more" style="${btn()}">Hiện thêm (${S.items.length}/${num(S.total)})</button><button data-a="all" style="${btn()}">Hiện tất cả (${num(S.total)})</button></div>` : ''}`;
   }
 
   function topicsView() {
@@ -372,6 +379,7 @@
           case 'view': S.view = el.dataset.v; S.sel.clear(); S.limit = 200; S.q = ''; return load();
           case 'import': return root.querySelector('#kbFile').click();
           case 'more': S.limit += 200; return load();
+          case 'all': S.limit = Math.max(S.limit, S.total); return load();
           case 'selnone': S.sel.clear(); return draw();
           case 'newtopic': { const id = await newTopic(); if (id) { say('✓ Đã tạo chủ đề'); S.view = 'topics'; await load(); } return; }
           case 'tomain': {
