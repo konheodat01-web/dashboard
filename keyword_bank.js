@@ -4,7 +4,7 @@
   const num = n => (n == null || n === '') ? '—' : (Number(n) || 0).toLocaleString('vi-VN');
   const btn = extra => `background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit;${extra || ''}`;
   const inp = 'background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit';
-  const S = { view: 'unprocessed', q: '', sort: 'avg', items: [], total: 0, counts: {}, topics: [], sel: new Set(), anchor: null, report: {}, open: new Set(), limit: 200, busy: '', siteId: '', topicId: '' };
+  const S = { view: 'unprocessed', q: '', ptype: '', sort: 'avg', items: [], total: 0, counts: {}, topics: [], sel: new Set(), anchor: null, report: {}, open: new Set(), limit: 200, busy: '', siteId: '', topicId: '' };
   let root = null, drag = null, loadSeq = 0;
   const PAGE = 1000;
 
@@ -24,7 +24,10 @@
       return { id: w.id, cid: 'ws' + (window.NT_CID || '') + w.id, domain: url, label: (w.brand ? w.brand + ' — ' : '') + url };
     }).filter(x => x.domain);
   }
-  const allMains = () => S.topics.flatMap(t => t.mains.map(m => ({ id: m.id, topic: t.name, text: m.kw.text, avg: m.kw.avg, subs: m.subs })));
+  const PT = { post: 'Post', page: 'Page', category: 'Mô tả danh mục' };
+  const ptOpts = '<option value="">Đặt loại bài…</option><option value="post">Post</option><option value="page">Page</option><option value="category">Mô tả danh mục</option><option value="__clear">Xóa loại bài</option>';
+  const ptCell = k => `${k.ptype ? `<span style="padding:1px 8px;border-radius:10px;background:color-mix(in srgb,var(--t-accent) 16%,transparent);color:var(--t-accent)">${PT[k.ptype]}</span>` : '<span style="color:var(--t-fg-subtle)">—</span>'}${k.nsrc ? ` <span style="color:var(--t-fg-muted);font-size:11px">${k.nsrc} đối thủ</span>` : ''}`;
+  const allMains = () => S.topics.flatMap(t => t.mains.map(m => ({ id: m.id, kw: m.kw.id, topic: t.name, text: m.kw.text, avg: m.kw.avg, subs: m.subs, ptype: m.kw.ptype || '', nsrc: m.kw.nsrc || 0 })));
 
   async function load() {
     const seq = ++loadSeq;
@@ -33,7 +36,7 @@
         let items = [], d = null;
         for (let off = 0; off < S.limit; off += PAGE) {
           const n = Math.min(PAGE, S.limit - off);
-          d = await api('list', { view: S.view, q: S.q, sort: S.sort, offset: off, limit: n });
+          d = await api('list', { view: S.view, q: S.q, ptype: S.ptype, sort: S.sort, offset: off, limit: n });
           if (seq !== loadSeq) return;
           items = items.concat(d.items);
           if (d.items.length < n || items.length >= d.total) break;
@@ -83,14 +86,14 @@
     const g = (r, i) => i >= 0 && i < r.length ? r[i].trim() : '';
     const data = rows.slice(hi + 1).filter(r => g(r, c.kw)).map(r => ({ keyword: g(r, c.kw), avg: g(r, c.avg), comp: g(r, c.comp), bid_lo: g(r, c.bl), bid_hi: g(r, c.bh), chg3: g(r, c.c3), chgy: g(r, c.cy), months: mcols.map(i => g(r, i)) }));
     if (!data.length) throw new Error('File không có dòng từ khóa nào');
-    const tot = { added: 0, existing: 0, excluded: 0, invalid: 0 };
+    const tot = { added: 0, existing: 0, excluded: 0, invalid: 0, updated: 0 };
     for (let i = 0; i < data.length; i += 4000) {
       S.busy = `Đang nhập ${Math.min(i + 4000, data.length)}/${data.length}…`; draw();
       const r = await api('import', { rows: data.slice(i, i + 4000) });
       Object.keys(tot).forEach(k => { tot[k] += r[k] || 0; });
     }
     S.busy = '';
-    say(`✓ Nhập ${data.length} dòng: thêm mới ${tot.added} · đã có ${tot.existing} · đã loại (vô nghĩa/bỏ) ${tot.excluded}${tot.invalid ? ' · lỗi ' + tot.invalid : ''}`);
+    say(`✓ Nhập ${data.length} dòng: thêm mới ${tot.added} · đã có ${tot.existing} · đã loại (vô nghĩa/bỏ) ${tot.excluded}${tot.updated ? ' · điền lượt tìm ' + tot.updated : ''}${tot.invalid ? ' · lỗi ' + tot.invalid : ''}`);
     S.view = 'unprocessed'; S.sel.clear();
     await load();
   }
@@ -241,6 +244,7 @@
         <select class="kb-topic" style="${inp}"><option value="">Chủ đề…</option>${topicOpts}<option value="__new">＋ Chủ đề mới…</option></select>
         <button data-a="tomain" style="${btn()}">★ Làm từ khóa chính</button>
         <button data-a="tosub" style="${btn()}">↳ Làm từ khóa phụ của…</button>
+        <select class="kb-setpt" style="${inp}">${ptOpts}</select>
         <button data-a="meaningless" style="${btn('color:var(--t-warn)')}">🚫 Vô nghĩa</button>
         <button data-a="dropped" style="${btn('color:var(--t-danger)')}">✕ Bỏ</button>
         <button data-a="selnone" style="${btn('margin-left:auto;padding:3px 9px')}">Bỏ chọn</button>`;
@@ -249,6 +253,7 @@
     } else if (S.view === 'processed') {
       const so = sites().map(x => `<option value="${esc(x.id)}" ${String(S.siteId) === String(x.id) ? 'selected' : ''}>${esc(x.label)}</option>`).join('');
       el.innerHTML = `<b style="font-size:12.5px">${n} từ khóa chính đã chọn</b>
+        <select class="kb-setpt" style="${inp}">${ptOpts}</select>
         <select class="kb-site" style="${inp};max-width:320px"><option value="">Chọn website…</option>${so}</select>
         <button data-a="toplan" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}">➕ Thêm vào kế hoạch của website</button>
         ${n >= 2 ? `<button data-a="merge" style="${btn()}">⤵ Gộp</button>` : ''}
@@ -262,12 +267,12 @@
   }
 
   function kwTable(items, withLabel) {
-    const head = `<th class="sk0"><input type="checkbox" class="kb-all"></th><th>Từ khóa</th><th>Lượt tìm/tháng</th><th>Cạnh tranh</th><th>Giá thầu (thấp–cao)</th><th>3 tháng</th><th>Cùng kỳ</th>${withLabel ? '<th>Nhãn</th>' : ''}`;
+    const head = `<th class="sk0"><input type="checkbox" class="kb-all"></th><th>Từ khóa</th><th>Lượt tìm/tháng</th><th>Cạnh tranh</th><th>Giá thầu (thấp–cao)</th><th>3 tháng</th><th>Cùng kỳ</th><th>Loại bài</th>${withLabel ? '<th>Nhãn</th>' : ''}`;
     const body = items.map(k => `<tr data-sel="${esc(k.id)}" class="${S.sel.has(k.id) ? 'sel' : ''}"><td class="sk0"><input type="checkbox" class="kb-chk" ${S.sel.has(k.id) ? 'checked' : ''}></td>
       <td style="font-weight:600;color:var(--t-fg2)">${esc(k.text)}</td><td style="text-align:right">${num(k.avg)}</td><td>${esc(k.comp)}</td>
-      <td>${k.bid_lo == null && k.bid_hi == null ? '—' : esc((k.bid_lo ?? '') + ' – ' + (k.bid_hi ?? ''))}</td><td>${esc(k.chg3)}</td><td>${esc(k.chgy)}</td>
+      <td>${k.bid_lo == null && k.bid_hi == null ? '—' : esc((k.bid_lo ?? '') + ' – ' + (k.bid_hi ?? ''))}</td><td>${esc(k.chg3)}</td><td>${esc(k.chgy)}</td><td>${ptCell(k)}</td>
       ${withLabel ? `<td>${k.label === 'dropped' ? '✕ Bỏ' : '🚫 Vô nghĩa'}</td>` : ''}</tr>`).join('');
-    return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="9" style="padding:16px;color:var(--t-fg-muted)">Không có từ khóa nào</td></tr>`}</tbody></table></div>
+    return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="10" style="padding:16px;color:var(--t-fg-muted)">Không có từ khóa nào</td></tr>`}</tbody></table></div>
       ${S.items.length < S.total ? `<div style="margin-top:8px;display:flex;gap:6px"><button data-a="more" style="${btn()}">Hiện thêm (${S.items.length}/${num(S.total)})</button><button data-a="all" style="${btn()}">Hiện tất cả (${num(S.total)})</button></div>` : ''}`;
   }
 
@@ -286,17 +291,17 @@
 
   function processedView() {
     const q = S.q.trim().toLowerCase();
-    const mains = allMains().filter(m => !q || (m.text + ' ' + m.topic).toLowerCase().includes(q));
+    const mains = allMains().filter(m => (!q || (m.text + ' ' + m.topic).toLowerCase().includes(q)) && (!S.ptype || (S.ptype === 'none' ? !m.ptype : m.ptype === S.ptype)));
     const rows = mains.map(m => {
       const r = S.report[m.id] || { total: 0, mine: [] };
       const open = S.open.has(m.id);
       return `<tr data-sel="${esc(m.id)}" class="${S.sel.has(m.id) ? 'sel' : ''}"><td class="sk0"><input type="checkbox" class="kb-chk" ${S.sel.has(m.id) ? 'checked' : ''}></td>
-        <td>${esc(m.topic)}</td><td style="font-weight:600;color:var(--t-fg2)">${esc(m.text)}</td><td style="text-align:right">${num(m.avg)}</td><td style="text-align:center">${m.subs.length}</td>
+        <td>${esc(m.topic)}</td><td style="font-weight:600;color:var(--t-fg2)">${esc(m.text)}</td><td style="text-align:right">${num(m.avg)}</td><td style="text-align:center">${m.subs.length}</td><td>${ptCell(m)}</td>
         <td style="text-align:center"><span style="padding:1px 10px;border-radius:10px;background:${r.total ? 'color-mix(in srgb,var(--t-warn) 18%,transparent)' : 'color-mix(in srgb,var(--t-success) 16%,transparent)'};color:${r.total ? 'var(--t-warn)' : 'var(--t-success)'}">${r.total} website</span></td>
         <td><a data-a="detail" data-m="${esc(m.id)}" style="cursor:pointer;color:var(--t-accent)">${r.mine.length ? (open ? '▾' : '▸') + ' ' + r.mine.length + ' của bạn' : '—'}</a></td></tr>
-        ${open && r.mine.length ? `<tr class="kb-detail"><td></td><td colspan="6" style="padding:6px 10px 10px">${r.mine.map(d => `<div style="font-size:12px;color:var(--t-fg-muted)">• <b style="color:var(--t-fg)">${esc(d.domain || d.cid)}</b> · ${esc(d.via)} · ${esc(d.status)} — ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--t-accent)">${esc(d.title)}</a>` : esc(d.title)}</div>`).join('')}</td></tr>` : ''}`;
+        ${open && r.mine.length ? `<tr class="kb-detail"><td></td><td colspan="7" style="padding:6px 10px 10px">${r.mine.map(d => `<div style="font-size:12px;color:var(--t-fg-muted)">• <b style="color:var(--t-fg)">${esc(d.domain || d.cid)}</b> · ${esc(d.via)} · ${esc(d.status)} — ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--t-accent)">${esc(d.title)}</a>` : esc(d.title)}</div>`).join('')}</td></tr>` : ''}`;
     }).join('');
-    return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr><th class="sk0"><input type="checkbox" class="kb-all"></th><th>Chủ đề</th><th>Từ khóa chính</th><th>Lượt tìm/tháng</th><th>Phụ</th><th title="Tổng số website của cả 2 tài khoản đã có bài/kế hoạch khớp từ khóa chính">Đã viết (cả 2 tài khoản)</th><th>Website của tài khoản này</th></tr></thead><tbody>${rows || `<tr><td colspan="7" style="padding:16px;color:var(--t-fg-muted)">Chưa có từ khóa chính nào được xử lý</td></tr>`}</tbody></table></div>`;
+    return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr><th class="sk0"><input type="checkbox" class="kb-all"></th><th>Chủ đề</th><th>Từ khóa chính</th><th>Lượt tìm/tháng</th><th>Phụ</th><th>Loại bài</th><th title="Tổng số website của cả 2 tài khoản đã có bài/kế hoạch khớp từ khóa chính">Đã viết (cả 2 tài khoản)</th><th>Website của tài khoản này</th></tr></thead><tbody>${rows || `<tr><td colspan="7" style="padding:16px;color:var(--t-fg-muted)">Chưa có từ khóa chính nào được xử lý</td></tr>`}</tbody></table></div>`;
   }
 
   function draw() {
@@ -323,7 +328,7 @@
         <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button data-a="newtopic" style="${btn()}">＋ Chủ đề</button><button data-a="import" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}">📥 Nhập CSV Keyword Planner</button><input type="file" id="kbFile" accept=".csv,.tsv,.txt" style="display:none"></span></div>
       ${S.busy ? `<div style="font-size:12px;color:var(--t-warn)">${esc(S.busy)}</div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap">${chip('Chưa xử lý', c.unprocessed, 'unprocessed', 'var(--t-fg)')}${chip('Chủ đề', c.topics, 'topics', 'var(--t-fg)')}${chip('Đã xử lý', c.mains, 'processed', 'var(--t-success)')}${chip('Đã loại', c.excluded, 'excluded', 'var(--t-fg-muted)')}</div>
-      ${showSearch ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="kb-q" value="${esc(S.q)}" placeholder="🔍 Tìm từ khóa…" style="${inp};width:260px">${S.view === 'unprocessed' || S.view === 'excluded' ? `<select class="kb-sort" style="${inp}"><option value="avg" ${S.sort === 'avg' ? 'selected' : ''}>Lượt tìm giảm dần</option><option value="text" ${S.sort === 'text' ? 'selected' : ''}>A → Z</option></select><span style="font-size:12px;color:var(--t-fg-muted)">${num(S.total)} từ khóa · bấm giữ và kéo để chọn nhanh</span>` : '<span style="font-size:12px;color:var(--t-fg-muted)">Bấm giữ và kéo để chọn nhanh nhiều từ khóa chính</span>'}</div>` : ''}
+      ${showSearch ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="kb-q" value="${esc(S.q)}" placeholder="🔍 Tìm từ khóa…" style="${inp};width:260px"><select class="kb-ptype" style="${inp}"><option value="">Loại bài: tất cả</option><option value="post" ${S.ptype === 'post' ? 'selected' : ''}>Post</option><option value="page" ${S.ptype === 'page' ? 'selected' : ''}>Page</option><option value="category" ${S.ptype === 'category' ? 'selected' : ''}>Mô tả danh mục</option><option value="none" ${S.ptype === 'none' ? 'selected' : ''}>Chưa có loại</option></select>${S.view === 'unprocessed' || S.view === 'excluded' ? `<select class="kb-sort" style="${inp}"><option value="avg" ${S.sort === 'avg' ? 'selected' : ''}>Lượt tìm giảm dần</option><option value="text" ${S.sort === 'text' ? 'selected' : ''}>A → Z</option></select><span style="font-size:12px;color:var(--t-fg-muted)">${num(S.total)} từ khóa · bấm giữ và kéo để chọn nhanh</span>` : '<span style="font-size:12px;color:var(--t-fg-muted)">Bấm giữ và kéo để chọn nhanh nhiều từ khóa chính</span>'}</div>` : ''}
       ${body}
       <div id="kbBar" style="display:none;position:sticky;bottom:8px;z-index:6;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--t-warn) 40%,var(--t-border));background:var(--t-subtle);box-shadow:0 4px 16px rgba(0,0,0,.4)"></div></div>`;
     root.dataset.v = S.view;
@@ -386,6 +391,14 @@
     root.addEventListener('change', async e => {
       const t = e.target;
       if (t.classList.contains('kb-sort')) { S.sort = t.value; return load(); }
+      if (t.classList.contains('kb-ptype')) { S.ptype = t.value; return load(); }
+      if (t.classList.contains('kb-setpt')) {
+        const v = t.value;
+        if (!v) return;
+        const ids = S.view === 'processed' ? [...S.sel].map(id => (allMains().find(m => m.id === id) || {}).kw).filter(Boolean) : [...S.sel];
+        try { await api('assign', { action: 'set_ptype', kw_ids: ids, ptype: v === '__clear' ? '' : v }); S.sel.clear(); await load(); } catch (e) { fail(e); }
+        return;
+      }
       if (t.classList.contains('kb-site')) { S.siteId = t.value; return; }
       if (t.classList.contains('kb-topic')) {
         if (t.value === '__new') { const id = await newTopic(); S.topicId = id || ''; draw(); return; }
