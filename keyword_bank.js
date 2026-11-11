@@ -4,7 +4,7 @@
   const num = n => (n == null || n === '') ? '—' : (Number(n) || 0).toLocaleString('vi-VN');
   const btn = extra => `background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit;${extra || ''}`;
   const inp = 'background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit';
-  const S = { view: 'unprocessed', q: '', ptype: '', sort: 'avg', items: [], total: 0, counts: {}, topics: [], sel: new Set(), anchor: null, report: {}, open: new Set(), limit: 200, busy: '', siteId: '', topicId: '' };
+  const S = { view: 'unprocessed', q: '', ptype: '', sort: 'avg', items: [], total: 0, counts: {}, topics: [], sel: new Set(), anchor: null, report: {}, open: new Set(), limit: 200, busy: '', siteId: '', topicId: '', f: { topic: '', min: '', max: '', subs: '', written: '', mine: '' } };
   let root = null, drag = null, loadSeq = 0;
   const PAGE = 1000;
 
@@ -27,7 +27,7 @@
   const PT = { post: 'Post', page: 'Page', category: 'Mô tả danh mục' };
   const ptOpts = '<option value="">Đặt loại bài…</option><option value="post">Post</option><option value="page">Page</option><option value="category">Mô tả danh mục</option><option value="__clear">Xóa loại bài</option>';
   const ptCell = k => `${k.ptype ? `<span style="padding:1px 8px;border-radius:10px;background:color-mix(in srgb,var(--t-accent) 16%,transparent);color:var(--t-accent)">${PT[k.ptype]}</span>` : '<span style="color:var(--t-fg-subtle)">—</span>'}${k.nsrc ? ` <span style="color:var(--t-fg-muted);font-size:11px">${k.nsrc} đối thủ</span>` : ''}`;
-  const allMains = () => S.topics.flatMap(t => t.mains.map(m => ({ id: m.id, kw: m.kw.id, topic: t.name, text: m.kw.text, avg: m.kw.avg, subs: m.subs, ptype: m.kw.ptype || '', nsrc: m.kw.nsrc || 0 })));
+  const allMains = () => S.topics.flatMap(t => t.mains.map(m => ({ id: m.id, kw: m.kw.id, topic: t.name, topicId: t.id, text: m.kw.text, avg: m.kw.avg, subs: m.subs, ptype: m.kw.ptype || '', nsrc: m.kw.nsrc || 0 })));
 
   async function load() {
     const seq = ++loadSeq;
@@ -86,14 +86,14 @@
     const g = (r, i) => i >= 0 && i < r.length ? r[i].trim() : '';
     const data = rows.slice(hi + 1).filter(r => g(r, c.kw)).map(r => ({ keyword: g(r, c.kw), avg: g(r, c.avg), comp: g(r, c.comp), bid_lo: g(r, c.bl), bid_hi: g(r, c.bh), chg3: g(r, c.c3), chgy: g(r, c.cy), months: mcols.map(i => g(r, i)) }));
     if (!data.length) throw new Error('File không có dòng từ khóa nào');
-    const tot = { added: 0, existing: 0, excluded: 0, invalid: 0, updated: 0 };
+    const tot = { added: 0, existing: 0, excluded: 0, invalid: 0, updated: 0, deleted: 0 };
     for (let i = 0; i < data.length; i += 4000) {
       S.busy = `Đang nhập ${Math.min(i + 4000, data.length)}/${data.length}…`; draw();
       const r = await api('import', { rows: data.slice(i, i + 4000) });
       Object.keys(tot).forEach(k => { tot[k] += r[k] || 0; });
     }
     S.busy = '';
-    say(`✓ Nhập ${data.length} dòng: thêm mới ${tot.added} · đã có ${tot.existing} · đã loại (vô nghĩa/bỏ) ${tot.excluded}${tot.updated ? ' · điền lượt tìm ' + tot.updated : ''}${tot.invalid ? ' · lỗi ' + tot.invalid : ''}`);
+    say(`✓ Nhập ${data.length} dòng: thêm mới ${tot.added} · đã có ${tot.existing} · đã loại (vô nghĩa/bỏ) ${tot.excluded}${tot.deleted ? ' · bỏ qua ' + tot.deleted + ' từ đã xóa vĩnh viễn' : ''}${tot.updated ? ' · điền lượt tìm ' + tot.updated : ''}${tot.invalid ? ' · lỗi ' + tot.invalid : ''}`);
     S.view = 'unprocessed'; S.sel.clear();
     await load();
   }
@@ -249,7 +249,7 @@
         <button data-a="dropped" style="${btn('color:var(--t-danger)')}">✕ Bỏ</button>
         <button data-a="selnone" style="${btn('margin-left:auto;padding:3px 9px')}">Bỏ chọn</button>`;
     } else if (S.view === 'excluded') {
-      el.innerHTML = `<b style="font-size:12.5px">${n} từ khóa đã chọn</b><button data-a="restore" style="${btn()}">↩ Khôi phục về chưa xử lý</button><button data-a="selnone" style="${btn('margin-left:auto;padding:3px 9px')}">Bỏ chọn</button>`;
+      el.innerHTML = `<b style="font-size:12.5px">${n} từ khóa đã chọn</b><button data-a="restore" style="${btn()}">↩ Khôi phục về chưa xử lý</button><button data-a="purge" style="${btn('color:#fff;background:var(--t-danger);border-color:var(--t-danger)')}">🗑 Xóa vĩnh viễn</button><button data-a="selnone" style="${btn('margin-left:auto;padding:3px 9px')}">Bỏ chọn</button>`;
     } else if (S.view === 'processed') {
       const so = sites().map(x => `<option value="${esc(x.id)}" ${String(S.siteId) === String(x.id) ? 'selected' : ''}>${esc(x.label)}</option>`).join('');
       el.innerHTML = `<b style="font-size:12.5px">${n} từ khóa chính đã chọn</b>
@@ -289,9 +289,36 @@
     return `<div style="display:flex;flex-direction:column;gap:12px">${tb || '<div style="color:var(--t-fg-muted)">Chưa có chủ đề nào — bấm "＋ Chủ đề" để tạo.</div>'}</div>`;
   }
 
+  function procFilters(shown, all) {
+    const F = S.f;
+    const sel = (key, opts) => `<select class="kb-f" data-f="${key}" style="${inp}${F[key] ? ';border-color:var(--t-accent)' : ''}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${F[key] === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+    const numIn = (key, ph) => `<input class="kb-f" data-f="${key}" type="number" min="0" inputmode="numeric" value="${esc(F[key])}" placeholder="${ph}" style="${inp};width:110px${F[key] ? ';border-color:var(--t-accent)' : ''}">`;
+    const on = Object.values(F).some(Boolean);
+    return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--t-fg-muted)">Lọc:
+      ${sel('topic', [['', 'Chủ đề: tất cả']].concat(S.topics.map(t => [t.id, t.name])))}
+      <span>Lượt tìm</span>${numIn('min', 'từ')}<span>–</span>${numIn('max', 'đến')}
+      ${sel('subs', [['', 'Phụ: tất cả'], ['has', 'Có từ khóa phụ'], ['none', 'Không có phụ']])}
+      ${sel('written', [['', 'Đã viết: tất cả'], ['0', 'Chưa website nào'], ['1', 'Đã có ≥ 1 website']])}
+      ${sel('mine', [['', 'Website của tôi: tất cả'], ['has', 'Đã có ở web của tôi'], ['none', 'Chưa có ở web của tôi']])}
+      ${on ? `<button data-a="fclear" style="${btn('padding:3px 9px')}">✕ Xóa lọc</button>` : ''}
+      <span style="margin-left:4px">${num(shown)}/${num(all)} từ khóa chính</span></div>`;
+  }
+
+  function procMatch(m) {
+    const F = S.f, r = S.report[m.id] || { total: 0, mine: [] }, avg = Number(m.avg) || 0;
+    if (F.topic && m.topicId !== F.topic) return false;
+    if (F.min !== '' && avg < Number(F.min)) return false;
+    if (F.max !== '' && avg > Number(F.max)) return false;
+    if (F.subs && (F.subs === 'has') !== (m.subs.length > 0)) return false;
+    if (F.written && (F.written === '1') !== (r.total > 0)) return false;
+    if (F.mine && (F.mine === 'has') !== (r.mine.length > 0)) return false;
+    return true;
+  }
+
   function processedView() {
     const q = S.q.trim().toLowerCase();
-    const mains = allMains().filter(m => (!q || (m.text + ' ' + m.topic).toLowerCase().includes(q)) && (!S.ptype || (S.ptype === 'none' ? !m.ptype : m.ptype === S.ptype)));
+    const base = allMains().filter(m => (!q || (m.text + ' ' + m.topic).toLowerCase().includes(q)) && (!S.ptype || (S.ptype === 'none' ? !m.ptype : m.ptype === S.ptype)));
+    const mains = base.filter(procMatch);
     const rows = mains.map(m => {
       const r = S.report[m.id] || { total: 0, mine: [] };
       const open = S.open.has(m.id);
@@ -301,7 +328,7 @@
         <td><a data-a="detail" data-m="${esc(m.id)}" style="cursor:pointer;color:var(--t-accent)">${r.mine.length ? (open ? '▾' : '▸') + ' ' + r.mine.length + ' của bạn' : '—'}</a></td></tr>
         ${open && r.mine.length ? `<tr class="kb-detail"><td></td><td colspan="7" style="padding:6px 10px 10px">${r.mine.map(d => `<div style="font-size:12px;color:var(--t-fg-muted)">• <b style="color:var(--t-fg)">${esc(d.domain || d.cid)}</b> · ${esc(d.via)} · ${esc(d.status)} — ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--t-accent)">${esc(d.title)}</a>` : esc(d.title)}</div>`).join('')}</td></tr>` : ''}`;
     }).join('');
-    return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr><th class="sk0"><input type="checkbox" class="kb-all"></th><th>Chủ đề</th><th>Từ khóa chính</th><th>Lượt tìm/tháng</th><th>Phụ</th><th>Loại bài</th><th title="Tổng số website của cả 2 tài khoản đã có bài/kế hoạch khớp từ khóa chính">Đã viết (cả 2 tài khoản)</th><th>Website của tài khoản này</th></tr></thead><tbody>${rows || `<tr><td colspan="7" style="padding:16px;color:var(--t-fg-muted)">Chưa có từ khóa chính nào được xử lý</td></tr>`}</tbody></table></div>`;
+    return `${procFilters(mains.length, allMains().length)}<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 340px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr><th class="sk0"><input type="checkbox" class="kb-all"></th><th>Chủ đề</th><th>Từ khóa chính</th><th>Lượt tìm/tháng</th><th>Phụ</th><th>Loại bài</th><th title="Tổng số website của cả 2 tài khoản đã có bài/kế hoạch khớp từ khóa chính">Đã viết (cả 2 tài khoản)</th><th>Website của tài khoản này</th></tr></thead><tbody>${rows || `<tr><td colspan="8" style="padding:16px;color:var(--t-fg-muted)">${allMains().length ? 'Không có từ khóa chính nào khớp bộ lọc' : 'Chưa có từ khóa chính nào được xử lý'}</td></tr>`}</tbody></table></div>`;
   }
 
   function draw() {
@@ -312,6 +339,8 @@
     const anc = [];
     for (let p = root.parentElement; p; p = p.parentElement) if (p.scrollTop) anc.push([p, p.scrollTop]);
     const wy = window.scrollY;
+    const ae = document.activeElement;
+    const af = ae && root.contains(ae) && ae.classList.contains('kb-f') ? ae.dataset.f : '';
     const c = S.counts || {};
     const body = S.view === 'topics' ? topicsView() : S.view === 'processed' ? processedView() : kwTable(S.items, S.view === 'excluded');
     const showSearch = S.view !== 'topics';
@@ -339,6 +368,7 @@
       anc.forEach(([p, t]) => { p.scrollTop = t; });
       if (window.scrollY !== wy) window.scrollTo(window.scrollX, wy);
     }
+    if (af) { const fe = root.querySelector(`.kb-f[data-f="${af}"]`); if (fe) fe.focus({ preventScroll: true }); }
   }
 
   function applyRow(tr, on) {
@@ -382,6 +412,14 @@
     });
     document.addEventListener('mouseup', () => { drag = null; });
     root.addEventListener('input', e => {
+      const t = e.target;
+      if (t.classList.contains('kb-f') && t.type === 'number') {
+        S.f[t.dataset.f] = t.value === '' ? '' : String(Math.max(0, Math.round(Number(t.value) || 0)));
+        S.sel.clear();
+        clearTimeout(mount.tf);
+        mount.tf = setTimeout(draw, 350);
+        return;
+      }
       if (e.target.classList.contains('kb-q')) {
         S.q = e.target.value;
         clearTimeout(mount.t);
@@ -397,6 +435,11 @@
         if (!v) return;
         const ids = S.view === 'processed' ? [...S.sel].map(id => (allMains().find(m => m.id === id) || {}).kw).filter(Boolean) : [...S.sel];
         try { await api('assign', { action: 'set_ptype', kw_ids: ids, ptype: v === '__clear' ? '' : v }); S.sel.clear(); await load(); } catch (e) { fail(e); }
+        return;
+      }
+      if (t.classList.contains('kb-f')) {
+        if (t.type === 'number') return;
+        S.f[t.dataset.f] = t.value; S.sel.clear(); draw();
         return;
       }
       if (t.classList.contains('kb-site')) { S.siteId = t.value; return; }
@@ -424,6 +467,7 @@
           case 'more': S.limit += 200; return load();
           case 'all': S.limit = Math.max(S.limit, S.total); return load();
           case 'selnone': S.sel.clear(); return draw();
+          case 'fclear': S.f = { topic: '', min: '', max: '', subs: '', written: '', mine: '' }; S.sel.clear(); return draw();
           case 'newtopic': { const id = await newTopic(); if (id) { say('✓ Đã tạo chủ đề'); S.view = 'topics'; await load(); } return; }
           case 'tomain': {
             let tid = S.topicId;
@@ -434,6 +478,14 @@
           case 'meaningless': return assign('label', { label: 'meaningless' });
           case 'dropped': return assign('label', { label: 'dropped' });
           case 'restore': return assign('restore');
+          case 'purge': {
+            const n = S.sel.size;
+            if (!n || !confirm(`Xóa vĩnh viễn ${n} từ khóa khỏi kho?\n\nKhông khôi phục được. Lần nhập CSV sau, các từ này sẽ tự bị bỏ qua (chỉ thêm lại được bằng cách gõ tay làm từ khóa chính).`)) return;
+            await api('assign', { action: 'delete', kw_ids: [...S.sel] });
+            S.sel.clear();
+            say(`✓ Đã xóa vĩnh viễn ${n} từ khóa`);
+            return load();
+          }
           case 'toplan': return addToPlan();
           case 'merge': return mergeMains();
           case 'unmain': {
