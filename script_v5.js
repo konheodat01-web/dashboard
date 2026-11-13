@@ -6931,6 +6931,7 @@ function wf301SelectSource(wsId){
   document.getElementById('wf_admin').value = src.admin||'';
   document.getElementById('wf_account').value = src.account||'';
   document.getElementById('wf_password').value = src.password||'';
+  document.getElementById('wf_appwppass').value = src.appwppass||'';
   document.getElementById('wf_status').value = src.status||'Tốt';
   document.getElementById('wf_difficulty').value = src.difficulty||'';
   document.getElementById('wf_note').value = src.note||'';
@@ -11091,38 +11092,15 @@ window.validateAdminPassword = function(inputPassword) {
 
 // ===== V94 AUTO-FILL 301 AND SECURE TRIGGERFLOW =====
 function openAdd301ForParent(parentId, parentUrl) {
-  if (typeof openWebsiteForm === 'function') {
-    openWebsiteForm(null); // Reset form về trống
-  }
-  
+  if (typeof openWebsiteForm === 'function') openWebsiteForm(null);
   const wfIs301 = document.getElementById('wf_is301');
   if (wfIs301) {
     wfIs301.checked = true;
     if (typeof wfToggle301 === 'function') wfToggle301();
   }
-  
+  if (websites.some(x => x.id === parentId)) { wf301SelectSource(parentId); return; }
   const wfSourceUrl = document.getElementById('wf_source_url');
-  if (wfSourceUrl) {
-    wfSourceUrl.value = parentUrl; // Liên kết qua sourceUrl
-  }
-  
-  // Tự động kế thừa thông tin cha từ mảng websites toàn cục
-  const parentSite = websites.find(x => x.id === parentId);
-  if (parentSite) {
-    const wfBrand = document.getElementById('wf_brand');
-    if (wfBrand) wfBrand.value = `${parentSite.brand} - 301`;
-    
-    const wfTeam = document.getElementById('wf_team');
-    if (wfTeam) {
-      wfTeam.value = parentSite.team;
-      if (typeof onWfTeamChange === 'function') onWfTeamChange();
-    }
-    
-    const wfOwner = document.getElementById('wf_owner');
-    if (wfOwner) {
-      wfOwner.value = parentSite.owner || 'Công ty';
-    }
-  }
+  if (wfSourceUrl) wfSourceUrl.value = parentUrl;
 }
 
 function triggerFlow(siteUrl) {
