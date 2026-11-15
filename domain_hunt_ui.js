@@ -7,10 +7,11 @@
     ['pass', '📥 Kho chờ', 'Đạt kiểm subdomain, chờ bạn nhận'],
     ['mine', '✅ Kho của tôi', 'Domain bạn đã nhận'],
     ['queue', '⏳ Hàng chờ kiểm', 'Đang chờ / đang kiểm Wayback'],
-    ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung'],
+    ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá sau 24 giờ nếu không phá lệ'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false };
+  const F0 = { d: '', pmin: '', pmax: '', prem: '', smin: '', smax: '', why: '', age: '' };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, f: { ...F0 }, fv: 0, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0 };
   let root = null;
 
   async function api(p, body) {
@@ -82,9 +83,51 @@
     } catch (e) { fail(e); }
   }
 
+  const priceNum = it => { const m = String(it.price || '').replace(/,/g, '').match(/[\d.]+/); return m ? Number(m[0]) : null; };
+  const numOr = v => v === '' || v == null || isNaN(Number(v)) ? null : Number(v);
+  const filtering = () => S.view === 'fail' && Object.keys(F0).some(k => S.f[k] !== '');
+
   function shown() {
     const q = S.q.trim().toLowerCase();
-    return q ? S.items.filter(it => it.d.includes(q)) : S.items;
+    let list = q ? S.items.filter(it => it.d.includes(q)) : S.items;
+    if (S.view !== 'fail') return list;
+    const f = S.f, now = Date.now() + S.skew, ttl = S.opt.failTtl || 86400000;
+    const pmin = numOr(f.pmin), pmax = numOr(f.pmax), smin = numOr(f.smin), smax = numOr(f.smax);
+    const dq = f.d.trim().toLowerCase(), wq = f.why.trim().toLowerCase();
+    list = list.filter(it => {
+      if (dq && !it.d.includes(dq)) return false;
+      const p = priceNum(it);
+      if ((pmin != null || pmax != null) && p == null) return false;
+      if (pmin != null && p < pmin) return false;
+      if (pmax != null && p > pmax) return false;
+      if (f.prem === 'y' && !it.premium) return false;
+      if (f.prem === 'n' && it.premium) return false;
+      const n = (it.subs || []).length;
+      if (smin != null && n < smin) return false;
+      if (smax != null && n > smax) return false;
+      if (wq && !((it.reason || '') + ' ' + (it.subs || []).map(x => x.s).join(' ')).toLowerCase().includes(wq)) return false;
+      const age = now - (it.chk || 0);
+      if (f.age === '1h' && age > 3600000) return false;
+      if (f.age === '6h' && age > 6 * 3600000) return false;
+      if (f.age === 'soon' && ttl - age > 3600000) return false;
+      return true;
+    });
+    const k = S.sort.k, dir = S.sort.dir;
+    const val = it => k === 'd' ? it.d : k === 'price' ? priceNum(it) : k === 'sub' ? (it.subs || []).length : (it.chk || 0);
+    return list.slice().sort((a, b) => {
+      const x = val(a), y = val(b);
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir;
+    });
+  }
+
+  function left(it) {
+    const ms = (S.opt.failTtl || 86400000) - (Date.now() + S.skew - (it.chk || 0));
+    if (ms <= 0) return '<span style="color:var(--t-danger)">sắp xoá</span>';
+    const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000);
+    return `<span style="color:${ms < 3600000 ? 'var(--t-danger)' : 'var(--t-fg-muted)'}">${h ? h + ' giờ ' : ''}${m} phút</span>`;
   }
 
   async function load() {
@@ -97,6 +140,7 @@
       S.worker = d.worker || {};
       S.opt = d.opt || {};
       S.err = '';
+      S.skew = d.now ? d.now - Date.now() : 0;
       const have = new Set(S.items.map(x => x.d));
       [...S.sel].forEach(x => { if (!have.has(x)) S.sel.delete(x); });
       draw();
@@ -130,11 +174,12 @@
     const t = S.view === 'mine' ? it.take : S.view === 'queue' ? it.add : it.chk;
     return `<tr data-i="${i}" style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 10%,transparent)' : ''}">
       <td style="padding:6px 8px;width:28px"><input type="checkbox" class="dh-ck" data-i="${i}" ${on ? 'checked' : ''}></td>
-      <td style="padding:6px 8px;font-weight:600;white-space:nowrap"><a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a></td>
+      <td style="padding:6px 8px;font-weight:600;white-space:nowrap"><a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a>${it.ex ? ' <span title="Phá lệ: không đạt nhưng bạn giữ lại" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-warn) 20%,transparent);color:var(--t-warn);font-size:11px;font-weight:400">phá lệ</span>' : ''}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(it.price || '')}${it.premium ? ' <span style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-done) 18%,transparent);color:var(--t-done);font-size:11px">premium</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:center">${S.view === 'queue' ? '' : (it.subs || []).length}</td>
       <td style="padding:6px 8px">${info}</td>
-      <td style="padding:6px 8px;white-space:nowrap;color:var(--t-fg-muted);font-size:11px">${when(t)}</td>
+      <td style="padding:6px 8px;white-space:nowrap;color:var(--t-fg-muted);font-size:11px">${when(t)}</td>${S.view === 'fail' ? `
+      <td style="padding:6px 8px;white-space:nowrap;font-size:11px">${left(it)}</td>` : ''}
     </tr>`;
   }
 
@@ -143,6 +188,8 @@
     const b = [];
     if (S.view === 'pass') b.push(`<button data-a="take" style="${btn(pri)}" ${n ? '' : 'disabled'}>✅ Nhận ${n || ''} domain → Kho của tôi</button>`);
     if (S.view === 'mine') b.push(`<button data-a="untake" style="${btn()}" ${n ? '' : 'disabled'}>↩ Trả về Kho chờ</button>`);
+    if (S.view === 'fail') b.push(`<button data-a="except" style="${btn(pri)}" ${n ? '' : 'disabled'}>⭐ Phá lệ ${n || ''} domain → Kho chờ</button>`);
+    if (S.view === 'fail' && filtering()) b.push(`<button data-a="clearf" style="${btn()}">✕ Xoá lọc</button>`);
     if (S.view === 'fail' || S.view === 'err') b.push(`<button data-a="recheck" style="${btn()}" ${n ? '' : 'disabled'}>🔁 Kiểm lại</button>`);
     b.push(`<button data-a="copy" style="${btn()}">📋 Copy ${n ? n + ' đã chọn' : 'tất cả'}</button>`);
     b.push(`<button data-a="csv" style="${btn()}">⬇ CSV</button>`);
@@ -176,6 +223,8 @@
     </div>`;
   }
 
+  const put = (el, h) => { if (el._h !== h) { el._h = h; el.innerHTML = h; } };
+
   function draw() {
     if (!root) return;
     if (!root.querySelector('#dhBody')) shell();
@@ -184,19 +233,51 @@
     const cap = 2000;
     const allOn = list.length && list.every(it => S.sel.has(it.d));
     $('dhHint').textContent = `Tải CSV xuất từ Namecheap (Beast Mode → Export). VPS tự kiểm subdomain trên Wayback 24/7: có ${S.opt.min || 3}–${S.opt.max || 5} subdomain, mỗi subdomain từ ${S.opt.pages || 2} trang trở lên thì vào Kho chờ.`;
-    $('dhWork').innerHTML = workerLine();
-    $('dhTabs').innerHTML = VIEWS.map(([k, label, tip]) => `<button data-v="${k}" title="${esc(tip)}" style="${btn(S.view === k ? pri : '')}">${label} <b>${S.counts[k] || 0}</b></button>`).join('');
-    $('dhBar').innerHTML = actions() + `<span style="color:var(--t-fg-muted);font-size:12px">${S.sel.size ? `Đã chọn ${S.sel.size} · ` : ''}${list.length} domain${list.length > cap ? ` (hiện ${cap} dòng đầu)` : ''}</span>`;
+    put($('dhWork'), workerLine());
+    put($('dhTabs'), VIEWS.map(([k, label, tip]) => `<button data-v="${k}" title="${esc(tip)}" style="${btn(S.view === k ? pri : '')}">${label} <b>${S.counts[k] || 0}</b></button>`).join(''));
+    put($('dhBar'), actions() + `<span style="color:var(--t-fg-muted);font-size:12px">${S.sel.size ? `Đã chọn ${S.sel.size} · ` : ''}${list.length} domain${list.length > cap ? ` (hiện ${cap} dòng đầu)` : ''}</span>`);
     $('dhErr').textContent = S.err ? '⚠️ ' + S.err : '';
-    $('dhHead').innerHTML = `<tr>
-      <th style="padding:6px 8px;text-align:left;width:28px"><input type="checkbox" id="dhAll" ${allOn ? 'checked' : ''}></th>
-      <th style="padding:6px 8px;text-align:left">Domain</th>
-      <th style="padding:6px 8px;text-align:left">Giá</th>
-      <th style="padding:6px 8px">Sub</th>
-      <th style="padding:6px 8px;text-align:left">${S.view === 'queue' ? 'Trạng thái' : S.view === 'err' ? 'Lỗi' : 'Subdomain có nội dung (số trang)'}</th>
-      <th style="padding:6px 8px;text-align:left">${S.view === 'mine' ? 'Nhận lúc' : S.view === 'queue' ? 'Thêm lúc' : 'Kiểm lúc'}</th>
+    const key = S.view + '|' + S.sort.k + '|' + S.sort.dir + '|' + S.fv;
+    if (S.headKey !== key) { S.headKey = key; $('dhHead').innerHTML = headHtml(); }
+    const all = $('dhAll');
+    if (all) all.checked = !!allOn;
+    const cols = S.view === 'fail' ? 7 : 6;
+    put($('dhBody'), list.slice(0, cap).map(rowHtml).join('') || `<tr><td colspan="${cols}" style="padding:24px;text-align:center;color:var(--t-fg-muted)">${filtering() ? 'Không có domain nào khớp bộ lọc' : 'Chưa có domain nào'}</td></tr>`);
+  }
+
+  function headHtml() {
+    const th = 'padding:6px 8px;text-align:left;white-space:nowrap';
+    const fail = S.view === 'fail';
+    const sortTh = (k, label, extra) => {
+      if (!fail) return `<th style="${th};${extra || ''}">${label}</th>`;
+      const on = S.sort.k === k;
+      return `<th data-sort="${k}" title="Bấm để sắp xếp" style="${th};cursor:pointer;user-select:none;${extra || ''}">${label} <span style="color:${on ? 'var(--t-accent)' : 'var(--t-fg-subtle)'}">${on ? (S.sort.dir > 0 ? '▲' : '▼') : '↕'}</span></th>`;
+    };
+    const infoLabel = S.view === 'queue' ? 'Trạng thái' : S.view === 'err' ? 'Lỗi' : fail ? 'Lý do · subdomain có nội dung' : 'Subdomain có nội dung (số trang)';
+    const timeLabel = S.view === 'mine' ? 'Nhận lúc' : S.view === 'queue' ? 'Thêm lúc' : 'Kiểm lúc';
+    let h = `<tr>
+      <th style="${th};width:28px"><input type="checkbox" id="dhAll"></th>
+      ${sortTh('d', 'Domain')}
+      ${sortTh('price', 'Giá')}
+      ${sortTh('sub', 'Sub', 'text-align:center')}
+      <th style="${th}">${infoLabel}</th>
+      ${sortTh('chk', timeLabel)}
+      ${fail ? `<th style="${th}">Tự xoá sau</th>` : ''}
     </tr>`;
-    $('dhBody').innerHTML = list.slice(0, cap).map(rowHtml).join('') || `<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--t-fg-muted)">Chưa có domain nào</td></tr>`;
+    if (fail) {
+      const fi = (k, ph, w, type) => `<input data-f="${k}" ${type ? `type="${type}"` : ''} placeholder="${ph}" value="${esc(S.f[k])}" style="background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;padding:3px 5px;font-size:11px;width:${w};box-sizing:border-box">`;
+      const fs = (k, opts) => `<select data-f="${k}" style="background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;padding:3px 4px;font-size:11px">${opts.map(([v, l]) => `<option value="${v}" ${S.f[k] === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+      const td = 'padding:4px 8px;font-weight:400';
+      h += `<tr style="background:var(--t-subtle)">
+        <th style="${td}"></th>
+        <th style="${td}">${fi('d', 'lọc domain…', '130px')}</th>
+        <th style="${td};white-space:nowrap">${fi('pmin', 'từ $', '56px', 'number')} ${fi('pmax', 'đến $', '56px', 'number')} ${fs('prem', [['', 'mọi loại'], ['y', 'premium'], ['n', 'thường']])}</th>
+        <th style="${td};white-space:nowrap">${fi('smin', 'từ', '42px', 'number')} ${fi('smax', 'đến', '42px', 'number')}</th>
+        <th style="${td}">${fi('why', 'lọc lý do / tên subdomain…', '180px')}</th>
+        <th style="${td}" colspan="2">${fs('age', [['', 'mọi lúc'], ['1h', 'kiểm trong 1 giờ qua'], ['6h', 'kiểm trong 6 giờ qua'], ['soon', 'còn < 1 giờ là bị xoá']])}</th>
+      </tr>`;
+    }
+    return h;
   }
 
   function csvOut(list) {
@@ -221,13 +302,14 @@
       return;
     }
     if (a === 'csv') { csvOut(picked.length ? picked : list); return; }
+    if (a === 'clearf') { S.f = { ...F0 }; S.fv++; S.sel.clear(); S.last = null; draw(); return; }
     if (!ds.length || S.busy) return;
     if (a === 'del' && !confirm(`Xoá ${ds.length} domain? Domain đã xoá sẽ không được thêm lại khi tải CSV.`)) return;
     S.busy = true;
     try {
       const d = await api(a, { ds });
       const msg = { take: 'Đã nhận', untake: 'Đã trả về Kho chờ', recheck: 'Đã đưa vào hàng chờ kiểm lại', del: 'Đã xoá' }[a];
-      say(`${msg} ${d.n} domain`);
+      say(a === 'except' ? `Đã phá lệ ${d.n} domain, chuyển vào Kho chờ` : `${msg} ${d.n} domain`);
       S.sel.clear();
       await load();
     } catch (e) { fail(e); } finally { S.busy = false; }
@@ -237,6 +319,8 @@
     root.addEventListener('click', e => {
       const v = e.target.closest('[data-v]');
       if (v) { if (S.view !== v.dataset.v) { S.view = v.dataset.v; S.sel.clear(); S.last = null; S.items = []; draw(); load(); } return; }
+      const so = e.target.closest('[data-sort]');
+      if (so) { const k = so.dataset.sort; S.sort = S.sort.k === k ? { k, dir: -S.sort.dir } : { k, dir: k === 'd' ? 1 : -1 }; S.last = null; draw(); return; }
       const a = e.target.closest('[data-a]');
       if (a && !a.disabled) { run(a.dataset.a); return; }
       const ck = e.target.closest('.dh-ck');
@@ -260,9 +344,11 @@
     });
     root.addEventListener('input', e => {
       if (e.target.id === 'dhQ') { S.q = e.target.value; S.last = null; draw(); }
+      if (e.target.dataset && e.target.dataset.f && e.target.tagName === 'INPUT') { S.f[e.target.dataset.f] = e.target.value; S.sel.clear(); S.last = null; draw(); }
     });
     root.addEventListener('change', e => {
       if (e.target.id === 'dhFile' && e.target.files.length) { importFiles([...e.target.files]); e.target.value = ''; }
+      if (e.target.dataset && e.target.dataset.f && e.target.tagName === 'SELECT') { S.f[e.target.dataset.f] = e.target.value; S.sel.clear(); S.last = null; draw(); }
     });
     root.addEventListener('dragover', e => { if (e.target.closest('#dhDrop')) { e.preventDefault(); e.target.closest('#dhDrop').style.borderColor = 'var(--t-accent)'; } });
     root.addEventListener('dragleave', e => { const z = e.target.closest('#dhDrop'); if (z) z.style.borderColor = ''; });
