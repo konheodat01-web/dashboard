@@ -32,7 +32,7 @@ const STATIC_DIR  = __dirname;
 const ADMIN_AUTH_FILE = path.join(__dirname, "admin_auth.json");
 
 // Static chi phuc vu file o thu muc goc, dung duoi an toan, tru cac file noi bo.
-const STATIC_EXT  = new Set([".html", ".css", ".js", ".png", ".ico", ".svg", ".jpg", ".jpeg", ".webp", ".gif", ".woff", ".woff2"]);
+const STATIC_EXT  = new Set([".html", ".css", ".js", ".png", ".ico", ".svg", ".jpg", ".jpeg", ".webp", ".gif", ".woff", ".woff2", ".webmanifest"]);
 const STATIC_DENY = new Set(["server.js", "admin.html", "hub.html", "fix_gsc.js", "temp_old.js"]);
 
 // ── MIME types ────────────────────────────────────────────────────────────────
@@ -44,6 +44,7 @@ const MIME = {
   ".png":  "image/png",
   ".ico":  "image/x-icon",
   ".svg":  "image/svg+xml",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
 };
 
 // ── Helper: read body ─────────────────────────────────────────────────────────
