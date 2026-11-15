@@ -10,7 +10,7 @@
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá sau 24 giờ nếu không phá lệ'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xf: {}, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0 };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xf: {}, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0, open: new Set(), ssel: new Set() };
   let root = null;
 
   async function api(p, body) {
@@ -232,6 +232,9 @@
       S.skew = d.now ? d.now - Date.now() : 0;
       const have = new Set(S.items.map(x => x.d));
       [...S.sel].forEach(x => { if (!have.has(x)) S.sel.delete(x); });
+      const subKeys = new Set();
+      S.items.forEach(it => (it.subs || []).forEach(x => subKeys.add(it.d + '|' + x.s)));
+      [...S.ssel].forEach(k => { if (!subKeys.has(k)) S.ssel.delete(k); });
       draw();
     } catch (e) { if (seq === S.seq) { S.err = e.message; draw(); } }
   }
@@ -256,27 +259,46 @@
     const on = S.sel.has(it.d);
     const subs = (it.subs || []).map(x => `<a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none">${esc(x.s)}</a><span style="color:var(--t-fg-muted)"> ${x.n}</span>`).join(' · ');
     let info = '';
-    if (S.view === 'pass' || S.view === 'mine') info = subs;
+    if (S.view === 'pass') info = subs;
     else if (S.view === 'fail') info = `<span style="color:var(--t-fg-muted)">${esc(it.reason || '')}</span>${subs ? ' · ' + subs : ''}`;
     else if (S.view === 'err') info = `<span style="color:var(--t-danger)">${esc(it.reason || '')}</span>`;
     else info = it.st === 'run' ? '<span style="color:var(--t-accent)">🔄 đang kiểm</span>' : '<span style="color:var(--t-fg-muted)">chờ kiểm</span>';
     const t = S.view === 'mine' ? it.take : S.view === 'queue' ? it.add : it.chk;
+    const mine = S.view === 'mine';
+    const opened = mine && S.open.has(it.d);
+    const nsub = (it.subs || []).length;
+    const tg = mine ? `<button type="button" data-tg="${esc(it.d)}" title="${opened ? 'Thu gọn' : 'Xem subdomain'}" ${nsub ? '' : 'disabled'} style="background:none;border:0;color:var(--t-fg-muted);cursor:pointer;padding:0 4px 0 0;font-size:11px;width:16px">${opened ? '▼' : '▶'}</button>` : '';
+    const kids = opened ? (it.subs || []).map(x => {
+      const k = it.d + '|' + x.s, son = S.ssel.has(k);
+      return `<tr style="background:${son ? 'color-mix(in srgb,var(--t-danger) 10%,transparent)' : 'var(--t-subtle)'}">
+      <td></td>
+      <td style="padding:4px 8px 4px 30px;white-space:nowrap"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="dh-sck" data-k="${esc(k)}" ${son ? 'checked' : ''}><a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none">${esc(x.s)}<span style="color:var(--t-fg-muted)">.${esc(it.d)}</span></a></label></td>
+      <td></td>
+      <td style="padding:4px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">${x.n} trang</td>
+      <td></td>
+    </tr>`;
+    }).join('') : '';
     return `<tr data-i="${i}" style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 10%,transparent)' : ''}">
       <td style="padding:6px 8px;width:28px"><input type="checkbox" class="dh-ck" data-i="${i}" ${on ? 'checked' : ''}></td>
-      <td style="padding:6px 8px;font-weight:600;white-space:nowrap"><a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a>${it.ex ? ' <span title="Phá lệ: không đạt nhưng bạn giữ lại" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-warn) 20%,transparent);color:var(--t-warn);font-size:11px;font-weight:400">phá lệ</span>' : ''}</td>
+      <td style="padding:6px 8px;font-weight:600;white-space:nowrap">${tg}<a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a>${it.ex ? ' <span title="Phá lệ: không đạt nhưng bạn giữ lại" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-warn) 20%,transparent);color:var(--t-warn);font-size:11px;font-weight:400">phá lệ</span>' : ''}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(it.price || '')}${it.premium ? ' <span style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-done) 18%,transparent);color:var(--t-done);font-size:11px">premium</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:center">${S.view === 'queue' ? '' : (it.subs || []).length}</td>
-      <td style="padding:6px 8px">${info}</td>
+      ${mine ? '' : `<td style="padding:6px 8px">${info}</td>`}
       <td style="padding:6px 8px;white-space:nowrap;color:var(--t-fg-muted);font-size:11px">${when(t)}</td>${S.view === 'fail' ? `
       <td style="padding:6px 8px;white-space:nowrap;font-size:11px">${left(it)}</td>` : ''}
-    </tr>`;
+    </tr>${kids}`;
   }
 
   function actions() {
     const n = S.sel.size;
     const b = [];
     if (S.view === 'pass') b.push(`<button data-a="take" style="${btn(pri)}" ${n ? '' : 'disabled'}>✅ Nhận ${n || ''} domain → Kho của tôi</button>`);
-    if (S.view === 'mine') b.push(`<button data-a="untake" style="${btn()}" ${n ? '' : 'disabled'}>↩ Trả về Kho chờ</button>`);
+    if (S.view === 'mine') {
+      const allOpen = S.items.some(it => (it.subs || []).length) && S.items.every(it => !(it.subs || []).length || S.open.has(it.d));
+      b.push(`<button data-a="untake" style="${btn()}" ${n ? '' : 'disabled'}>↩ Trả về Kho chờ</button>`);
+      b.push(`<button data-a="openall" style="${btn()}">${allOpen ? '▲ Thu gọn hết' : '▼ Mở hết subdomain'}</button>`);
+      b.push(`<button data-a="delsub" style="${btn('color:var(--t-danger)')}" ${S.ssel.size ? '' : 'disabled'}>✂ Xoá ${S.ssel.size || ''} subdomain đã chọn</button>`);
+    }
     if (S.view === 'fail') b.push(`<button data-a="except" style="${btn(pri)}" ${n ? '' : 'disabled'}>⭐ Phá lệ ${n || ''} domain → Kho chờ</button>`);
     if (S.view === 'fail' && filtering()) b.push(`<button data-a="clearf" style="${btn()}">✕ Xoá mọi bộ lọc</button>`);
     if (S.view === 'fail' || S.view === 'err') b.push(`<button data-a="recheck" style="${btn()}" ${n ? '' : 'disabled'}>🔁 Kiểm lại</button>`);
@@ -330,7 +352,7 @@
     if (S.headKey !== key) { S.headKey = key; $('dhHead').innerHTML = headHtml(); }
     const all = $('dhAll');
     if (all) all.checked = !!allOn;
-    const cols = S.view === 'fail' ? 7 : 6;
+    const cols = S.view === 'fail' ? 7 : S.view === 'mine' ? 5 : 6;
     put($('dhBody'), list.slice(0, cap).map(rowHtml).join('') || `<tr><td colspan="${cols}" style="padding:24px;text-align:center;color:var(--t-fg-muted)">${filtering() ? 'Không có domain nào khớp bộ lọc' : 'Chưa có domain nào'}</td></tr>`);
   }
 
@@ -349,7 +371,7 @@
       ${col('d', 'Domain')}
       ${col('price', 'Giá')}
       ${col('sub', 'Sub', 'text-align:center')}
-      ${fail ? col('why', infoLabel) : `<th style="${th}">${infoLabel}</th>`}
+      ${fail ? col('why', infoLabel) : S.view === 'mine' ? '' : `<th style="${th}">${infoLabel}</th>`}
       ${col('chk', timeLabel)}
       ${fail ? col('left', 'Tự xoá sau') : ''}
     </tr>`;
@@ -377,6 +399,25 @@
       return;
     }
     if (a === 'csv') { csvOut(picked.length ? picked : list); return; }
+    if (a === 'openall') {
+      const withSubs = S.items.filter(it => (it.subs || []).length);
+      if (withSubs.every(it => S.open.has(it.d))) S.open.clear(); else withSubs.forEach(it => S.open.add(it.d));
+      draw();
+      return;
+    }
+    if (a === 'delsub') {
+      const pairs = [...S.ssel].map(k => { const j = k.indexOf('|'); return { d: k.slice(0, j), s: k.slice(j + 1) }; });
+      if (!pairs.length || S.busy) return;
+      if (!confirm(`Xoá ${pairs.length} subdomain khỏi Kho của tôi?`)) return;
+      S.busy = true;
+      try {
+        const d = await api('delsub', { pairs });
+        say(`Đã xoá ${d.n} subdomain`);
+        S.ssel.clear();
+        await load();
+      } catch (e) { fail(e); } finally { S.busy = false; }
+      return;
+    }
     if (a === 'clearf') { S.xf = {}; popClose(); S.sel.clear(); S.last = null; draw(); return; }
     if (!ds.length || S.busy) return;
     if (a === 'del' && !confirm(`Xoá ${ds.length} domain? Domain đã xoá sẽ không được thêm lại khi tải CSV.`)) return;
@@ -393,11 +434,15 @@
   function bind() {
     root.addEventListener('click', e => {
       const v = e.target.closest('[data-v]');
-      if (v) { if (S.view !== v.dataset.v) { popClose(); S.view = v.dataset.v; S.sel.clear(); S.last = null; S.items = []; draw(); load(); } return; }
+      if (v) { if (S.view !== v.dataset.v) { popClose(); S.view = v.dataset.v; S.sel.clear(); S.ssel.clear(); S.last = null; S.items = []; draw(); load(); } return; }
       const fn = e.target.closest('[data-fn]');
       if (fn) { if (P && P.c === fn.dataset.fn) popClose(); else popOpen(fn.dataset.fn, fn); return; }
       const a = e.target.closest('[data-a]');
       if (a && !a.disabled) { run(a.dataset.a); return; }
+      const tg = e.target.closest('[data-tg]');
+      if (tg && !tg.disabled) { const d = tg.dataset.tg; S.open.has(d) ? S.open.delete(d) : S.open.add(d); draw(); return; }
+      const sck = e.target.closest('.dh-sck');
+      if (sck) { sck.checked ? S.ssel.add(sck.dataset.k) : S.ssel.delete(sck.dataset.k); draw(); return; }
       const ck = e.target.closest('.dh-ck');
       if (ck) {
         const list = shown();
