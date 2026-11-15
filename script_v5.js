@@ -1369,6 +1369,7 @@ function showPage(name) {
   if (name === 'wstrack' && typeof renderWsTrack === 'function') renderWsTrack();
   if (name === 'seoaudit' && typeof saInit === 'function') saInit();
   if (name === 'kwbank' && typeof kbInit === 'function') kbInit();
+  if (name === 'domainhunt' && typeof dhInit === 'function') dhInit();
   if (name === 'billing' && typeof renderBilling === 'function') {
     renderBilling();
     wstSyncBillingAll(); // Tự động sync khi người dùng click vào tab hóa đơn
@@ -9975,6 +9976,11 @@ function restorePosition(){
 
   let savedPage = localStorage.getItem('wt_activePage');
   let savedSubPage = sessionStorage.getItem('wt_activeSubPage');
+  if (location.hash === '#domainhunt') {
+    savedPage = 'domainhunt';
+    savedSubPage = null;
+    history.replaceState(null, '', location.pathname + location.search);
+  }
 
   if (!savedSubPage) {
     // KỊCH BẢN TẮT MÁY / TẮT TAB VÀO LẠI (Phiên mới):

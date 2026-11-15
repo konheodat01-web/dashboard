@@ -370,6 +370,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.startsWith("/api/domain-hunt/")) return require("./lib/domain_hunt").handle(req, res, url, ntSpace(req), readBody);
+
   if (url.startsWith("/api/seo-audit")) {
     const SA = require("./lib/seo_audit");
     const q = new URL(req.url, `http://${req.headers.host}`).searchParams;
@@ -642,6 +644,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   hub.start();
+  require("./lib/domain_hunt").start();
   console.log(`✅  Dashboard server running on http://localhost:${PORT}`);
   console.log(`   Admin panel : http://localhost:${PORT}/admin`);
   console.log(`   Config API  : http://localhost:${PORT}/api/config`);
