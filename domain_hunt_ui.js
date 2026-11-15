@@ -10,8 +10,7 @@
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá sau 24 giờ nếu không phá lệ'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const F0 = { d: '', pmin: '', pmax: '', prem: '', smin: '', smax: '', why: '', age: '' };
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, f: { ...F0 }, fv: 0, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0 };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xf: {}, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0 };
   let root = null;
 
   async function api(p, body) {
@@ -84,51 +83,141 @@
   }
 
   const priceNum = it => { const m = String(it.price || '').replace(/,/g, '').match(/[\d.]+/); return m ? Number(m[0]) : null; };
-  const numOr = v => v === '' || v == null || isNaN(Number(v)) ? null : Number(v);
-  const filtering = () => S.view === 'fail' && Object.keys(F0).some(k => S.f[k] !== '');
+  const pad = n => String(n).padStart(2, '0');
+  const hourKey = t => { if (!t) return '(Trống)'; const d = new Date(t); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:00–${pad(d.getHours() + 1 > 23 ? 0 : d.getHours() + 1)}:00`; };
+  const leftMs = it => (S.opt.failTtl || 86400000) - (Date.now() + S.skew - (it.chk || 0));
+  const leftKey = it => { const h = Math.floor(leftMs(it) / 3600000); return h < 1 ? 'còn dưới 1 giờ' : `còn ${h} giờ`; };
+  const COLS = {
+    d: { label: 'Domain', kind: 'text', key: it => it.d, sort: it => it.d },
+    price: { label: 'Giá', kind: 'num', key: it => it.price ? it.price + (it.premium ? ' · premium' : '') : (it.premium ? '(Trống) · premium' : '(Trống)'), sort: priceNum },
+    sub: { label: 'Sub', kind: 'num', key: it => String((it.subs || []).length), sort: it => (it.subs || []).length },
+    why: { label: 'Lý do · subdomain có nội dung', kind: 'text', key: it => it.reason || '(Trống)', sort: it => it.reason || '' },
+    chk: { label: 'Kiểm lúc', kind: 'time', key: it => hourKey(it.chk), sort: it => it.chk || 0 },
+    left: { label: 'Tự xoá sau', kind: 'left', key: leftKey, sort: it => it.chk || 0 },
+  };
+  const filtering = () => S.view === 'fail' && Object.keys(S.xf).length > 0;
+  const passCol = (c, it) => { const f = S.xf[c]; if (!f) return true; const k = COLS[c].key(it); return f.mode === 'in' ? f.set.has(k) : !f.set.has(k); };
+  const cmp = (fn, dir) => (a, b) => {
+    const x = fn(a), y = fn(b);
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir;
+  };
+
+  function base() {
+    const q = S.q.trim().toLowerCase();
+    return q ? S.items.filter(it => it.d.includes(q)) : S.items;
+  }
 
   function shown() {
-    const q = S.q.trim().toLowerCase();
-    let list = q ? S.items.filter(it => it.d.includes(q)) : S.items;
+    let list = base();
     if (S.view !== 'fail') return list;
-    const f = S.f, now = Date.now() + S.skew, ttl = S.opt.failTtl || 86400000;
-    const pmin = numOr(f.pmin), pmax = numOr(f.pmax), smin = numOr(f.smin), smax = numOr(f.smax);
-    const dq = f.d.trim().toLowerCase(), wq = f.why.trim().toLowerCase();
-    list = list.filter(it => {
-      if (dq && !it.d.includes(dq)) return false;
-      const p = priceNum(it);
-      if ((pmin != null || pmax != null) && p == null) return false;
-      if (pmin != null && p < pmin) return false;
-      if (pmax != null && p > pmax) return false;
-      if (f.prem === 'y' && !it.premium) return false;
-      if (f.prem === 'n' && it.premium) return false;
-      const n = (it.subs || []).length;
-      if (smin != null && n < smin) return false;
-      if (smax != null && n > smax) return false;
-      if (wq && !((it.reason || '') + ' ' + (it.subs || []).map(x => x.s).join(' ')).toLowerCase().includes(wq)) return false;
-      const age = now - (it.chk || 0);
-      if (f.age === '1h' && age > 3600000) return false;
-      if (f.age === '6h' && age > 6 * 3600000) return false;
-      if (f.age === 'soon' && ttl - age > 3600000) return false;
-      return true;
+    const cols = Object.keys(S.xf);
+    if (cols.length) list = list.filter(it => cols.every(c => passCol(c, it)));
+    return list.slice().sort(cmp(COLS[S.sort.k].sort, S.sort.dir));
+  }
+
+  function valuesFor(c) {
+    const others = Object.keys(S.xf).filter(x => x !== c);
+    const m = new Map();
+    base().filter(it => others.every(o => passCol(o, it))).forEach(it => {
+      const k = COLS[c].key(it);
+      const v = m.get(k) || { k, n: 0, s: COLS[c].sort(it) };
+      v.n++;
+      m.set(k, v);
     });
-    const k = S.sort.k, dir = S.sort.dir;
-    const val = it => k === 'd' ? it.d : k === 'price' ? priceNum(it) : k === 'sub' ? (it.subs || []).length : (it.chk || 0);
-    return list.slice().sort((a, b) => {
-      const x = val(a), y = val(b);
-      if (x == null && y == null) return 0;
-      if (x == null) return 1;
-      if (y == null) return -1;
-      return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir;
-    });
+    return [...m.values()].sort(cmp(v => v.s, c === 'left' ? -1 : 1));
   }
 
   function left(it) {
-    const ms = (S.opt.failTtl || 86400000) - (Date.now() + S.skew - (it.chk || 0));
+    const ms = leftMs(it);
     if (ms <= 0) return '<span style="color:var(--t-danger)">sắp xoá</span>';
     const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000);
     return `<span style="color:${ms < 3600000 ? 'var(--t-danger)' : 'var(--t-fg-muted)'}">${h ? h + ' giờ ' : ''}${m} phút</span>`;
   }
+
+  const FUNNEL = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2h13l-5 6v5.5l-3-1.5V8z" fill="currentColor"/></svg>';
+  let P = null, pop = null;
+
+  function popClose() {
+    if (pop) pop.remove();
+    pop = null;
+    P = null;
+  }
+
+  function popList() {
+    const q = P.q.trim().toLowerCase();
+    const vis = P.vals.filter(v => !q || v.k.toLowerCase().includes(q));
+    P.vis = vis;
+    const allOn = vis.length && vis.every(v => P.chk.has(v.k));
+    const row = 'display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;border-radius:4px';
+    pop.querySelector('#dhPopList').innerHTML = (vis.length ? `<label style="${row};font-weight:600"><input type="checkbox" data-pall ${allOn ? 'checked' : ''}> (Chọn tất cả${q ? ' kết quả tìm' : ''})</label>` : '<div style="padding:8px;color:var(--t-fg-muted)">Không có giá trị nào</div>')
+      + vis.map((v, i) => `<label style="${row}"><input type="checkbox" data-pv="${i}" ${P.chk.has(v.k) ? 'checked' : ''}><span style="flex:1;word-break:break-all">${esc(v.k)}</span><span style="color:var(--t-fg-muted)">${v.n}</span></label>`).join('');
+  }
+
+  function popOpen(c, anchor) {
+    popClose();
+    const vals = valuesFor(c);
+    P = { c, vals, chk: new Set(vals.filter(v => { const f = S.xf[c]; return !f || (f.mode === 'in' ? f.set.has(v.k) : !f.set.has(v.k)); }).map(v => v.k)), q: '', vis: vals };
+    const kind = COLS[c].kind;
+    const [up, down] = kind === 'num' ? ['Nhỏ → lớn', 'Lớn → nhỏ'] : kind === 'time' ? ['Cũ → mới', 'Mới → cũ'] : kind === 'left' ? ['Sắp bị xoá trước', 'Còn lâu trước'] : ['A → Z', 'Z → A'];
+    const item = 'display:block;width:100%;text-align:left;background:none;border:0;color:var(--t-fg);padding:5px 6px;border-radius:4px;cursor:pointer;font:inherit';
+    pop = document.createElement('div');
+    pop.id = 'dhPop';
+    pop.style.cssText = 'position:fixed;z-index:10000;width:270px;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border2);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);padding:6px;font-size:12px;font-family:inherit';
+    pop.innerHTML = `<style>#dhPop [data-p]:hover:not(:disabled),#dhPop label:hover{background:var(--t-muted)}#dhPop [data-p]:disabled{opacity:.45;cursor:not-allowed}</style>
+      <button data-p="asc" style="${item}">↑ Sắp xếp ${up}</button>
+      <button data-p="desc" style="${item}">↓ Sắp xếp ${down}</button>
+      <div style="border-top:1px solid var(--t-border);margin:4px 0"></div>
+      <button data-p="clear" style="${item}" ${S.xf[c] ? '' : 'disabled'}>✕ Xoá lọc "${esc(COLS[c].label)}"</button>
+      <input id="dhPopQ" placeholder="Tìm…" style="width:100%;box-sizing:border-box;margin:4px 0;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;padding:5px 7px;font-size:12px">
+      <div id="dhPopList" style="max-height:240px;overflow:auto;border:1px solid var(--t-border);border-radius:5px;padding:2px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px">
+        <button data-p="ok" style="${btn(pri)}">OK</button>
+        <button data-p="cancel" style="${btn()}">Hủy</button>
+      </div>`;
+    document.body.appendChild(pop);
+    popList();
+    const r = anchor.getBoundingClientRect();
+    const w = 270, h = pop.offsetHeight;
+    pop.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+    pop.style.top = (r.bottom + 4 + h > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+    pop.addEventListener('click', popClick);
+    pop.addEventListener('change', e => {
+      if (e.target.hasAttribute('data-pall')) { P.vis.forEach(v => e.target.checked ? P.chk.add(v.k) : P.chk.delete(v.k)); popList(); }
+      else if (e.target.dataset.pv != null) { const v = P.vis[Number(e.target.dataset.pv)]; e.target.checked ? P.chk.add(v.k) : P.chk.delete(v.k); popList(); }
+    });
+    pop.addEventListener('input', e => { if (e.target.id === 'dhPopQ') { P.q = e.target.value; if (P.q.trim()) P.vals.forEach(v => P.chk.add(v.k)); popList(); } });
+    pop.addEventListener('keydown', e => { if (e.key === 'Enter') popApply(); });
+    pop.querySelector('#dhPopQ').focus();
+  }
+
+  function popApply() {
+    const c = P.c;
+    if (P.q.trim()) {
+      const keep = P.vis.filter(v => P.chk.has(v.k)).map(v => v.k);
+      S.xf[c] = { mode: 'in', set: new Set(keep) };
+    } else {
+      const off = P.vals.filter(v => !P.chk.has(v.k)).map(v => v.k);
+      if (off.length) S.xf[c] = { mode: 'ex', set: new Set(off) }; else delete S.xf[c];
+    }
+    popClose();
+    S.sel.clear(); S.last = null; draw();
+  }
+
+  function popClick(e) {
+    const b = e.target.closest('[data-p]');
+    if (!b || b.disabled) return;
+    const a = b.dataset.p, c = P.c;
+    if (a === 'asc' || a === 'desc') { S.sort = { k: c, dir: a === 'asc' ? 1 : -1 }; popClose(); S.last = null; draw(); }
+    else if (a === 'clear') { delete S.xf[c]; popClose(); S.sel.clear(); S.last = null; draw(); }
+    else if (a === 'ok') popApply();
+    else if (a === 'cancel') popClose();
+  }
+
+  document.addEventListener('mousedown', e => { if (pop && !pop.contains(e.target) && !e.target.closest('[data-fn]')) popClose(); }, true);
+  document.addEventListener('keydown', e => { if (pop && e.key === 'Escape') popClose(); });
 
   async function load() {
     const seq = ++S.seq;
@@ -189,7 +278,7 @@
     if (S.view === 'pass') b.push(`<button data-a="take" style="${btn(pri)}" ${n ? '' : 'disabled'}>✅ Nhận ${n || ''} domain → Kho của tôi</button>`);
     if (S.view === 'mine') b.push(`<button data-a="untake" style="${btn()}" ${n ? '' : 'disabled'}>↩ Trả về Kho chờ</button>`);
     if (S.view === 'fail') b.push(`<button data-a="except" style="${btn(pri)}" ${n ? '' : 'disabled'}>⭐ Phá lệ ${n || ''} domain → Kho chờ</button>`);
-    if (S.view === 'fail' && filtering()) b.push(`<button data-a="clearf" style="${btn()}">✕ Xoá lọc</button>`);
+    if (S.view === 'fail' && filtering()) b.push(`<button data-a="clearf" style="${btn()}">✕ Xoá mọi bộ lọc</button>`);
     if (S.view === 'fail' || S.view === 'err') b.push(`<button data-a="recheck" style="${btn()}" ${n ? '' : 'disabled'}>🔁 Kiểm lại</button>`);
     b.push(`<button data-a="copy" style="${btn()}">📋 Copy ${n ? n + ' đã chọn' : 'tất cả'}</button>`);
     b.push(`<button data-a="csv" style="${btn()}">⬇ CSV</button>`);
@@ -237,7 +326,7 @@
     put($('dhTabs'), VIEWS.map(([k, label, tip]) => `<button data-v="${k}" title="${esc(tip)}" style="${btn(S.view === k ? pri : '')}">${label} <b>${S.counts[k] || 0}</b></button>`).join(''));
     put($('dhBar'), actions() + `<span style="color:var(--t-fg-muted);font-size:12px">${S.sel.size ? `Đã chọn ${S.sel.size} · ` : ''}${list.length} domain${list.length > cap ? ` (hiện ${cap} dòng đầu)` : ''}</span>`);
     $('dhErr').textContent = S.err ? '⚠️ ' + S.err : '';
-    const key = S.view + '|' + S.sort.k + '|' + S.sort.dir + '|' + S.fv;
+    const key = S.view + '|' + S.sort.k + '|' + S.sort.dir + '|' + Object.keys(S.xf).sort().join(',');
     if (S.headKey !== key) { S.headKey = key; $('dhHead').innerHTML = headHtml(); }
     const all = $('dhAll');
     if (all) all.checked = !!allOn;
@@ -248,36 +337,22 @@
   function headHtml() {
     const th = 'padding:6px 8px;text-align:left;white-space:nowrap';
     const fail = S.view === 'fail';
-    const sortTh = (k, label, extra) => {
+    const col = (c, label, extra) => {
       if (!fail) return `<th style="${th};${extra || ''}">${label}</th>`;
-      const on = S.sort.k === k;
-      return `<th data-sort="${k}" title="Bấm để sắp xếp" style="${th};cursor:pointer;user-select:none;${extra || ''}">${label} <span style="color:${on ? 'var(--t-accent)' : 'var(--t-fg-subtle)'}">${on ? (S.sort.dir > 0 ? '▲' : '▼') : '↕'}</span></th>`;
+      const on = !!S.xf[c], so = S.sort.k === c;
+      return `<th style="${th};${extra || ''}">${label}${so ? ` <span style="color:var(--t-accent)">${S.sort.dir > 0 ? '▲' : '▼'}</span>` : ''} <button type="button" data-fn="${c}" title="${on ? 'Đang lọc · bấm để sửa' : 'Lọc / sắp xếp'}" style="border:1px solid ${on ? 'var(--t-accent)' : 'transparent'};background:${on ? 'color-mix(in srgb,var(--t-accent) 18%,transparent)' : 'none'};color:${on ? 'var(--t-accent)' : 'var(--t-fg-subtle)'};border-radius:4px;padding:1px 3px;cursor:pointer;vertical-align:middle;line-height:0">${FUNNEL}</button></th>`;
     };
-    const infoLabel = S.view === 'queue' ? 'Trạng thái' : S.view === 'err' ? 'Lỗi' : fail ? 'Lý do · subdomain có nội dung' : 'Subdomain có nội dung (số trang)';
+    const infoLabel = S.view === 'queue' ? 'Trạng thái' : S.view === 'err' ? 'Lỗi' : fail ? COLS.why.label : 'Subdomain có nội dung (số trang)';
     const timeLabel = S.view === 'mine' ? 'Nhận lúc' : S.view === 'queue' ? 'Thêm lúc' : 'Kiểm lúc';
-    let h = `<tr>
+    return `<tr>
       <th style="${th};width:28px"><input type="checkbox" id="dhAll"></th>
-      ${sortTh('d', 'Domain')}
-      ${sortTh('price', 'Giá')}
-      ${sortTh('sub', 'Sub', 'text-align:center')}
-      <th style="${th}">${infoLabel}</th>
-      ${sortTh('chk', timeLabel)}
-      ${fail ? `<th style="${th}">Tự xoá sau</th>` : ''}
+      ${col('d', 'Domain')}
+      ${col('price', 'Giá')}
+      ${col('sub', 'Sub', 'text-align:center')}
+      ${fail ? col('why', infoLabel) : `<th style="${th}">${infoLabel}</th>`}
+      ${col('chk', timeLabel)}
+      ${fail ? col('left', 'Tự xoá sau') : ''}
     </tr>`;
-    if (fail) {
-      const fi = (k, ph, w, type) => `<input data-f="${k}" ${type ? `type="${type}"` : ''} placeholder="${ph}" value="${esc(S.f[k])}" style="background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;padding:3px 5px;font-size:11px;width:${w};box-sizing:border-box">`;
-      const fs = (k, opts) => `<select data-f="${k}" style="background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;padding:3px 4px;font-size:11px">${opts.map(([v, l]) => `<option value="${v}" ${S.f[k] === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
-      const td = 'padding:4px 8px;font-weight:400';
-      h += `<tr style="background:var(--t-subtle)">
-        <th style="${td}"></th>
-        <th style="${td}">${fi('d', 'lọc domain…', '130px')}</th>
-        <th style="${td};white-space:nowrap">${fi('pmin', 'từ $', '56px', 'number')} ${fi('pmax', 'đến $', '56px', 'number')} ${fs('prem', [['', 'mọi loại'], ['y', 'premium'], ['n', 'thường']])}</th>
-        <th style="${td};white-space:nowrap">${fi('smin', 'từ', '42px', 'number')} ${fi('smax', 'đến', '42px', 'number')}</th>
-        <th style="${td}">${fi('why', 'lọc lý do / tên subdomain…', '180px')}</th>
-        <th style="${td}" colspan="2">${fs('age', [['', 'mọi lúc'], ['1h', 'kiểm trong 1 giờ qua'], ['6h', 'kiểm trong 6 giờ qua'], ['soon', 'còn < 1 giờ là bị xoá']])}</th>
-      </tr>`;
-    }
-    return h;
   }
 
   function csvOut(list) {
@@ -302,7 +377,7 @@
       return;
     }
     if (a === 'csv') { csvOut(picked.length ? picked : list); return; }
-    if (a === 'clearf') { S.f = { ...F0 }; S.fv++; S.sel.clear(); S.last = null; draw(); return; }
+    if (a === 'clearf') { S.xf = {}; popClose(); S.sel.clear(); S.last = null; draw(); return; }
     if (!ds.length || S.busy) return;
     if (a === 'del' && !confirm(`Xoá ${ds.length} domain? Domain đã xoá sẽ không được thêm lại khi tải CSV.`)) return;
     S.busy = true;
@@ -318,9 +393,9 @@
   function bind() {
     root.addEventListener('click', e => {
       const v = e.target.closest('[data-v]');
-      if (v) { if (S.view !== v.dataset.v) { S.view = v.dataset.v; S.sel.clear(); S.last = null; S.items = []; draw(); load(); } return; }
-      const so = e.target.closest('[data-sort]');
-      if (so) { const k = so.dataset.sort; S.sort = S.sort.k === k ? { k, dir: -S.sort.dir } : { k, dir: k === 'd' ? 1 : -1 }; S.last = null; draw(); return; }
+      if (v) { if (S.view !== v.dataset.v) { popClose(); S.view = v.dataset.v; S.sel.clear(); S.last = null; S.items = []; draw(); load(); } return; }
+      const fn = e.target.closest('[data-fn]');
+      if (fn) { if (P && P.c === fn.dataset.fn) popClose(); else popOpen(fn.dataset.fn, fn); return; }
       const a = e.target.closest('[data-a]');
       if (a && !a.disabled) { run(a.dataset.a); return; }
       const ck = e.target.closest('.dh-ck');
@@ -344,12 +419,11 @@
     });
     root.addEventListener('input', e => {
       if (e.target.id === 'dhQ') { S.q = e.target.value; S.last = null; draw(); }
-      if (e.target.dataset && e.target.dataset.f && e.target.tagName === 'INPUT') { S.f[e.target.dataset.f] = e.target.value; S.sel.clear(); S.last = null; draw(); }
     });
     root.addEventListener('change', e => {
       if (e.target.id === 'dhFile' && e.target.files.length) { importFiles([...e.target.files]); e.target.value = ''; }
-      if (e.target.dataset && e.target.dataset.f && e.target.tagName === 'SELECT') { S.f[e.target.dataset.f] = e.target.value; S.sel.clear(); S.last = null; draw(); }
     });
+    root.addEventListener('scroll', () => popClose(), true);
     root.addEventListener('dragover', e => { if (e.target.closest('#dhDrop')) { e.preventDefault(); e.target.closest('#dhDrop').style.borderColor = 'var(--t-accent)'; } });
     root.addEventListener('dragleave', e => { const z = e.target.closest('#dhDrop'); if (z) z.style.borderColor = ''; });
     root.addEventListener('drop', e => {
