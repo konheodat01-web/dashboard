@@ -10,7 +10,7 @@
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá sau 24 giờ nếu không phá lệ'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xf: {}, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0, open: new Set(), ssel: new Set() };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xf: {}, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] } };
   let root = null;
 
   async function api(p, body) {
@@ -228,6 +228,7 @@
       S.counts = d.counts || {};
       S.worker = d.worker || {};
       S.opt = d.opt || {};
+      S.labels = d.labels || { grp: [], stt: [] };
       S.err = '';
       S.skew = d.now ? d.now - Date.now() : 0;
       const have = new Set(S.items.map(x => x.d));
@@ -268,26 +269,112 @@
     const opened = mine && S.open.has(it.d);
     const nsub = (it.subs || []).length;
     const tg = mine ? `<button type="button" data-tg="${esc(it.d)}" title="${opened ? 'Thu gọn' : 'Xem subdomain'}" ${nsub ? '' : 'disabled'} style="background:none;border:0;color:var(--t-fg-muted);cursor:pointer;padding:0 4px 0 0;font-size:11px;width:16px">${opened ? '▼' : '▶'}</button>` : '';
-    const kids = opened ? (it.subs || []).map(x => {
+    const rootRow = opened ? `<tr style="background:var(--t-subtle)">
+      <td></td>
+      <td style="padding:4px 8px 4px 30px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:13px;text-align:center;color:var(--t-fg-muted)">●</span><a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none;font-weight:600">${esc(it.d)}</a></span></td>
+      <td></td>
+      <td style="padding:4px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">domain gốc</td>
+      <td></td><td></td><td></td>
+    </tr>` : '';
+    const kids = rootRow + (opened ? (it.subs || []).map(x => {
       const k = it.d + '|' + x.s, son = S.ssel.has(k);
       return `<tr style="background:${son ? 'color-mix(in srgb,var(--t-danger) 10%,transparent)' : 'var(--t-subtle)'}">
       <td></td>
       <td style="padding:4px 8px 4px 30px;white-space:nowrap"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="dh-sck" data-k="${esc(k)}" ${son ? 'checked' : ''}><a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none">${esc(x.s)}<span style="color:var(--t-fg-muted)">.${esc(it.d)}</span></a></label></td>
       <td></td>
       <td style="padding:4px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">${x.n} trang</td>
-      <td></td>
+      <td></td><td></td><td></td>
     </tr>`;
-    }).join('') : '';
+    }).join('') : '');
     return `<tr data-i="${i}" style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 10%,transparent)' : ''}">
       <td style="padding:6px 8px;width:28px"><input type="checkbox" class="dh-ck" data-i="${i}" ${on ? 'checked' : ''}></td>
       <td style="padding:6px 8px;font-weight:600;white-space:nowrap">${tg}<a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a>${it.ex ? ' <span title="Phá lệ: không đạt nhưng bạn giữ lại" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-warn) 20%,transparent);color:var(--t-warn);font-size:11px;font-weight:400">phá lệ</span>' : ''}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(it.price || '')}${it.premium ? ' <span style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-done) 18%,transparent);color:var(--t-done);font-size:11px">premium</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:center">${S.view === 'queue' ? '' : (it.subs || []).length}</td>
-      ${mine ? '' : `<td style="padding:6px 8px">${info}</td>`}
+      ${mine ? `<td style="padding:4px 8px">${tagSel('grp', it)}</td><td style="padding:4px 8px">${tagSel('stt', it)}</td>` : `<td style="padding:6px 8px">${info}</td>`}
       <td style="padding:6px 8px;white-space:nowrap;color:var(--t-fg-muted);font-size:11px">${when(t)}</td>${S.view === 'fail' ? `
       <td style="padding:6px 8px;white-space:nowrap;font-size:11px">${left(it)}</td>` : ''}
     </tr>${kids}`;
   }
+
+  const LBL = { grp: ['nhóm', 'Nhóm'], stt: ['trạng thái', 'Trạng thái'] };
+  const hue = v => { let h = 0; for (const c of String(v)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+  const selCss = v => `max-width:150px;font-size:12px;font-family:inherit;border-radius:10px;padding:2px 6px;cursor:pointer;border:1px solid ${v ? `hsl(${hue(v)} 55% 50% / .7)` : 'var(--t-border)'};background:${v ? `hsl(${hue(v)} 55% 50% / .16)` : 'var(--t-canvas)'};color:${v ? 'var(--t-fg)' : 'var(--t-fg-muted)'}`;
+  function tagOpts(f, cur, head) {
+    const list = S.labels[f] || [];
+    return `<option value="" ${cur ? '' : 'selected'}>${head}</option>` + list.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join('') + `<option value="__new">＋ Tạo ${LBL[f][0]} mới…</option>`;
+  }
+  function tagSel(f, it) {
+    const cur = it[f] || '';
+    return `<select class="dh-tag" data-f="${f}" data-d="${esc(it.d)}" style="${selCss(cur)}">${tagOpts(f, cur, '—')}</select>`;
+  }
+
+  async function newLabel(f) {
+    const name = (prompt(`Tên ${LBL[f][0]} mới:`) || '').trim();
+    if (!name) return '';
+    const d = await api('labels', { field: f, op: 'add', name });
+    S.labels[f] = d.list;
+    return name;
+  }
+
+  async function setTag(f, ds, v) {
+    if (!ds.length) return;
+    S.busy = true;
+    try {
+      if (v === '__new') { v = await newLabel(f); if (!v) { draw(); return; } }
+      const d = await api('tag', { field: f, ds, v });
+      if (ds.length > 1) say(v ? `Đã gán ${LBL[f][0]} "${v}" cho ${d.n} domain` : `Đã bỏ ${LBL[f][0]} của ${d.n} domain`);
+      await load();
+    } catch (e) { fail(e); draw(); } finally { S.busy = false; }
+  }
+
+  let lab = null;
+  function labClose() { if (lab) lab.remove(); lab = null; }
+  function labDraw() {
+    const count = (f, v) => S.items.filter(it => it[f] === v).length;
+    const box = f => `<div style="flex:1;min-width:200px">
+      <div style="font-weight:600;margin-bottom:6px">${LBL[f][1]}</div>
+      ${(S.labels[f] || []).map(v => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">
+        <span style="${selCss(v)};cursor:default;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v)}</span>
+        <span style="color:var(--t-fg-muted);min-width:18px;text-align:right">${count(f, v)}</span>
+        <button data-lr="${f}" data-v="${esc(v)}" title="Đổi tên" style="${btn('padding:2px 6px')}">✎</button>
+        <button data-ld="${f}" data-v="${esc(v)}" title="Xoá" style="${btn('padding:2px 6px;color:var(--t-danger)')}">✕</button>
+      </div>`).join('') || '<div style="color:var(--t-fg-muted);padding:3px 0">Chưa có</div>'}
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <input data-li="${f}" placeholder="Tên ${LBL[f][0]} mới" style="flex:1;min-width:0;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;padding:4px 7px;font-size:12px">
+        <button data-la="${f}" style="${btn(pri + ';padding:4px 10px')}">Thêm</button>
+      </div>
+    </div>`;
+    lab.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>⚙ Nhóm & trạng thái</b><button data-lx style="${btn('padding:2px 8px')}">✕</button></div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">${box('grp')}${box('stt')}</div>`;
+  }
+  async function labAct(body) {
+    try { const d = await api('labels', body); S.labels[body.field] = d.list; await load(); if (lab) labDraw(); } catch (e) { fail(e); }
+  }
+  function labOpen(anchor) {
+    labClose();
+    lab = document.createElement('div');
+    lab.id = 'dhLab';
+    lab.style.cssText = 'position:fixed;z-index:10000;width:520px;max-width:calc(100vw - 16px);max-height:70vh;overflow:auto;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border2);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);padding:10px;font-size:12px;font-family:inherit;box-sizing:border-box';
+    document.body.appendChild(lab);
+    labDraw();
+    const r = anchor.getBoundingClientRect();
+    lab.style.left = Math.max(8, Math.min(r.left, innerWidth - lab.offsetWidth - 8)) + 'px';
+    lab.style.top = Math.min(r.bottom + 4, innerHeight - lab.offsetHeight - 8) + 'px';
+    lab.addEventListener('click', e => {
+      const t = e.target;
+      if (t.closest('[data-lx]')) return labClose();
+      const add = t.closest('[data-la]');
+      if (add) { const f = add.dataset.la, inp = lab.querySelector(`[data-li="${f}"]`), name = inp.value.trim(); if (name) labAct({ field: f, op: 'add', name }); return; }
+      const ren = t.closest('[data-lr]');
+      if (ren) { const f = ren.dataset.lr, v = ren.dataset.v, to = (prompt(`Đổi tên ${LBL[f][0]} "${v}" thành:`, v) || '').trim(); if (to && to !== v) labAct({ field: f, op: 'ren', name: v, to }); return; }
+      const del = t.closest('[data-ld]');
+      if (del) { const f = del.dataset.ld, v = del.dataset.v; if (confirm(`Xoá ${LBL[f][0]} "${v}"? Các domain đang mang ${LBL[f][0]} này sẽ về trống.`)) labAct({ field: f, op: 'del', name: v }); }
+    });
+    lab.addEventListener('keydown', e => { const i = e.target.closest('[data-li]'); if (i && e.key === 'Enter' && i.value.trim()) labAct({ field: i.dataset.li, op: 'add', name: i.value.trim() }); });
+  }
+  document.addEventListener('mousedown', e => { if (lab && !lab.contains(e.target) && !e.target.closest('[data-a="labels"]')) labClose(); }, true);
+  document.addEventListener('keydown', e => { if (lab && e.key === 'Escape') labClose(); });
 
   function actions() {
     const n = S.sel.size;
@@ -296,6 +383,9 @@
     if (S.view === 'mine') {
       const allOpen = S.items.some(it => (it.subs || []).length) && S.items.every(it => !(it.subs || []).length || S.open.has(it.d));
       b.push(`<button data-a="untake" style="${btn()}" ${n ? '' : 'disabled'}>↩ Trả về Kho chờ</button>`);
+      b.push(`<select class="dh-bulk" data-f="grp" ${n ? '' : 'disabled'} style="${btn('padding:5px 8px')}">${tagOpts('grp', '', `🏷 Gán nhóm${n ? ' cho ' + n : ''}…`)}<option value="__none">— Bỏ nhóm</option></select>`);
+      b.push(`<select class="dh-bulk" data-f="stt" ${n ? '' : 'disabled'} style="${btn('padding:5px 8px')}">${tagOpts('stt', '', `📌 Gán trạng thái${n ? ' cho ' + n : ''}…`)}<option value="__none">— Bỏ trạng thái</option></select>`);
+      b.push(`<button data-a="labels" style="${btn()}">⚙ Nhóm & trạng thái</button>`);
       b.push(`<button data-a="openall" style="${btn()}">${allOpen ? '▲ Thu gọn hết' : '▼ Mở hết subdomain'}</button>`);
       b.push(`<button data-a="delsub" style="${btn('color:var(--t-danger)')}" ${S.ssel.size ? '' : 'disabled'}>✂ Xoá ${S.ssel.size || ''} subdomain đã chọn</button>`);
     }
@@ -352,7 +442,7 @@
     if (S.headKey !== key) { S.headKey = key; $('dhHead').innerHTML = headHtml(); }
     const all = $('dhAll');
     if (all) all.checked = !!allOn;
-    const cols = S.view === 'fail' ? 7 : S.view === 'mine' ? 5 : 6;
+    const cols = S.view === 'fail' || S.view === 'mine' ? 7 : 6;
     put($('dhBody'), list.slice(0, cap).map(rowHtml).join('') || `<tr><td colspan="${cols}" style="padding:24px;text-align:center;color:var(--t-fg-muted)">${filtering() ? 'Không có domain nào khớp bộ lọc' : 'Chưa có domain nào'}</td></tr>`);
   }
 
@@ -371,7 +461,7 @@
       ${col('d', 'Domain')}
       ${col('price', 'Giá')}
       ${col('sub', 'Sub', 'text-align:center')}
-      ${fail ? col('why', infoLabel) : S.view === 'mine' ? '' : `<th style="${th}">${infoLabel}</th>`}
+      ${fail ? col('why', infoLabel) : S.view === 'mine' ? `<th style="${th}">Nhóm</th><th style="${th}">Trạng thái</th>` : `<th style="${th}">${infoLabel}</th>`}
       ${col('chk', timeLabel)}
       ${fail ? col('left', 'Tự xoá sau') : ''}
     </tr>`;
@@ -379,8 +469,8 @@
 
   function csvOut(list) {
     const cell = v => { const s = String(v == null ? '' : v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-    const head = ['domain', 'gia', 'premium', 'so_sub', 'subdomain', 'ly_do', 'kiem_luc', 'nhan_luc'];
-    const body = list.map(it => [it.d, it.price, it.premium ? 'premium' : '', (it.subs || []).length, (it.subs || []).map(x => `${x.s}.${it.d} (${x.n})`).join(' | '), it.reason || '', when(it.chk), when(it.take)]);
+    const head = ['domain', 'gia', 'premium', 'so_sub', 'subdomain', 'ly_do', 'kiem_luc', 'nhan_luc', 'nhom', 'trang_thai'];
+    const body = list.map(it => [it.d, it.price, it.premium ? 'premium' : '', (it.subs || []).length, (it.subs || []).map(x => `${x.s}.${it.d} (${x.n})`).join(' | '), it.reason || '', when(it.chk), when(it.take), it.grp || '', it.stt || '']);
     const blob = new Blob(['﻿' + [head, ...body].map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -399,6 +489,7 @@
       return;
     }
     if (a === 'csv') { csvOut(picked.length ? picked : list); return; }
+    if (a === 'labels') { if (lab) labClose(); else labOpen(root.querySelector('[data-a="labels"]')); return; }
     if (a === 'openall') {
       const withSubs = S.items.filter(it => (it.subs || []).length);
       if (withSubs.every(it => S.open.has(it.d))) S.open.clear(); else withSubs.forEach(it => S.open.add(it.d));
@@ -434,7 +525,7 @@
   function bind() {
     root.addEventListener('click', e => {
       const v = e.target.closest('[data-v]');
-      if (v) { if (S.view !== v.dataset.v) { popClose(); S.view = v.dataset.v; S.sel.clear(); S.ssel.clear(); S.last = null; S.items = []; draw(); load(); } return; }
+      if (v) { if (S.view !== v.dataset.v) { popClose(); S.view = v.dataset.v; S.sel.clear(); S.ssel.clear(); labClose(); S.last = null; S.items = []; draw(); load(); } return; }
       const fn = e.target.closest('[data-fn]');
       if (fn) { if (P && P.c === fn.dataset.fn) popClose(); else popOpen(fn.dataset.fn, fn); return; }
       const a = e.target.closest('[data-a]');
@@ -466,6 +557,14 @@
       if (e.target.id === 'dhQ') { S.q = e.target.value; S.last = null; draw(); }
     });
     root.addEventListener('change', e => {
+      if (e.target.classList.contains('dh-tag')) { setTag(e.target.dataset.f, [e.target.dataset.d], e.target.value); return; }
+      if (e.target.classList.contains('dh-bulk')) {
+        const v = e.target.value;
+        if (!v) return;
+        const ds = shown().filter(it => S.sel.has(it.d)).map(it => it.d);
+        setTag(e.target.dataset.f, ds, v === '__none' ? '' : v);
+        return;
+      }
       if (e.target.id === 'dhFile' && e.target.files.length) { importFiles([...e.target.files]); e.target.value = ''; }
     });
     root.addEventListener('scroll', () => popClose(), true);
