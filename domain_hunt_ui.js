@@ -10,7 +10,22 @@
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá sau 24 giờ nếu không phá lệ'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xf: {}, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] } };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xf: {}, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, mode: 'tree', lastH: null };
+  try { const m = localStorage.getItem('dhMode'); if (['tree', 'sub', 'all'].includes(m)) S.mode = m; } catch (e) {}
+  const MODES = [['tree', '🌳 Theo domain'], ['sub', '🔗 Chỉ subdomain'], ['all', '📋 Tất cả (gốc + sub)']];
+  const flatMode = () => S.view === 'mine' && S.mode !== 'tree';
+  function hosts() {
+    const q = S.q.trim().toLowerCase();
+    const out = [];
+    S.items.forEach(it => {
+      if (S.mode === 'all') out.push({ k: it.d + '|', h: it.d, it, x: null });
+      (it.subs || []).forEach(x => out.push({ k: it.d + '|' + x.s, h: x.s + '.' + it.d, it, x }));
+    });
+    return q ? out.filter(o => o.h.includes(q)) : out;
+  }
+  const hostOf = k => { const j = k.indexOf('|'); const s = k.slice(j + 1); return (s ? s + '.' : '') + k.slice(0, j); };
+  const subPicked = () => [...S.ssel].filter(k => !k.endsWith('|'));
+  const rootsPicked = () => [...new Set([...S.ssel].map(k => k.slice(0, k.indexOf('|'))))];
   let root = null;
 
   async function api(p, body) {
@@ -234,7 +249,7 @@
       const have = new Set(S.items.map(x => x.d));
       [...S.sel].forEach(x => { if (!have.has(x)) S.sel.delete(x); });
       const subKeys = new Set();
-      S.items.forEach(it => (it.subs || []).forEach(x => subKeys.add(it.d + '|' + x.s)));
+      S.items.forEach(it => { subKeys.add(it.d + '|'); (it.subs || []).forEach(x => subKeys.add(it.d + '|' + x.s)); });
       [...S.ssel].forEach(k => { if (!subKeys.has(k)) S.ssel.delete(k); });
       draw();
     } catch (e) { if (seq === S.seq) { S.err = e.message; draw(); } }
@@ -256,6 +271,18 @@
     return parts.join(' · ');
   }
 
+  function hostRow(o, i) {
+    const on = S.ssel.has(o.k), it = o.it;
+    return `<tr style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 12%,transparent)' : ''}">
+      <td style="padding:5px 8px;width:28px"><input type="checkbox" class="dh-sck" data-k="${esc(o.k)}" data-hi="${i}" ${on ? 'checked' : ''}></td>
+      <td style="padding:5px 8px;white-space:nowrap"><a href="${esc(wb(o.x ? o.x.s : '', it.d))}" target="_blank" rel="noopener" style="text-decoration:none;${o.x ? 'color:var(--t-accent)' : 'color:var(--t-fg);font-weight:600'}">${o.x ? esc(o.x.s) + `<span style="color:var(--t-fg-muted)">.${esc(it.d)}</span>` : esc(it.d)}</a></td>
+      <td style="padding:5px 8px;white-space:nowrap">${esc(it.price || '')}</td>
+      <td style="padding:5px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">${o.x ? o.x.n + ' trang' : 'domain gốc'}</td>
+      <td style="padding:4px 8px">${tagSel('grp', it)}</td><td style="padding:4px 8px">${tagSel('stt', it)}</td>
+      <td style="padding:5px 8px;white-space:nowrap;color:var(--t-fg-muted);font-size:11px">${when(it.take)}</td>
+    </tr>`;
+  }
+
   function rowHtml(it, i) {
     const on = S.sel.has(it.d);
     const subs = (it.subs || []).map(x => `<a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none">${esc(x.s)}</a><span style="color:var(--t-fg-muted)"> ${x.n}</span>`).join(' · ');
@@ -269,16 +296,17 @@
     const opened = mine && S.open.has(it.d);
     const nsub = (it.subs || []).length;
     const tg = mine ? `<button type="button" data-tg="${esc(it.d)}" title="${opened ? 'Thu gọn' : 'Xem subdomain'}" ${nsub ? '' : 'disabled'} style="background:none;border:0;color:var(--t-fg-muted);cursor:pointer;padding:0 4px 0 0;font-size:11px;width:16px">${opened ? '▼' : '▶'}</button>` : '';
-    const rootRow = opened ? `<tr style="background:var(--t-subtle)">
+    const rk = it.d + '|', ron = S.ssel.has(rk);
+    const rootRow = opened ? `<tr style="background:${ron ? 'color-mix(in srgb,var(--t-accent) 12%,transparent)' : 'var(--t-subtle)'}">
       <td></td>
-      <td style="padding:4px 8px 4px 30px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:13px;text-align:center;color:var(--t-fg-muted)">●</span><a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none;font-weight:600">${esc(it.d)}</a></span></td>
+      <td style="padding:4px 8px 4px 30px;white-space:nowrap"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="dh-sck" data-k="${esc(rk)}" ${ron ? 'checked' : ''}><a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none;font-weight:600">${esc(it.d)}</a></label></td>
       <td></td>
       <td style="padding:4px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">domain gốc</td>
       <td></td><td></td><td></td>
     </tr>` : '';
     const kids = rootRow + (opened ? (it.subs || []).map(x => {
       const k = it.d + '|' + x.s, son = S.ssel.has(k);
-      return `<tr style="background:${son ? 'color-mix(in srgb,var(--t-danger) 10%,transparent)' : 'var(--t-subtle)'}">
+      return `<tr style="background:${son ? 'color-mix(in srgb,var(--t-accent) 12%,transparent)' : 'var(--t-subtle)'}">
       <td></td>
       <td style="padding:4px 8px 4px 30px;white-space:nowrap"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="dh-sck" data-k="${esc(k)}" ${son ? 'checked' : ''}><a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none">${esc(x.s)}<span style="color:var(--t-fg-muted)">.${esc(it.d)}</span></a></label></td>
       <td></td>
@@ -381,18 +409,30 @@
     const b = [];
     if (S.view === 'pass') b.push(`<button data-a="take" style="${btn(pri)}" ${n ? '' : 'disabled'}>✅ Nhận ${n || ''} domain → Kho của tôi</button>`);
     if (S.view === 'mine') {
-      const allOpen = S.items.some(it => (it.subs || []).length) && S.items.every(it => !(it.subs || []).length || S.open.has(it.d));
-      b.push(`<button data-a="untake" style="${btn()}" ${n ? '' : 'disabled'}>↩ Trả về Kho chờ</button>`);
-      b.push(`<select class="dh-bulk" data-f="grp" ${n ? '' : 'disabled'} style="${btn('padding:5px 8px')}">${tagOpts('grp', '', `🏷 Gán nhóm${n ? ' cho ' + n : ''}…`)}<option value="__none">— Bỏ nhóm</option></select>`);
-      b.push(`<select class="dh-bulk" data-f="stt" ${n ? '' : 'disabled'} style="${btn('padding:5px 8px')}">${tagOpts('stt', '', `📌 Gán trạng thái${n ? ' cho ' + n : ''}…`)}<option value="__none">— Bỏ trạng thái</option></select>`);
+      const flat = flatMode();
+      const tn = flat ? rootsPicked().length : n;
+      const ns = subPicked().length;
+      b.push(`<span style="display:inline-flex;border:1px solid var(--t-border);border-radius:7px;overflow:hidden">${MODES.map(([k, l]) => `<button data-mode="${k}" style="${btn('border:0;border-radius:0;' + (S.mode === k ? pri : ''))}">${l}</button>`).join('')}</span>`);
+      if (!flat) b.push(`<button data-a="untake" style="${btn()}" ${n ? '' : 'disabled'}>↩ Trả về Kho chờ</button>`);
+      b.push(`<select class="dh-bulk" data-f="grp" ${tn ? '' : 'disabled'} style="${btn('padding:5px 8px')}">${tagOpts('grp', '', `🏷 Gán nhóm${tn ? ' cho ' + tn + ' domain' : ''}…`)}<option value="__none">— Bỏ nhóm</option></select>`);
+      b.push(`<select class="dh-bulk" data-f="stt" ${tn ? '' : 'disabled'} style="${btn('padding:5px 8px')}">${tagOpts('stt', '', `📌 Gán trạng thái${tn ? ' cho ' + tn + ' domain' : ''}…`)}<option value="__none">— Bỏ trạng thái</option></select>`);
       b.push(`<button data-a="labels" style="${btn()}">⚙ Nhóm & trạng thái</button>`);
-      b.push(`<button data-a="openall" style="${btn()}">${allOpen ? '▲ Thu gọn hết' : '▼ Mở hết subdomain'}</button>`);
-      b.push(`<button data-a="delsub" style="${btn('color:var(--t-danger)')}" ${S.ssel.size ? '' : 'disabled'}>✂ Xoá ${S.ssel.size || ''} subdomain đã chọn</button>`);
+      if (!flat) {
+        const allOpen = S.items.some(it => (it.subs || []).length) && S.items.every(it => !(it.subs || []).length || S.open.has(it.d));
+        b.push(`<button data-a="openall" style="${btn()}">${allOpen ? '▲ Thu gọn hết' : '▼ Mở hết subdomain'}</button>`);
+      }
+      b.push(`<button data-a="delsub" style="${btn('color:var(--t-danger)')}" ${ns ? '' : 'disabled'}>✂ Xoá ${ns || ''} subdomain đã chọn</button>`);
+      if (flat) {
+        b.push(`<button data-a="copy" style="${btn()}">📋 Copy ${S.ssel.size ? S.ssel.size + ' đã chọn' : 'tất cả'}</button>`);
+        b.push(`<button data-a="csv" style="${btn()}">⬇ CSV</button>`);
+        return b.join('');
+      }
     }
     if (S.view === 'fail') b.push(`<button data-a="except" style="${btn(pri)}" ${n ? '' : 'disabled'}>⭐ Phá lệ ${n || ''} domain → Kho chờ</button>`);
     if (S.view === 'fail' && filtering()) b.push(`<button data-a="clearf" style="${btn()}">✕ Xoá mọi bộ lọc</button>`);
     if (S.view === 'fail' || S.view === 'err') b.push(`<button data-a="recheck" style="${btn()}" ${n ? '' : 'disabled'}>🔁 Kiểm lại</button>`);
-    b.push(`<button data-a="copy" style="${btn()}">📋 Copy ${n ? n + ' đã chọn' : 'tất cả'}</button>`);
+    const cn = S.view === 'mine' && S.ssel.size ? S.ssel.size : n;
+    b.push(`<button data-a="copy" style="${btn()}">📋 Copy ${cn ? cn + ' đã chọn' : 'tất cả'}</button>`);
     b.push(`<button data-a="csv" style="${btn()}">⬇ CSV</button>`);
     b.push(`<button data-a="del" style="${btn('color:var(--t-danger)')}" ${n ? '' : 'disabled'}>🗑 Xoá</button>`);
     return b.join('');
@@ -432,18 +472,23 @@
     const $ = id => root.querySelector('#' + id);
     const list = shown();
     const cap = 2000;
-    const allOn = list.length && list.every(it => S.sel.has(it.d));
+    const flat = flatMode();
+    const hl = flat ? hosts() : [];
+    const allOn = flat ? hl.length && hl.every(o => S.ssel.has(o.k)) : list.length && list.every(it => S.sel.has(it.d));
     $('dhHint').textContent = `Tải CSV xuất từ Namecheap (Beast Mode → Export). VPS tự kiểm subdomain trên Wayback 24/7: có ${S.opt.max ? (S.opt.min || 3) + '–' + S.opt.max : 'từ ' + (S.opt.min || 3)} subdomain thật (đã bỏ cổng đăng nhập/ứng dụng nội bộ), mỗi subdomain từ ${S.opt.pages || 2} trang trở lên thì vào Kho chờ.`;
     put($('dhWork'), workerLine());
     put($('dhTabs'), VIEWS.map(([k, label, tip]) => `<button data-v="${k}" title="${esc(tip)}" style="${btn(S.view === k ? pri : '')}">${label} <b>${S.counts[k] || 0}</b></button>`).join(''));
-    put($('dhBar'), actions() + `<span style="color:var(--t-fg-muted);font-size:12px">${S.sel.size ? `Đã chọn ${S.sel.size} · ` : ''}${list.length} domain${list.length > cap ? ` (hiện ${cap} dòng đầu)` : ''}</span>`);
+    const picked = S.view === 'mine' ? S.sel.size + S.ssel.size : S.sel.size;
+    const total = flat ? `${hl.length} host` : `${list.length} domain`;
+    const tl = flat ? hl.length : list.length;
+    put($('dhBar'), actions() + `<span style="color:var(--t-fg-muted);font-size:12px">${picked ? `Đã chọn ${picked} · ` : ''}${total}${tl > cap ? ` (hiện ${cap} dòng đầu)` : ''}</span>`);
     $('dhErr').textContent = S.err ? '⚠️ ' + S.err : '';
-    const key = S.view + '|' + S.sort.k + '|' + S.sort.dir + '|' + Object.keys(S.xf).sort().join(',');
+    const key = S.view + '|' + (S.view === 'mine' ? S.mode : '') + '|' + S.sort.k + '|' + S.sort.dir + '|' + Object.keys(S.xf).sort().join(',');
     if (S.headKey !== key) { S.headKey = key; $('dhHead').innerHTML = headHtml(); }
     const all = $('dhAll');
     if (all) all.checked = !!allOn;
     const cols = S.view === 'fail' || S.view === 'mine' ? 7 : 6;
-    put($('dhBody'), list.slice(0, cap).map(rowHtml).join('') || `<tr><td colspan="${cols}" style="padding:24px;text-align:center;color:var(--t-fg-muted)">${filtering() ? 'Không có domain nào khớp bộ lọc' : 'Chưa có domain nào'}</td></tr>`);
+    put($('dhBody'), (flat ? hl.slice(0, cap).map(hostRow) : list.slice(0, cap).map(rowHtml)).join('') || `<tr><td colspan="${cols}" style="padding:24px;text-align:center;color:var(--t-fg-muted)">${filtering() ? 'Không có domain nào khớp bộ lọc' : 'Chưa có domain nào'}</td></tr>`);
   }
 
   function headHtml() {
@@ -458,9 +503,9 @@
     const timeLabel = S.view === 'mine' ? 'Nhận lúc' : S.view === 'queue' ? 'Thêm lúc' : 'Kiểm lúc';
     return `<tr>
       <th style="${th};width:28px"><input type="checkbox" id="dhAll"></th>
-      ${col('d', 'Domain')}
+      ${col('d', flatMode() ? 'Host' : 'Domain')}
       ${col('price', 'Giá')}
-      ${col('sub', 'Sub', 'text-align:center')}
+      ${col('sub', flatMode() ? 'Số trang' : 'Sub', 'text-align:center')}
       ${fail ? col('why', infoLabel) : S.view === 'mine' ? `<th style="${th}">Nhóm</th><th style="${th}">Trạng thái</th>` : `<th style="${th}">${infoLabel}</th>`}
       ${col('chk', timeLabel)}
       ${fail ? col('left', 'Tự xoá sau') : ''}
@@ -483,6 +528,16 @@
     const list = shown();
     const picked = list.filter(it => S.sel.has(it.d));
     const ds = picked.map(it => it.d);
+    if (a === 'copy' && S.view === 'mine' && (S.ssel.size || flatMode())) {
+      const hs = S.ssel.size ? [...S.ssel].map(hostOf) : hosts().map(o => o.h);
+      try { await navigator.clipboard.writeText(hs.join('\n')); say(`Đã copy ${hs.length} host`); } catch (e) { fail('Không copy được: ' + e.message); }
+      return;
+    }
+    if (a === 'csv' && flatMode()) {
+      const doms = new Set(S.ssel.size ? rootsPicked() : hosts().map(o => o.it.d));
+      csvOut(S.items.filter(it => doms.has(it.d)));
+      return;
+    }
     if (a === 'copy') {
       const src = picked.length ? picked : list;
       try { await navigator.clipboard.writeText(src.map(it => it.d).join('\n')); say(`Đã copy ${src.length} domain`); } catch (e) { fail('Không copy được: ' + e.message); }
@@ -497,7 +552,7 @@
       return;
     }
     if (a === 'delsub') {
-      const pairs = [...S.ssel].map(k => { const j = k.indexOf('|'); return { d: k.slice(0, j), s: k.slice(j + 1) }; });
+      const pairs = subPicked().map(k => { const j = k.indexOf('|'); return { d: k.slice(0, j), s: k.slice(j + 1) }; });
       if (!pairs.length || S.busy) return;
       if (!confirm(`Xoá ${pairs.length} subdomain khỏi Kho của tôi?`)) return;
       S.busy = true;
@@ -530,10 +585,24 @@
       if (fn) { if (P && P.c === fn.dataset.fn) popClose(); else popOpen(fn.dataset.fn, fn); return; }
       const a = e.target.closest('[data-a]');
       if (a && !a.disabled) { run(a.dataset.a); return; }
+      const md = e.target.closest('[data-mode]');
+      if (md) { if (S.mode !== md.dataset.mode) { S.mode = md.dataset.mode; try { localStorage.setItem('dhMode', S.mode); } catch (er) {} S.lastH = null; S.last = null; S.sel.clear(); S.ssel.clear(); draw(); } return; }
       const tg = e.target.closest('[data-tg]');
       if (tg && !tg.disabled) { const d = tg.dataset.tg; S.open.has(d) ? S.open.delete(d) : S.open.add(d); draw(); return; }
       const sck = e.target.closest('.dh-sck');
-      if (sck) { sck.checked ? S.ssel.add(sck.dataset.k) : S.ssel.delete(sck.dataset.k); draw(); return; }
+      if (sck) {
+        const on = sck.checked;
+        if (sck.dataset.hi != null) {
+          const hl = hosts(), i = Number(sck.dataset.hi);
+          if (e.shiftKey && S.lastH != null) {
+            const [x, y] = [Math.min(S.lastH, i), Math.max(S.lastH, i)];
+            for (let k = x; k <= y; k++) if (hl[k]) on ? S.ssel.add(hl[k].k) : S.ssel.delete(hl[k].k);
+          } else on ? S.ssel.add(sck.dataset.k) : S.ssel.delete(sck.dataset.k);
+          S.lastH = i;
+        } else on ? S.ssel.add(sck.dataset.k) : S.ssel.delete(sck.dataset.k);
+        draw();
+        return;
+      }
       const ck = e.target.closest('.dh-ck');
       if (ck) {
         const list = shown();
@@ -547,6 +616,11 @@
         draw();
         return;
       }
+      if (e.target.id === 'dhAll' && flatMode()) {
+        hosts().forEach(o => e.target.checked ? S.ssel.add(o.k) : S.ssel.delete(o.k));
+        draw();
+        return;
+      }
       if (e.target.id === 'dhAll') {
         const list = shown();
         if (e.target.checked) list.forEach(it => S.sel.add(it.d)); else list.forEach(it => S.sel.delete(it.d));
@@ -554,14 +628,14 @@
       }
     });
     root.addEventListener('input', e => {
-      if (e.target.id === 'dhQ') { S.q = e.target.value; S.last = null; draw(); }
+      if (e.target.id === 'dhQ') { S.q = e.target.value; S.last = null; S.lastH = null; draw(); }
     });
     root.addEventListener('change', e => {
       if (e.target.classList.contains('dh-tag')) { setTag(e.target.dataset.f, [e.target.dataset.d], e.target.value); return; }
       if (e.target.classList.contains('dh-bulk')) {
         const v = e.target.value;
         if (!v) return;
-        const ds = shown().filter(it => S.sel.has(it.d)).map(it => it.d);
+        const ds = flatMode() ? rootsPicked() : shown().filter(it => S.sel.has(it.d)).map(it => it.d);
         setTag(e.target.dataset.f, ds, v === '__none' ? '' : v);
         return;
       }
