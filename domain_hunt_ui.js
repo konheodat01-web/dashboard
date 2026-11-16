@@ -8,7 +8,7 @@
     ['mine', '✅ Kho của tôi', 'Domain bạn đã nhận'],
     ['man', '📝 Chờ xác nhận', 'Domain bạn nhập thủ công: tool kiểm subdomain, bạn xác nhận rồi chuyển vào Kho của tôi'],
     ['queue', '⏳ Hàng chờ kiểm', 'Đang chờ / đang kiểm Wayback'],
-    ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá khỏi danh sách sau 24 giờ nếu không phá lệ · tool vẫn nhớ, nhập CSV lần sau tự bỏ qua (Nhập thủ công thì vẫn kiểm)'],
+    ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá khỏi danh sách sau 48 giờ nếu không phá lệ · tool vẫn nhớ, nhập CSV lần sau tự bỏ qua (Nhập thủ công thì vẫn kiểm)'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
   const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, colors: { grp: {}, stt: {} }, mode: 'tree', lastH: null };
@@ -105,7 +105,7 @@
   const priceNum = it => { const m = String(it.price || '').replace(/,/g, '').match(/[\d.]+/); return m ? Number(m[0]) : null; };
   const pad = n => String(n).padStart(2, '0');
   const hourKey = t => { if (!t) return '(Trống)'; const d = new Date(t); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:00–${pad(d.getHours() + 1 > 23 ? 0 : d.getHours() + 1)}:00`; };
-  const leftMs = it => (S.opt.failTtl || 86400000) - (Date.now() + S.skew - (it.chk || 0));
+  const leftMs = it => (S.opt.failTtl || 172800000) - (Date.now() + S.skew - (it.chk || 0));
   const leftKey = it => { const h = Math.floor(leftMs(it) / 3600000); return h < 1 ? 'còn dưới 1 giờ' : `còn ${h} giờ`; };
   const COLS = {
     d: { label: 'Domain', kind: 'text', key: it => it.d, sort: it => it.d },
