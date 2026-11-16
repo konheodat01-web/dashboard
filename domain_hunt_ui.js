@@ -11,11 +11,14 @@
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá sau 24 giờ nếu không phá lệ'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xf: {}, sort: { k: 'chk', dir: -1 }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, mode: 'tree', lastH: null };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, mode: 'tree', lastH: null };
   try { const m = localStorage.getItem('dhMode'); if (['tree', 'sub', 'all'].includes(m)) S.mode = m; } catch (e) {}
   const MODES = [['tree', '🌳 Theo domain'], ['sub', '🔗 Chỉ subdomain'], ['all', '📋 Tất cả (gốc + sub)']];
   const flatMode = () => S.view === 'mine' && S.mode !== 'tree';
-  function hosts() {
+  const fk = () => S.view + (S.view === 'mine' ? (flatMode() ? ':flat' : ':tree') : '');
+  const xf = () => S.xfs[fk()] || (S.xfs[fk()] = {});
+  const srt = () => S.sorts[fk()] || null;
+  function hostsRaw() {
     const q = S.q.trim().toLowerCase();
     const out = [];
     S.items.forEach(it => {
@@ -24,6 +27,7 @@
     });
     return q ? out.filter(o => o.h.includes(q)) : out;
   }
+  function hosts() { return refine(hostsRaw()); }
   const hostOf = k => { const j = k.indexOf('|'); const s = k.slice(j + 1); return (s ? s + '.' : '') + k.slice(0, j); };
   const subPicked = () => [...S.ssel].filter(k => !k.endsWith('|'));
   const rootsPicked = () => [...new Set([...S.ssel].map(k => k.slice(0, k.indexOf('|'))))];
@@ -110,9 +114,42 @@
     why: { label: 'Lý do · subdomain có nội dung', kind: 'text', key: it => it.reason || '(Trống)', sort: it => it.reason || '' },
     chk: { label: 'Kiểm lúc', kind: 'time', key: it => hourKey(it.chk), sort: it => it.chk || 0 },
     left: { label: 'Tự xoá sau', kind: 'left', key: leftKey, sort: it => it.chk || 0 },
+    subs: { label: 'Subdomain có nội dung', kind: 'text', multi: true, key: it => (it.subs || []).length ? it.subs.map(x => x.s) : ['(Trống)'], sort: it => (it.subs || []).map(x => x.s).join(' ') },
+    err: { label: 'Lỗi', kind: 'text', key: it => it.reason || '(Trống)', sort: it => it.reason || '' },
+    mres: { label: 'Kết quả kiểm', kind: 'text', key: it => manRes(it), sort: it => manRes(it) },
+    qst: { label: 'Trạng thái', kind: 'text', key: it => it.st === 'run' ? 'đang kiểm' : 'chờ kiểm', sort: it => it.st === 'run' ? 0 : 1 },
+    grp: { label: 'Nhóm', kind: 'text', key: it => it.grp || '(Trống)', sort: it => it.grp || '' },
+    stt: { label: 'Trạng thái', kind: 'text', key: it => it.stt || '(Trống)', sort: it => it.stt || '' },
+    take: { label: 'Nhận lúc', kind: 'time', key: it => hourKey(it.take), sort: it => it.take || 0 },
+    add: { label: 'Thêm lúc', kind: 'time', key: it => hourKey(it.add), sort: it => it.add || 0 },
+    mtime: { label: 'Kiểm lúc', kind: 'time', key: it => hourKey(it.chk || it.man), sort: it => it.chk || it.man || 0 },
+    h: { label: 'Host', kind: 'text', key: o => o.h, sort: o => o.h },
+    hprice: { label: 'Giá', kind: 'num', key: o => COLS.price.key(o.it), sort: o => priceNum(o.it) },
+    hpages: { label: 'Số trang', kind: 'num', key: o => o.x ? o.x.n + ' trang' : 'domain gốc', sort: o => o.x ? o.x.n : -1 },
+    hgrp: { label: 'Nhóm', kind: 'text', key: o => o.it.grp || '(Trống)', sort: o => o.it.grp || '' },
+    hstt: { label: 'Trạng thái', kind: 'text', key: o => o.it.stt || '(Trống)', sort: o => o.it.stt || '' },
+    htake: { label: 'Nhận lúc', kind: 'time', key: o => hourKey(o.it.take), sort: o => o.it.take || 0 },
   };
-  const filtering = () => S.view === 'fail' && Object.keys(S.xf).length > 0;
-  const passCol = (c, it) => { const f = S.xf[c]; if (!f) return true; const k = COLS[c].key(it); return f.mode === 'in' ? f.set.has(k) : !f.set.has(k); };
+  function manRes(it) { return it.st === 'q' ? 'chờ kiểm' : it.st === 'run' ? 'đang kiểm' : it.st === 'err' ? 'lỗi' : it.st === 'pass' ? 'đủ tiêu chí' : 'chưa đủ tiêu chí'; }
+  const INFO = { pass: 'subs', man: 'mres', queue: 'qst', fail: 'why', err: 'err' };
+  function colSpec() {
+    const flat = flatMode(), v = S.view;
+    const out = [{ c: flat ? 'h' : 'd', label: flat ? 'Host' : 'Domain' }, { c: flat ? 'hprice' : 'price', label: 'Giá' },
+      { c: flat ? 'hpages' : v === 'queue' ? null : 'sub', label: flat ? 'Số trang' : 'Sub', extra: 'text-align:center' }];
+    if (v === 'mine') out.push({ c: flat ? 'hgrp' : 'grp', label: 'Nhóm' }, { c: flat ? 'hstt' : 'stt', label: 'Trạng thái' });
+    else out.push({ c: INFO[v], label: v === 'man' ? 'Kết quả kiểm subdomain (số trang)' : v === 'queue' ? 'Trạng thái' : v === 'err' ? 'Lỗi' : v === 'fail' ? COLS.why.label : 'Subdomain có nội dung (số trang)' });
+    out.push({ c: v === 'mine' ? (flat ? 'htake' : 'take') : v === 'queue' ? 'add' : v === 'man' ? 'mtime' : 'chk', label: v === 'mine' ? 'Nhận lúc' : v === 'queue' ? 'Thêm lúc' : 'Kiểm lúc' });
+    if (v === 'fail') out.push({ c: 'left', label: 'Tự xoá sau' });
+    return out;
+  }
+  const keysOf = (c, r) => { const k = COLS[c].key(r); return Array.isArray(k) ? k : [k]; };
+  const filtering = () => Object.keys(xf()).length > 0;
+  const passCol = (c, r) => { const f = xf()[c]; if (!f) return true; const ks = keysOf(c, r); return f.mode === 'in' ? ks.some(k => f.set.has(k)) : ks.some(k => !f.set.has(k)); };
+  function refine(list) {
+    const cols = Object.keys(xf()), so = srt();
+    if (cols.length) list = list.filter(r => cols.every(c => passCol(c, r)));
+    return so && COLS[so.k] ? list.slice().sort(cmp(COLS[so.k].sort, so.dir)) : list;
+  }
   const cmp = (fn, dir) => (a, b) => {
     const x = fn(a), y = fn(b);
     if (x == null && y == null) return 0;
@@ -121,27 +158,22 @@
     return (typeof x === 'string' ? x.localeCompare(y) : x - y) * dir;
   };
 
-  function base() {
+  function itemsQ() {
     const q = S.q.trim().toLowerCase();
     return q ? S.items.filter(it => it.d.includes(q)) : S.items;
   }
-
-  function shown() {
-    let list = base();
-    if (S.view !== 'fail') return list;
-    const cols = Object.keys(S.xf);
-    if (cols.length) list = list.filter(it => cols.every(c => passCol(c, it)));
-    return list.slice().sort(cmp(COLS[S.sort.k].sort, S.sort.dir));
-  }
+  const base = () => flatMode() ? hostsRaw() : itemsQ();
+  const shown = () => flatMode() ? itemsQ() : refine(itemsQ());
 
   function valuesFor(c) {
-    const others = Object.keys(S.xf).filter(x => x !== c);
+    const others = Object.keys(xf()).filter(x => x !== c);
     const m = new Map();
-    base().filter(it => others.every(o => passCol(o, it))).forEach(it => {
-      const k = COLS[c].key(it);
-      const v = m.get(k) || { k, n: 0, s: COLS[c].sort(it) };
-      v.n++;
-      m.set(k, v);
+    base().filter(r => others.every(o => passCol(o, r))).forEach(r => {
+      new Set(keysOf(c, r)).forEach(k => {
+        const v = m.get(k) || { k, n: 0, s: COLS[c].multi ? k : COLS[c].sort(r) };
+        v.n++;
+        m.set(k, v);
+      });
     });
     return [...m.values()].sort(cmp(v => v.s, c === 'left' ? -1 : 1));
   }
@@ -175,7 +207,7 @@
   function popOpen(c, anchor) {
     popClose();
     const vals = valuesFor(c);
-    P = { c, vals, chk: new Set(vals.filter(v => { const f = S.xf[c]; return !f || (f.mode === 'in' ? f.set.has(v.k) : !f.set.has(v.k)); }).map(v => v.k)), q: '', vis: vals };
+    P = { c, vals, chk: new Set(vals.filter(v => { const f = xf()[c]; return !f || (f.mode === 'in' ? f.set.has(v.k) : !f.set.has(v.k)); }).map(v => v.k)), q: '', vis: vals };
     const kind = COLS[c].kind;
     const [up, down] = kind === 'num' ? ['Nhỏ → lớn', 'Lớn → nhỏ'] : kind === 'time' ? ['Cũ → mới', 'Mới → cũ'] : kind === 'left' ? ['Sắp bị xoá trước', 'Còn lâu trước'] : ['A → Z', 'Z → A'];
     const item = 'display:block;width:100%;text-align:left;background:none;border:0;color:var(--t-fg);padding:5px 6px;border-radius:4px;cursor:pointer;font:inherit';
@@ -186,7 +218,7 @@
       <button data-p="asc" style="${item}">↑ Sắp xếp ${up}</button>
       <button data-p="desc" style="${item}">↓ Sắp xếp ${down}</button>
       <div style="border-top:1px solid var(--t-border);margin:4px 0"></div>
-      <button data-p="clear" style="${item}" ${S.xf[c] ? '' : 'disabled'}>✕ Xoá lọc "${esc(COLS[c].label)}"</button>
+      <button data-p="clear" style="${item}" ${xf()[c] ? '' : 'disabled'}>✕ Xoá lọc "${esc(COLS[c].label)}"</button>
       <input id="dhPopQ" placeholder="Tìm…" style="width:100%;box-sizing:border-box;margin:4px 0;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;padding:5px 7px;font-size:12px">
       <div id="dhPopList" style="max-height:240px;overflow:auto;border:1px solid var(--t-border);border-radius:5px;padding:2px"></div>
       <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px">
@@ -213,21 +245,21 @@
     const c = P.c;
     if (P.q.trim()) {
       const keep = P.vis.filter(v => P.chk.has(v.k)).map(v => v.k);
-      S.xf[c] = { mode: 'in', set: new Set(keep) };
+      xf()[c] = { mode: 'in', set: new Set(keep) };
     } else {
       const off = P.vals.filter(v => !P.chk.has(v.k)).map(v => v.k);
-      if (off.length) S.xf[c] = { mode: 'ex', set: new Set(off) }; else delete S.xf[c];
+      if (off.length) xf()[c] = { mode: 'ex', set: new Set(off) }; else delete xf()[c];
     }
     popClose();
-    S.sel.clear(); S.last = null; draw();
+    S.sel.clear(); S.ssel.clear(); S.last = null; S.lastH = null; draw();
   }
 
   function popClick(e) {
     const b = e.target.closest('[data-p]');
     if (!b || b.disabled) return;
     const a = b.dataset.p, c = P.c;
-    if (a === 'asc' || a === 'desc') { S.sort = { k: c, dir: a === 'asc' ? 1 : -1 }; popClose(); S.last = null; draw(); }
-    else if (a === 'clear') { delete S.xf[c]; popClose(); S.sel.clear(); S.last = null; draw(); }
+    if (a === 'asc' || a === 'desc') { S.sorts[fk()] = { k: c, dir: a === 'asc' ? 1 : -1 }; popClose(); S.last = null; S.lastH = null; draw(); }
+    else if (a === 'clear') { delete xf()[c]; popClose(); S.sel.clear(); S.ssel.clear(); S.last = null; S.lastH = null; draw(); }
     else if (a === 'ok') popApply();
     else if (a === 'cancel') popClose();
   }
@@ -438,14 +470,15 @@
       }
       b.push(`<button data-a="delsub" style="${btn('color:var(--t-danger)')}" ${ns ? '' : 'disabled'}>✂ Xoá ${ns || ''} subdomain đã chọn</button>`);
       if (flat) {
+        if (filtering()) b.push(`<button data-a="clearf" style="${btn()}">✕ Xoá mọi bộ lọc</button>`);
         b.push(`<button data-a="copy" style="${btn()}">📋 Copy ${S.ssel.size ? S.ssel.size + ' đã chọn' : 'tất cả'}</button>`);
         b.push(`<button data-a="csv" style="${btn()}">⬇ CSV</button>`);
         return b.join('');
       }
     }
     if (S.view === 'fail') b.push(`<button data-a="except" style="${btn(pri)}" ${n ? '' : 'disabled'}>⭐ Phá lệ ${n || ''} domain → Kho chờ</button>`);
-    if (S.view === 'fail' && filtering()) b.push(`<button data-a="clearf" style="${btn()}">✕ Xoá mọi bộ lọc</button>`);
     if (S.view === 'fail' || S.view === 'err') b.push(`<button data-a="recheck" style="${btn()}" ${n ? '' : 'disabled'}>🔁 Kiểm lại</button>`);
+    if (filtering()) b.push(`<button data-a="clearf" style="${btn()}">✕ Xoá mọi bộ lọc</button>`);
     const cn = S.view === 'mine' && S.ssel.size ? S.ssel.size : n;
     b.push(`<button data-a="copy" style="${btn()}">📋 Copy ${cn ? cn + ' đã chọn' : 'tất cả'}</button>`);
     b.push(`<button data-a="csv" style="${btn()}">⬇ CSV</button>`);
@@ -498,32 +531,26 @@
     const tl = flat ? hl.length : list.length;
     put($('dhBar'), actions() + `<span style="color:var(--t-fg-muted);font-size:12px">${picked ? `Đã chọn ${picked} · ` : ''}${total}${tl > cap ? ` (hiện ${cap} dòng đầu)` : ''}</span>`);
     $('dhErr').textContent = S.err ? '⚠️ ' + S.err : '';
-    const key = S.view + '|' + (S.view === 'mine' ? S.mode : '') + '|' + S.sort.k + '|' + S.sort.dir + '|' + Object.keys(S.xf).sort().join(',');
+    const so = srt() || {};
+    const key = S.view + '|' + (S.view === 'mine' ? S.mode : '') + '|' + so.k + '|' + so.dir + '|' + Object.keys(xf()).sort().join(',');
     if (S.headKey !== key) { S.headKey = key; $('dhHead').innerHTML = headHtml(); }
     const all = $('dhAll');
     if (all) all.checked = !!allOn;
-    const cols = S.view === 'fail' || S.view === 'mine' ? 7 : 6;
+    const cols = colSpec().length + 1;
     put($('dhBody'), (flat ? hl.slice(0, cap).map(hostRow) : list.slice(0, cap).map(rowHtml)).join('') || `<tr><td colspan="${cols}" style="padding:24px;text-align:center;color:var(--t-fg-muted)">${filtering() ? 'Không có domain nào khớp bộ lọc' : 'Chưa có domain nào'}</td></tr>`);
   }
 
   function headHtml() {
     const th = 'padding:6px 8px;text-align:left;white-space:nowrap';
-    const fail = S.view === 'fail';
-    const col = (c, label, extra) => {
-      if (!fail) return `<th style="${th};${extra || ''}">${label}</th>`;
-      const on = !!S.xf[c], so = S.sort.k === c;
-      return `<th style="${th};${extra || ''}">${label}${so ? ` <span style="color:var(--t-accent)">${S.sort.dir > 0 ? '▲' : '▼'}</span>` : ''} <button type="button" data-fn="${c}" title="${on ? 'Đang lọc · bấm để sửa' : 'Lọc / sắp xếp'}" style="border:1px solid ${on ? 'var(--t-accent)' : 'transparent'};background:${on ? 'color-mix(in srgb,var(--t-accent) 18%,transparent)' : 'none'};color:${on ? 'var(--t-accent)' : 'var(--t-fg-subtle)'};border-radius:4px;padding:1px 3px;cursor:pointer;vertical-align:middle;line-height:0">${FUNNEL}</button></th>`;
+    const so = srt();
+    const col = ({ c, label, extra }) => {
+      if (!c) return `<th style="${th};${extra || ''}">${label}</th>`;
+      const on = !!xf()[c], s = so && so.k === c;
+      return `<th style="${th};${extra || ''}">${label}${s ? ` <span style="color:var(--t-accent)">${so.dir > 0 ? '▲' : '▼'}</span>` : ''} <button type="button" data-fn="${c}" title="${on ? 'Đang lọc · bấm để sửa' : 'Lọc / sắp xếp'}" style="border:1px solid ${on ? 'var(--t-accent)' : 'transparent'};background:${on ? 'color-mix(in srgb,var(--t-accent) 18%,transparent)' : 'none'};color:${on ? 'var(--t-accent)' : 'var(--t-fg-subtle)'};border-radius:4px;padding:1px 3px;cursor:pointer;vertical-align:middle;line-height:0">${FUNNEL}</button></th>`;
     };
-    const infoLabel = S.view === 'man' ? 'Kết quả kiểm subdomain (số trang)' : S.view === 'queue' ? 'Trạng thái' : S.view === 'err' ? 'Lỗi' : fail ? COLS.why.label : 'Subdomain có nội dung (số trang)';
-    const timeLabel = S.view === 'mine' ? 'Nhận lúc' : S.view === 'queue' ? 'Thêm lúc' : 'Kiểm lúc';
     return `<tr>
       <th style="${th};width:28px"><input type="checkbox" id="dhAll"></th>
-      ${col('d', flatMode() ? 'Host' : 'Domain')}
-      ${col('price', 'Giá')}
-      ${col('sub', flatMode() ? 'Số trang' : 'Sub', 'text-align:center')}
-      ${fail ? col('why', infoLabel) : S.view === 'mine' ? `<th style="${th}">Nhóm</th><th style="${th}">Trạng thái</th>` : `<th style="${th}">${infoLabel}</th>`}
-      ${col('chk', timeLabel)}
-      ${fail ? col('left', 'Tự xoá sau') : ''}
+      ${colSpec().map(col).join('')}
     </tr>`;
   }
 
@@ -615,7 +642,7 @@
       } catch (e) { fail(e); } finally { S.busy = false; }
       return;
     }
-    if (a === 'clearf') { S.xf = {}; popClose(); S.sel.clear(); S.last = null; draw(); return; }
+    if (a === 'clearf') { S.xfs[fk()] = {}; popClose(); S.sel.clear(); S.ssel.clear(); S.last = null; S.lastH = null; draw(); return; }
     if (!ds.length || S.busy) return;
     if (a === 'del' && !confirm(`Xoá ${ds.length} domain? Domain đã xoá sẽ không được thêm lại khi tải CSV.`)) return;
     if (a === 'unman' && !confirm(`Hủy nhập ${ds.length} domain? Domain nhập thủ công sẽ bị bỏ khỏi danh sách chờ xác nhận.`)) return;
