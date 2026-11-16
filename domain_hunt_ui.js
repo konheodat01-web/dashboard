@@ -368,14 +368,17 @@
 
   const LBL = { grp: ['nhóm', 'Nhóm'], stt: ['trạng thái', 'Trạng thái'] };
   const hue = v => { let h = 0; for (const c of String(v)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
-  const selCss = v => `max-width:150px;font-size:12px;font-family:inherit;border-radius:10px;padding:2px 6px;cursor:pointer;border:1px solid ${v ? `hsl(${hue(v)} 55% 50% / .7)` : 'var(--t-border)'};background:${v ? `hsl(${hue(v)} 55% 50% / .16)` : 'var(--t-canvas)'};color:${v ? 'var(--t-fg)' : 'var(--t-fg-muted)'}`;
+  const PAL = [210, 135, 28, 280, 350, 175, 50, 315, 95, 0, 240, 195];
+  const tagHue = (f, v) => { const i = (S.labels[f] || []).indexOf(v); return i < 0 ? hue(v) : PAL[(i + (f === 'stt' ? 3 : 0)) % PAL.length] + 15 * Math.floor(i / PAL.length); };
+  const tagBg = (f, v) => `hsl(${tagHue(f, v)} 70% 48% / .32)`;
+  const selCss = (f, v) => `max-width:150px;font-size:12px;font-family:inherit;border-radius:10px;padding:2px 6px;cursor:pointer;font-weight:${v ? 600 : 400};border:1px solid ${v ? `hsl(${tagHue(f, v)} 70% 52%)` : 'var(--t-border)'};background:${v ? tagBg(f, v) : 'var(--t-canvas)'};color:${v ? 'var(--t-fg)' : 'var(--t-fg-muted)'}`;
   function tagOpts(f, cur, head) {
     const list = S.labels[f] || [];
-    return `<option value="" ${cur ? '' : 'selected'}>${head}</option>` + list.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join('') + `<option value="__new">＋ Tạo ${LBL[f][0]} mới…</option>`;
+    return `<option value="" ${cur ? '' : 'selected'}>${head}</option>` + list.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''} style="background:${tagBg(f, v)}">${esc(v)}</option>`).join('') + `<option value="__new">＋ Tạo ${LBL[f][0]} mới…</option>`;
   }
   function tagSel(f, it) {
     const cur = it[f] || '';
-    return `<select class="dh-tag" data-f="${f}" data-d="${esc(it.d)}" style="${selCss(cur)}">${tagOpts(f, cur, '—')}</select>`;
+    return `<select class="dh-tag" data-f="${f}" data-d="${esc(it.d)}" style="${selCss(f, cur)}">${tagOpts(f, cur, '—')}</select>`;
   }
 
   async function newLabel(f) {
@@ -404,7 +407,7 @@
     const box = f => `<div style="flex:1;min-width:200px">
       <div style="font-weight:600;margin-bottom:6px">${LBL[f][1]}</div>
       ${(S.labels[f] || []).map(v => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">
-        <span style="${selCss(v)};cursor:default;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v)}</span>
+        <span style="${selCss(f, v)};cursor:default;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v)}</span>
         <span style="color:var(--t-fg-muted);min-width:18px;text-align:right">${count(f, v)}</span>
         <button data-lr="${f}" data-v="${esc(v)}" title="Đổi tên" style="${btn('padding:2px 6px')}">✎</button>
         <button data-ld="${f}" data-v="${esc(v)}" title="Xoá" style="${btn('padding:2px 6px;color:var(--t-danger)')}">✕</button>
@@ -487,7 +490,7 @@
   }
 
   function shell() {
-    root.innerHTML = `<style>#page-domainhunt button:disabled{opacity:.45;cursor:not-allowed}</style><div style="padding:16px;display:flex;flex-direction:column;gap:12px;height:calc(100vh - 90px);box-sizing:border-box">
+    root.innerHTML = `<style>#page-domainhunt button:disabled{opacity:.45;cursor:not-allowed}#dhBody tr:hover>td{background:color-mix(in srgb,var(--t-accent) 14%,transparent);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent),inset 0 -1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent)}#dhBody tr:hover>td:first-child{box-shadow:inset 3px 0 0 var(--t-accent),inset 0 1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent),inset 0 -1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent)}</style><div style="padding:16px;display:flex;flex-direction:column;gap:12px;height:calc(100vh - 90px);box-sizing:border-box">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <h2 style="margin:0;font-size:18px;color:var(--t-fg)">🎯 Săn domain</h2>
         <span style="color:var(--t-fg-muted);font-size:12px" id="dhHint"></span>
