@@ -6,6 +6,7 @@
   const VIEWS = [
     ['pass', '📥 Kho chờ', 'Đạt kiểm subdomain, chờ bạn nhận'],
     ['mine', '✅ Kho của tôi', 'Domain bạn đã nhận'],
+    ['man', '📝 Chờ xác nhận', 'Domain bạn nhập thủ công: tool kiểm subdomain, bạn xác nhận rồi chuyển vào Kho của tôi'],
     ['queue', '⏳ Hàng chờ kiểm', 'Đang chờ / đang kiểm Wayback'],
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá sau 24 giờ nếu không phá lệ'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
@@ -287,11 +288,19 @@
     const on = S.sel.has(it.d);
     const subs = (it.subs || []).map(x => `<a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none">${esc(x.s)}</a><span style="color:var(--t-fg-muted)"> ${x.n}</span>`).join(' · ');
     let info = '';
+    const nreal = (it.subs || []).length;
     if (S.view === 'pass') info = subs;
+    else if (S.view === 'man') {
+      if (it.st === 'q') info = '<span style="color:var(--t-fg-muted)">⏳ chờ kiểm</span>';
+      else if (it.st === 'run') info = '<span style="color:var(--t-accent)">🔄 đang kiểm</span>';
+      else if (it.st === 'err') info = `<span style="color:var(--t-danger)">⚠ ${esc(it.reason || 'lỗi')}</span> <span style="color:var(--t-fg-muted)">· bấm Kiểm lại</span>`;
+      else if (it.st === 'pass') info = `<span style="color:var(--t-success)">✔ ${nreal} subdomain hợp lệ</span> · ${subs}`;
+      else info = `<span style="color:var(--t-warn)">⚠ ${nreal} subdomain hợp lệ (chưa đủ tiêu chí)</span>${subs ? ' · ' + subs : ''}`;
+    }
     else if (S.view === 'fail') info = `<span style="color:var(--t-fg-muted)">${esc(it.reason || '')}</span>${subs ? ' · ' + subs : ''}`;
     else if (S.view === 'err') info = `<span style="color:var(--t-danger)">${esc(it.reason || '')}</span>`;
     else info = it.st === 'run' ? '<span style="color:var(--t-accent)">🔄 đang kiểm</span>' : '<span style="color:var(--t-fg-muted)">chờ kiểm</span>';
-    const t = S.view === 'mine' ? it.take : S.view === 'queue' ? it.add : it.chk;
+    const t = S.view === 'mine' ? it.take : S.view === 'queue' ? it.add : S.view === 'man' ? (it.chk || it.man) : it.chk;
     const mine = S.view === 'mine';
     const opened = mine && S.open.has(it.d);
     const nsub = (it.subs || []).length;
@@ -408,6 +417,12 @@
     const n = S.sel.size;
     const b = [];
     if (S.view === 'pass') b.push(`<button data-a="take" style="${btn(pri)}" ${n ? '' : 'disabled'}>✅ Nhận ${n || ''} domain → Kho của tôi</button>`);
+    if (S.view === 'mine' || S.view === 'man') b.push(`<button data-a="manual" style="${btn(S.view === 'mine' ? pri : '')}">＋ Nhập thủ công</button>`);
+    if (S.view === 'man') {
+      b.push(`<button data-a="confirm" style="${btn(pri)}" ${n ? '' : 'disabled'}>✅ Xác nhận ${n || ''} domain → Kho của tôi</button>`);
+      b.push(`<button data-a="recheck" style="${btn()}" ${n ? '' : 'disabled'}>🔁 Kiểm lại</button>`);
+      b.push(`<button data-a="unman" style="${btn('color:var(--t-danger)')}" ${n ? '' : 'disabled'}>✕ Hủy nhập</button>`);
+    }
     if (S.view === 'mine') {
       const flat = flatMode();
       const tn = flat ? rootsPicked().length : n;
@@ -434,7 +449,7 @@
     const cn = S.view === 'mine' && S.ssel.size ? S.ssel.size : n;
     b.push(`<button data-a="copy" style="${btn()}">📋 Copy ${cn ? cn + ' đã chọn' : 'tất cả'}</button>`);
     b.push(`<button data-a="csv" style="${btn()}">⬇ CSV</button>`);
-    b.push(`<button data-a="del" style="${btn('color:var(--t-danger)')}" ${n ? '' : 'disabled'}>🗑 Xoá</button>`);
+    if (S.view !== 'man') b.push(`<button data-a="del" style="${btn('color:var(--t-danger)')}" ${n ? '' : 'disabled'}>🗑 Xoá</button>`);
     return b.join('');
   }
 
@@ -499,7 +514,7 @@
       const on = !!S.xf[c], so = S.sort.k === c;
       return `<th style="${th};${extra || ''}">${label}${so ? ` <span style="color:var(--t-accent)">${S.sort.dir > 0 ? '▲' : '▼'}</span>` : ''} <button type="button" data-fn="${c}" title="${on ? 'Đang lọc · bấm để sửa' : 'Lọc / sắp xếp'}" style="border:1px solid ${on ? 'var(--t-accent)' : 'transparent'};background:${on ? 'color-mix(in srgb,var(--t-accent) 18%,transparent)' : 'none'};color:${on ? 'var(--t-accent)' : 'var(--t-fg-subtle)'};border-radius:4px;padding:1px 3px;cursor:pointer;vertical-align:middle;line-height:0">${FUNNEL}</button></th>`;
     };
-    const infoLabel = S.view === 'queue' ? 'Trạng thái' : S.view === 'err' ? 'Lỗi' : fail ? COLS.why.label : 'Subdomain có nội dung (số trang)';
+    const infoLabel = S.view === 'man' ? 'Kết quả kiểm subdomain (số trang)' : S.view === 'queue' ? 'Trạng thái' : S.view === 'err' ? 'Lỗi' : fail ? COLS.why.label : 'Subdomain có nội dung (số trang)';
     const timeLabel = S.view === 'mine' ? 'Nhận lúc' : S.view === 'queue' ? 'Thêm lúc' : 'Kiểm lúc';
     return `<tr>
       <th style="${th};width:28px"><input type="checkbox" id="dhAll"></th>
@@ -524,7 +539,43 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
 
+  function manOpen() {
+    if (document.getElementById('dhManOv')) return;
+    const ov = document.createElement('div');
+    ov.id = 'dhManOv';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10050;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML = `<div style="background:var(--t-subtle);border:1px solid var(--t-border);border-radius:12px;padding:16px;max-width:560px;width:100%;color:var(--t-fg)">
+      <div style="font-weight:700;font-size:15px;margin-bottom:6px">＋ Nhập domain bạn đang có</div>
+      <div style="font-size:12px;color:var(--t-fg-muted);margin-bottom:8px">Dán danh sách domain, mỗi dòng một domain (có thể kèm https://, www., hoặc ngăn bằng dấu phẩy). VPS sẽ kiểm subdomain hợp lệ trên Wayback, kết quả hiện ở tab "Chờ xác nhận" để bạn xác nhận rồi mới chuyển vào Kho của tôi.</div>
+      <textarea id="dhManTa" rows="9" placeholder="example.com&#10;domain-khac.net" style="width:100%;box-sizing:border-box;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button id="dhManNo" style="${btn()}">Hủy</button><button id="dhManGo" style="${btn(pri)}">Kiểm subdomain</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const ta = ov.querySelector('#dhManTa');
+    ta.focus();
+    const close = () => ov.remove();
+    ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+    ov.querySelector('#dhManNo').onclick = close;
+    ta.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    ov.querySelector('#dhManGo').onclick = async () => {
+      const domains = ta.value.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+      if (!domains.length) { say('Chưa nhập domain nào', '#e67e22'); return; }
+      if (S.busy) return;
+      S.busy = true;
+      try {
+        const d = await api('manual', { domains });
+        close();
+        const n = (d.added || 0) + (d.flagged || 0);
+        say(`Đã đưa ${n} domain vào kiểm${d.mine ? ' · ' + d.mine + ' đã có trong Kho của tôi' : ''}${d.bad ? ' · ' + d.bad + ' mục không phải domain: ' + (d.badList || []).join(', ') : ''}`, d.bad ? '#e67e22' : '#238636');
+        S.view = 'man'; S.sel.clear(); S.ssel.clear(); S.items = []; S.last = null;
+        draw();
+        await load();
+      } catch (e) { fail(e); } finally { S.busy = false; }
+    };
+  }
+
   async function run(a) {
+    if (a === 'manual') { manOpen(); return; }
     const list = shown();
     const picked = list.filter(it => S.sel.has(it.d));
     const ds = picked.map(it => it.d);
@@ -567,10 +618,13 @@
     if (a === 'clearf') { S.xf = {}; popClose(); S.sel.clear(); S.last = null; draw(); return; }
     if (!ds.length || S.busy) return;
     if (a === 'del' && !confirm(`Xoá ${ds.length} domain? Domain đã xoá sẽ không được thêm lại khi tải CSV.`)) return;
+    if (a === 'unman' && !confirm(`Hủy nhập ${ds.length} domain? Domain nhập thủ công sẽ bị bỏ khỏi danh sách chờ xác nhận.`)) return;
+    const weak = picked.filter(it => it.st === 'fail').length;
+    if (a === 'confirm' && weak && !confirm(`${weak} domain chưa đủ tiêu chí subdomain. Vẫn chuyển vào Kho của tôi?`)) return;
     S.busy = true;
     try {
       const d = await api(a, { ds });
-      const msg = { take: 'Đã nhận', untake: 'Đã trả về Kho chờ', recheck: 'Đã đưa vào hàng chờ kiểm lại', del: 'Đã xoá' }[a];
+      const msg = { take: 'Đã nhận', untake: 'Đã trả về Kho chờ', recheck: 'Đã đưa vào hàng chờ kiểm lại', del: 'Đã xoá', confirm: 'Đã chuyển vào Kho của tôi', unman: 'Đã hủy nhập' }[a];
       say(a === 'except' ? `Đã phá lệ ${d.n} domain, chuyển vào Kho chờ` : `${msg} ${d.n} domain`);
       S.sel.clear();
       await load();
