@@ -8,7 +8,7 @@
     ['mine', '✅ Kho của tôi', 'Domain bạn đã nhận'],
     ['man', '📝 Chờ xác nhận', 'Domain bạn nhập thủ công: tool kiểm subdomain, bạn xác nhận rồi chuyển vào Kho của tôi'],
     ['queue', '⏳ Hàng chờ kiểm', 'Đang chờ / đang kiểm Wayback'],
-    ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá sau 24 giờ nếu không phá lệ'],
+    ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá khỏi danh sách sau 24 giờ nếu không phá lệ · tool vẫn nhớ, nhập CSV lần sau tự bỏ qua (Nhập thủ công thì vẫn kiểm)'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
   const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, colors: { grp: {}, stt: {} }, mode: 'tree', lastH: null };
@@ -97,7 +97,7 @@
     if (!all.length) { say(`Không có domain còn trống nào trong file (bỏ ${taken} domain đã có chủ)`, '#d29922'); return; }
     try {
       const d = await api('import', { rows: all, src: names.join(', ') });
-      say(`Thêm ${d.added} domain vào hàng chờ kiểm · bỏ ${taken} đã có chủ · ${d.dup} đã có sẵn${d.bad ? ' · ' + d.bad + ' sai định dạng' : ''}`);
+      say(`Thêm ${d.added} domain vào hàng chờ kiểm · bỏ ${taken} đã có chủ · ${d.dup} đã có sẵn${d.failed ? ' · ' + d.failed + ' đã kiểm không đạt trước đó' : ''}${d.bad ? ' · ' + d.bad + ' sai định dạng' : ''}`);
       await load();
     } catch (e) { fail(e); }
   }
