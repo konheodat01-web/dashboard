@@ -11,7 +11,7 @@
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá sau 24 giờ nếu không phá lệ'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, mode: 'tree', lastH: null };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, colors: { grp: {}, stt: {} }, mode: 'tree', lastH: null };
   try { const m = localStorage.getItem('dhMode'); if (['tree', 'sub', 'all'].includes(m)) S.mode = m; } catch (e) {}
   const MODES = [['tree', '🌳 Theo domain'], ['sub', '🔗 Chỉ subdomain'], ['all', '📋 Tất cả (gốc + sub)']];
   const flatMode = () => S.view === 'mine' && S.mode !== 'tree';
@@ -277,6 +277,7 @@
       S.worker = d.worker || {};
       S.opt = d.opt || {};
       S.labels = d.labels || { grp: [], stt: [] };
+      S.colors = d.colors || { grp: {}, stt: {} };
       S.err = '';
       S.skew = d.now ? d.now - Date.now() : 0;
       const have = new Set(S.items.map(x => x.d));
@@ -370,8 +371,12 @@
   const hue = v => { let h = 0; for (const c of String(v)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
   const PAL = [210, 135, 28, 280, 350, 175, 50, 315, 95, 0, 240, 195];
   const tagHue = (f, v) => { const i = (S.labels[f] || []).indexOf(v); return i < 0 ? hue(v) : PAL[(i + (f === 'stt' ? 3 : 0)) % PAL.length] + 15 * Math.floor(i / PAL.length); };
-  const tagBg = (f, v) => `hsl(${tagHue(f, v)} 70% 48% / .32)`;
-  const selCss = (f, v) => `max-width:150px;font-size:12px;font-family:inherit;border-radius:10px;padding:2px 6px;cursor:pointer;font-weight:${v ? 600 : 400};border:1px solid ${v ? `hsl(${tagHue(f, v)} 70% 52%)` : 'var(--t-border)'} !important;background:${v ? tagBg(f, v) : 'var(--t-canvas)'} !important;color:${v ? 'var(--t-fg)' : 'var(--t-fg-muted)'} !important`;
+  const custom = (f, v) => ((S.colors || {})[f] || {})[v] || '';
+  const tagLine = (f, v) => custom(f, v) || `hsl(${tagHue(f, v)} 70% 52%)`;
+  const tagBg = (f, v) => custom(f, v) ? `color-mix(in srgb,${custom(f, v)} 34%,transparent)` : `hsl(${tagHue(f, v)} 70% 48% / .32)`;
+  const toHex = h => { h = ((h % 360) + 360) % 360; const s = .7, l = .52, a = s * Math.min(l, 1 - l), k = n => (n + h / 30) % 12, c = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)); return '#' + [c(0), c(8), c(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join(''); };
+  const pickHex = (f, v) => custom(f, v) || toHex(tagHue(f, v));
+  const selCss = (f, v) => `max-width:150px;font-size:12px;font-family:inherit;border-radius:10px;padding:2px 6px;cursor:pointer;font-weight:${v ? 600 : 400};border:1px solid ${v ? tagLine(f, v) : 'var(--t-border)'} !important;background:${v ? tagBg(f, v) : 'var(--t-canvas)'} !important;color:${v ? 'var(--t-fg)' : 'var(--t-fg-muted)'} !important`;
   function tagOpts(f, cur, head) {
     const list = S.labels[f] || [];
     return `<option value="" ${cur ? '' : 'selected'}>${head}</option>` + list.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''} style="background:${tagBg(f, v)}">${esc(v)}</option>`).join('') + `<option value="__new">＋ Tạo ${LBL[f][0]} mới…</option>`;
@@ -404,15 +409,20 @@
   function labClose() { if (lab) lab.remove(); lab = null; }
   function labDraw() {
     const count = (f, v) => S.items.filter(it => it[f] === v).length;
-    const box = f => `<div style="flex:1;min-width:200px">
+    const sw = 'width:26px;height:22px;padding:0 !important;border:1px solid var(--t-border) !important;border-radius:5px;cursor:pointer;flex:none';
+    const box = f => `<div style="flex:1;min-width:220px">
       <div style="font-weight:600;margin-bottom:6px">${LBL[f][1]}</div>
       ${(S.labels[f] || []).map(v => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">
+        <input type="color" data-lcol="${f}" data-v="${esc(v)}" value="${pickHex(f, v)}" title="${custom(f, v) ? 'Màu tự chọn · bấm để đổi' : 'Màu tự động · bấm để chọn màu'}" style="${sw}">
         <span style="${selCss(f, v)};cursor:default;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v)}</span>
+        ${custom(f, v) ? `<button data-lcr="${f}" data-v="${esc(v)}" title="Về màu tự động" style="${btn('padding:2px 6px')}">↺</button>` : '<span style="color:var(--t-fg-subtle);font-size:11px">tự động</span>'}
         <span style="color:var(--t-fg-muted);min-width:18px;text-align:right">${count(f, v)}</span>
         <button data-lr="${f}" data-v="${esc(v)}" title="Đổi tên" style="${btn('padding:2px 6px')}">✎</button>
         <button data-ld="${f}" data-v="${esc(v)}" title="Xoá" style="${btn('padding:2px 6px;color:var(--t-danger)')}">✕</button>
       </div>`).join('') || '<div style="color:var(--t-fg-muted);padding:3px 0">Chưa có</div>'}
-      <div style="display:flex;gap:6px;margin-top:6px">
+      <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+        <input type="color" data-lnc="${f}" value="#3b82f6" title="Màu cho ${LBL[f][0]} mới · không chọn thì tự động" style="${sw}">
+        <span data-lncl="${f}" style="color:var(--t-fg-subtle);font-size:11px;white-space:nowrap">tự động</span>
         <input data-li="${f}" placeholder="Tên ${LBL[f][0]} mới" style="flex:1;min-width:0;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;padding:4px 7px;font-size:12px">
         <button data-la="${f}" style="${btn(pri + ';padding:4px 10px')}">Thêm</button>
       </div>
@@ -420,8 +430,9 @@
     lab.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>⚙ Nhóm & trạng thái</b><button data-lx style="${btn('padding:2px 8px')}">✕</button></div>
       <div style="display:flex;gap:16px;flex-wrap:wrap">${box('grp')}${box('stt')}</div>`;
   }
+  const newColor = f => { const c = lab && lab.querySelector(`[data-lnc="${f}"]`); return c && c.dataset.set ? c.value : ''; };
   async function labAct(body) {
-    try { const d = await api('labels', body); S.labels[body.field] = d.list; await load(); if (lab) labDraw(); } catch (e) { fail(e); }
+    try { const d = await api('labels', body); S.labels[body.field] = d.list; if (d.colors) S.colors = d.colors; await load(); if (lab) labDraw(); } catch (e) { fail(e); }
   }
   function labOpen(anchor) {
     labClose();
@@ -437,13 +448,24 @@
       const t = e.target;
       if (t.closest('[data-lx]')) return labClose();
       const add = t.closest('[data-la]');
-      if (add) { const f = add.dataset.la, inp = lab.querySelector(`[data-li="${f}"]`), name = inp.value.trim(); if (name) labAct({ field: f, op: 'add', name }); return; }
+      if (add) { const f = add.dataset.la, inp = lab.querySelector(`[data-li="${f}"]`), name = inp.value.trim(); if (name) labAct({ field: f, op: 'add', name, color: newColor(f) }); return; }
+      const cr = t.closest('[data-lcr]');
+      if (cr) { labAct({ field: cr.dataset.lcr, op: 'color', name: cr.dataset.v, color: '' }); return; }
+      const ncl = t.closest('[data-lncl]');
+      if (ncl && ncl.dataset.set) { const f = ncl.dataset.lncl, c = lab.querySelector(`[data-lnc="${f}"]`); delete c.dataset.set; delete ncl.dataset.set; ncl.textContent = 'tự động'; ncl.style.cursor = ''; return; }
       const ren = t.closest('[data-lr]');
       if (ren) { const f = ren.dataset.lr, v = ren.dataset.v, to = (prompt(`Đổi tên ${LBL[f][0]} "${v}" thành:`, v) || '').trim(); if (to && to !== v) labAct({ field: f, op: 'ren', name: v, to }); return; }
       const del = t.closest('[data-ld]');
       if (del) { const f = del.dataset.ld, v = del.dataset.v; if (confirm(`Xoá ${LBL[f][0]} "${v}"? Các domain đang mang ${LBL[f][0]} này sẽ về trống.`)) labAct({ field: f, op: 'del', name: v }); }
     });
-    lab.addEventListener('keydown', e => { const i = e.target.closest('[data-li]'); if (i && e.key === 'Enter' && i.value.trim()) labAct({ field: i.dataset.li, op: 'add', name: i.value.trim() }); });
+    lab.addEventListener('keydown', e => { const i = e.target.closest('[data-li]'); if (i && e.key === 'Enter' && i.value.trim()) labAct({ field: i.dataset.li, op: 'add', name: i.value.trim(), color: newColor(i.dataset.li) }); });
+    lab.addEventListener('input', e => {
+      const c = e.target.closest('[data-lnc]');
+      if (!c) return;
+      const l = lab.querySelector(`[data-lncl="${c.dataset.lnc}"]`);
+      c.dataset.set = '1'; l.dataset.set = '1'; l.textContent = c.value + ' ✕'; l.style.cursor = 'pointer'; l.title = 'Bỏ màu đã chọn (về tự động)';
+    });
+    lab.addEventListener('change', e => { const c = e.target.closest('[data-lcol]'); if (c) labAct({ field: c.dataset.lcol, op: 'color', name: c.dataset.v, color: c.value }); });
   }
   document.addEventListener('mousedown', e => { if (lab && !lab.contains(e.target) && !e.target.closest('[data-a="labels"]')) labClose(); }, true);
   document.addEventListener('keydown', e => { if (lab && e.key === 'Escape') labClose(); });
