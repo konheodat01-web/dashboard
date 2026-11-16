@@ -365,6 +365,42 @@ let billings = [];
 let wtCloudflyToken = "";
 let wtApiKey = localStorage.getItem('wt_valueserp_api_key') || '';
 let wtSerperCredits = parseInt(localStorage.getItem('wt_serper_credits_left')) || 0;
+let _serperShared = false, _serperSyncing = null, _serperCredT = null;
+function _serperApply(d){
+  _serperShared = true;
+  wtApiKey = d.key || '';
+  if (d.credits !== null && d.credits !== undefined) wtSerperCredits = d.credits;
+  try { localStorage.setItem('wt_valueserp_api_key', wtApiKey); localStorage.setItem('wt_serper_credits_left', wtSerperCredits); } catch(e){}
+  const bdg = document.getElementById('wstApiBadge');
+  if (bdg && wtApiKey && wtSerperCredits > 0) { bdg.style.display = 'inline-block'; bdg.innerText = `💎 Tokens: ${wtSerperCredits}`; }
+}
+function _serperPost(body){
+  return fetch('/api/shared/serper', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status));
+}
+function wstSharedSerperSync(){
+  if (_serperShared) return Promise.resolve(true);
+  if (_serperSyncing) return _serperSyncing;
+  _serperSyncing = (async () => {
+    try {
+      const r = await fetch('/api/shared/serper', { cache: 'no-store' });
+      if (!r.ok) return false;
+      let d = await r.json();
+      if (!d.set && wtApiKey) d = await _serperPost({ key: wtApiKey, credits: wtSerperCredits, seed: true });
+      if (d.set) _serperApply(d);
+      return !!d.set;
+    } catch(e){ return false; } finally { _serperSyncing = null; }
+  })();
+  return _serperSyncing;
+}
+function wstSharedSerperSave(){
+  return _serperPost({ key: wtApiKey, credits: wtSerperCredits }).then(d => { _serperShared = !!d.set; return true; }).catch(() => false);
+}
+function wstSharedSerperCredits(){
+  if (!_serperShared) return;
+  clearTimeout(_serperCredT);
+  _serperCredT = setTimeout(() => { _serperPost({ credits: wtSerperCredits }).catch(() => {}); }, 3000);
+}
 
 let data = { hai: [], hieu: [] };
 
@@ -1540,6 +1576,7 @@ function initFirebaseListener(){
 
   // Đồng bộ trạng thái check index từ nhánh riêng contentIndex (tách khỏi appData)
   wstInitContentIndexSync();
+  wstSharedSerperSync();
 
   const dbPath = currentMember === 'admin' ? 'appData' : 'appData_staff';
   window._fbActiveListenerPath = dbPath; // Track for cleanup
@@ -1639,8 +1676,8 @@ function initFirebaseListener(){
       if(r._flex_salary&&typeof r._flex_salary==='object'){ _flexSalary=r._flex_salary; ['hai','hieu'].forEach(sh=>{if(!_flexSalary[sh])_flexSalary[sh]=[];}); try{localStorage.setItem('wt_flex_salary',JSON.stringify(_flexSalary));}catch(e){} }
       if(r._loai_config&&typeof r._loai_config==='object'){ Object.assign(LOAI_CONFIG,r._loai_config); try{localStorage.setItem('wt_loai_config',JSON.stringify(LOAI_CONFIG));}catch(e){} syncLoaiBaiDropdowns(); }
 
-      if(r.wtApiKey !== undefined){ wtApiKey = r.wtApiKey; localStorage.setItem('wt_valueserp_api_key', wtApiKey); }
-      if(r.wtSerperCredits !== undefined){ wtSerperCredits = r.wtSerperCredits; localStorage.setItem('wt_serper_credits_left', wtSerperCredits); }
+      if(r.wtApiKey !== undefined && !_serperShared){ wtApiKey = r.wtApiKey; localStorage.setItem('wt_valueserp_api_key', wtApiKey); wstSharedSerperSync(); }
+      if(r.wtSerperCredits !== undefined && !_serperShared){ wtSerperCredits = r.wtSerperCredits; localStorage.setItem('wt_serper_credits_left', wtSerperCredits); }
       if(r.wtCloudflyToken !== undefined){ wtCloudflyToken = r.wtCloudflyToken; localStorage.setItem('wt_cloudfly_token', wtCloudflyToken); }
       if(Array.isArray(r.billings)) { billings = r.billings; }
       else if(r.billings === null) { billings = []; }
@@ -3463,6 +3500,7 @@ function openWstApiSettings() {
   overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:24px;width:400px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
     <div style="font-weight:700;font-size:15px;margin-bottom:8px">🔑 Thiết lập API Serper.dev</div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5">Nhập API Key cung cấp bởi <a href="https://serper.dev" target="_blank" style="color:var(--blue)">Serper.dev</a>. Đăng ký mới sẽ được tặng ngay 2.500 lượt miễn phí.</div>
+    <div id="wstApiShared" style="font-size:12px;margin-bottom:12px;line-height:1.5;padding:8px 10px;border-radius:8px;background:rgba(52,152,219,.12);color:var(--text)">🔗 Key Serper và số dư token <b>dùng chung cho mọi tài khoản</b> Dashboard — lưu ở đây là tài khoản khác cũng dùng key này.</div>
     <div class="form-group" style="margin-bottom:12px"><label>Serper.dev API Key</label>
       <input type="text" id="wstApiInput" value="${wtApiKey}" style="width:100%" placeholder="Nhập API Key...">
     </div>
@@ -3531,11 +3569,13 @@ function saveWstApiSettings() {
   
   document.getElementById('wstApiModal').remove();
   toast('✓ Đã lưu cấu hình API & Telegram');
+  wstSharedSerperSave().then(ok => { toast(ok ? '🔗 Đã lưu key Serper dùng chung cho mọi tài khoản' : '⚠ Chưa lưu được key Serper dùng chung lên máy chủ — bấm Lưu lại', ok ? '#27ae60' : '#e74c3c'); });
   wstUpdateAPIUsage();
 }
 
 async function wstUpdateAPIUsage() {
     if(!wtApiKey) return;
+    wstSharedSerperCredits();
     try {
         const bdg = document.getElementById('wstApiBadge');
         if(!bdg) return;
@@ -3553,6 +3593,7 @@ async function wstUpdateAPIUsage() {
                     if(bestVal !== undefined) {
                         wtSerperCredits = parseInt(bestVal);
                         localStorage.setItem('wt_serper_credits_left', wtSerperCredits);
+                        wstSharedSerperCredits();
                         bdg.innerText = `💎 Tokens: ${wtSerperCredits}`;
                         break;
                     }

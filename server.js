@@ -372,6 +372,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.startsWith("/api/domain-hunt/")) return require("./lib/domain_hunt").handle(req, res, url, ntSpace(req), readBody);
+  if (url === "/api/shared/serper") return require("./lib/shared_serper").handle(req, res, ntSpace(req), readBody);
 
   if (url.startsWith("/api/seo-audit")) {
     const SA = require("./lib/seo_audit");
