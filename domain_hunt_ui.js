@@ -306,7 +306,7 @@
 
   function hostRow(o, i) {
     const on = S.ssel.has(o.k), it = o.it;
-    return `<tr style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 12%,transparent)' : ''}">
+    return `<tr class="${on ? 'dh-on' : ''}" style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 12%,transparent)' : ''}">
       <td style="padding:5px 8px;width:28px"><input type="checkbox" class="dh-sck" data-k="${esc(o.k)}" data-hi="${i}" ${on ? 'checked' : ''}></td>
       <td style="padding:5px 8px;white-space:nowrap"><a href="${esc(wb(o.x ? o.x.s : '', it.d))}" target="_blank" rel="noopener" style="text-decoration:none;${o.x ? 'color:var(--t-accent)' : 'color:var(--t-fg);font-weight:600'}">${o.x ? esc(o.x.s) + `<span style="color:var(--t-fg-muted)">.${esc(it.d)}</span>` : esc(it.d)}</a></td>
       <td style="padding:5px 8px;white-space:nowrap">${esc(it.price || '')}</td>
@@ -338,7 +338,7 @@
     const nsub = (it.subs || []).length;
     const tg = mine ? `<button type="button" data-tg="${esc(it.d)}" title="${opened ? 'Thu gọn' : 'Xem subdomain'}" ${nsub ? '' : 'disabled'} style="background:none;border:0;color:var(--t-fg-muted);cursor:pointer;padding:0 4px 0 0;font-size:11px;width:16px">${opened ? '▼' : '▶'}</button>` : '';
     const rk = it.d + '|', ron = S.ssel.has(rk);
-    const rootRow = opened ? `<tr style="background:${ron ? 'color-mix(in srgb,var(--t-accent) 12%,transparent)' : 'var(--t-subtle)'}">
+    const rootRow = opened ? `<tr class="${ron ? 'dh-on' : ''}" style="background:${ron ? 'color-mix(in srgb,var(--t-accent) 12%,transparent)' : 'var(--t-subtle)'}">
       <td></td>
       <td style="padding:4px 8px 4px 30px;white-space:nowrap"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="dh-sck" data-k="${esc(rk)}" ${ron ? 'checked' : ''}><a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none;font-weight:600">${esc(it.d)}</a></label></td>
       <td></td>
@@ -347,7 +347,7 @@
     </tr>` : '';
     const kids = rootRow + (opened ? (it.subs || []).map(x => {
       const k = it.d + '|' + x.s, son = S.ssel.has(k);
-      return `<tr style="background:${son ? 'color-mix(in srgb,var(--t-accent) 12%,transparent)' : 'var(--t-subtle)'}">
+      return `<tr class="${son ? 'dh-on' : ''}" style="background:${son ? 'color-mix(in srgb,var(--t-accent) 12%,transparent)' : 'var(--t-subtle)'}">
       <td></td>
       <td style="padding:4px 8px 4px 30px;white-space:nowrap"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="dh-sck" data-k="${esc(k)}" ${son ? 'checked' : ''}><a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none">${esc(x.s)}<span style="color:var(--t-fg-muted)">.${esc(it.d)}</span></a></label></td>
       <td></td>
@@ -355,7 +355,7 @@
       <td></td><td></td><td></td>
     </tr>`;
     }).join('') : '');
-    return `<tr data-i="${i}" style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 10%,transparent)' : ''}">
+    return `<tr data-i="${i}" class="${on ? 'dh-on' : ''}" style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 10%,transparent)' : ''}">
       <td style="padding:6px 8px;width:28px"><input type="checkbox" class="dh-ck" data-i="${i}" ${on ? 'checked' : ''}></td>
       <td style="padding:6px 8px;font-weight:600;white-space:nowrap">${tg}<a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a>${it.ex ? ' <span title="Phá lệ: không đạt nhưng bạn giữ lại" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-warn) 20%,transparent);color:var(--t-warn);font-size:11px;font-weight:400">phá lệ</span>' : ''}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(it.price || '')}${it.premium ? ' <span style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-done) 18%,transparent);color:var(--t-done);font-size:11px">premium</span>' : ''}</td>
@@ -371,7 +371,7 @@
   const PAL = [210, 135, 28, 280, 350, 175, 50, 315, 95, 0, 240, 195];
   const tagHue = (f, v) => { const i = (S.labels[f] || []).indexOf(v); return i < 0 ? hue(v) : PAL[(i + (f === 'stt' ? 3 : 0)) % PAL.length] + 15 * Math.floor(i / PAL.length); };
   const tagBg = (f, v) => `hsl(${tagHue(f, v)} 70% 48% / .32)`;
-  const selCss = (f, v) => `max-width:150px;font-size:12px;font-family:inherit;border-radius:10px;padding:2px 6px;cursor:pointer;font-weight:${v ? 600 : 400};border:1px solid ${v ? `hsl(${tagHue(f, v)} 70% 52%)` : 'var(--t-border)'};background:${v ? tagBg(f, v) : 'var(--t-canvas)'};color:${v ? 'var(--t-fg)' : 'var(--t-fg-muted)'}`;
+  const selCss = (f, v) => `max-width:150px;font-size:12px;font-family:inherit;border-radius:10px;padding:2px 6px;cursor:pointer;font-weight:${v ? 600 : 400};border:1px solid ${v ? `hsl(${tagHue(f, v)} 70% 52%)` : 'var(--t-border)'} !important;background:${v ? tagBg(f, v) : 'var(--t-canvas)'} !important;color:${v ? 'var(--t-fg)' : 'var(--t-fg-muted)'} !important`;
   function tagOpts(f, cur, head) {
     const list = S.labels[f] || [];
     return `<option value="" ${cur ? '' : 'selected'}>${head}</option>` + list.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''} style="background:${tagBg(f, v)}">${esc(v)}</option>`).join('') + `<option value="__new">＋ Tạo ${LBL[f][0]} mới…</option>`;
@@ -490,7 +490,7 @@
   }
 
   function shell() {
-    root.innerHTML = `<style>#page-domainhunt button:disabled{opacity:.45;cursor:not-allowed}#dhBody tr:hover>td{background:color-mix(in srgb,var(--t-accent) 14%,transparent);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent),inset 0 -1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent)}#dhBody tr:hover>td:first-child{box-shadow:inset 3px 0 0 var(--t-accent),inset 0 1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent),inset 0 -1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent)}</style><div style="padding:16px;display:flex;flex-direction:column;gap:12px;height:calc(100vh - 90px);box-sizing:border-box">
+    root.innerHTML = `<style>#page-domainhunt button:disabled{opacity:.45;cursor:not-allowed}#dhBody tr.dh-on>td{background:color-mix(in srgb,var(--t-accent) 12%,var(--t-subtle)) !important}#dhBody tr:hover>td{background:color-mix(in srgb,var(--t-accent) 22%,var(--t-subtle)) !important;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent),inset 0 -1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent) !important}#dhBody tr:hover>td:first-child{box-shadow:inset 3px 0 0 var(--t-accent),inset 0 1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent),inset 0 -1px 0 color-mix(in srgb,var(--t-accent) 55%,transparent) !important}</style><div style="padding:16px;display:flex;flex-direction:column;gap:12px;height:calc(100vh - 90px);box-sizing:border-box">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <h2 style="margin:0;font-size:18px;color:var(--t-fg)">🎯 Săn domain</h2>
         <span style="color:var(--t-fg-muted);font-size:12px" id="dhHint"></span>
