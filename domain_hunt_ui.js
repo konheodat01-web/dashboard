@@ -11,7 +11,7 @@
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá khỏi danh sách sau 48 giờ nếu không phá lệ · tool vẫn nhớ, nhập CSV lần sau tự bỏ qua (Nhập thủ công thì vẫn kiểm)'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, colors: { grp: {}, stt: {} }, mode: 'tree', lastH: null };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, colors: { grp: {}, stt: {} }, mode: 'tree', lastH: null, wants: [] };
   try { const m = localStorage.getItem('dhMode'); if (['tree', 'sub', 'all'].includes(m)) S.mode = m; } catch (e) {}
   const MODES = [['tree', '🌳 Theo domain'], ['sub', '🔗 Chỉ subdomain'], ['all', '📋 Tất cả (gốc + sub)']];
   const flatMode = () => S.view === 'mine' && S.mode !== 'tree';
@@ -278,6 +278,7 @@
       S.opt = d.opt || {};
       S.labels = d.labels || { grp: [], stt: [] };
       S.colors = d.colors || { grp: {}, stt: {} };
+      S.wants = d.wants || [];
       S.err = '';
       S.skew = d.now ? d.now - Date.now() : 0;
       const have = new Set(S.items.map(x => x.d));
@@ -319,7 +320,8 @@
 
   function rowHtml(it, i) {
     const on = S.sel.has(it.d);
-    const subs = (it.subs || []).map(x => `<a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none">${esc(x.s)}</a><span style="color:var(--t-fg-muted)"> ${x.n}</span>`).join(' · ');
+    const kw = new Set(it.kw || []);
+    const subs = (it.subs || []).map(x => `<a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none${kw.has(x.s) ? ';font-weight:700' : ''}">${kw.has(x.s) ? '🎯 ' : ''}${esc(x.s)}</a><span style="color:var(--t-fg-muted)"> ${x.n}</span>`).join(' · ');
     let info = '';
     const nreal = (it.subs || []).length;
     if (S.view === 'pass') info = subs;
@@ -358,7 +360,7 @@
     }).join('') : '');
     return `<tr data-i="${i}" class="${on ? 'dh-on' : ''}" style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 10%,transparent)' : ''}">
       <td style="padding:6px 8px;width:28px"><input type="checkbox" class="dh-ck" data-i="${i}" ${on ? 'checked' : ''}></td>
-      <td style="padding:6px 8px;font-weight:600;white-space:nowrap">${tg}<a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a>${it.ex ? ' <span title="Phá lệ: không đạt nhưng bạn giữ lại" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-warn) 20%,transparent);color:var(--t-warn);font-size:11px;font-weight:400">phá lệ</span>' : ''}</td>
+      <td style="padding:6px 8px;font-weight:600;white-space:nowrap">${tg}<a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a>${it.ex ? ' <span title="Phá lệ: không đạt nhưng bạn giữ lại" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-warn) 20%,transparent);color:var(--t-warn);font-size:11px;font-weight:400">phá lệ</span>' : ''}${kw.size ? ` <span class="dh-kw" title="Đạt nhờ có sub mong muốn" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-success) 18%,transparent);color:var(--t-success);font-size:11px;font-weight:400">🎯 ${esc([...kw].join(', '))}</span>` : ''}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(it.price || '')}${it.premium ? ' <span style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-done) 18%,transparent);color:var(--t-done);font-size:11px">premium</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:center">${S.view === 'queue' ? '' : (it.subs || []).length}</td>
       ${mine ? `<td style="padding:4px 8px">${tagSel('grp', it)}</td><td style="padding:4px 8px">${tagSel('stt', it)}</td>` : `<td style="padding:6px 8px">${info}</td>`}
@@ -521,6 +523,12 @@
         <input type="file" id="dhFile" accept=".csv,text/csv" multiple style="display:none">
         <span style="${btn(pri)}">📂 Chọn file CSV</span> hoặc kéo thả file vào đây · chỉ lấy dòng <b>available</b>, domain đã có sẵn thì bỏ qua
       </label>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--t-fg-muted)">
+        <b style="color:var(--t-fg);white-space:nowrap" title="Domain có 1 trong các sub này (đúng nguyên tên sub, chỉ cần 1 trang trên Wayback) vào thẳng Kho chờ, không cần đủ số subdomain. Dùng chung cho mọi tài khoản.">🎯 Sub mong muốn</b>
+        <input id="dhWant" placeholder="vd: blog, shop, news (cách nhau bằng dấu phẩy)" style="flex:1;min-width:220px;max-width:560px;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit">
+        <button data-a="wants" style="${btn(pri)}">💾 Lưu</button>
+        <span id="dhWantInfo"></span>
+      </div>
       <div style="font-size:12px;color:var(--t-fg-muted)" id="dhWork"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap" id="dhTabs"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -548,8 +556,11 @@
     const flat = flatMode();
     const hl = flat ? hosts() : [];
     const allOn = flat ? hl.length && hl.every(o => S.ssel.has(o.k)) : list.length && list.every(it => S.sel.has(it.d));
-    $('dhHint').textContent = `Tải CSV xuất từ Namecheap (Beast Mode → Export). VPS tự kiểm subdomain trên Wayback 24/7: có ${S.opt.max ? (S.opt.min || 3) + '–' + S.opt.max : 'từ ' + (S.opt.min || 3)} subdomain thật (đã bỏ cổng đăng nhập/ứng dụng nội bộ), mỗi subdomain từ ${S.opt.pages || 2} trang trở lên thì vào Kho chờ.`;
+    $('dhHint').textContent = `Tải CSV xuất từ Namecheap (Beast Mode → Export). VPS tự kiểm subdomain trên Wayback 24/7: có ${S.opt.max ? (S.opt.min || 3) + '–' + S.opt.max : 'từ ' + (S.opt.min || 3)} subdomain thật (đã bỏ cổng đăng nhập/ứng dụng nội bộ), mỗi subdomain từ ${S.opt.pages || 2} trang trở lên thì vào Kho chờ. Có sub mong muốn thì vào Kho chờ luôn.`;
     put($('dhWork'), workerLine());
+    const wi = $('dhWant');
+    if (document.activeElement !== wi && !wi.dataset.dirty) { const v = S.wants.join(', '); if (wi.value !== v) wi.value = v; }
+    put($('dhWantInfo'), S.wants.length ? `Đang dùng ${S.wants.length} sub · domain có 1 trong các sub này (đúng tên, chỉ cần 1 trang) vào thẳng Kho chờ, không cần đủ ${S.opt.min || 3} sub` : 'Chưa có · domain có sub đúng tên này (chỉ cần 1 trang) vào thẳng Kho chờ, không cần đủ điều kiện số sub');
     put($('dhTabs'), VIEWS.map(([k, label, tip]) => `<button data-v="${k}" title="${esc(tip)}" style="${btn(S.view === k ? pri : '')}">${label} <b>${S.counts[k] || 0}</b></button>`).join(''));
     const picked = S.view === 'mine' ? S.sel.size + S.ssel.size : S.sel.size;
     const total = flat ? `${hl.length} host` : `${list.length} domain`;
@@ -626,8 +637,28 @@
     };
   }
 
+  async function wantSave() {
+    const inp = root.querySelector('#dhWant');
+    if (!inp || S.busy) return;
+    const list = inp.value.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+    S.busy = true;
+    try {
+      const d = await api('wants', { list });
+      S.wants = d.wants || [];
+      delete inp.dataset.dirty;
+      inp.value = S.wants.join(', ');
+      const parts = [S.wants.length ? `Đã lưu ${S.wants.length} sub mong muốn` : 'Đã xoá hết sub mong muốn'];
+      if (d.up) parts.push(`${d.up} domain Không đạt chuyển sang Kho chờ`);
+      if (d.down) parts.push(`${d.down} domain không còn khớp, về Không đạt`);
+      if ((d.bad || []).length) parts.push('bỏ mục sai: ' + d.bad.join(', '));
+      say(parts.join(' · '), (d.bad || []).length ? '#e67e22' : '#238636');
+      await load();
+    } catch (e) { fail(e); } finally { S.busy = false; }
+  }
+
   async function run(a) {
     if (a === 'manual') { manOpen(); return; }
+    if (a === 'wants') { wantSave(); return; }
     const list = shown();
     const picked = list.filter(it => S.sel.has(it.d));
     const ds = picked.map(it => it.d);
@@ -735,7 +766,9 @@
     });
     root.addEventListener('input', e => {
       if (e.target.id === 'dhQ') { S.q = e.target.value; S.last = null; S.lastH = null; draw(); }
+      if (e.target.id === 'dhWant') e.target.dataset.dirty = '1';
     });
+    root.addEventListener('keydown', e => { if (e.target.id === 'dhWant' && e.key === 'Enter') { e.preventDefault(); wantSave(); } });
     root.addEventListener('change', e => {
       if (e.target.classList.contains('dh-tag')) { setTag(e.target.dataset.f, [e.target.dataset.d], e.target.value); return; }
       if (e.target.classList.contains('dh-bulk')) {
