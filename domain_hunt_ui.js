@@ -11,7 +11,7 @@
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá khỏi danh sách sau 48 giờ nếu không phá lệ · tool vẫn nhớ, nhập CSV lần sau tự bỏ qua (Nhập thủ công thì vẫn kiểm)'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, colors: { grp: {}, stt: {} }, mode: 'tree', lastH: null, wants: [] };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, colors: { grp: {}, stt: {} }, mode: 'tree', lastH: null, wants: [], sys: { used: 'Đã sử dụng', past: 'Từng dùng' }, usage: [] };
   try { const m = localStorage.getItem('dhMode'); if (['tree', 'sub', 'all'].includes(m)) S.mode = m; } catch (e) {}
   const MODES = [['tree', '🌳 Theo domain'], ['sub', '🔗 Chỉ subdomain'], ['all', '📋 Tất cả (gốc + sub)']];
   const flatMode = () => S.view === 'mine' && S.mode !== 'tree';
@@ -28,6 +28,21 @@
     return q ? out.filter(o => o.h.includes(q)) : out;
   }
   function hosts() { return refine(hostsRaw()); }
+  const useOf = (it, s) => (it.use || {})[s || ''];
+  const sysKey = (it, s) => { const u = useOf(it, s); return u ? (u.cur || []).length ? 'used' : (u.past || []).length ? 'past' : '' : ''; };
+  const sysName = (it, s) => { const k = sysKey(it, s); return k ? S.sys[k] : ''; };
+  const dm = t => { if (!t) return ''; const d = new Date(t); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getFullYear()).slice(2); };
+  const useLine = c => `${c.l} → ${c.b ? c.b + ' · ' : ''}${c.r}`;
+  function sysBadge(it, s) {
+    const k = sysKey(it, s);
+    if (!k) return '';
+    const u = useOf(it, s), cur = u.cur || [], past = (u.past || []).slice().reverse();
+    const tip = [...cur.map(c => 'Đang dùng: ' + useLine(c) + ' (từ ' + dm(c.f) + ')'), ...past.map(c => 'Từng dùng: ' + useLine(c) + ' (' + dm(c.f) + ' – ' + dm(c.t) + ')')].join('\n');
+    const col = k === 'used' ? 'var(--t-accent)' : 'var(--t-fg-muted)';
+    const rows = k === 'used' ? cur.map(c => esc(useLine(c))) : past.slice(0, 2).map(c => esc(useLine(c)) + ` <span style="color:var(--t-fg-subtle)">(${dm(c.f)}–${dm(c.t)})</span>`).concat(past.length > 2 ? [`+${past.length - 2} lần khác`] : []);
+    return `<div class="dh-sys" data-sys="${k}" title="${esc(tip)}" style="line-height:1.35"><span style="display:inline-block;padding:1px 8px;border-radius:10px;border:1px solid ${col};background:color-mix(in srgb,${col} 20%,transparent);color:var(--t-fg);font-size:12px;font-weight:600;white-space:nowrap">🔒 ${esc(S.sys[k])}</span>${rows.map(r => `<div style="font-size:11px;color:var(--t-fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${r}</div>`).join('')}</div>`;
+  }
+  const sttCell = (it, s) => sysBadge(it, s) || tagSel('stt', it);
   const hostOf = k => { const j = k.indexOf('|'); const s = k.slice(j + 1); return (s ? s + '.' : '') + k.slice(0, j); };
   const subPicked = () => [...S.ssel].filter(k => !k.endsWith('|'));
   const rootsPicked = () => [...new Set([...S.ssel].map(k => k.slice(0, k.indexOf('|'))))];
@@ -119,15 +134,15 @@
     mres: { label: 'Kết quả kiểm', kind: 'text', key: it => manRes(it), sort: it => manRes(it) },
     qst: { label: 'Trạng thái', kind: 'text', key: it => it.st === 'run' ? 'đang kiểm' : 'chờ kiểm', sort: it => it.st === 'run' ? 0 : 1 },
     grp: { label: 'Nhóm', kind: 'text', key: it => it.grp || '(Trống)', sort: it => it.grp || '' },
-    stt: { label: 'Trạng thái', kind: 'text', key: it => it.stt || '(Trống)', sort: it => it.stt || '' },
+    stt: { label: 'Trạng thái', kind: 'text', key: it => sysName(it, '') || it.stt || '(Trống)', sort: it => sysName(it, '') || it.stt || '' },
     take: { label: 'Nhận lúc', kind: 'time', key: it => hourKey(it.take), sort: it => it.take || 0 },
     add: { label: 'Thêm lúc', kind: 'time', key: it => hourKey(it.add), sort: it => it.add || 0 },
     mtime: { label: 'Kiểm lúc', kind: 'time', key: it => hourKey(it.chk || it.man), sort: it => it.chk || it.man || 0 },
     h: { label: 'Host', kind: 'text', key: o => o.h, sort: o => o.h },
     hprice: { label: 'Giá', kind: 'num', key: o => COLS.price.key(o.it), sort: o => priceNum(o.it) },
-    hpages: { label: 'Số trang', kind: 'num', key: o => o.x ? o.x.n + ' trang' : 'domain gốc', sort: o => o.x ? o.x.n : -1 },
+    hpages: { label: 'Số trang', kind: 'num', key: o => o.x ? (o.x.n ? o.x.n + ' trang' : '—') : 'domain gốc', sort: o => o.x ? o.x.n : -1 },
     hgrp: { label: 'Nhóm', kind: 'text', key: o => o.it.grp || '(Trống)', sort: o => o.it.grp || '' },
-    hstt: { label: 'Trạng thái', kind: 'text', key: o => o.it.stt || '(Trống)', sort: o => o.it.stt || '' },
+    hstt: { label: 'Trạng thái', kind: 'text', key: o => sysName(o.it, o.x ? o.x.s : '') || o.it.stt || '(Trống)', sort: o => sysName(o.it, o.x ? o.x.s : '') || o.it.stt || '' },
     htake: { label: 'Nhận lúc', kind: 'time', key: o => hourKey(o.it.take), sort: o => o.it.take || 0 },
   };
   function manRes(it) { return it.st === 'q' ? 'chờ kiểm' : it.st === 'run' ? 'đang kiểm' : it.st === 'err' ? 'lỗi' : it.st === 'pass' ? 'đủ tiêu chí' : 'chưa đủ tiêu chí'; }
@@ -279,6 +294,13 @@
       S.labels = d.labels || { grp: [], stt: [] };
       S.colors = d.colors || { grp: {}, stt: {} };
       S.wants = d.wants || [];
+      if (d.sys) S.sys = d.sys;
+      S.usage = d.usage || [];
+      S.items.forEach(it => {
+        const have = new Set((it.subs || []).map(x => x.s));
+        const extra = Object.keys(it.use || {}).filter(s => s && !have.has(s));
+        if (extra.length) it.subs = (it.subs || []).concat(extra.map(s => ({ s, n: 0 })));
+      });
       S.err = '';
       S.skew = d.now ? d.now - Date.now() : 0;
       const have = new Set(S.items.map(x => x.d));
@@ -303,6 +325,7 @@
     else parts.push('💤 Hàng chờ trống, tải CSV lên để kiểm tiếp');
     parts.push(`Hàng chờ ${qn}`);
     if (w.last) parts.push(`vừa xong ${esc(w.last.d)} → ${{ pass: 'đạt', fail: 'không đạt', err: 'lỗi' }[w.last.st] || w.last.st} (${when(w.last.at)})`);
+    if (S.view === 'mine') parts.push(S.usage.length ? '🔀 Đối chiếu 301: ' + S.usage.map(u => `${esc(u.l)} ${when(u.at)}`).join(', ') : '🔀 Chưa có tài khoản nào gửi danh sách 301 (mở Dashboard là tự gửi)');
     return parts.join(' · ');
   }
 
@@ -312,8 +335,8 @@
       <td style="padding:5px 8px;width:28px"><input type="checkbox" class="dh-sck" data-k="${esc(o.k)}" data-hi="${i}" ${on ? 'checked' : ''}></td>
       <td style="padding:5px 8px;white-space:nowrap"><a href="${esc(wb(o.x ? o.x.s : '', it.d))}" target="_blank" rel="noopener" style="text-decoration:none;${o.x ? 'color:var(--t-accent)' : 'color:var(--t-fg);font-weight:600'}">${o.x ? esc(o.x.s) + `<span style="color:var(--t-fg-muted)">.${esc(it.d)}</span>` : esc(it.d)}</a></td>
       <td style="padding:5px 8px;white-space:nowrap">${esc(it.price || '')}</td>
-      <td style="padding:5px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">${o.x ? o.x.n + ' trang' : 'domain gốc'}</td>
-      <td style="padding:4px 8px">${tagSel('grp', it)}</td><td style="padding:4px 8px">${tagSel('stt', it)}</td>
+      <td style="padding:5px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">${o.x ? (o.x.n ? o.x.n + ' trang' : '—') : 'domain gốc'}</td>
+      <td style="padding:4px 8px">${tagSel('grp', it)}</td><td style="padding:4px 8px">${sttCell(it, o.x ? o.x.s : '')}</td>
       <td style="padding:5px 8px;white-space:nowrap;color:var(--t-fg-muted);font-size:11px">${when(it.take)}</td>
     </tr>`;
   }
@@ -346,7 +369,7 @@
       <td style="padding:4px 8px 4px 30px;white-space:nowrap"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="dh-sck" data-k="${esc(rk)}" ${ron ? 'checked' : ''}><a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none;font-weight:600">${esc(it.d)}</a></label></td>
       <td></td>
       <td style="padding:4px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">domain gốc</td>
-      <td></td><td></td><td></td>
+      <td></td><td style="padding:4px 8px">${sysBadge(it, '')}</td><td></td>
     </tr>` : '';
     const kids = rootRow + (opened ? (it.subs || []).map(x => {
       const k = it.d + '|' + x.s, son = S.ssel.has(k);
@@ -354,8 +377,8 @@
       <td></td>
       <td style="padding:4px 8px 4px 30px;white-space:nowrap"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="dh-sck" data-k="${esc(k)}" ${son ? 'checked' : ''}><a href="${esc(wb(x.s, it.d))}" target="_blank" rel="noopener" style="color:var(--t-accent);text-decoration:none">${esc(x.s)}<span style="color:var(--t-fg-muted)">.${esc(it.d)}</span></a></label></td>
       <td></td>
-      <td style="padding:4px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">${x.n} trang</td>
-      <td></td><td></td><td></td>
+      <td style="padding:4px 8px;text-align:center;color:var(--t-fg-muted);font-size:12px;white-space:nowrap">${x.n ? x.n + ' trang' : '—'}</td>
+      <td></td><td style="padding:4px 8px">${sysBadge(it, x.s)}</td><td></td>
     </tr>`;
     }).join('') : '');
     return `<tr data-i="${i}" class="${on ? 'dh-on' : ''}" style="border-top:1px solid var(--t-border);${on ? 'background:color-mix(in srgb,var(--t-accent) 10%,transparent)' : ''}">
@@ -363,7 +386,7 @@
       <td style="padding:6px 8px;font-weight:600;white-space:nowrap">${tg}<a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a>${it.ex ? ' <span title="Phá lệ: không đạt nhưng bạn giữ lại" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-warn) 20%,transparent);color:var(--t-warn);font-size:11px;font-weight:400">phá lệ</span>' : ''}${kw.size ? ` <span class="dh-kw" title="Đạt nhờ có sub mong muốn" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-success) 18%,transparent);color:var(--t-success);font-size:11px;font-weight:400">🎯 ${esc([...kw].join(', '))}</span>` : ''}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(it.price || '')}${it.premium ? ' <span style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-done) 18%,transparent);color:var(--t-done);font-size:11px">premium</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:center">${S.view === 'queue' ? '' : (it.subs || []).length}</td>
-      ${mine ? `<td style="padding:4px 8px">${tagSel('grp', it)}</td><td style="padding:4px 8px">${tagSel('stt', it)}</td>` : `<td style="padding:6px 8px">${info}</td>`}
+      ${mine ? `<td style="padding:4px 8px">${tagSel('grp', it)}</td><td style="padding:4px 8px">${sttCell(it, '')}</td>` : `<td style="padding:6px 8px">${info}</td>`}
       <td style="padding:6px 8px;white-space:nowrap;color:var(--t-fg-muted);font-size:11px">${when(t)}</td>${S.view === 'fail' ? `
       <td style="padding:6px 8px;white-space:nowrap;font-size:11px">${left(it)}</td>` : ''}
     </tr>${kids}`;
@@ -412,8 +435,15 @@
   function labDraw() {
     const count = (f, v) => S.items.filter(it => it[f] === v).length;
     const sw = 'width:26px;height:22px;padding:0 !important;border:1px solid var(--t-border) !important;border-radius:5px;cursor:pointer;flex:none';
+    const sysN = k => S.items.reduce((n, it) => n + ['', ...(it.subs || []).map(x => x.s)].filter(s => sysKey(it, s) === k).length, 0);
+    const sysRows = f => f !== 'stt' ? '' : ['used', 'past'].map(k => `<div class="dh-sysl" style="display:flex;align-items:center;gap:6px;padding:3px 0" title="Trạng thái hệ thống: tự gán theo chuỗi 301 ở Theo dõi web, không sửa/xoá được">
+        <span style="width:26px;text-align:center;flex:none">🔒</span>
+        <span style="flex:1;font-weight:600">${esc(S.sys[k])}</span>
+        <span style="color:var(--t-fg-subtle);font-size:11px">hệ thống</span>
+        <span style="color:var(--t-fg-muted);min-width:18px;text-align:right">${sysN(k)}</span></div>`).join('');
     const box = f => `<div style="flex:1;min-width:220px">
       <div style="font-weight:600;margin-bottom:6px">${LBL[f][1]}</div>
+      ${sysRows(f)}
       ${(S.labels[f] || []).map(v => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">
         <input type="color" data-lcol="${f}" data-v="${esc(v)}" value="${pickHex(f, v)}" title="${custom(f, v) ? 'Màu tự chọn · bấm để đổi' : 'Màu tự động · bấm để chọn màu'}" style="${sw}">
         <span style="${selCss(f, v)};cursor:default;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v)}</span>
@@ -799,5 +829,43 @@
     load();
     if (!S.timer) S.timer = setInterval(() => { if (!page.classList.contains('is-hidden') && !document.hidden && !S.busy) load(); }, 8000);
   };
-  window.DHUI = { parseCsv, fromNamecheap };
+  const hn = u => String(u || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/[/?#].*$/, '').replace(/:\d+$/, '').replace(/\.+$/, '').replace(/^www\./, '');
+  function usageHosts(ws) {
+    const list = (Array.isArray(ws) ? ws : []).filter(w => w && w.url);
+    const byUrl = new Map(), byBrand = new Map();
+    list.forEach(w => { const h = hn(w.url); if (h && !byUrl.has(h)) byUrl.set(h, w); if (!w.is301 && w.brand && !byBrand.has(w.brand)) byBrand.set(w.brand, w); });
+    const parentOf = w => w.is301 && w.sourceUrl ? (byUrl.get(hn(w.sourceUrl)) || byBrand.get(w.sourceUrl) || null) : null;
+    const hasKid = new Set();
+    list.forEach(w => { const p = parentOf(w); if (p && p !== w) hasKid.add(p); });
+    const out = [], seen = new Set();
+    list.forEach(w => {
+      if (!w.is301 && !hasKid.has(w)) return;
+      let r = w;
+      const vis = new Set();
+      while (!vis.has(r)) { vis.add(r); const p = parentOf(r); if (!p || p === r) break; r = p; }
+      const h = hn(w.url);
+      if (!h || seen.has(h)) return;
+      seen.add(h);
+      out.push({ h, r: hn(r.is301 && r.sourceUrl ? r.sourceUrl : r.url), b: r.brand || w.brand || '' });
+    });
+    return out;
+  }
+  let useT = null, useSig = '', useWs = null;
+  window.dhUsageReport = function (ws) {
+    useWs = ws;
+    clearTimeout(useT);
+    useT = setTimeout(async () => {
+      const hosts = usageHosts(useWs);
+      const sig = JSON.stringify(hosts);
+      if (sig === useSig) return;
+      try {
+        const r = await fetch(API + 'usage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hosts }) });
+        if (!r.ok) return;
+        useSig = sig;
+        const page = document.getElementById('page-domainhunt');
+        if (root && page && !page.classList.contains('is-hidden') && !S.busy) load();
+      } catch (e) {}
+    }, 4000);
+  };
+  window.DHUI = { parseCsv, fromNamecheap, usageHosts };
 })();

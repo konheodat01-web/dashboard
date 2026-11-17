@@ -1692,7 +1692,7 @@ function initFirebaseListener(){
 
       links         = arr(r.links, links);
       linkCategories= r.linkCategories != null ? r.linkCategories : linkCategories;
-      if(Array.isArray(r.websites) && r.websites.length){ websites=r.websites; wsNextId=Math.max(2,...websites.map(w=>w.id+1)); deduplicateWebsiteIds(); }
+      if(Array.isArray(r.websites) && r.websites.length){ websites=r.websites; wsNextId=Math.max(2,...websites.map(w=>w.id+1)); deduplicateWebsiteIds(); if(window.dhUsageReport) window.dhUsageReport(websites); }
       // KHÔNG gán websites=[] khi server trả về null — giữ nguyên local để tránh xóa data
       // else if(r.websites===null) websites=[];
       // Chỉ set rỗng nếu local cũng đang rỗng (chưa có dữ liệu lần nào)
