@@ -15611,25 +15611,22 @@ function wstOpenRedirect301Modal(wsId) {
   // Nút MẪU 301: chỉ nhóm có mẫu thiết lập sẵn (M7 = Team 02, Chaewon = Team 01)
   const w = websites.find(x => x.id === wsId);
   const tb = document.getElementById('wst301TplBtn');
-  if (tb) tb.style.display = (w && (w.team || 'Team 01') in WST_301_TEMPLATES) ? '' : 'none';
+  if (tb) tb.style.display = w ? '' : 'none';
 }
 
 // ══ MẪU 301 theo nhóm ══
 // A = website gốc · B = mọi site trung gian trong lịch sử 301 (cũ → mới) · C = đích · src = B mới nhất (site gần nhất trước C).
 // Ô "Nhập website đích" có giá trị -> C = giá trị đó (lệnh sắp tạo); trống -> C = đích của lệnh mới nhất.
-const WST_301_TEMPLATES = {
-  'Team 01': null,                                   // Chaewon: chưa có mẫu
-  'Team 02': (d, after) => ['Trỏ', d.A].concat(d.B, ['', '>>> ' + d.C, 'Lấy src: ' + d.src], after ? ['Sau 301: ' + after] : []).join('\n'),
-};
+const WST_301_TPL = (d, after) => ['Trỏ', d.A].concat(d.B, ['', '>>> ' + d.C, 'Lấy src: ' + d.src], after ? ['Sau 301: ' + after] : []).join('\n');
 const wst301Host = u => String(u || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 
-function wst301TemplateData(wsId) {
+function wst301TemplateData(wsId, cOverride) {
   const w = websites.find(x => x.id === wsId);
   const site = getWstSite(wsId);
   if (!w || !site) return null;
   const cmds = wst301Items(site, w);
   const srcMap = wst301SourceMap(site, w);
-  const typed = wst301Host((document.getElementById('wst301DestUrl') || {}).value);
+  const typed = wst301Host(cOverride || (document.getElementById('wst301DestUrl') || {}).value);
   const chain = cmds.map(c => srcMap[c.id]);                   // nguồn của từng lệnh, cũ -> mới
   if (!typed) return { needC: true, team: w.team || 'Team 01' };   // mẫu dùng cho lệnh SẮP tạo -> bắt buộc có C
   const C = typed;
@@ -15672,16 +15669,16 @@ function wst301AskDest() {
   inp.focus();
 }
 
-function wst301OpenTemplate() {
-  const d = wst301TemplateData(_wst301ActiveSiteId);
+function wst301OpenTemplate(cCreated) {
+  const d = wst301TemplateData(_wst301ActiveSiteId, cCreated);
   const old = document.getElementById('wst301TplOverlay');
   if (old) old.remove();
-  if (d && d.needC && WST_301_TEMPLATES[d.team]) return wst301AskDest();
+  if (d && d.needC) return wst301AskDest();
   const ov = document.createElement('div');
   ov.id = 'wst301TplOverlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(1,4,9,.7);display:flex;align-items:center;justify-content:center;padding:16px';
   // chỉ đóng bằng nút (click ra ngoài KHÔNG đóng)
-  const tpl = d && WST_301_TEMPLATES[d.team];
+  const tpl = d ? WST_301_TPL : null;
   const teamName = typeof getTeamLabel === 'function' ? getTeamLabel(d ? d.team : '') : '';
   const sel = 'background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:6px 8px;font-size:13px';
   let body;
@@ -15699,7 +15696,8 @@ function wst301OpenTemplate() {
     <div style="padding:14px 16px">${body}</div>
     <div style="padding:10px 16px;border-top:1px solid var(--t-muted);display:flex;justify-content:flex-end;gap:8px">
       <button class="btn btn-outline btn-sm" onclick="document.getElementById('wst301TplOverlay').remove()">Đóng</button>
-      ${tpl && !d.empty ? '<button class="btn btn-sm" id="wst301TplCreate" style="background:#238636;color:#fff;border:none" title="Tạo lệnh 301 tới C (đưa vào hàng chờ Đang 301) — giống nút Tạo lệnh 301 ở ngoài">Tạo lệnh 301</button><button class="btn btn-sm" id="wst301TplCopy" style="background:#1f6feb;color:#fff;border:none">📋 Copy</button>' : ''}
+      ${tpl && !d.empty && cCreated ? '<span style="color:#3fb950;font-size:12px;align-self:center;margin-right:auto">✓ Đã tạo lệnh 301 tới ' + d.C + '</span>' : ''}
+      ${tpl && !d.empty ? (cCreated ? '' : '<button class="btn btn-sm" id="wst301TplCreate" style="background:#238636;color:#fff;border:none" title="Tạo lệnh 301 tới C (đưa vào hàng chờ Đang 301) — giống nút Tạo lệnh 301 ở ngoài">Tạo lệnh 301</button>') + '<button class="btn btn-sm" id="wst301TplCopy" style="background:#1f6feb;color:#fff;border:none">📋 Copy</button>' : ''}
     </div></div>`;
   document.body.appendChild(ov);
   if (!tpl || d.empty) return;
@@ -15709,10 +15707,11 @@ function wst301OpenTemplate() {
   };
   document.getElementById('wst301TplBot').onchange = paint;
   document.getElementById('wst301TplVi').onchange = paint;
-  document.getElementById('wst301TplCreate').onclick = () => {
+  const _tc = document.getElementById('wst301TplCreate');
+  if (_tc) _tc.onclick = () => {
     const site = getWstSite(_wst301ActiveSiteId);
     const before = ((site && site.redirectCommands) || []).length;
-    wstCreateRedirect301();                         // dùng C đang nằm ở ô "Nhập website đích"
+    wstCreateRedirect301(true);                         // dùng C đang nằm ở ô "Nhập website đích"
     if (((site && site.redirectCommands) || []).length > before) {
       toast('✓ Đã tạo lệnh 301 tới ' + d.C + ' (Đang 301)', '#27ae60');
       document.getElementById('wst301TplOverlay').remove();
@@ -15757,7 +15756,7 @@ function wst301Items(site, w) {
   const out = kids.filter(x => !x.c301At).map(item);
   const dated = kids.filter(x => x.c301At).map(item);
   cmds.forEach(c => {
-    const t = parseInt(String(c.id), 10) || 0;
+    const t = parseInt(String(c.id).slice(0, 13), 10) || 0;
     while (dated.length && t && dated[0]._t < t) out.push(dated.shift());
     out.push(c);
   });
@@ -15819,7 +15818,7 @@ function wstRenderRedirect301Table() {
   }).join('');
 }
 
-function wstCreateRedirect301() {
+function wstCreateRedirect301(noTpl) {
   if (!_wst301ActiveSiteId) return;
   const destInput = document.getElementById('wst301DestUrl');
   const destUrl = destInput ? destInput.value.trim() : '';
@@ -15859,6 +15858,7 @@ function wstCreateRedirect301() {
   wstRenderRedirect301Table();
   renderWsTrack();
   toast("✓ Tạo lệnh 301 thành công!", "#27ae60");
+  if (noTpl !== true) wst301OpenTemplate(destUrl);
 }
 
 function wstCompleteRedirect301(cmdId) {
