@@ -24,6 +24,19 @@
         messagingSenderId: "743636961461",
         appId: "1:743636961461:web:a8c1bd43e9199a33b8d6fc"
       }
+    },
+    s02: {
+      label: 'nguyenhieu7406@gmail.com',
+      emails: ['nguyenhieu7406@gmail.com'],
+      config: {
+        apiKey: "AIzaSyBjPmAvPy3pXRqONzMpDQFeyAKCZb5TZ8c",
+        authDomain: "nthieucloud-s02.firebaseapp.com",
+        databaseURL: "https://nthieucloud-s02-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "nthieucloud-s02",
+        storageBucket: "nthieucloud-s02.firebasestorage.app",
+        messagingSenderId: "280070531691",
+        appId: "1:280070531691:web:e14ba94a34103a46e29f2e"
+      }
     }
   };
   const KEEP = ['dash-theme', 'nt_space', 'nt_space_data', 'sx_collapsed', 'tk_done_open', 'recur_done_open', 'it_done_open', 'wst_mode'];
