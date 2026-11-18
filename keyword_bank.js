@@ -296,6 +296,7 @@
         if (x.pt === 'category' && !x.cat) { x.cat = capFirst(x.m.text); x.hand = false; }
         if (x.pt === 'page') { x.cat = ''; x.hand = false; }
         paintRow(tr, 'wd-pt');
+        fillDl();
       }
     });
     body.addEventListener('input', e => {
@@ -305,14 +306,15 @@
     });
     ov.querySelector('.wd-allcat-go').onclick = () => { const v = ov.querySelector('.wd-allcat').value.trim(); st.forEach(x => { if (x.pt === 'post') { x.cat = v; x.hand = false; } }); paint(); };
     body.addEventListener('focusout', e => { if (e.target.classList.contains('wd-cat')) { const tr = e.target.closest('tr[data-i]'), x = st[+tr.dataset.i]; e.target.style.borderColor = x.pt === 'category' && !x.cat.trim() ? 'var(--t-warn)' : ''; } });
-    let cseq = 0, siteCats = [];
+    let cseq = 0, siteCats = [], dlHtml = null;
     const fillDl = () => {
       const seen = new Set(), typed = [];
       st.forEach(x => { const v = x.cat.trim(); if (x.hand && x.pt !== 'page' && v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); typed.push(v); } });
-      ov.querySelector('#kbCatList').innerHTML = typed.map(v => `<option value="${esc(v)}">đã điền ở trên</option>`).join('')
+      const h = typed.map(v => `<option value="${esc(v)}">đã điền ở trên</option>`).join('')
         + siteCats.filter(c => !seen.has(c.path.toLowerCase())).map(c => `<option value="${esc(c.path)}">${c.count} bài</option>`).join('');
+      if (h !== dlHtml) { dlHtml = h; ov.querySelector('#kbCatList').innerHTML = h; }
     };
-    ov.addEventListener('focusin', e => { if (e.target.matches('.wd-cat')) fillDl(); });
+    body.addEventListener('focusout', e => { if (e.target.classList.contains('wd-cat')) fillDl(); });
     const loadCats = async () => {
       const site = all.find(x => String(x.id) === ov.querySelector('.wd-site').value), hint = ov.querySelector('.wd-cathint');
       siteCats = []; fillDl();
