@@ -279,27 +279,26 @@
       const x = st[+tr.dataset.i];
       if (e.target.classList.contains('wd-pt')) {
         x.pt = e.target.value;
-        if (x.pt === 'category' && !x.cat) x.cat = capFirst(x.m.text);
-        if (x.pt === 'page') x.cat = '';
+        if (x.pt === 'category' && !x.cat) { x.cat = capFirst(x.m.text); x.hand = false; }
+        if (x.pt === 'page') { x.cat = ''; x.hand = false; }
         paintRow(tr, 'wd-pt');
       }
     });
     body.addEventListener('input', e => {
       if (!e.target.classList.contains('wd-cat')) return;
-      st[+e.target.closest('tr[data-i]').dataset.i].cat = e.target.value;
+      const x = st[+e.target.closest('tr[data-i]').dataset.i];
+      x.cat = e.target.value; x.hand = true;
     });
-    ov.querySelector('.wd-allcat-go').onclick = () => { const v = ov.querySelector('.wd-allcat').value.trim(); st.forEach(x => { if (x.pt === 'post') x.cat = v; }); paint(); };
+    ov.querySelector('.wd-allcat-go').onclick = () => { const v = ov.querySelector('.wd-allcat').value.trim(); st.forEach(x => { if (x.pt === 'post') { x.cat = v; x.hand = false; } }); paint(); };
     body.addEventListener('focusout', e => { if (e.target.classList.contains('wd-cat')) { const tr = e.target.closest('tr[data-i]'), x = st[+tr.dataset.i]; e.target.style.borderColor = x.pt === 'category' && !x.cat.trim() ? 'var(--t-warn)' : ''; } });
     let cseq = 0, siteCats = [];
     const fillDl = () => {
       const seen = new Set(), typed = [];
-      st.forEach(x => { const v = x.cat.trim(); if (x.pt !== 'page' && v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); typed.push(v); } });
-      const allc = ov.querySelector('.wd-allcat').value.trim();
-      if (allc && !seen.has(allc.toLowerCase())) { seen.add(allc.toLowerCase()); typed.push(allc); }
+      st.forEach(x => { const v = x.cat.trim(); if (x.hand && x.pt !== 'page' && v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); typed.push(v); } });
       ov.querySelector('#kbCatList').innerHTML = typed.map(v => `<option value="${esc(v)}">đã điền ở trên</option>`).join('')
         + siteCats.filter(c => !seen.has(c.path.toLowerCase())).map(c => `<option value="${esc(c.path)}">${c.count} bài</option>`).join('');
     };
-    ov.addEventListener('focusin', e => { if (e.target.matches('.wd-cat,.wd-allcat')) fillDl(); });
+    ov.addEventListener('focusin', e => { if (e.target.matches('.wd-cat')) fillDl(); });
     const loadCats = async () => {
       const site = all.find(x => String(x.id) === ov.querySelector('.wd-site').value), hint = ov.querySelector('.wd-cathint');
       siteCats = []; fillDl();
