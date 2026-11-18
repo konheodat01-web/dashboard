@@ -301,7 +301,7 @@ const server = http.createServer(async (req, res) => {
   // ── /api/sw-kw/* → SEO Writer /api/kw/* (tab Kho từ khóa) ──
   if (req.method === "POST" && url.startsWith("/api/sw-kw/")) {
     const sub = url.slice("/api/sw-kw/".length);
-    if (!/^(state|list|facets|import|topic|assign|report|plan-check|plan-add|site-cats)$/.test(sub)) {
+    if (!/^(state|list|facets|import|topic|assign|report|plan-check|plan-add|site-cats|cat-check)$/.test(sub)) {
       res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ detail: "Đường dẫn không hợp lệ" }));
       return;

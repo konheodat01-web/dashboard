@@ -325,6 +325,8 @@
     // nhung SEO Writer Tool chua bao co anh; chi chuyen sang "Da dang" THAT SU khi anh xong.
     function needsImg(it) { return it.status === 'awaiting_images' && !!it.sw_article_id; }
     const catPathOf = it => (it.silo || '') + (it.silo && it.label && !/^Hãng khác/i.test(it.label) ? ' > ' + it.label : '');
+    const WTYPE = { post: 'posts', page: 'pages', category: 'categories' };
+    const rowOf = x => { const wt = WTYPE[x.ptype] || ''; return { main: x.keyword, sec: (x.child || []).join(', '), cat: wt === 'pages' ? '' : catPathOf(x), atype: mapArticleType(x.type) || (wt === 'pages' ? 'trang-van-hanh' : ''), plan_id: x.id, wtype: wt }; };
     // URL SEO Writer: site/brand (+ extra query) qua query; creds của bản ghi 301 + rows qua FRAGMENT (không lên server)
     // "Dạng bài" kế hoạch (tự do theo từng site, vd "Review chuyên sâu", "Tổng hợp / Xếp hạng")
     // -> Loại bài cố định của SEO Writer (7 loại). Không khớp -> trả '' để người dùng tự
@@ -456,6 +458,12 @@
             if (!confirm(`Xoá "${it.keyword}" khỏi kho nội dung? (bài trên web không bị ảnh hưởng)`)) return;
             s.v = await post('contentop/' + cid, { op: 'delete', id }); s.sel.delete(id); return draw(true);
           case 'write': {
+            if (WTYPE[it.ptype]) {
+              const url = writerUrl(['batch=1'], ['rows=' + encodeURIComponent(JSON.stringify([rowOf(it)])), 'cid=' + encodeURIComponent(cid)]);
+              if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(url, it.keyword + ' — ' + domain()); else window.open(url, '_blank');
+              if (it.status === 'plan') { s.v = await post('contentop/' + cid, { op: 'status', id, value: 'writing' }); draw(true); }
+              return;
+            }
             const qs = ['kw=' + encodeURIComponent(it.keyword), 'sec=' + encodeURIComponent((it.child || []).join(', '))];
             const catPath = catPathOf(it);
             if (catPath) qs.push('cat=' + encodeURIComponent(catPath));   // SEO Writer gán cả danh mục cha và con
@@ -477,7 +485,7 @@
             const skipped = s.sel.size - list.length;
             const s301 = typeof wstCurrent301Site === 'function' ? wstCurrent301Site(w) : w;
             if (!(s301 && s301.appwppass) && !confirm('Site này chưa có WP Application Password — SEO Writer sẽ viết nhưng không đăng được lên web. Vẫn mở?')) return;
-            const rows = list.map(x => ({ main: x.keyword, sec: (x.child || []).join(', '), cat: catPathOf(x), atype: mapArticleType(x.type), plan_id: x.id }));
+            const rows = list.map(rowOf);
             // cid gui kem -> SEO Writer tu bao lai "Da dang" o day sau khi viet xong, khoi phai tu bam "Quet" lai
             const url = writerUrl(['batch=1'], ['rows=' + encodeURIComponent(JSON.stringify(rows)), 'cid=' + encodeURIComponent(cid)]);
             if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(url, `Viết hàng loạt ${rows.length} bài — ${domain()}`); else window.open(url, '_blank');
