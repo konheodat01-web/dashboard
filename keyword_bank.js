@@ -290,17 +290,26 @@
     });
     ov.querySelector('.wd-allcat-go').onclick = () => { const v = ov.querySelector('.wd-allcat').value.trim(); st.forEach(x => { if (x.pt === 'post') x.cat = v; }); paint(); };
     body.addEventListener('focusout', e => { if (e.target.classList.contains('wd-cat')) { const tr = e.target.closest('tr[data-i]'), x = st[+tr.dataset.i]; e.target.style.borderColor = x.pt === 'category' && !x.cat.trim() ? 'var(--t-warn)' : ''; } });
-    let cseq = 0;
+    let cseq = 0, siteCats = [];
+    const fillDl = () => {
+      const seen = new Set(), typed = [];
+      st.forEach(x => { const v = x.cat.trim(); if (x.pt !== 'page' && v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); typed.push(v); } });
+      const allc = ov.querySelector('.wd-allcat').value.trim();
+      if (allc && !seen.has(allc.toLowerCase())) { seen.add(allc.toLowerCase()); typed.push(allc); }
+      ov.querySelector('#kbCatList').innerHTML = typed.map(v => `<option value="${esc(v)}">đã điền ở trên</option>`).join('')
+        + siteCats.filter(c => !seen.has(c.path.toLowerCase())).map(c => `<option value="${esc(c.path)}">${c.count} bài</option>`).join('');
+    };
+    ov.addEventListener('focusin', e => { if (e.target.matches('.wd-cat,.wd-allcat')) fillDl(); });
     const loadCats = async () => {
-      const site = all.find(x => String(x.id) === ov.querySelector('.wd-site').value), hint = ov.querySelector('.wd-cathint'), dl = ov.querySelector('#kbCatList');
-      dl.innerHTML = '';
+      const site = all.find(x => String(x.id) === ov.querySelector('.wd-site').value), hint = ov.querySelector('.wd-cathint');
+      siteCats = []; fillDl();
       if (!site) { hint.textContent = 'Chọn website để nạp danh mục có sẵn trên web'; return; }
       const my = ++cseq;
       hint.textContent = '⏳ Đang nạp danh mục của ' + site.domain + '…';
       try {
         const d = await api('site-cats', { site_url: site.domain });
         if (my !== cseq) return;
-        dl.innerHTML = (d.cats || []).map(c => `<option value="${esc(c.path)}">${c.count} bài</option>`).join('');
+        siteCats = d.cats || []; fillDl();
         hint.textContent = (d.cats || []).length ? `${d.cats.length} danh mục có sẵn trên ${site.domain} — bấm vào ô Danh mục để chọn, gõ tên mới thì tool tạo mới (con: Cha > Con)` : ('Không nạp được danh mục' + (d.error ? ': ' + d.error : '') + ' — vẫn gõ tay được');
       } catch (e) { if (my === cseq) hint.textContent = 'Không nạp được danh mục: ' + e.message + ' — vẫn gõ tay được'; }
     };
