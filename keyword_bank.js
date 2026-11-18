@@ -241,6 +241,102 @@
     if (g) g.onclick = () => { ov.remove(); go(); };
   }
 
+  const WT = { post: 'posts', page: 'pages', category: 'categories' };
+  const capFirst = s => { s = String(s || '').replace(/[>,|]/g, ' ').replace(/\s+/g, ' ').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; };
+
+  function writeDialog() {
+    const ms = allMains().filter(m => S.sel.has(m.id));
+    if (!ms.length) return;
+    const all = sites();
+    const st = ms.map(m => ({ m, pt: m.ptype || '', set: !m.ptype, cat: m.ptype === 'category' ? capFirst(m.text) : '' }));
+    const ov = modal(`<div style="font-weight:700;margin-bottom:8px">✍️ Viết bài — ${ms.length} từ khóa chính</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><select class="wd-site" style="${inp};flex:1;min-width:240px"><option value="">Chọn website…</option>${all.map(x => `<option value="${esc(x.id)}" ${String(S.siteId) === String(x.id) ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select></div>
+      <div class="wd-cathint" style="font-size:11.5px;color:var(--t-fg-muted);margin-bottom:8px">Chọn website để nạp danh mục có sẵn trên web</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;font-size:12px;color:var(--t-fg-muted)">Danh mục cho mọi Post: <input class="wd-allcat" list="kbCatList" placeholder="chọn hoặc gõ tên mới" style="${inp};flex:1"><button class="wd-allcat-go" style="${btn()}">Áp</button></div>
+      <datalist id="kbCatList"></datalist>
+      <div style="max-height:46vh;overflow:auto;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl" style="width:100%"><thead><tr><th>Từ khóa chính</th><th>Phụ</th><th>Loại bài</th><th>Danh mục</th></tr></thead><tbody class="wd-body"></tbody></table></div>
+      <div class="wd-sum" style="font-size:12px;margin-top:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end"><button class="wd-cancel" style="${btn()}">Hủy</button><button class="wd-go" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}">✍️ Viết (mở tool viết bài)</button></div>`);
+    ov.firstElementChild.style.maxWidth = '860px';
+    const body = ov.querySelector('.wd-body');
+    const cells = (x) => `<td style="font-weight:600;color:var(--t-fg2);white-space:normal">${esc(x.m.text)}</td><td style="text-align:center">${x.m.subs.length}</td>
+        <td><select class="wd-pt" style="${inp}${x.set ? ';border-color:var(--t-warn)' : ''}">${x.pt ? '' : '<option value="" selected>— chọn loại —</option>'}${Object.keys(PT).map(k => `<option value="${k}" ${x.pt === k ? 'selected' : ''}>${PT[k]}</option>`).join('')}</select>${x.set ? '<div style="font-size:10.5px;color:var(--t-warn)">chưa có loại — chọn xong sẽ lưu vào kho</div>' : ''}</td>
+        <td>${x.pt === 'page' ? '<span style="color:var(--t-fg-subtle)">Page không có danh mục</span>' : `<input class="wd-cat" list="kbCatList" value="${esc(x.cat)}" placeholder="${x.pt === 'category' ? 'tên danh mục (bắt buộc)' : 'danh mục (tuỳ chọn)'}" style="${inp};width:100%;min-width:200px${x.pt === 'category' && !x.cat ? ';border-color:var(--t-warn)' : ''}">`}</td>`;
+    const sum = () => {
+      const g = {}; st.forEach(x => { if (x.pt) g[x.pt] = (g[x.pt] || 0) + 1; });
+      const miss = st.filter(x => !x.pt).length, keys = Object.keys(g);
+      ov.querySelector('.wd-sum').innerHTML = (keys.length ? `Sẽ tách thành <b>${keys.length} mẻ</b>: ${keys.map(k => `${PT[k]} <b>${g[k]}</b>`).join(' · ')}` : '') + (miss ? ` <span style="color:var(--t-warn)">· còn ${miss} từ chưa chọn loại</span>` : '');
+    };
+    const paint = () => { body.innerHTML = st.map((x, i) => `<tr data-i="${i}">${cells(x)}</tr>`).join(''); sum(); };
+    const paintRow = (tr, focus) => {
+      tr.innerHTML = cells(st[+tr.dataset.i]);
+      sum();
+      if (focus) { const f = tr.querySelector('.' + focus); if (f) f.focus(); }
+    };
+    paint();
+    body.addEventListener('change', e => {
+      const tr = e.target.closest('tr[data-i]'); if (!tr) return;
+      const x = st[+tr.dataset.i];
+      if (e.target.classList.contains('wd-pt')) {
+        x.pt = e.target.value;
+        if (x.pt === 'category' && !x.cat) x.cat = capFirst(x.m.text);
+        if (x.pt === 'page') x.cat = '';
+        paintRow(tr, 'wd-pt');
+      }
+    });
+    body.addEventListener('input', e => {
+      if (!e.target.classList.contains('wd-cat')) return;
+      st[+e.target.closest('tr[data-i]').dataset.i].cat = e.target.value;
+    });
+    ov.querySelector('.wd-allcat-go').onclick = () => { const v = ov.querySelector('.wd-allcat').value.trim(); st.forEach(x => { if (x.pt === 'post') x.cat = v; }); paint(); };
+    body.addEventListener('focusout', e => { if (e.target.classList.contains('wd-cat')) { const tr = e.target.closest('tr[data-i]'), x = st[+tr.dataset.i]; e.target.style.borderColor = x.pt === 'category' && !x.cat.trim() ? 'var(--t-warn)' : ''; } });
+    let cseq = 0;
+    const loadCats = async () => {
+      const site = all.find(x => String(x.id) === ov.querySelector('.wd-site').value), hint = ov.querySelector('.wd-cathint'), dl = ov.querySelector('#kbCatList');
+      dl.innerHTML = '';
+      if (!site) { hint.textContent = 'Chọn website để nạp danh mục có sẵn trên web'; return; }
+      const my = ++cseq;
+      hint.textContent = '⏳ Đang nạp danh mục của ' + site.domain + '…';
+      try {
+        const d = await api('site-cats', { site_url: site.domain });
+        if (my !== cseq) return;
+        dl.innerHTML = (d.cats || []).map(c => `<option value="${esc(c.path)}">${c.count} bài</option>`).join('');
+        hint.textContent = (d.cats || []).length ? `${d.cats.length} danh mục có sẵn trên ${site.domain} — bấm vào ô Danh mục để chọn, gõ tên mới thì tool tạo mới (con: Cha > Con)` : ('Không nạp được danh mục' + (d.error ? ': ' + d.error : '') + ' — vẫn gõ tay được');
+      } catch (e) { if (my === cseq) hint.textContent = 'Không nạp được danh mục: ' + e.message + ' — vẫn gõ tay được'; }
+    };
+    ov.querySelector('.wd-site').addEventListener('change', e => { S.siteId = e.target.value; loadCats(); });
+    loadCats();
+    ov.querySelector('.wd-cancel').onclick = () => ov.remove();
+    ov.querySelector('.wd-go').onclick = async () => {
+      const site = all.find(x => String(x.id) === ov.querySelector('.wd-site').value);
+      if (!site) { say('Chọn website trước', '#e67e22'); return; }
+      const miss = st.filter(x => !x.pt);
+      if (miss.length) { say(`Còn ${miss.length} từ khóa chưa chọn Loại bài`, '#e67e22'); return; }
+      const noCat = st.filter(x => x.pt === 'category' && !x.cat.trim());
+      if (noCat.length) { say(`Mô tả danh mục phải có tên danh mục: ${noCat.map(x => x.m.text).join(', ')}`, '#e67e22'); return; }
+      const w = (typeof websites !== 'undefined' ? websites : []).find(x => String(x.id) === String(site.id)) || {};
+      const s301 = typeof wstCurrent301Site === 'function' ? wstCurrent301Site(w) : w;
+      if (!(s301 && s301.appwppass) && !confirm('Site này chưa có WP Application Password — tool sẽ viết nhưng không đăng được lên web. Vẫn mở?')) return;
+      const save = {};
+      st.forEach(x => { if (x.pt !== (x.m.ptype || '')) (save[x.pt] = save[x.pt] || []).push(x.m.kw); });
+      try { for (const k of Object.keys(save)) await api('assign', { action: 'set_ptype', kw_ids: save[k], ptype: k }); } catch (e) { return fail(e); }
+      const rows = st.map(x => ({ main: x.m.text, sec: x.m.subs.map(s => s.text).join(', '), cat: x.pt === 'page' ? '' : x.cat.trim(), atype: x.pt === 'page' ? 'trang-van-hanh' : '', wtype: WT[x.pt] }));
+      const wst = typeof getWstSite === 'function' ? getWstSite(w.id) : null;
+      const brand = (wst && wst.mainKeyword) || w.brand || '';
+      const frag = [];
+      if (s301 && s301.account) frag.push('wpu=' + encodeURIComponent(s301.account));
+      if (s301 && s301.appwppass) frag.push('wpp=' + encodeURIComponent(s301.appwppass));
+      frag.push('rows=' + encodeURIComponent(JSON.stringify(rows)));
+      const url = 'https://seo-writer-tool.nthieucloud.shop/?site=' + encodeURIComponent(site.domain) + '&brand=' + encodeURIComponent(brand) + '&batch=1#' + frag.join('&');
+      ov.remove();
+      const g = {}; st.forEach(x => { g[x.pt] = (g[x.pt] || 0) + 1; });
+      if (typeof wstOpenWriterModal === 'function') wstOpenWriterModal(url, `Viết ${rows.length} bài — ${site.domain}`); else window.open(url, '_blank');
+      say(`✓ Đã chuyển ${rows.length} từ khóa sang tool viết bài (${Object.keys(g).map(k => PT[k] + ' ' + g[k]).join(' · ')}) — kiểm tra Bước 1 rồi bấm chạy, tool tự tách mẻ`);
+      S.sel.clear();
+      if (Object.keys(save).length) load(); else draw();
+    };
+  }
+
   function bar() {
     const el = root && root.querySelector('#kbBar');
     if (!el) return;
@@ -262,6 +358,7 @@
     } else if (S.view === 'processed') {
       const so = sites().map(x => `<option value="${esc(x.id)}" ${String(S.siteId) === String(x.id) ? 'selected' : ''}>${esc(x.label)}</option>`).join('');
       el.innerHTML = `<b style="font-size:12.5px">${n} từ khóa chính đã chọn</b>
+        <button data-a="write" style="${btn('background:#238636;border-color:#238636;color:#fff')}">✍️ Viết bài</button>
         <select class="kb-setpt" style="${inp}">${ptOpts}</select>
         <select class="kb-site" style="${inp};max-width:320px"><option value="">Chọn website…</option>${so}</select>
         <button data-a="toplan" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}">➕ Thêm vào kế hoạch của website</button>
@@ -644,6 +741,7 @@
             return load();
           }
           case 'toplan': return addToPlan();
+          case 'write': return writeDialog();
           case 'merge': return mergeMains();
           case 'unmain': {
             const ids = [...S.sel];
