@@ -4,9 +4,18 @@
   const num = n => (n == null || n === '') ? '—' : (Number(n) || 0).toLocaleString('vi-VN');
   const btn = extra => `background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit;${extra || ''}`;
   const inp = 'background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit';
-  const S = { view: 'unprocessed', q: '', ptype: '', sort: 'avg', items: [], total: 0, counts: {}, topics: [], sel: new Set(), anchor: null, report: {}, open: new Set(), limit: 200, busy: '', siteId: '', topicId: '', f: { topic: '', min: '', max: '', subs: '', written: '', mine: '' } };
+  const S = { view: 'unprocessed', q: '', ptype: '', sort: 't', dir: '', dup: false, cf: {}, pcf: {}, psort: '', pdir: '', items: [], total: 0, counts: {}, topics: [], sel: new Set(), anchor: null, report: {}, open: new Set(), limit: 200, busy: '', siteId: '', topicId: '', f: { topic: '', min: '', max: '', subs: '', written: '', mine: '' } };
   let root = null, drag = null, loadSeq = 0;
   const PAGE = 1000;
+  const fold = s => String(s == null ? '' : s).toLowerCase().replace(/đ/g, 'd').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const fmtT = t => t && t.length >= 16 ? `${t.slice(8, 10)}/${t.slice(5, 7)} ${t.slice(11, 16)}` : (t || '—');
+  const LCOL = { text: { l: 'Từ khóa' }, avg: { l: 'Lượt tìm/tháng', num: 1 }, comp: { l: 'Cạnh tranh' }, bid_lo: { l: 'Giá thầu (thấp–cao)', num: 1, nl: 'Giá thầu thấp' }, chg3: { l: '3 tháng' }, chgy: { l: 'Cùng kỳ' }, ptype: { l: 'Loại bài' }, label: { l: 'Nhãn' }, t: { l: 'Nhập lúc', time: 1 }, src: { l: 'Nguồn' } };
+  const rep = m => S.report[m.id] || { total: 0, mine: [] };
+  const PCOL = { topic: { l: 'Chủ đề', get: m => m.topic }, text: { l: 'Từ khóa chính', get: m => m.text }, avg: { l: 'Lượt tìm/tháng', num: 1, get: m => m.avg }, subs: { l: 'Phụ', num: 1, get: m => m.subs.length }, ptype: { l: 'Loại bài', get: m => m.ptype }, written: { l: 'Đã viết (cả 2 tài khoản)', num: 1, get: m => rep(m).total }, mine: { l: 'Website của tài khoản này', num: 1, get: m => rep(m).mine.length } };
+  const vlabel = (col, v) => v === '' || v == null ? '(Trống)' : col === 'ptype' ? (PT[v] || v) : col === 'label' ? (v === 'dropped' ? '✕ Bỏ' : v === 'meaningless' ? '🚫 Vô nghĩa' : v) : String(v);
+  const cfNow = () => S.view === 'processed' ? S.pcf : (S.cf[S.view] = S.cf[S.view] || {});
+  const FN = '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-1px"><path d="M1 2h14l-5.5 6.5V14l-3-1.5V8.5z"/></svg>';
+  const th = (col, label, title) => { const on = !!cfNow()[col], so = S.view === 'processed' ? S.psort === col : S.sort === col; return `<th${title ? ` title="${esc(title)}"` : ''}><span style="display:inline-flex;align-items:center;gap:4px">${label}<span class="kb-fn" data-fcol="${col}" title="Lọc / sắp xếp cột này" style="cursor:pointer;padding:1px 3px;border-radius:4px;border:1px solid ${on ? 'var(--t-accent)' : 'var(--t-border)'};color:${on ? '#fff' : 'var(--t-fg-muted)'};background:${on ? 'var(--t-accent)' : 'transparent'};line-height:1">${FN}${so ? ((S.view === 'processed' ? S.pdir : (S.dir || (LCOL[col] && (LCOL[col].num || LCOL[col].time) ? 'desc' : 'asc'))) === 'desc' ? '↓' : '↑') : ''}</span></span></th>`; };
 
   async function api(path, body) {
     const r = await fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
@@ -36,7 +45,7 @@
         let items = [], d = null;
         for (let off = 0; off < S.limit; off += PAGE) {
           const n = Math.min(PAGE, S.limit - off);
-          d = await api('list', { view: S.view, q: S.q, ptype: S.ptype, sort: S.sort, offset: off, limit: n });
+          d = await api('list', { view: S.view, q: S.q, ptype: S.ptype, sort: S.sort, dir: S.dir, dup: S.view === 'unprocessed' && S.dup, filters: cfNow(), offset: off, limit: n });
           if (seq !== loadSeq) return;
           items = items.concat(d.items);
           if (d.items.length < n || items.length >= d.total) break;
@@ -267,12 +276,13 @@
   }
 
   function kwTable(items, withLabel) {
-    const head = `<th class="sk0"><input type="checkbox" class="kb-all"></th><th>Từ khóa</th><th>Lượt tìm/tháng</th><th>Cạnh tranh</th><th>Giá thầu (thấp–cao)</th><th>3 tháng</th><th>Cùng kỳ</th><th>Loại bài</th>${withLabel ? '<th>Nhãn</th>' : ''}`;
+    const dup = S.view === 'unprocessed' && S.dup;
+    const head = `<th class="sk0"><input type="checkbox" class="kb-all"></th>${th('text', 'Từ khóa')}${th('avg', 'Lượt tìm/tháng')}${th('comp', 'Cạnh tranh')}${th('bid_lo', 'Giá thầu (thấp–cao)')}${th('chg3', '3 tháng')}${th('chgy', 'Cùng kỳ')}${th('ptype', 'Loại bài')}${withLabel ? th('label', 'Nhãn') : ''}${th('t', 'Nhập lúc')}${dup ? th('src', 'Nguồn') : ''}`;
     const body = items.map(k => `<tr data-sel="${esc(k.id)}" class="${S.sel.has(k.id) ? 'sel' : ''}"><td class="sk0"><input type="checkbox" class="kb-chk" ${S.sel.has(k.id) ? 'checked' : ''}></td>
-      <td style="font-weight:600;color:var(--t-fg2)">${esc(k.text)}</td><td style="text-align:right">${num(k.avg)}</td><td>${esc(k.comp)}</td>
+      <td style="font-weight:600;color:var(--t-fg2)"><span class="kb-ed" data-edit="${esc(k.id)}" title="Click đúp để sửa">${esc(k.text)}</span>${!dup && k.nimp > 1 ? ` <span title="Đã nhập ${k.nimp} lần" style="font-size:10.5px;font-weight:400;color:var(--t-fg-muted)">×${k.nimp}</span>` : ''}</td><td style="text-align:right">${num(k.avg)}</td><td>${esc(k.comp)}</td>
       <td>${k.bid_lo == null && k.bid_hi == null ? '—' : esc((k.bid_lo ?? '') + ' – ' + (k.bid_hi ?? ''))}</td><td>${esc(k.chg3)}</td><td>${esc(k.chgy)}</td><td>${ptCell(k)}</td>
-      ${withLabel ? `<td>${k.label === 'dropped' ? '✕ Bỏ' : '🚫 Vô nghĩa'}</td>` : ''}</tr>`).join('');
-    return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="10" style="padding:16px;color:var(--t-fg-muted)">Không có từ khóa nào</td></tr>`}</tbody></table></div>
+      ${withLabel ? `<td>${k.label === 'dropped' ? '✕ Bỏ' : '🚫 Vô nghĩa'}</td>` : ''}<td style="color:var(--t-fg-muted)">${esc(fmtT(k.t))}</td>${dup ? `<td style="color:var(--t-fg-muted)">${esc(k.src || 'CSV')}</td>` : ''}</tr>`).join('');
+    return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="12" style="padding:16px;color:var(--t-fg-muted)">${Object.keys(cfNow()).length ? 'Không có từ khóa nào khớp bộ lọc cột' : 'Không có từ khóa nào'}</td></tr>`}</tbody></table></div>
       ${S.items.length < S.total ? `<div style="margin-top:8px;display:flex;gap:6px"><button data-a="more" style="${btn()}">Hiện thêm (${S.items.length}/${num(S.total)})</button><button data-a="all" style="${btn()}">Hiện tất cả (${num(S.total)})</button></div>` : ''}`;
   }
 
@@ -281,9 +291,9 @@
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b style="font-size:14px;color:var(--t-fg2)">📁 ${esc(t.name)}</b><span style="font-size:12px;color:var(--t-fg-muted)">${t.mains.length} từ khóa chính</span>
         <span style="margin-left:auto;display:flex;gap:6px"><button data-a="addmain" data-t="${esc(t.id)}" style="${btn()}">＋ Từ khóa chính</button><button data-a="rentopic" data-t="${esc(t.id)}" style="${btn()}">✏️</button><button data-a="deltopic" data-t="${esc(t.id)}" style="${btn('color:var(--t-danger)')}">🗑</button></span></div>
       ${t.mains.map(m => `<div style="border-top:1px solid var(--t-muted);padding:8px 0">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="color:var(--t-warn)">★</span><b style="color:var(--t-fg2)">${esc(m.kw.text)}</b><span style="font-size:12px;color:var(--t-fg-muted)">${num(m.kw.avg)}/tháng</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="color:var(--t-warn)">★</span><b class="kb-ed" data-edit="${esc(m.kw.id)}" title="Click đúp để sửa" style="color:var(--t-fg2)">${esc(m.kw.text)}</b><span style="font-size:12px;color:var(--t-fg-muted)">${num(m.kw.avg)}/tháng</span>
           <span style="margin-left:auto;display:flex;gap:6px"><button data-a="addsub" data-m="${esc(m.id)}" style="${btn()}">＋ Từ khóa phụ</button><button data-a="mvmain" data-m="${esc(m.id)}" style="${btn()}">⇄ Chuyển chủ đề</button><button data-a="rmmain" data-m="${esc(m.id)}" style="${btn()}">↩ Gỡ</button></span></div>
-        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${m.subs.map(s => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--t-subtle3);border:1px solid var(--t-border);border-radius:12px;padding:2px 4px 2px 10px;font-size:12px">${esc(s.text)} <span style="color:var(--t-fg-muted)">${num(s.avg)}</span>
+        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${m.subs.map(s => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--t-subtle3);border:1px solid var(--t-border);border-radius:12px;padding:2px 4px 2px 10px;font-size:12px"><span class="kb-ed" data-edit="${esc(s.id)}" title="Click đúp để sửa">${esc(s.text)}</span> <span style="color:var(--t-fg-muted)">${num(s.avg)}</span>
           <a data-a="swap" data-m="${esc(m.id)}" data-k="${esc(s.id)}" title="Thay thế từ khóa chính (từ khóa chính hiện tại thành từ khóa phụ)" style="cursor:pointer;color:var(--t-accent);padding:0 3px">⇄</a>
           <a data-a="rmsub" data-m="${esc(m.id)}" data-k="${esc(s.id)}" title="Gỡ khỏi từ khóa chính" style="cursor:pointer;color:var(--t-fg-muted);padding:0 4px">✕</a></span>`).join('') || '<span style="font-size:12px;color:var(--t-fg-subtle)">Chưa có từ khóa phụ</span>'}</div></div>`).join('') || '<div style="font-size:12px;color:var(--t-fg-subtle)">Chưa có từ khóa chính — vào "Chưa xử lý" chọn từ khóa rồi bấm ★, hoặc bấm ＋ Từ khóa chính để gõ tay.</div>'}</div>`).join('');
     return `<div style="display:flex;flex-direction:column;gap:12px">${tb || '<div style="color:var(--t-fg-muted)">Chưa có chủ đề nào — bấm "＋ Chủ đề" để tạo.</div>'}</div>`;
@@ -318,17 +328,158 @@
   function processedView() {
     const q = S.q.trim().toLowerCase();
     const base = allMains().filter(m => (!q || (m.text + ' ' + m.topic).toLowerCase().includes(q)) && (!S.ptype || (S.ptype === 'none' ? !m.ptype : m.ptype === S.ptype)));
-    const mains = base.filter(procMatch);
+    const mains = base.filter(procMatch).filter(m => colMatch(m, S.pcf, PCOL));
+    if (S.psort && PCOL[S.psort]) {
+      const g = PCOL[S.psort].get, d = S.pdir === 'desc' ? -1 : 1;
+      mains.sort((a, b) => { const x = g(a), y = g(b); if (PCOL[S.psort].num) { if (x == null || y == null) return (x == null) - (y == null); return (x - y) * d; } return String(x || '').localeCompare(String(y || ''), 'vi') * d; });
+    }
     const rows = mains.map(m => {
       const r = S.report[m.id] || { total: 0, mine: [] };
       const open = S.open.has(m.id);
       return `<tr data-sel="${esc(m.id)}" class="${S.sel.has(m.id) ? 'sel' : ''}"><td class="sk0"><input type="checkbox" class="kb-chk" ${S.sel.has(m.id) ? 'checked' : ''}></td>
-        <td>${esc(m.topic)}</td><td style="font-weight:600;color:var(--t-fg2)">${esc(m.text)}</td><td style="text-align:right">${num(m.avg)}</td><td style="text-align:center">${m.subs.length}</td><td>${ptCell(m)}</td>
+        <td>${esc(m.topic)}</td><td style="font-weight:600;color:var(--t-fg2)"><span class="kb-ed" data-edit="${esc(m.kw)}" title="Click đúp để sửa">${esc(m.text)}</span></td><td style="text-align:right">${num(m.avg)}</td><td style="text-align:center">${m.subs.length}</td><td>${ptCell(m)}</td>
         <td style="text-align:center"><span style="padding:1px 10px;border-radius:10px;background:${r.total ? 'color-mix(in srgb,var(--t-warn) 18%,transparent)' : 'color-mix(in srgb,var(--t-success) 16%,transparent)'};color:${r.total ? 'var(--t-warn)' : 'var(--t-success)'}">${r.total} website</span></td>
         <td><a data-a="detail" data-m="${esc(m.id)}" style="cursor:pointer;color:var(--t-accent)">${r.mine.length ? (open ? '▾' : '▸') + ' ' + r.mine.length + ' của bạn' : '—'}</a></td></tr>
         ${open && r.mine.length ? `<tr class="kb-detail"><td></td><td colspan="7" style="padding:6px 10px 10px">${r.mine.map(d => `<div style="font-size:12px;color:var(--t-fg-muted)">• <b style="color:var(--t-fg)">${esc(d.domain || d.cid)}</b> · ${esc(d.via)} · ${esc(d.status)} — ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--t-accent)">${esc(d.title)}</a>` : esc(d.title)}</div>`).join('')}</td></tr>` : ''}`;
     }).join('');
-    return `${procFilters(mains.length, allMains().length)}<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 340px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr><th class="sk0"><input type="checkbox" class="kb-all"></th><th>Chủ đề</th><th>Từ khóa chính</th><th>Lượt tìm/tháng</th><th>Phụ</th><th>Loại bài</th><th title="Tổng số website của cả 2 tài khoản đã có bài/kế hoạch khớp từ khóa chính">Đã viết (cả 2 tài khoản)</th><th>Website của tài khoản này</th></tr></thead><tbody>${rows || `<tr><td colspan="8" style="padding:16px;color:var(--t-fg-muted)">${allMains().length ? 'Không có từ khóa chính nào khớp bộ lọc' : 'Chưa có từ khóa chính nào được xử lý'}</td></tr>`}</tbody></table></div>`;
+    return `${procFilters(mains.length, allMains().length)}<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 340px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr><th class="sk0"><input type="checkbox" class="kb-all"></th>${th('topic', 'Chủ đề')}${th('text', 'Từ khóa chính')}${th('avg', 'Lượt tìm/tháng')}${th('subs', 'Phụ')}${th('ptype', 'Loại bài')}${th('written', 'Đã viết (cả 2 tài khoản)', 'Tổng số website của cả 2 tài khoản đã có bài/kế hoạch khớp từ khóa chính')}${th('mine', 'Website của tài khoản này')}</tr></thead><tbody>${rows || `<tr><td colspan="8" style="padding:16px;color:var(--t-fg-muted)">${allMains().length ? 'Không có từ khóa chính nào khớp bộ lọc' : 'Chưa có từ khóa chính nào được xử lý'}</td></tr>`}</tbody></table></div>`;
+  }
+
+  function colMatch(m, cf, defs) {
+    for (const col in cf) {
+      const sp = cf[col], d = defs[col];
+      if (!d) continue;
+      const v = d.get(m);
+      if (d.num && (sp.min !== undefined || sp.max !== undefined)) {
+        if (v == null) return false;
+        if (sp.min !== undefined && v < sp.min) return false;
+        if (sp.max !== undefined && v > sp.max) return false;
+      }
+      const fv = v == null ? '' : String(v);
+      if (sp.q && !fold(fv).includes(fold(sp.q))) return false;
+      if (sp.vals && !sp.vals.includes(fv)) return false;
+      if (sp.not && sp.not.includes(fv)) return false;
+    }
+    return true;
+  }
+
+  function localFacets(col, search) {
+    const cf = Object.assign({}, S.pcf); delete cf[col];
+    const q = S.q.trim().toLowerCase(), fs = fold(search), cnt = new Map(), nums = [];
+    allMains().filter(m => (!q || (m.text + ' ' + m.topic).toLowerCase().includes(q)) && (!S.ptype || (S.ptype === 'none' ? !m.ptype : m.ptype === S.ptype)) && procMatch(m) && colMatch(m, cf, PCOL)).forEach(m => {
+      const v = PCOL[col].get(m);
+      if (PCOL[col].num && v != null) nums.push(v);
+      const fv = v == null ? '' : String(v);
+      if (fs && !fold(fv).includes(fs)) return;
+      cnt.set(fv, (cnt.get(fv) || 0) + 1);
+    });
+    const vals = [...cnt].map(([v, n]) => ({ v, n }));
+    vals.sort(PCOL[col].num ? (a, b) => (a.v === '') - (b.v === '') || Number(b.v) - Number(a.v) : (a, b) => (a.v === '') - (b.v === '') || b.n - a.n || a.v.localeCompare(b.v, 'vi'));
+    return { values: vals.slice(0, 500), more: Math.max(0, vals.length - 500), min: nums.length ? Math.min(...nums) : null, max: nums.length ? Math.max(...nums) : null };
+  }
+
+  function closeFunnel() { const o = document.getElementById('kbFunnel'); if (o) o.remove(); }
+
+  async function openFunnel(col, anchor) {
+    closeFunnel();
+    const proc = S.view === 'processed', defs = proc ? PCOL : LCOL, def = defs[col];
+    if (!def) return;
+    const cf = cfNow(), cur = cf[col] || {};
+    const isNum = !!def.num, isTime = !!def.time;
+    const box = document.createElement('div');
+    box.id = 'kbFunnel';
+    const r = anchor.getBoundingClientRect();
+    box.style.cssText = `position:fixed;z-index:10060;top:${Math.min(r.bottom + 4, window.innerHeight - 440)}px;left:${Math.max(8, Math.min(r.left - 8, window.innerWidth - 300))}px;width:280px;background:var(--t-subtle);border:1px solid var(--t-border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.45);padding:10px;color:var(--t-fg);font-size:12.5px`;
+    const so = isNum ? ['Nhỏ → Lớn', 'Lớn → Nhỏ'] : isTime ? ['Cũ → Mới', 'Mới → Cũ'] : ['A → Z', 'Z → A'];
+    box.innerHTML = `<div style="font-weight:700;margin-bottom:8px">${esc(def.nl || def.l)}</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px"><button data-fs="asc" style="${btn('flex:1')}">↑ ${so[0]}</button><button data-fs="desc" style="${btn('flex:1')}">↓ ${so[1]}</button></div>
+      ${isNum ? `<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><input class="fn-min" type="number" placeholder="từ" value="${cur.min ?? ''}" style="${inp};width:100%"><span>–</span><input class="fn-max" type="number" placeholder="đến" value="${cur.max ?? ''}" style="${inp};width:100%"></div><div class="fn-range" style="font-size:11px;color:var(--t-fg-muted);margin:-4px 0 8px"></div>` : ''}
+      <input class="fn-q" placeholder="🔍 Tìm giá trị…" value="${esc(cur.q || '')}" style="${inp};width:100%;margin-bottom:6px">
+      <div class="fn-list" style="max-height:220px;overflow:auto;border:1px solid var(--t-border);border-radius:6px;background:var(--t-canvas)"><div style="padding:8px;color:var(--t-fg-muted)">Đang tải…</div></div>
+      <div class="fn-note" style="font-size:11px;color:var(--t-fg-muted);margin-top:4px"></div>
+      <div style="display:flex;gap:6px;margin-top:8px"><button class="fn-clear" style="${btn()}">Xóa lọc</button><span style="flex:1"></span><button class="fn-cancel" style="${btn()}">Hủy</button><button class="fn-ok" style="${btn('background:#238636;border-color:#238636;color:#fff')}">Áp dụng</button></div>`;
+    document.body.appendChild(box);
+    const list = box.querySelector('.fn-list'), qEl = box.querySelector('.fn-q');
+    let data = { values: [], more: 0 }, checked = new Map(), seq = 0;
+    const isOn = v => cur.vals ? cur.vals.includes(v) : cur.not ? !cur.not.includes(v) : true;
+    const paint = () => {
+      const all = data.values.length && data.values.every(x => checked.get(x.v));
+      list.innerHTML = data.values.length ? `<label style="display:flex;gap:6px;padding:4px 8px;border-bottom:1px solid var(--t-muted);cursor:pointer"><input type="checkbox" class="fn-all" ${all ? 'checked' : ''}><b>(Chọn tất cả${qEl.value.trim() ? ' kết quả tìm' : ''})</b></label>` + data.values.map((x, i) => `<label style="display:flex;gap:6px;align-items:center;padding:3px 8px;cursor:pointer"><input type="checkbox" data-i="${i}" ${checked.get(x.v) ? 'checked' : ''}><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(isNum && x.v !== '' ? num(x.v) : vlabel(col, x.v))}</span><span style="color:var(--t-fg-muted);font-size:11px">${num(x.n)}</span></label>`).join('') : '<div style="padding:8px;color:var(--t-fg-muted)">Không có giá trị</div>';
+      box.querySelector('.fn-note').textContent = data.more ? `Hiện 500/${num(data.values.length + data.more)} giá trị — gõ ô tìm để thu hẹp` : '';
+      const rg = box.querySelector('.fn-range');
+      if (rg) rg.textContent = data.min != null ? `Khoảng hiện có: ${num(data.min)} – ${num(data.max)}` : '';
+    };
+    const fetchVals = async () => {
+      const my = ++seq, search = qEl.value.trim();
+      let d;
+      try {
+        d = proc ? localFacets(col, search) : await api('facets', { view: S.view, col, q: S.q, ptype: S.ptype, dup: S.view === 'unprocessed' && S.dup, filters: cf, search });
+      } catch (e) { list.innerHTML = `<div style="padding:8px;color:var(--t-danger)">${esc(e.message)}</div>`; return; }
+      if (my !== seq) return;
+      data = d;
+      checked = new Map(d.values.map(x => [x.v, search ? true : isOn(x.v)]));
+      paint();
+    };
+    let tq = null;
+    qEl.addEventListener('input', () => { clearTimeout(tq); tq = setTimeout(fetchVals, 250); });
+    list.addEventListener('change', e => {
+      if (e.target.classList.contains('fn-all')) { data.values.forEach(x => checked.set(x.v, e.target.checked)); return paint(); }
+      const i = e.target.dataset.i;
+      if (i !== undefined) { checked.set(data.values[i].v, e.target.checked); paint(); }
+    });
+    const commit = spec => {
+      if (spec && Object.keys(spec).length) cf[col] = spec; else delete cf[col];
+      closeFunnel(); S.sel.clear();
+      return proc ? draw() : load();
+    };
+    box.querySelector('.fn-cancel').onclick = closeFunnel;
+    box.querySelector('.fn-clear').onclick = () => commit(null);
+    box.querySelectorAll('[data-fs]').forEach(b => b.onclick = () => {
+      if (proc) { S.psort = col; S.pdir = b.dataset.fs; } else { S.sort = col; S.dir = b.dataset.fs; }
+      closeFunnel(); return proc ? draw() : load();
+    });
+    box.querySelector('.fn-ok').onclick = () => {
+      const spec = {};
+      if (isNum) {
+        const a = box.querySelector('.fn-min').value, b = box.querySelector('.fn-max').value;
+        if (a !== '') spec.min = Number(a);
+        if (b !== '') spec.max = Number(b);
+      }
+      const search = qEl.value.trim(), on = data.values.filter(x => checked.get(x.v)).map(x => x.v), off = data.values.filter(x => !checked.get(x.v)).map(x => x.v);
+      if (search) {
+        if (!on.length) { say('Chưa tick giá trị nào', '#e67e22'); return; }
+        if (!off.length && !data.more) spec.q = search; else spec.vals = on;
+      } else if (off.length) {
+        if (!on.length) { say('Chưa tick giá trị nào', '#e67e22'); return; }
+        if (data.more || off.length < on.length) spec.not = off; else spec.vals = on;
+      }
+      return commit(spec);
+    };
+    setTimeout(() => document.addEventListener('mousedown', function h(e) { if (!document.getElementById('kbFunnel')) return document.removeEventListener('mousedown', h, true); if (!box.contains(e.target)) { closeFunnel(); document.removeEventListener('mousedown', h, true); } }, true), 0);
+    fetchVals();
+    qEl.focus();
+  }
+
+  function editKw(el) {
+    if (el.querySelector('input')) return;
+    const id = el.dataset.edit, old = el.textContent;
+    const w = Math.max(160, el.getBoundingClientRect().width + 40);
+    el.innerHTML = `<input class="kb-edin" value="${esc(old)}" style="${inp};width:${w}px;font-weight:600">`;
+    const ip = el.querySelector('input');
+    ip.focus(); ip.select();
+    let done = false;
+    const finish = async save => {
+      if (done) return; done = true;
+      const v = ip.value.replace(/\s+/g, ' ').trim();
+      if (!save || !v || v === old) { el.textContent = old; return; }
+      el.textContent = v;
+      try { await api('assign', { action: 'rename', kw_ids: [id], text: v }); say(`✓ Đã sửa "${old}" → "${v}"`); await load(); }
+      catch (e) { el.textContent = old; fail(e); }
+    };
+    ip.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); } });
+    ip.addEventListener('blur', () => finish(true));
+    ip.addEventListener('mousedown', e => e.stopPropagation());
+    ip.addEventListener('dblclick', e => e.stopPropagation());
   }
 
   function draw() {
@@ -357,7 +508,7 @@
         <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button data-a="newtopic" style="${btn()}">＋ Chủ đề</button><button data-a="import" style="${btn('background:#1f6feb;border-color:#1f6feb;color:#fff')}">📥 Nhập CSV Keyword Planner</button><input type="file" id="kbFile" accept=".csv,.tsv,.txt" style="display:none"></span></div>
       ${S.busy ? `<div style="font-size:12px;color:var(--t-warn)">${esc(S.busy)}</div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap">${chip('Chưa xử lý', c.unprocessed, 'unprocessed', 'var(--t-fg)')}${chip('Chủ đề', c.topics, 'topics', 'var(--t-fg)')}${chip('Đã xử lý', c.mains, 'processed', 'var(--t-success)')}${chip('Đã loại', c.excluded, 'excluded', 'var(--t-fg-muted)')}</div>
-      ${showSearch ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="kb-q" value="${esc(S.q)}" placeholder="🔍 Tìm từ khóa…" style="${inp};width:260px"><select class="kb-ptype" style="${inp}"><option value="">Loại bài: tất cả</option><option value="post" ${S.ptype === 'post' ? 'selected' : ''}>Post</option><option value="page" ${S.ptype === 'page' ? 'selected' : ''}>Page</option><option value="category" ${S.ptype === 'category' ? 'selected' : ''}>Mô tả danh mục</option><option value="none" ${S.ptype === 'none' ? 'selected' : ''}>Chưa có loại</option></select>${S.view === 'unprocessed' || S.view === 'excluded' ? `<select class="kb-sort" style="${inp}"><option value="avg" ${S.sort === 'avg' ? 'selected' : ''}>Lượt tìm giảm dần</option><option value="text" ${S.sort === 'text' ? 'selected' : ''}>A → Z</option></select><span style="font-size:12px;color:var(--t-fg-muted)">${num(S.total)} từ khóa · bấm giữ và kéo để chọn nhanh</span>` : '<span style="font-size:12px;color:var(--t-fg-muted)">Bấm giữ và kéo để chọn nhanh nhiều từ khóa chính</span>'}</div>` : ''}
+      ${showSearch ? `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="kb-q" value="${esc(S.q)}" placeholder="🔍 Tìm từ khóa…" style="${inp};width:260px"><select class="kb-ptype" style="${inp}"><option value="">Loại bài: tất cả</option><option value="post" ${S.ptype === 'post' ? 'selected' : ''}>Post</option><option value="page" ${S.ptype === 'page' ? 'selected' : ''}>Page</option><option value="category" ${S.ptype === 'category' ? 'selected' : ''}>Mô tả danh mục</option><option value="none" ${S.ptype === 'none' ? 'selected' : ''}>Chưa có loại</option></select>${S.view === 'unprocessed' || S.view === 'excluded' ? `<select class="kb-sort" style="${inp}"><option value="t" ${S.sort === 't' && S.dir !== 'asc' ? 'selected' : ''}>Mới nhập lên đầu</option><option value="avg" ${S.sort === 'avg' && S.dir !== 'asc' ? 'selected' : ''}>Lượt tìm giảm dần</option><option value="text" ${S.sort === 'text' && S.dir !== 'desc' ? 'selected' : ''}>A → Z</option>${(S.sort === 't' && S.dir === 'asc') || (S.sort === 'avg' && S.dir === 'asc') || (S.sort === 'text' && S.dir === 'desc') || !['t', 'avg', 'text'].includes(S.sort) ? `<option value="" selected>Theo cột: ${esc((LCOL[S.sort] || {}).l || S.sort)} ${S.dir === 'desc' ? '↓' : '↑'}</option>` : ''}</select>${S.view === 'unprocessed' ? `<button data-a="dup" title="Lọc trùng: mỗi từ khóa 1 dòng. Không lọc trùng: mỗi lần nhập 1 dòng (kèm nguồn)" style="${btn(S.dup ? 'border-color:var(--t-warn);color:var(--t-warn)' : '')}">${S.dup ? '🔁 Lọc trùng: Tắt' : '🔂 Lọc trùng: Bật'}</button>` : ''}<span style="font-size:12px;color:var(--t-fg-muted)">${num(S.total)} ${S.dup && S.view === 'unprocessed' ? 'dòng' : 'từ khóa'} · bấm giữ và kéo để chọn nhanh · click đúp để sửa từ khóa</span>${Object.keys(cfNow()).length ? `<button data-a="cfclear" style="${btn('padding:3px 9px;color:var(--t-accent);border-color:var(--t-accent)')}">✕ Bỏ lọc cột (${Object.keys(cfNow()).length})</button>` : ''}` : '<span style="font-size:12px;color:var(--t-fg-muted)">Bấm giữ và kéo để chọn nhanh nhiều từ khóa chính · click đúp để sửa từ khóa</span>'}${Object.keys(cfNow()).length ? `<button data-a="cfclear" style="${btn('padding:3px 9px;color:var(--t-accent);border-color:var(--t-accent)')}">✕ Bỏ lọc cột (${Object.keys(cfNow()).length})</button>` : ''}</div>` : ''}
       ${body}
       <div id="kbBar" style="display:none;position:sticky;bottom:8px;z-index:6;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--t-warn) 40%,var(--t-border));background:var(--t-subtle);box-shadow:0 4px 16px rgba(0,0,0,.4)"></div></div>`;
     root.dataset.v = S.view;
@@ -375,9 +526,7 @@
     const id = tr.dataset.sel;
     if (!id) return;
     if (on) S.sel.add(id); else S.sel.delete(id);
-    tr.classList.toggle('sel', on);
-    const cb = tr.querySelector('.kb-chk');
-    if (cb) cb.checked = on;
+    root.querySelectorAll(`tr[data-sel="${CSS.escape(id)}"]`).forEach(x => { x.classList.toggle('sel', on); const cb = x.querySelector('.kb-chk'); if (cb) cb.checked = on; });
   }
 
   function mount() {
@@ -428,7 +577,7 @@
     });
     root.addEventListener('change', async e => {
       const t = e.target;
-      if (t.classList.contains('kb-sort')) { S.sort = t.value; return load(); }
+      if (t.classList.contains('kb-sort')) { if (!t.value) return; S.sort = t.value; S.dir = ''; return load(); }
       if (t.classList.contains('kb-ptype')) { S.ptype = t.value; return load(); }
       if (t.classList.contains('kb-setpt')) {
         const v = t.value;
@@ -456,7 +605,13 @@
         try { await importFile(f); } catch (err) { S.busy = ''; fail(err); draw(); }
       }
     });
+    root.addEventListener('dblclick', e => {
+      const ed = e.target.closest('.kb-ed');
+      if (ed && root.contains(ed)) { e.preventDefault(); editKw(ed); }
+    });
     root.addEventListener('click', async e => {
+      const fc = e.target.closest('[data-fcol]');
+      if (fc) { e.stopPropagation(); return openFunnel(fc.dataset.fcol, fc); }
       const el = e.target.closest('[data-a]');
       if (!el) return;
       const a = el.dataset.a;
@@ -467,6 +622,8 @@
           case 'more': S.limit += 200; return load();
           case 'all': S.limit = Math.max(S.limit, S.total); return load();
           case 'selnone': S.sel.clear(); return draw();
+          case 'dup': S.dup = !S.dup; S.sel.clear(); return load();
+          case 'cfclear': if (S.view === 'processed') { S.pcf = {}; S.psort = ''; return draw(); } S.cf[S.view] = {}; S.sel.clear(); return load();
           case 'fclear': S.f = { topic: '', min: '', max: '', subs: '', written: '', mine: '' }; S.sel.clear(); return draw();
           case 'newtopic': { const id = await newTopic(); if (id) { say('✓ Đã tạo chủ đề'); S.view = 'topics'; await load(); } return; }
           case 'tomain': {
