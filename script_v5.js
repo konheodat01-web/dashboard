@@ -1444,6 +1444,7 @@ if (fDateEl) fDateEl.value = todayVN();
 function updateStickyTops(sheet){} // no-op: sticky handled by CSS
 
 function saveAppData(){
+  if(window.dhUsageReport) window.dhUsageReport(websites);
   delete _settings.loginBg;
   const ts = saveToLocalStorage();
   const ind = document.getElementById('syncIndicator');

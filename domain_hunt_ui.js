@@ -32,7 +32,7 @@
   const sysKey = (it, s) => { const u = useOf(it, s); return u ? (u.cur || []).length ? 'used' : (u.past || []).length ? 'past' : '' : ''; };
   const sysName = (it, s) => { const k = sysKey(it, s); return k ? S.sys[k] : ''; };
   const dm = t => { if (!t) return ''; const d = new Date(t); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getFullYear()).slice(2); };
-  const useLine = c => `${c.l} → ${c.b ? c.b + ' · ' : ''}${c.r}`;
+  const useLine = c => `${c.l} → ${c.b ? c.b + ' · ' : ''}${c.r}${c.p ? ' · ⏳ Đang 301' : ''}`;
   function sysBadge(it, s) {
     const k = sysKey(it, s);
     if (!k) return '';
@@ -830,7 +830,7 @@
     if (!S.timer) S.timer = setInterval(() => { if (!page.classList.contains('is-hidden') && !document.hidden && !S.busy) load(); }, 8000);
   };
   const hn = u => String(u || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/[/?#].*$/, '').replace(/:\d+$/, '').replace(/\.+$/, '').replace(/^www\./, '');
-  function usageHosts(ws) {
+  function usageHosts(ws, trk) {
     const list = (Array.isArray(ws) ? ws : []).filter(w => w && w.url);
     const byUrl = new Map(), byBrand = new Map();
     list.forEach(w => { const h = hn(w.url); if (h && !byUrl.has(h)) byUrl.set(h, w); if (!w.is301 && w.brand && !byBrand.has(w.brand)) byBrand.set(w.brand, w); });
@@ -848,6 +848,21 @@
       seen.add(h);
       out.push({ h, r: hn(r.is301 && r.sourceUrl ? r.sourceUrl : r.url), b: r.brand || w.brand || '' });
     });
+    const byId = new Map(list.map(w => [w.id, w]));
+    (Array.isArray(trk) ? trk : []).forEach(t => {
+      const w = t && byId.get(t.wsId);
+      if (!w) return;
+      (t.redirectCommands || []).forEach(c => {
+        if (!c || c.status !== 'Đang 301') return;
+        const h = hn(c.destUrl);
+        if (!h || seen.has(h)) return;
+        let r = w;
+        const vis = new Set();
+        while (!vis.has(r)) { vis.add(r); const p = parentOf(r); if (!p || p === r) break; r = p; }
+        seen.add(h);
+        out.push({ h, r: hn(r.is301 && r.sourceUrl ? r.sourceUrl : r.url), b: r.brand || w.brand || '', p: 1 });
+      });
+    });
     return out;
   }
   let useT = null, useSig = '', useWs = null;
@@ -855,7 +870,7 @@
     useWs = ws;
     clearTimeout(useT);
     useT = setTimeout(async () => {
-      const hosts = usageHosts(useWs);
+      const hosts = usageHosts(useWs, typeof siteTracking !== 'undefined' ? siteTracking : []);
       const sig = JSON.stringify(hosts);
       if (sig === useSig) return;
       try {
