@@ -55,7 +55,7 @@
     if (!r.ok) throw new Error(d.detail || d.error || ('Lỗi ' + r.status));
     return d;
   }
-  const say = (msg, col) => { if (typeof toast === 'function') toast(msg, col || '#238636', 3500); };
+  const say = (msg, col, ms) => { if (typeof toast === 'function') toast(msg, col || '#238636', ms || 3500); };
   const fail = e => say('⚠️ ' + (e && e.message || e), '#e74c3c');
 
   function parseCsv(txt) {
@@ -112,7 +112,7 @@
     if (!all.length) { say(`Không có domain còn trống nào trong file (bỏ ${taken} domain đã có chủ)`, '#d29922'); return; }
     try {
       const d = await api('import', { rows: all, src: names.join(', ') });
-      say(`Thêm ${d.added} domain vào hàng chờ kiểm · bỏ ${taken} đã có chủ · ${d.dup} đã có sẵn${d.failed ? ' · ' + d.failed + ' đã kiểm không đạt trước đó' : ''}${d.bad ? ' · ' + d.bad + ' sai định dạng' : ''}`);
+      say(`Thêm ${d.added} domain vào hàng chờ kiểm · bỏ ${taken} đã có chủ · ${d.dup} đã có sẵn${d.failed ? ' · ' + d.failed + ' đã kiểm không đạt trước đó' : ''}${d.deleted ? ' · ' + d.deleted + ' đã xoá trước đó (muốn kiểm lại thì dùng Nhập thủ công)' : ''}${d.used ? ' · ' + d.used + ' đã bị loại vì đang dùng 301' : ''}${d.bad ? ' · ' + d.bad + ' sai định dạng' : ''}`, d.added ? '' : '#d29922', 10000);
       await load();
     } catch (e) { fail(e); }
   }
