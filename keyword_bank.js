@@ -433,7 +433,7 @@
     const dup = S.view === 'unprocessed' && S.dup;
     const head = `<th class="sk0"><input type="checkbox" class="kb-all"></th>${th('text', 'Từ khóa')}${th('avg', 'Lượt tìm/tháng')}${th('comp', 'Cạnh tranh')}${th('bid_lo', 'Giá thầu (thấp–cao)')}${th('chg3', '3 tháng')}${th('chgy', 'Cùng kỳ')}${th('ptype', 'Loại bài')}${withLabel ? th('label', 'Nhãn') : ''}${th('t', 'Nhập lúc')}${dup ? th('src', 'Nguồn') : ''}`;
     const body = items.map(k => `<tr data-sel="${esc(k.id)}" class="${S.sel.has(k.id) ? 'sel' : ''}"><td class="sk0"><input type="checkbox" class="kb-chk" ${S.sel.has(k.id) ? 'checked' : ''}></td>
-      <td style="font-weight:600;color:var(--t-fg2)"><span class="kb-ed" data-edit="${esc(k.id)}" title="Click đúp để sửa">${esc(k.text)}</span>${!dup && k.nimp > 1 ? ` <span title="Đã nhập ${k.nimp} lần" style="font-size:10.5px;font-weight:400;color:var(--t-fg-muted)">×${k.nimp}</span>` : ''}</td><td style="text-align:right">${num(k.avg)}</td><td>${esc(k.comp)}</td>
+      <td style="font-weight:600;color:var(--t-fg2)"><span class="kb-ed" data-edit="${esc(k.id)}" title="Click đúp để sửa">${esc(k.text)}</span>${!dup && k.nimp > 1 ? ` <span title="Đã nhập ${k.nimp} lần" style="font-size:10.5px;font-weight:400;color:var(--t-fg-muted)">×${k.nimp}</span>` : ''}${dup && k.done ? ` <span class="kb-done" title="Từ này đã xử lý — xem ở tab Đã xử lý" style="margin-left:4px;padding:1px 7px;border-radius:10px;font-size:10.5px;font-weight:500;background:color-mix(in srgb,var(--t-success,#3fb950) 15%,transparent);color:var(--t-success,#3fb950)">✓ Đã xử lý · ${esc(k.done.replace(/^chính · /, 'từ chính · '))}</span>` : ''}</td><td style="text-align:right">${num(k.avg)}</td><td>${esc(k.comp)}</td>
       <td>${k.bid_lo == null && k.bid_hi == null ? '—' : esc((k.bid_lo ?? '') + ' – ' + (k.bid_hi ?? ''))}</td><td>${esc(k.chg3)}</td><td>${esc(k.chgy)}</td><td>${ptCell(k)}</td>
       ${withLabel ? `<td>${k.label === 'dropped' ? '✕ Bỏ' : '🚫 Vô nghĩa'}</td>` : ''}<td style="color:var(--t-fg-muted)">${esc(fmtT(k.t))}</td>${dup ? `<td style="color:var(--t-fg-muted)">${esc(k.src || 'CSV')}</td>` : ''}</tr>`).join('');
     return `<div class="kb-scroll" style="overflow:auto;max-height:calc(100vh - 300px);min-height:200px;border:1px solid var(--t-border);border-radius:8px"><table class="kb-tbl"><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="12" style="padding:16px;color:var(--t-fg-muted)">${Object.keys(cfNow()).length ? 'Không có từ khóa nào khớp bộ lọc cột' : 'Không có từ khóa nào'}</td></tr>`}</tbody></table></div>
@@ -786,8 +786,11 @@
             return assign('main', { topic_id: tid });
           }
           case 'tosub': return pickMains(ids => assign('sub', { main_ids: ids }));
-          case 'meaningless': return assign('label', { label: 'meaningless' });
-          case 'dropped': return assign('label', { label: 'dropped' });
+          case 'meaningless': case 'dropped': {
+            const dn = [...new Map(S.items.filter(k => k.done && S.sel.has(k.id)).map(k => [k.id, k])).values()];
+            if (dn.length && !confirm(`${dn.length} từ đã xử lý sẽ bị gỡ khỏi chủ đề / từ khóa chính và chuyển sang Đã loại:\n\n${dn.slice(0, 8).map(k => '• ' + k.text + ' (' + k.done + ')').join('\n')}${dn.length > 8 ? '\n…' : ''}\n\nTiếp tục?`)) return;
+            return assign('label', { label: a });
+          }
           case 'restore': return assign('restore');
           case 'purge': {
             const n = S.sel.size;
