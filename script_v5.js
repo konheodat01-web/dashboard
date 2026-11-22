@@ -14438,7 +14438,9 @@ function ggamcAutoLogin(url, user, pass) {
     const h = e => {
       if (e.source !== window || !e.data || e.data.source !== 'ggamc' || e.data.type !== 'autologin-ack' || e.data.id !== id) return;
       if (e.data.ok) return done(true);
-      if (!late) late = setTimeout(() => done(false), 1500);
+      if (e.data.dead) { if (!late) late = setTimeout(() => done(false), 6000); return; }
+      clearTimeout(late);
+      late = setTimeout(() => done(false), 4000);
     };
     const cap = setTimeout(() => done(false), 8000);
     window.addEventListener('message', h);
