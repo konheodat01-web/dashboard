@@ -15636,17 +15636,19 @@ function wstOpenRedirect301Modal(wsId) {
 const WST_301_TPL = (d, after) => ['Trỏ', d.A].concat(d.B, ['', '>>> ' + d.C, 'Lấy src: ' + d.src], after ? ['Sau 301: ' + after] : []).join('\n');
 const wst301Host = u => String(u || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 
-function wst301TemplateData(wsId, cOverride) {
+function wst301TemplateData(wsId, cOverride, cmdId) {
   const w = websites.find(x => x.id === wsId);
   const site = getWstSite(wsId);
   if (!w || !site) return null;
-  const cmds = wst301Items(site, w);
+  const all = wst301Items(site, w);
+  const at = cmdId ? all.findIndex(c => c.id === cmdId) : -1;
+  const cmds = at >= 0 ? all.slice(0, at + 1) : all;
   const srcMap = wst301SourceMap(site, w);
   const typed = wst301Host(cOverride || (document.getElementById('wst301DestUrl') || {}).value);
   const chain = cmds.map(c => srcMap[c.id]);                   // nguồn của từng lệnh, cũ -> mới
   if (!typed) return { needC: true, team: w.team || 'Team 01' };   // mẫu dùng cho lệnh SẮP tạo -> bắt buộc có C
   const C = typed;
-  chain.push(wst301NextSource(site, w));                          // site đang chạy hiện tại = B mới nhất
+  if (at < 0) chain.push(wst301NextSource(site, w));
   const A = wst301Host(w.url);
   const seen = new Set([A.toLowerCase(), wst301Host(C).toLowerCase()]);
   const B = [];
@@ -15685,8 +15687,14 @@ function wst301AskDest() {
   inp.focus();
 }
 
-function wst301OpenTemplate(cCreated) {
-  const d = wst301TemplateData(_wst301ActiveSiteId, cCreated);
+function wst301ViewCmd(cmdId) {
+  const w = websites.find(x => x.id === _wst301ActiveSiteId);
+  const c = wst301Items(getWstSite(_wst301ActiveSiteId), w).find(x => x.id === cmdId);
+  if (c) wst301OpenTemplate(c.destUrl, c);
+}
+
+function wst301OpenTemplate(cCreated, view) {
+  const d = wst301TemplateData(_wst301ActiveSiteId, cCreated, view && view.id);
   const old = document.getElementById('wst301TplOverlay');
   if (old) old.remove();
   if (d && d.needC) return wst301AskDest();
@@ -15712,7 +15720,8 @@ function wst301OpenTemplate(cCreated) {
     <div style="padding:14px 16px">${body}</div>
     <div style="padding:10px 16px;border-top:1px solid var(--t-muted);display:flex;justify-content:flex-end;gap:8px">
       <button class="btn btn-outline btn-sm" onclick="document.getElementById('wst301TplOverlay').remove()">Đóng</button>
-      ${tpl && !d.empty && cCreated ? '<span style="color:#3fb950;font-size:12px;align-self:center;margin-right:auto">✓ Đã tạo lệnh 301 tới ' + d.C + '</span>' : ''}
+      ${tpl && !d.empty && view ? '<span style="color:var(--t-fg-muted);font-size:12px;align-self:center;margin-right:auto">👁 Lệnh 301 tới <b>' + d.C + '</b> · ' + (view.status || '') + (view.createdAt ? ' · ' + view.createdAt : '') + '</span>' : ''}
+      ${tpl && !d.empty && cCreated && !view ? '<span style="color:#3fb950;font-size:12px;align-self:center;margin-right:auto">✓ Đã tạo lệnh 301 tới ' + d.C + '</span>' : ''}
       ${tpl && !d.empty ? (cCreated ? '' : '<button class="btn btn-sm" id="wst301TplCreate" style="background:#238636;color:#fff;border:none" title="Tạo lệnh 301 tới C (đưa vào hàng chờ Đang 301) — giống nút Tạo lệnh 301 ở ngoài">Tạo lệnh 301</button>') + '<button class="btn btn-sm" id="wst301TplCopy" style="background:#1f6feb;color:#fff;border:none">📋 Copy</button>' : ''}
     </div></div>`;
   document.body.appendChild(ov);
@@ -15826,6 +15835,7 @@ function wstRenderRedirect301Table() {
         '</span>' +
       '</td>' +
       '<td style="padding:10px;text-align:center;white-space:nowrap;">' +
+        '<button class="btn btn-sm wst301-view" style="background:rgba(31,111,235,0.15) !important;color:var(--t-accent) !important;border:1px solid rgba(31,111,235,0.45) !important;margin-right:5px;font-size:10px;padding:2px 6px;" title="Xem lại mẫu 301 của lệnh này (Copy được)" onclick="wst301ViewCmd(\'' + cmd.id + '\')">👁 Xem lệnh</button>' +
         (cmd.derived ? '<span style="color:var(--t-fg-muted)" title="Sửa/xoá ở Link quan trọng">—</span>' :
         (isRunning ? '<button class="btn btn-sm" style="background:#238636 !important;color:#fff !important;border-color:#2ea44f !important;margin-right:5px;font-size:10px;padding:2px 6px;" onclick="wstCompleteRedirect301(\'' + cmd.id + '\')">Hoàn thành</button>' : '') +
         '<button class="btn btn-sm" style="background:rgba(248,81,73,0.15) !important;color:var(--t-danger) !important;border:1px solid rgba(248,81,73,0.4) !important;font-size:10px;padding:2px 6px;" onclick="wstCancelRedirect301(\'' + cmd.id + '\')">Hủy lệnh</button>') +
