@@ -68,6 +68,8 @@
     return 'main';
   };
   window.ntSpaceReady = (k) => !!(SPACES[k] && SPACES[k].config);
+  window.NT_ADMIN_FB = 'admin@nthieucloud.shop';
+  window.ntSpaceList = () => Object.keys(SPACES).filter((k) => SPACES[k].config).map((k) => ({ k, label: k === 'main' ? 'konheodat01@gmail.com' : SPACES[k].label }));
   window.ntSwitchSpace = function (k, email) {
     wipeLocal(email || '-', k);
     lsSet('nt_space', k === 'main' ? null : k);
@@ -140,7 +142,9 @@
     const el = document.createElement('div');
     el.id = 'ntSpaceNote';
     el.style.cssText = 'font-size:12px;line-height:1.5;margin-top:10px;padding:8px 10px;border-radius:10px;background:rgba(88,166,255,.12);border:1px solid rgba(88,166,255,.35);color:#cfe3ff;text-align:center';
-    el.textContent = sp === 'main'
+    el.textContent = sw === '-'
+      ? 'Dữ liệu của ' + (sp === 'main' ? 'konheodat01@gmail.com' : SPACES[sp].label) + ' — đăng nhập bằng nick admin (mật khẩu) hoặc Google của tài khoản này.'
+      : sp === 'main'
       ? 'Đã chuyển về không gian chính — bấm "Đăng nhập bằng Google" một lần nữa để vào.'
       : (sw ? 'Đã chuyển sang không gian riêng của ' + SPACES[sp].label + ' — bấm "Đăng nhập bằng Google" một lần nữa để vào.'
             : 'Không gian riêng: ' + SPACES[sp].label);

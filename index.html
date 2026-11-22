@@ -76,6 +76,9 @@
     <!-- Password Form -->
     <div id="loginStep2" class="login-form-wrap">
       <div class="login-input-container" style="margin-bottom:12px;">
+        <select id="loginSpaceSel" class="login-pw-input" title="Đăng nhập admin bằng mật khẩu: chọn xem dữ liệu của tài khoản nào" onchange="if (this.value !== (window.NT_SPACE || 'main') && typeof ntSwitchSpace === 'function') ntSwitchSpace(this.value, '-')" style="cursor:pointer"></select>
+      </div>
+      <div class="login-input-container" style="margin-bottom:12px;">
         <input id="loginUsernameInput" type="text" placeholder="Tên đăng nhập (hoặc để trống nếu Admin)..."
           autocomplete="username"
           class="login-pw-input"
@@ -1533,6 +1536,31 @@
         const btn = document.querySelector('.login-submit-btn');
         if (btn) btn.textContent = "Đang xác thực...";
 
+        const ntSp = window.NT_SPACE || 'main';
+        if (ntSp !== 'main') {
+          if (username && username.toLowerCase() !== 'admin') {
+            alert('Dữ liệu của ' + (window.NT_SPACE_LABEL || ntSp) + ' chỉ đăng nhập bằng nick admin hoặc Google của chính tài khoản đó.');
+            if (btn) btn.textContent = "Đăng nhập";
+            return;
+          }
+          ntLogin({ user: 'admin', pass: input, space: ntSp }).then(ok => {
+            if (!ok) {
+              alert('Sai mật khẩu Admin! Vui lòng kiểm tra lại.');
+              if (btn) btn.textContent = "Đăng nhập";
+              return;
+            }
+            return firebase.auth().signInWithEmailAndPassword(window.NT_ADMIN_FB, input).then(() => {
+              if (btn) btn.textContent = "Đăng nhập thành công!";
+              try { sessionStorage.setItem('wt_session_member', 'admin'); localStorage.setItem('wt_activeMember', 'admin'); currentMember = 'admin'; } catch(e){}
+              executeLoginSuccess();
+            });
+          }).catch(err => {
+            try { localStorage.removeItem('nt_sess'); } catch (e) {}
+            alert('Chưa vào được dữ liệu của ' + (window.NT_SPACE_LABEL || ntSp) + ' bằng nick admin (' + ((err && (err.code || err.message)) || 'lỗi') + '). Tài khoản ' + window.NT_ADMIN_FB + ' trong Firebase của tài khoản này chưa tạo hoặc khác mật khẩu nick admin.');
+            if (btn) btn.textContent = "Đăng nhập";
+          });
+          return;
+        }
         if (!username || username.toLowerCase() === 'admin') {
           firebase.database().ref('passwords/admin').once('value').then(snapshot => {
             const correctPassword = snapshot.val();
@@ -1776,6 +1804,11 @@
         });
       }
       
+      const spSel = document.getElementById('loginSpaceSel');
+      if (spSel && typeof ntSpaceList === 'function') {
+        const cur = window.NT_SPACE || 'main';
+        spSel.innerHTML = ntSpaceList().map(x => '<option value="' + x.k + '"' + (x.k === cur ? ' selected' : '') + '>Dữ liệu của: ' + x.label + '</option>').join('');
+      }
       const statusDiv = document.getElementById('loginStatusText');
       if (statusDiv) {
         try {
@@ -1814,7 +1847,7 @@
       }
     });
   </script>
-  <script src="firebase.js?v=20261117_s02"></script>
+  <script src="firebase.js?v=20261122_adm1"></script>
   <script src="script_v5.js?v=20261122_al3"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
