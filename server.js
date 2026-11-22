@@ -158,6 +158,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && (url === "/api/auth/admin-password" || url === "/api/auth/staff-password")) {
+    const who = ntauth.check(req.headers["x-nt-token"] || "");
+    let body = {};
+    try { body = JSON.parse((await readBody(req)) || "{}"); } catch (e) {}
+    try {
+      if (!who) throw Object.assign(new Error("Chưa đăng nhập hoặc phiên đã hết hạn"), { code: 401 });
+      if (url === "/api/auth/admin-password") await ntauth.setAdminPassword(who, body.old, body.new);
+      else await ntauth.setStaffPassword(who, body.user, body.pass);
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ ok: true }));
+    } catch (e) {
+      res.writeHead(e.code === 401 ? 401 : 400, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (url.startsWith("/api/") && !NT_OPEN.has(url) && !url.startsWith("/api/git-pull-deploy")) {
     const tq = new URL(req.url, "http://x").searchParams.get("t") || "";
     const who = ntauth.check(req.headers["x-nt-token"] || tq);

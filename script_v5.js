@@ -1508,11 +1508,10 @@ function fbPayload(ts){
     deletedTasks, links, linkCategories,
     websites, wsGroups,
     assignees, prompts, recurringTasksV2: recurringTasks, khoId: khoIdList,
-    staffProfiles,
+    staffProfiles: staffProfiles.map(s => { const o = Object.assign({}, s); delete o.password; return o; }),
     recurDoneToday: getRecurDoneToday(),
     siteTracking,
     billings, wtCloudflyToken,
-    passwords: (typeof getProfilePasswords === 'function') ? getProfilePasswords() : {},
     settings: _settings,
     _trash_ts: parseInt(localStorage.getItem('wt_trash_ts')||'0'),
     wtApiKey: wtApiKey,
@@ -1537,7 +1536,7 @@ function saveToLocalStorage(){
     localStorage.setItem('wt_prompts',         JSON.stringify(prompts));
     localStorage.setItem('wt_recurring',       JSON.stringify(recurringTasks));
     localStorage.setItem('wt_kho_id',          JSON.stringify(khoIdList));
-    localStorage.setItem('wt_staffProfiles',   JSON.stringify(staffProfiles));
+    localStorage.setItem('wt_staffProfiles',   JSON.stringify(staffProfiles.map(s => { const o = Object.assign({}, s); delete o.password; return o; })));
     localStorage.setItem('wt_passwords',       JSON.stringify((typeof getProfilePasswords === 'function') ? getProfilePasswords() : {}));
     localStorage.setItem('wt_settings', JSON.stringify(_settings));
     localStorage.setItem('wt_billings',        JSON.stringify(billings));
@@ -6049,8 +6048,20 @@ function saveChangePassword(){
     return;
   }
 
-  // Đọc mật khẩu hiện tại từ Local Storage (do Firebase đồng bộ xuống)
-  let currentRealPassword = "123456"; // Fallback mặc định
+  fetch('/api/auth/admin-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ old, new: nw }) })
+    .then(r => r.json().catch(() => ({})).then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok) {
+        const m = String((d && d.error) || 'lỗi');
+        if (err) { err.textContent = /sai mật khẩu/.test(m) ? 'Mật khẩu hiện tại không chính xác!' : 'Không đổi được: ' + m; err.style.display = 'block'; }
+        return;
+      }
+      closeChangePassword();
+      if (typeof toast === 'function') toast('✅ Đã đổi mật khẩu admin. Nhớ đổi luôn mật khẩu user admin@nthieucloud.shop trong Firebase của konheodat2001 và nguyenhieu7406.', '#27ae60', 8000);
+    })
+    .catch(e => { if (err) { err.textContent = 'Lỗi mạng: ' + e.message; err.style.display = 'block'; } });
+  return;
+  let currentRealPassword = "";
   try {
     const localData = localStorage.getItem('wt_passwords');
     if (localData) {
@@ -16275,7 +16286,8 @@ function openStaffModal(idx = -1) {
     document.getElementById('staffModalTitle').innerHTML = '✎ Sửa nhân viên';
     userInp.value = s.username;
     userInp.disabled = true; // Không cho đổi username
-    passInp.value = s.password;
+    passInp.value = '';
+    passInp.placeholder = 'Để trống = giữ mật khẩu cũ';
     nameInp.value = s.fullName || '';
     statusInp.value = s.status || 'Hoạt động';
     p_view.checked = !!s.permissions.viewWebsites;
@@ -16288,6 +16300,7 @@ function openStaffModal(idx = -1) {
     userInp.value = '';
     userInp.disabled = false;
     passInp.value = '';
+    passInp.placeholder = 'Mật khẩu đăng nhập';
     nameInp.value = '';
     statusInp.value = 'Hoạt động';
     p_view.checked = false;
@@ -16307,15 +16320,28 @@ function editStaff(idx) {
   openStaffModal(idx);
 }
 
-function saveStaffProfile() {
+function saveStaffProfile(pwDone) {
   const idx = parseInt(document.getElementById('staff_edit_idx').value);
   const username = document.getElementById('staff_username').value.trim();
   const password = document.getElementById('staff_password').value.trim();
   const fullName = document.getElementById('staff_fullname').value.trim();
   const status = document.getElementById('staff_status').value;
   
-  if (!username || !password) {
-    alert('Vui lòng nhập Tên đăng nhập và Mật khẩu');
+  const isNew = !(idx >= 0 && staffProfiles[idx]);
+  if (!username || (isNew && !password && !pwDone)) {
+    alert(isNew ? 'Vui lòng nhập Tên đăng nhập và Mật khẩu' : 'Vui lòng nhập Tên đăng nhập');
+    return;
+  }
+  if (isNew && staffProfiles.some(s => s.username === username)) { alert('Tên đăng nhập đã tồn tại!'); return; }
+  if (isNew && username.toLowerCase() === 'admin') { alert('Tên đăng nhập không hợp lệ'); return; }
+  if (password) {
+    fetch('/api/auth/staff-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: username, pass: password }) })
+      .then(r => r.json().catch(() => ({})).then(d => {
+        if (!r.ok) { alert('Không lưu được mật khẩu nhân viên: ' + ((d && d.error) || r.status)); return; }
+        document.getElementById('staff_password').value = '';
+        saveStaffProfile(true);
+      }))
+      .catch(e => alert('Lỗi mạng: ' + e.message));
     return;
   }
   
@@ -16328,7 +16354,7 @@ function saveStaffProfile() {
   };
   
   if (idx >= 0 && staffProfiles[idx]) {
-    staffProfiles[idx].password = password;
+    delete staffProfiles[idx].password;
     staffProfiles[idx].fullName = fullName;
     staffProfiles[idx].status = status;
     staffProfiles[idx].permissions = perms;
@@ -16344,7 +16370,6 @@ function saveStaffProfile() {
     staffProfiles.push({
       id: 'staff_' + Date.now(),
       username,
-      password,
       fullName,
       status,
       permissions: perms

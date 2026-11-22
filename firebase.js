@@ -84,12 +84,13 @@
   window.ntLogin = function (payload) {
     return of('/api/auth/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload || {}) })
       .then((r) => r.json().catch(() => ({})).then((d) => {
-        if (r.ok && d.token) { lsSet(SESS, d.token); return true; }
+        if (r.ok && d.token) { lsSet(SESS, d.token); window._ntFbToken = d.fbToken || ''; return true; }
         console.warn('Xác minh phiên máy chủ thất bại:', d.error || r.status);
         return false;
       }))
       .catch((e) => { console.warn('Xác minh phiên máy chủ thất bại:', e); return false; });
   };
+  window.ntFbSignIn = () => (window._ntFbToken ? firebase.auth().signInWithCustomToken(window._ntFbToken) : Promise.reject(new Error('máy chủ chưa cấp vé Firebase')));
   window.ntLoginGoogle = (u) => Promise.resolve(u && u.getIdToken ? u.getIdToken() : '')
     .then((t) => (t ? window.ntLogin({ idToken: t }) : false)).catch(() => false);
   function renew() {
@@ -154,12 +155,8 @@
   try {
     firebase.initializeApp(SPACES[sp].config);
     window._fbDb = firebase.database();
-    if (sp === 'main') {
-      window._fbReady = true;
-    } else {
-      window._fbReady = false;
-      const off = firebase.auth().onAuthStateChanged(() => { window._fbReady = true; off(); });
-    }
+    window._fbReady = false;
+    const off = firebase.auth().onAuthStateChanged(() => { window._fbReady = true; off(); });
     console.log('Firebase v8 ready', sp);
   } catch (e) {
     console.warn('Firebase init failed:', e);
