@@ -7359,7 +7359,7 @@ function showWebsiteInfo(w, found, url=''){
       </table>`;
     document.getElementById('wiBtnEdit').style.display = w.is301 ? 'none' : 'inline-flex';
     const _vBtn=document.getElementById('wiBtnVidco'); if(_vBtn) _vBtn.style.display='inline-flex';
-    const adminUrl = w.url ? joinAdminUrl(w.url, w.admin || 'wp-admin', true) : '';
+    const adminUrl = w.url ? joinAdminUrl(w.url, w.admin || 'wp-admin', !w.is301) : '';
     const btnOpen = document.getElementById('wiBtnOpen');
     if(btnOpen){ btnOpen.style.display = adminUrl ? 'inline-flex' : 'none'; btnOpen._href = adminUrl; }
   }
@@ -7394,7 +7394,9 @@ function wiOpenAdmin(){
   const btn=document.getElementById('wiBtnOpen'); 
   if(btn&&btn._href) {
     if (websiteInfoTarget) {
-      wstGoToAdminAndCopy(btn._href, websiteInfoTarget.account || '', websiteInfoTarget.password || '');
+      const t = websiteInfoTarget;
+      const root = t.is301 ? (getWstRedirectChainBackward(t).find(x => !x.is301) || t) : t;
+      wstGoToAdminAndCopy(btn._href, root.account || t.account || '', root.password || t.password || '');
     } else {
       window.open(btn._href,'_blank'); 
     }
