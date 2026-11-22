@@ -2888,19 +2888,20 @@ async function wstCheckSelectedSites(){
 
   _wstScanAbort = false;
   var bar = wstShowScanProgress();
-  var done = 0, yes = 0, no = 0, err = '';
+  var done = 0, yes = 0, no = 0, err = '', results = [];
   for (var i = 0; i < sites.length; i++){
     if (_wstScanAbort) break;
     var w = sites[i];
     bar.set('Check index ' + wstCurrentUrl(w) + ' (' + (i+1) + '/' + sites.length + ') · còn ' + wtSerperCredits + ' credit', done/sites.length*100);
     var r = await wstDomainIndexSerper(w.id);
+    results.push({ brand: w.brand || '', domain: (r && r.domain) || wstCurrentUrl(w), indexed: !!(r && r.indexed), error: r ? (r.error || '') : 'Không check được' });
     if (r && r.error){ err = r.error; if (/API Key/.test(r.error)) break; }
     else if (r){ if (r.indexed) yes++; else no++; }
     done++;
   }
   if (yes + no) saveAppData();
   if (typeof renderWsTrack === 'function') renderWsTrack();
-  bar.done((_wstScanAbort ? 'Đã dừng — ' : 'Xong! ') + 'Đã check ' + (yes + no) + '/' + sites.length + ' website 301: ' + yes + ' đã index · ' + no + ' chưa index' + (err ? ' · lỗi: ' + err : ''));
+  bar.done((_wstScanAbort ? 'Đã dừng — ' : 'Xong! ') + 'Đã check ' + (yes + no) + '/' + sites.length + ' website 301: ' + yes + ' đã index · ' + no + ' chưa index' + (err ? ' · lỗi: ' + err : ''), results);
 }
 
 async function wstDomainIndexSerper(wsId){
@@ -2974,7 +2975,7 @@ function wstShowScanProgress(){
   box.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:9999;background:var(--t-subtle);border:1px solid var(--t-border);border-radius:10px;padding:12px 14px;width:320px;box-shadow:0 8px 28px rgba(0,0,0,.4);color:var(--t-fg2);font-size:12px';
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
     + '<b>🔎 Check index (Serper)</b>'
-    + '<button onclick="_wstScanAbort=true;this.textContent=\'Đang dừng...\'" style="background:#e74c3c;color:#fff;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">Dừng</button></div>'
+    + '<button id="wstScanStop" onclick="_wstScanAbort=true;this.textContent=\'Đang dừng...\'" style="background:#e74c3c;color:#fff;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">Dừng</button></div>'
     + '<div id="wstScanMsg" style="color:var(--t-fg-muted);margin-bottom:6px">Bắt đầu...</div>'
     + '<div style="height:6px;background:var(--t-canvas);border-radius:4px;overflow:hidden"><div id="wstScanFill" style="height:100%;width:0;background:var(--t-success);transition:width .3s"></div></div>';
   document.body.appendChild(box);
@@ -2983,11 +2984,32 @@ function wstShowScanProgress(){
       var m = document.getElementById('wstScanMsg'); if (m) m.textContent = msg;
       var f = document.getElementById('wstScanFill'); if (f) f.style.width = Math.min(100, Math.max(0, pct)) + '%';
     },
-    done: function(msg){
-      var m = document.getElementById('wstScanMsg'); if (m) m.innerHTML = '✅ ' + msg;
+    done: function(msg, results){
+      var m = document.getElementById('wstScanMsg'); if (m) m.textContent = '✅ ' + msg;
       var f = document.getElementById('wstScanFill'); if (f) f.style.width = '100%';
       if(typeof toast==='function') toast(msg, '#27ae60');
-      setTimeout(function(){ var b = document.getElementById('wstScanBar'); if (b) b.remove(); }, 4000);
+      if (!results) { setTimeout(function(){ var b = document.getElementById('wstScanBar'); if (b) b.remove(); }, 4000); return; }
+      var st = document.getElementById('wstScanStop');
+      if (st) {
+        var bs = 'border:none;border-radius:5px;padding:3px 9px;cursor:pointer;font-size:11px;margin-left:6px';
+        st.outerHTML = '<span><button id="wstScanView" style="' + bs + ';background:var(--t-accent);color:#fff">👁 Xem</button>'
+          + '<button id="wstScanClose" style="' + bs + ';background:var(--t-muted);color:var(--t-fg)">Đóng</button></span>';
+      }
+      var bx = document.getElementById('wstScanBar');
+      var list = document.createElement('div');
+      list.id = 'wstScanList';
+      list.style.cssText = 'display:none;margin-top:10px;max-height:46vh;overflow:auto;border-top:1px solid var(--t-border);padding-top:6px';
+      list.innerHTML = results.map(function(r){
+        var tag = r.error ? '<span style="color:var(--t-warn)">⚠️ Lỗi</span>' : r.indexed ? '<span style="color:var(--t-success)">✅ Đã index</span>' : '<span style="color:var(--t-danger)">❌ Chưa index</span>';
+        return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--t-border)">'
+          + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(r.domain + (r.error ? ' — ' + r.error : '')) + '"><b>' + escHtml(r.brand) + '</b> <span style="color:var(--t-fg-muted)">' + escHtml(r.domain) + '</span></span>'
+          + '<span style="flex-shrink:0">' + tag + '</span></div>';
+      }).join('') || '<div style="color:var(--t-fg-muted)">Không có site nào được check</div>';
+      if (bx) bx.appendChild(list);
+      var v = document.getElementById('wstScanView');
+      if (v) v.onclick = function(){ var open = list.style.display === 'none'; list.style.display = open ? 'block' : 'none'; v.textContent = open ? '🙈 Ẩn' : '👁 Xem'; };
+      var c = document.getElementById('wstScanClose');
+      if (c) c.onclick = function(){ var b = document.getElementById('wstScanBar'); if (b) b.remove(); };
     }
   };
 }
