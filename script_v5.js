@@ -7370,7 +7370,8 @@ function showWebsiteInfo(w, found, url=''){
       </table>`;
     document.getElementById('wiBtnEdit').style.display = w.is301 ? 'none' : 'inline-flex';
     const _vBtn=document.getElementById('wiBtnVidco'); if(_vBtn) _vBtn.style.display='inline-flex';
-    const adminUrl = w.url ? joinAdminUrl(w.url, w.admin || 'wp-admin', !w.is301) : '';
+    const root301 = w.is301 ? (getWstRedirectChainBackward(w).find(x => !x.is301) || w) : w;
+    const adminUrl = w.url ? joinAdminUrl(w.url, (w.is301 && root301.admin) || w.admin || 'wp-admin', true) : '';
     const btnOpen = document.getElementById('wiBtnOpen');
     if(btnOpen){ btnOpen.style.display = adminUrl ? 'inline-flex' : 'none'; btnOpen._href = adminUrl; }
   }
