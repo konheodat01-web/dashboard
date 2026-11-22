@@ -14433,11 +14433,14 @@ function ggamcAutoLogin(url, user, pass) {
   if (!document.documentElement.dataset.ggamc) return Promise.resolve(false);
   return new Promise(resolve => {
     const id = 'al' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    let late = null;
+    const done = v => { window.removeEventListener('message', h); clearTimeout(late); clearTimeout(cap); resolve(v); };
     const h = e => {
       if (e.source !== window || !e.data || e.data.source !== 'ggamc' || e.data.type !== 'autologin-ack' || e.data.id !== id) return;
-      window.removeEventListener('message', h);
-      resolve(!!e.data.ok);
+      if (e.data.ok) return done(true);
+      if (!late) late = setTimeout(() => done(false), 1500);
     };
+    const cap = setTimeout(() => done(false), 8000);
     window.addEventListener('message', h);
     window.postMessage({ source: 'nthieu-dash', type: 'autologin', id, url, user, pass }, location.origin);
   });
@@ -14525,7 +14528,8 @@ function wstGoToAdminAndCopy(url, user, pass) {
           setTimeout(() => {
             loader.style.display = 'none';
           }, 150);
-          toast(ok ? '✓ Đã copy User & Pass · tiện ích đang tự đăng nhập' : '✓ Đã copy riêng User & Pass (Win + V) và mở Admin!', '#27ae60', 2200);
+          if (!ok && document.documentElement.dataset.ggamc) toast('⚠️ Tiện ích GG AI Mode Capture không nhận lệnh tự đăng nhập (thường do vừa Reload tiện ích) — tải lại trang Dashboard (F5) rồi bấm lại. Đã copy User & Pass (Win + V) và mở Admin.', '#e67e22', 7000);
+          else toast(ok ? '✓ Đã copy User & Pass · tiện ích đang tự đăng nhập' : '✓ Đã copy riêng User & Pass (Win + V) và mở Admin!', '#27ae60', 2200);
         });
       }, 400);
     } catch (e) {
