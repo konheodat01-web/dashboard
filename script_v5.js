@@ -2878,31 +2878,66 @@ async function wstScanSiteIndex(w, opts){
   return wstRecomputeSiteStats(w, posts);
 }
 
-// Check index cho các site ĐÃ TICK ở bảng (thanh chọn) bằng Serper -> điền cột ngoài.
 async function wstCheckSelectedSites(){
   if (!wtApiKey){ if(typeof toast==='function') toast('Chưa có Serper API Key — thiết lập trước','#e74c3c'); return; }
   var ids = Array.from(_wstSelected || []);
   var sites = ids.map(function(id){ return websites.find(function(w){ return w.id === id; }); })
-                 .filter(function(w){ return w && !w.is301 && !wstIsCMB(w); });   // bỏ site CMB
+                 .filter(function(w){ return w && !w.is301 && !wstIsCMB(w) && getWstSite(w.id); });
   if (!sites.length){ if(typeof toast==='function') toast('Chưa tick site nào (site CMB được bỏ qua)','#e74c3c'); return; }
-  if (!confirm('Check index cho ' + sites.length + ' site đã chọn bằng Serper?\nMỗi bài ~1 credit. Còn ' + wtSerperCredits + ' credit. Kết quả cache 24h.')) return;
+  if (!confirm('Check index ' + sites.length + ' website 301 đang chạy của các site đã chọn bằng Serper (site:domain)?\n' + sites.slice(0, 8).map(function(w){ return '• ' + w.brand + ' → ' + wstCurrentUrl(w); }).join('\n') + (sites.length > 8 ? '\n…' : '') + '\n\nMỗi site 1 credit. Còn ' + wtSerperCredits + ' credit. Check index từng bài viết: dùng tab Quản lý nội dung.')) return;
 
   _wstScanAbort = false;
   var bar = wstShowScanProgress();
-  var done = 0;
+  var done = 0, yes = 0, no = 0, err = '';
   for (var i = 0; i < sites.length; i++){
     if (_wstScanAbort) break;
     var w = sites[i];
-    bar.set('Đang check ' + w.brand + ' (' + (i+1) + '/' + sites.length + ')...', done/sites.length*100);
-    await wstScanSiteIndex(w, {
-      onProgress: function(cur, tot, ww){ bar.set('Check ' + ww.brand + ': bài ' + cur + '/' + tot + ' · còn ' + wtSerperCredits + ' credit', (done + cur/Math.max(tot,1))/sites.length*100); },
-      onError: function(ww, msg){ console.warn('[Check index]', ww.brand, msg); }
-    });
+    bar.set('Check index ' + wstCurrentUrl(w) + ' (' + (i+1) + '/' + sites.length + ') · còn ' + wtSerperCredits + ' credit', done/sites.length*100);
+    var r = await wstDomainIndexSerper(w.id);
+    if (r && r.error){ err = r.error; if (/API Key/.test(r.error)) break; }
+    else if (r){ if (r.indexed) yes++; else no++; }
     done++;
-    if (typeof renderWsTrack === 'function') renderWsTrack();
   }
-  bar.done(_wstScanAbort ? ('Đã dừng — xong ' + done + '/' + sites.length + ' site') : ('Xong! Đã check ' + done + ' site đã chọn'));
+  if (yes + no) saveAppData();
   if (typeof renderWsTrack === 'function') renderWsTrack();
+  bar.done((_wstScanAbort ? 'Đã dừng — ' : 'Xong! ') + 'Đã check ' + (yes + no) + '/' + sites.length + ' website 301: ' + yes + ' đã index · ' + no + ' chưa index' + (err ? ' · lỗi: ' + err : ''));
+}
+
+async function wstDomainIndexSerper(wsId){
+  const w = websites.find(x => x.id === wsId);
+  const site = getWstSite(wsId);
+  if (!w || !site) return null;
+  if (!wtApiKey) return { error: 'Chưa có Serper API Key' };
+  const domain = wstCurrentUrl(w).replace(/\/.*$/, '').toLowerCase();
+  if (!domain) return null;
+  try {
+    const res = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      headers: { 'X-API-KEY': wtApiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: `site:${domain}`, gl: 'vn', hl: 'vi', num: 10 })
+    });
+    const data = await res.json();
+    if (data.message === 'Unauthorized.' || data.statusCode === 403) return { error: 'API Key sai hoặc hết lượt!' };
+    wtSerperCredits = Math.max(0, wtSerperCredits - (data.credits || 1));
+    try { localStorage.setItem('wt_serper_credits_left', wtSerperCredits); } catch(e){}
+    if (typeof wstUpdateAPIUsage === 'function') wstUpdateAPIUsage();
+    const indexed = !!(data.organic && data.organic.length);
+    const finalStatus = indexed ? 'Đã index' : 'Chưa index';
+    const tbDay = todayVN();
+    if (!site.entries) site.entries = [];
+    const last = site.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
+    if (last && last.date === tbDay) last.indexed = finalStatus;
+    else site.entries.push({
+      id: 'wste'+Date.now(), date: tbDay,
+      rank: (last && last.rank !== undefined) ? last.rank : 'Out 100',
+      backlinks: (last && last.backlinks !== undefined) ? last.backlinks : null,
+      indexed: finalStatus, moBot: site.moBot || 'Mở', note: ''
+    });
+    site.lastUpdatedAt = tbDay;
+    wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index ${domain} bằng Serper: ${indexed ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
+    try{ localStorage.setItem('wt_site_tracking', JSON.stringify(siteTracking)); }catch(e){}
+    return { indexed: indexed, domain: domain };
+  } catch(e){ return { error: e.message }; }
 }
 
 // Quét TẤT CẢ site đang theo dõi (nút "🚫 Quét bài chưa index"). Tốn credit Serper.
@@ -14040,7 +14075,7 @@ async function wstCheckIndexStatus(wsId) {
   }
 
   // Fallback: Check qua Serper
-  if (confirm('Không có dữ liệu GSC hoặc chưa đăng nhập. Bạn có muốn dùng API Serper (tốn 1 credit) để kiểm tra trạng thái Index của domain không?')) {
+  if (confirm('Không có dữ liệu GSC hoặc chưa đăng nhập. Bạn có muốn dùng API Serper (tốn 1 credit) để kiểm tra trạng thái Index của domain ' + wstCurrentUrl(w) + ' không?')) {
     await wstCheckIndexStatusSerper(wsId);
   } else {
     renderWsTrack();
@@ -14057,55 +14092,13 @@ async function wstCheckIndexStatusSerper(wsId) {
     renderWsTrack();
     return;
   }
-
   const td = document.getElementById(`index_td_${wsId}`);
   if (td) td.innerHTML = '⏳';
-
-  const cleanDomain = (w.url||'').replace(/^https?:\/\//,'').replace(/\/(.*)$/,'').toLowerCase();
-  const url = 'https://google.serper.dev/search';
-  const headers = { 'X-API-KEY': wtApiKey, 'Content-Type': 'application/json' };
-  const body = JSON.stringify({ q: `site:${cleanDomain}`, gl: 'vn', hl: 'vi', num: 10 });
-
-  try {
-    const res = await fetch(url, { method: 'POST', headers, body });
-    const data = await res.json();
-    
-    let cost = data.credits || 1;
-    wtSerperCredits = Math.max(0, wtSerperCredits - cost);
-    localStorage.setItem('wt_serper_credits_left', wtSerperCredits);
-    if (typeof wstUpdateAPIUsage === 'function') wstUpdateAPIUsage();
-
-    const hasResults = data.organic && data.organic.length > 0;
-    const finalStatus = hasResults ? 'Đã index' : 'Chưa index';
-
-    const tbDay = todayVN();
-    if(!site.entries) site.entries = [];
-    const entries = site.entries.slice().sort((a,b)=>b.date.localeCompare(a.date));
-    let last = entries[0];
-    if(last && last.date === tbDay) {
-      last.indexed = finalStatus;
-    } else {
-      site.entries.push({
-        id: 'wste'+Date.now(),
-        date: tbDay,
-        rank: (last && last.rank !== undefined) ? last.rank : 'Out 100',
-        backlinks: (last && last.backlinks !== undefined) ? last.backlinks : null,
-        indexed: finalStatus,
-        moBot: site.moBot || 'Mở',
-        note: ''
-      });
-    }
-
-    saveWsTrack(wsId);
-    wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index bằng Serper: ${finalStatus === 'Đã index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
-    
-    renderWsTrack();
-    toast(`✓ Check Index: ${finalStatus === 'Đã index' ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
-  } catch (err) {
-    console.error('Error checking index via Serper:', err);
-    renderWsTrack();
-    toast('Lỗi khi kiểm tra index bằng Serper!', '#e74c3c');
-  }
+  const r = await wstDomainIndexSerper(wsId);
+  if (r && !r.error) saveWsTrack(wsId);
+  renderWsTrack();
+  if (!r || r.error) toast('Lỗi khi kiểm tra index bằng Serper!' + (r && r.error ? ' ' + r.error : ''), '#e74c3c');
+  else toast(`✓ Check Index ${r.domain}: ${r.indexed ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
 }
 
 // Bổ sung các lệnh đồng bộ khi gọi Add/Remove từ Dashboard
