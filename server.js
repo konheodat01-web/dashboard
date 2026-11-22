@@ -644,7 +644,7 @@ const server = http.createServer(async (req, res) => {
   res.end("Method Not Allowed");
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "127.0.0.1", () => {
   hub.start();
   require("./lib/domain_hunt").start();
   console.log(`✅  Dashboard server running on http://localhost:${PORT}`);
