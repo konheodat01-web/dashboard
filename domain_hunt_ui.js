@@ -831,7 +831,7 @@
   };
   const hn = u => String(u || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/[/?#].*$/, '').replace(/:\d+$/, '').replace(/\.+$/, '').replace(/^www\./, '');
   function usageHosts(ws, trk) {
-    const list = (Array.isArray(ws) ? ws : []).filter(w => w && w.url);
+    const list = (Array.isArray(ws) ? ws : []).filter(w => w && w.url && !(w.cut301 && w.cut301.length && !(w.is301 && w.sourceUrl)));
     const byUrl = new Map(), byBrand = new Map();
     list.forEach(w => { const h = hn(w.url); if (h && !byUrl.has(h)) byUrl.set(h, w); if (!w.is301 && w.brand && !byBrand.has(w.brand)) byBrand.set(w.brand, w); });
     const parentOf = w => w.is301 && w.sourceUrl ? (byUrl.get(hn(w.sourceUrl)) || byBrand.get(w.sourceUrl) || null) : null;
