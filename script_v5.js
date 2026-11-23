@@ -15653,7 +15653,8 @@ function wstOpenRedirect301Modal(wsId) {
 // ══ MẪU 301 theo nhóm ══
 // A = website gốc · B = mọi site trung gian trong lịch sử 301 (cũ → mới) · C = đích · src = B mới nhất (site gần nhất trước C).
 // Ô "Nhập website đích" có giá trị -> C = giá trị đó (lệnh sắp tạo); trống -> C = đích của lệnh mới nhất.
-const WST_301_TPL = (d, after) => ['Trỏ', d.A].concat(d.B, ['', '>>> ' + d.C, 'Lấy src: ' + d.src], after ? ['Sau 301: ' + after] : []).join('\n');
+const WST_301_VI = { 'Set vi-vn': 'Cài plugin VI-VN Canonical và kích hoạt', 'Gỡ vi-vn': 'Gỡ plugin VI-VN Canonical', 'Không set vi-vn': 'Không cài plugin VI-VN Canonical' };
+const WST_301_TPL = (d, bot, vi) => ['Trỏ', d.A].concat(d.B, ['===========', 'Qua ' + d.C + ' (lấy src ' + d.src + ')'], bot ? [bot] : [], vi ? [WST_301_VI[vi] || vi] : []).join('\n');
 const wst301Host = u => String(u || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 
 function wst301TemplateData(wsId, cOverride, cmdId) {
@@ -15747,8 +15748,7 @@ function wst301OpenTemplate(cCreated, view) {
   document.body.appendChild(ov);
   if (!tpl || d.empty) return;
   const paint = () => {
-    const after = [document.getElementById('wst301TplBot').value, document.getElementById('wst301TplVi').value].filter(Boolean).join(' + ');
-    document.getElementById('wst301TplText').textContent = tpl(d, after);   // chưa chọn gì -> không có dòng "Sau 301"
+    document.getElementById('wst301TplText').textContent = tpl(d, document.getElementById('wst301TplBot').value, document.getElementById('wst301TplVi').value);
   };
   document.getElementById('wst301TplBot').onchange = paint;
   document.getElementById('wst301TplVi').onchange = paint;
