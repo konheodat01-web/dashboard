@@ -14501,7 +14501,12 @@ function wstDashQuickLogin(wsId) {
 }
 
 function wstGoToAdminAndCopy(url, user, pass) {
-  const viaExt = user && pass ? ggamcAutoLogin(url, user, pass) : Promise.resolve(false);
+  const copied = user && pass ? (async () => {
+    try { await navigator.clipboard.writeText(pass); } catch (e) { console.error(e); }
+    await new Promise(r => setTimeout(r, 400));
+    try { await navigator.clipboard.writeText(user); } catch (e) { console.error(e); }
+  })() : Promise.resolve();
+  const viaExt = user && pass ? copied.then(() => ggamcAutoLogin(url, user, pass)) : Promise.resolve(false);
   if (user && pass) {
     // 1. Tạo hoặc hiển thị overlay tiến độ vòng tròn
     let loader = document.getElementById('wstTakeoffLoader');
@@ -14539,13 +14544,9 @@ function wstGoToAdminAndCopy(url, user, pass) {
 
     try {
       // 2. Copy mật khẩu ngay lập tức
-      navigator.clipboard.writeText(pass).then(() => {
-        console.log('Password copied');
-      }).catch(err => console.error(err));
       
       // 3. Chờ 400ms để vòng quay hoàn thành và copy tiếp tài khoản
       setTimeout(() => {
-        navigator.clipboard.writeText(user).catch(err => console.error(err));
         viaExt.then(ok => {
           if (!ok) window.open(url, '_blank');
           loader.style.opacity = '0';
