@@ -2751,6 +2751,24 @@ function _wstPageKey(u){
   try { s = decodeURI(s); } catch(e){}
   return s.replace(/\/+$/, '').toLowerCase();
 }
+function wstGscHomeRegex(u){
+  var s = String(u || '').trim().replace(/#.*$/, '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '');
+  return '(?i)^https?://(www\\.)?' + s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/?$';
+}
+async function wstGscHomeImps(propertyUrl, homeUrl, startDate, endDate, token){
+  if (!propertyUrl || !homeUrl || !token) return null;
+  try {
+    const res = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(propertyUrl)}/searchAnalytics/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate, endDate, dimensions: ['page'], dimensionFilterGroups: [{ filters: [{ dimension: 'page', operator: 'includingRegex', expression: wstGscHomeRegex(homeUrl) }] }], dataState: 'all', rowLimit: 10 })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.rows || []).filter(r => _wstPageKey(r.keys && r.keys[0]) === _wstPageKey(homeUrl)).reduce((n, r) => n + (r.impressions || 0), 0);
+  } catch(e){ return null; }
+}
+function wstIdxLockedToday(entry){ return !!(entry && entry.date === todayVN() && entry.idxBy); }
 
 
 var _wstScanAbort = false;
@@ -2935,12 +2953,12 @@ async function wstDomainIndexSerper(wsId){
     const tbDay = todayVN();
     if (!site.entries) site.entries = [];
     const last = site.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
-    if (last && last.date === tbDay) last.indexed = finalStatus;
+    if (last && last.date === tbDay) { last.indexed = finalStatus; last.idxBy = 'serper'; }
     else site.entries.push({
       id: 'wste'+Date.now(), date: tbDay,
       rank: (last && last.rank !== undefined) ? last.rank : 'Out 100',
       backlinks: (last && last.backlinks !== undefined) ? last.backlinks : null,
-      indexed: finalStatus, moBot: site.moBot || 'Mở', note: ''
+      indexed: finalStatus, idxBy: 'serper', moBot: site.moBot || 'Mở', note: ''
     });
     site.lastUpdatedAt = tbDay;
     wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index ${domain} bằng Serper: ${indexed ? 'Đã Index ✅ (đúng URL)' : 'Chưa Index ❌' + (others ? ` (Google có ${others} trang khác của site nhưng không có đúng URL này)` : '')}`);
@@ -12093,6 +12111,7 @@ async function wstSyncGscRealtime(token, force = false) {
         id: w.id,
         normalized: wstNormalizeUrl(matchUrl),
         original: matchUrl,
+        home: wstCurrentUrl(w),
         current301Url: latest301 ? matchUrl : null
       };
     }).filter(d => d.normalized);
@@ -12101,7 +12120,9 @@ async function wstSyncGscRealtime(token, force = false) {
     const matched = [];
     allDomains.forEach(d => {
       const hit = gscSites.find(g => g.normalized === d.normalized || g.normalized.endsWith('.' + d.normalized) || d.normalized.endsWith('.' + g.normalized));
-      if (hit) matched.push({ siteId: d.id, siteUrl: hit.siteUrl });
+      const hn = wstNormalizeUrl(d.home || '');
+      const hp = hn ? gscSites.find(g => g.normalized === hn || g.normalized.endsWith('.' + hn) || hn.endsWith('.' + g.normalized)) : null;
+      if (hit) matched.push({ siteId: d.id, siteUrl: hit.siteUrl, home: hp ? d.home : '', homeProp: hp ? hp.siteUrl : '' });
     });
 
     // Cập nhật trạng thái kết nối GSC
@@ -12215,27 +12236,22 @@ async function wstSyncGscRealtime(token, force = false) {
           
           let indexedStatus = '';
           const totalImps = performanceHistory.reduce((sum, r) => sum + (r.impressions || 0), 0);
-          
-          if (totalImps > 0) {
-            // Nếu có lượt hiển thị (impressions > 0) trong 28 ngày qua, chắc chắn URL đã được Google index.
-            // Bỏ qua gọi API Inspect để tiết kiệm quota và tránh rate limit.
+          const homeImps = (totalImps > 0 && item.home) ? await wstGscHomeImps(item.homeProp, item.home, fmt(startDate), fmt(endDate), accessToken) : 0;
+
+          if (homeImps > 0) {
             indexedStatus = 'Đã index';
-          } else {
-            const wObj = websites.find(w => w.id === item.siteId);
-            if (wObj && wObj.url) {
-              try {
-                // Chỉ gọi API Inspect đối với các website không có traffic/mới để kiểm tra chính xác lý do chưa index
-                await new Promise(r => setTimeout(r, 1500));
-                const inspectResult = await wstInspectUrlGsc(item.siteUrl, wObj.url);
-                if (inspectResult) {
-                  indexedStatus = wstGetFriendlyIndexReason(inspectResult);
-                }
-              } catch (inspectErr) {
-                if (inspectErr && inspectErr.toString().includes('429')) {
-                  report.rateLimitInspect.push(wObj.url);
-                }
-                console.warn('[GSC Inspect Auto-Sync Failed]', wObj.url, inspectErr);
+          } else if (item.home) {
+            try {
+              await new Promise(r => setTimeout(r, 1500));
+              const inspectResult = await wstInspectUrlGsc(item.homeProp, item.home);
+              if (inspectResult) {
+                indexedStatus = wstGetFriendlyIndexReason(inspectResult);
               }
+            } catch (inspectErr) {
+              if (inspectErr && inspectErr.toString().includes('429')) {
+                report.rateLimitInspect.push(item.home);
+              }
+              console.warn('[GSC Inspect Auto-Sync Failed]', item.home, inspectErr);
             }
           }
 
@@ -12359,16 +12375,12 @@ async function wstSyncGscRealtime(token, force = false) {
             });
 
             // 2. Process indexed status
-            const history = updates[siteId].performanceHistory || [];
-            const totalImps = history.reduce((sum, r) => sum + (r.impressions || 0), 0);
-            
             const lastEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
             const oldIndexed = lastEntry ? lastEntry.indexed : '';
-            
-            // Ưu tiên: 1. Kết quả GSC Inspect thực tế mới -> 2. Giữ nguyên trạng thái cũ -> 3. Fallback theo traffic
-            const indexedStatus = updates[siteId].indexedStatus || oldIndexed || (totalImps > 0 ? 'Đã index' : '');
-            
-            if (indexedStatus) {
+
+            const indexedStatus = updates[siteId].indexedStatus || oldIndexed;
+
+            if (indexedStatus && !wstIdxLockedToday(lastEntry)) {
               const todayStr = todayVN();
               if (lastEntry && lastEntry.date === todayStr) {
                 lastEntry.indexed = indexedStatus;
@@ -12890,17 +12902,20 @@ async function wstSyncGscNow() {
     // Lấy trạng thái Index chính xác từ GSC URL Inspection hoặc dùng heuristic fallback
     const totalImps = performanceHistory.reduce((sum, r) => sum + (r.impressions || 0), 0);
     let indexedStatus = '';
+    const homeUrl = wstCurrentUrl(site);
+    let homeProp = '';
     try {
-      const gscPropertyUrl = await wstGetExactGscPropertyUrl(site.url);
-      const inspectResult = await wstInspectUrlGsc(gscPropertyUrl, site.url);
+      homeProp = await wstGetExactGscPropertyUrl(homeUrl);
+      const inspectResult = await wstInspectUrlGsc(homeProp, homeUrl);
       if (inspectResult) {
         indexedStatus = wstGetFriendlyIndexReason(inspectResult);
       }
     } catch (gscErr) {
-      console.warn('[GSC Inspect Single GSC Sync Failed]', site.url, gscErr);
+      console.warn('[GSC Inspect Single GSC Sync Failed]', homeUrl, gscErr);
     }
-    if (!indexedStatus && totalImps > 0) {
-      indexedStatus = 'Đã index';
+    if (!indexedStatus && totalImps > 0 && homeProp) {
+      const homeImps = await wstGscHomeImps(homeProp, homeUrl, fmt(startDate), fmt(endDate), sessionStorage.getItem('gsc_access_token'));
+      if (homeImps > 0) indexedStatus = 'Đã index';
     }
 
     // --- FETCH MAIN KEYWORD GSC POSITION ---
@@ -12968,9 +12983,10 @@ async function wstSyncGscNow() {
       }
 
       // Write indexed status
-      if (indexedStatus) {
+      const lastIdxEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
+      if (indexedStatus && !wstIdxLockedToday(lastIdxEntry)) {
         const todayStr = todayVN();
-        const lastEntry = siteObj.entries.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
+        const lastEntry = lastIdxEntry;
         if (lastEntry && lastEntry.date === todayStr) {
           lastEntry.indexed = indexedStatus;
         } else {
@@ -14374,8 +14390,9 @@ async function wstCheckIndexStatus(wsId) {
   const token = sessionStorage.getItem('gsc_access_token');
   if (token) {
     try {
-      const gscPropertyUrl = await wstGetExactGscPropertyUrl(w.url);
-      const inspectResult = await wstInspectUrlGsc(gscPropertyUrl, w.url);
+      const homeUrl = wstCurrentUrl(w);
+      const gscPropertyUrl = await wstGetExactGscPropertyUrl(homeUrl);
+      const inspectResult = await wstInspectUrlGsc(gscPropertyUrl, homeUrl);
       if (inspectResult) {
         const finalStatus = wstGetFriendlyIndexReason(inspectResult);
 
@@ -14386,6 +14403,7 @@ async function wstCheckIndexStatus(wsId) {
         let last = entries[0];
         if(last && last.date === tbDay) {
           last.indexed = finalStatus;
+          last.idxBy = 'gsc';
         } else {
           site.entries.push({
             id: 'wste'+Date.now(),
@@ -14393,15 +14411,16 @@ async function wstCheckIndexStatus(wsId) {
             rank: (last && last.rank !== undefined) ? last.rank : 'Out 100',
             backlinks: (last && last.backlinks !== undefined) ? last.backlinks : null,
             indexed: finalStatus,
+            idxBy: 'gsc',
             moBot: site.moBot || 'Mở',
             note: ''
           });
         }
 
         saveWsTrack(wsId);
-        wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index bằng GSC Inspection: ${finalStatus === 'Đã index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
+        wstAddChangelog(wsId, 'manual_entry', `Kiểm tra Index ${homeUrl} bằng GSC Inspection: ${finalStatus === 'Đã index' ? 'Đã Index ✅' : 'Chưa Index ❌'}`);
         renderWsTrack();
-        toast(`✓ GSC Inspect: ${finalStatus === 'Đã index' ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
+        toast(`✓ GSC Inspect ${homeUrl}: ${finalStatus === 'Đã index' ? 'Đã Index' : 'Chưa Index'}`, '#27ae60');
         return;
       }
     } catch (gscErr) {
