@@ -15974,8 +15974,8 @@ function wst301CmdAt(c) { return parseInt(String(c.id).slice(0, 13), 10) || 0; }
 function wst301IsCut(x) { return !!(x && x.cut301 && x.cut301.length && !(x.is301 && x.sourceUrl)); }
 
 function wst301CutSet(root) {
-  const rk = wst301Key(root.url), out = new Set();
-  websites.forEach(x => { if (wst301IsCut(x) && wst301Key(x.cut301[x.cut301.length - 1].from) === rk) out.add(wst301Key(x.url)); });
+  const rk = new Set([wst301Key(root.url)].concat((root.prevRoots || []).map(wst301Key))), out = new Set();
+  websites.forEach(x => { if (wst301IsCut(x) && rk.has(wst301Key(x.cut301[x.cut301.length - 1].from))) out.add(wst301Key(x.url)); });
   return out;
 }
 
@@ -16002,7 +16002,8 @@ function wst301TemplateData(wsId, cOverride, cmdId) {
   const kids = wst301Kids(w).map(k => ({ id: k.id, h: wst301Host(k.url), at: k.c301At || 0 }));
   const pool = [A];
   kids.forEach(k => { if (!pool.some(p => p.toLowerCase() === k.h.toLowerCase())) pool.push(k.h); });
-  return { A, B, C: wst301Host(C), src: (cmd && cmd.srcPick) || defSrc, defSrc, pool, kids, rm: cmd && cmd.rm ? cmd.rm.map(r => r.h) : [], rmWhy: cmd && cmd.rm ? cmd.rm : [], team: w.team || 'Team 01' };
+  const rmList = kids.length ? [{ id: w.id, h: A, root: true }].concat(kids) : [];
+  return { A, B, C: wst301Host(C), src: (cmd && cmd.srcPick) || defSrc, defSrc, pool, kids, rmList, rm: cmd && cmd.rm ? cmd.rm.map(r => r.h) : [], rmWhy: cmd && cmd.rm ? cmd.rm : [], team: w.team || 'Team 01' };
 }
 
 function wst301Snap(site, w, label, destUrl) {
@@ -16012,7 +16013,7 @@ function wst301Snap(site, w, label, destUrl) {
   wst301Kids(w).forEach(add);
   if (destUrl) websites.filter(x => x && x.url && wst301Key(x.url) === wst301Key(destUrl)).forEach(add);
   const snap = {
-    id: Date.now() + Math.random().toString(36).substr(2, 5), at: Date.now(), label,
+    id: Date.now() + Math.random().toString(36).substr(2, 5), at: Date.now(), label, wsId: site.wsId,
     cmds: JSON.parse(JSON.stringify(site.redirectCommands || [])),
     ws: Array.from(touched.values()).map(x => {
       const e = { id: x.id };
@@ -16020,6 +16021,7 @@ function wst301Snap(site, w, label, destUrl) {
       if (x.sourceUrl !== undefined) e.sourceUrl = x.sourceUrl;
       if (x.c301At !== undefined) e.c301At = x.c301At;
       if (x.cut301 !== undefined) e.cut301 = JSON.parse(JSON.stringify(x.cut301));
+      if (x.prevRoots !== undefined) e.prevRoots = x.prevRoots.slice();
       return e;
     })
   };
@@ -16058,17 +16060,45 @@ function wst301DupLines(destUrl, w) {
 
 function wst301ApplyRemoval(site, root, cmd) {
   const now = Date.now(), hs = new Set();
+  const rootKey = wst301Key(root.url);
+  const isRoot = r => !!(r.root || r.id === root.id || wst301Key(r.h) === rootKey);
+  const rootCut = cmd.rm.find(isRoot);
   cmd.rm.forEach(r => {
+    if (isRoot(r)) return;
     const rec = websites.find(x => x.id === r.id) || websites.find(x => x.is301 && x.url && wst301Key(x.url) === wst301Key(r.h));
     if (!rec) return;
     hs.add(wst301Key(rec.url));
     rec.cut301 = (rec.cut301 || []).concat({ from: root.url, brand: root.brand, at: now, reason: r.reason || WST_301_RM, cmd: cmd.id });
     rec.sourceUrl = '';
   });
-  if (!hs.size) return;
+  if (!hs.size && !rootCut) return root;
   const srcMap = wst301SourceMap(site, root);
   site.redirectCommands.forEach(c => { if (!c.source) c.source = srcMap[c.id]; });
-  site.redirectCommands = site.redirectCommands.filter(c => c.id === cmd.id || !hs.has(wst301Key(c.destUrl)));
+  if (hs.size) site.redirectCommands = site.redirectCommands.filter(c => c.id === cmd.id || !hs.has(wst301Key(c.destUrl)));
+  return rootCut ? wst301PromoteRoot(site, root, cmd, rootCut, now) : root;
+}
+
+function wst301PromoteRoot(site, A, cmd, r, now) {
+  const order = wst301Items(site, A).map(c => wst301Key(c.destUrl));
+  const pos = x => { const i = order.indexOf(wst301Key(x.url)); return i < 0 ? 1e9 + (x.id || 0) : i; };
+  const B = wst301Kids(A).filter(x => x.url && x.id !== A.id).sort((a, b) => pos(a) - pos(b))[0];
+  if (!B) { toast('⚠️ Không còn web 301 nào trong chuỗi để làm gốc mới — giữ nguyên web gốc ' + wst301Host(A.url), '#f2a154', 6000); return A; }
+  const aKey = wst301Key(A.url);
+  websites.forEach(x => { if (x !== B && x.is301 && x.sourceUrl && (wst301Key(x.sourceUrl) === aKey || (A.brand && x.sourceUrl === A.brand))) x.sourceUrl = B.url; });
+  ['account', 'password', 'appwppass', 'admin', 'team', 'owner', 'difficulty'].forEach(k => { if (!B[k] && A[k]) B[k] = A[k]; });
+  if ((!B.tags || !B.tags.length) && A.tags && A.tags.length) B.tags = A.tags.slice();
+  B.is301 = false;
+  B.sourceUrl = '';
+  B.prevRoots = (A.prevRoots || []).concat(A.url);
+  A.cut301 = (A.cut301 || []).concat({ from: B.url, brand: B.brand, at: now, reason: r.reason || WST_301_RM, cmd: cmd.id, root: true });
+  A.sourceUrl = '';
+  const bKey = wst301Key(B.url);
+  site.redirectCommands = site.redirectCommands.filter(c => c.id === cmd.id || wst301Key(c.destUrl) !== bKey);
+  for (let i = siteTracking.length - 1; i >= 0; i--) if (siteTracking[i] !== site && siteTracking[i].wsId === B.id) siteTracking.splice(i, 1);
+  site.wsId = B.id;
+  if (_wstSelected.has(A.id)) { _wstSelected.delete(A.id); _wstSelected.add(B.id); }
+  wstAddChangelog(B.id, '301_root', 'Tắt trỏ & xóa src web gốc ' + wst301Host(A.url) + ' (lý do: ' + (r.reason || WST_301_RM) + ') → ' + wst301Host(B.url) + ' thành web gốc mới');
+  return B;
 }
 
 function wst301Restore(snapId) {
@@ -16083,12 +16113,17 @@ function wst301Restore(snapId) {
     later[i].ws.forEach(e => {
       const rec = websites.find(x => x.id === e.id);
       if (!rec) return;
-      ['is301', 'sourceUrl', 'c301At', 'cut301'].forEach(k => { if (k in e) rec[k] = JSON.parse(JSON.stringify(e[k])); else delete rec[k]; });
+      ['is301', 'sourceUrl', 'c301At', 'cut301', 'prevRoots'].forEach(k => { if (k in e) rec[k] = JSON.parse(JSON.stringify(e[k])); else delete rec[k]; });
     });
   }
   for (let i = websites.length - 1; i >= 0; i--) if (created.has(websites[i].id)) websites.splice(i, 1);
   site.redirectCommands = JSON.parse(JSON.stringify(later[0].cmds || []));
   site.cmdHistory = site.cmdHistory.slice(0, idx);
+  if (later[0].wsId && later[0].wsId !== site.wsId && websites.some(x => x.id === later[0].wsId)) {
+    if (_wstSelected.has(site.wsId)) { _wstSelected.delete(site.wsId); _wstSelected.add(later[0].wsId); }
+    site.wsId = later[0].wsId;
+    _wst301ActiveSiteId = site.wsId;
+  }
   saveWsTrack(_wst301ActiveSiteId);
   const ov = document.getElementById('wst301HistOverlay');
   if (ov) ov.remove();
@@ -16179,7 +16214,7 @@ function wst301OpenTemplate(cCreated, view) {
       </div>
       <button type="button" id="wst301RmBtn" class="btn btn-outline btn-sm" style="font-size:12px;margin-bottom:8px;width:100%;text-align:left">▸ Tắt trỏ &amp; xóa src <span id="wst301RmCnt" style="color:var(--t-fg-muted)"></span></button>
       <div id="wst301RmPanel" style="display:none;border:1px solid var(--t-border);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--t-canvas)">
-        ${d.kids.length ? d.kids.map(k => `<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><label style="display:flex;align-items:center;gap:6px;min-width:200px;cursor:pointer;font-size:13px"><input type="checkbox" class="wst301RmCk" data-h="${wst301Esc(k.h)}"> <span>${wst301Esc(k.h)}</span></label><input type="text" class="wst301RmWhy" data-h="${wst301Esc(k.h)}" value="${WST_301_RM}" disabled placeholder="Lý do ngắt trỏ" style="${sel};flex:1;min-width:0"></div>`).join('') : '<div style="color:var(--t-fg-muted);font-size:12px">Chuỗi chưa có web 301 nào để gỡ.</div>'}
+        ${d.rmList.length ? d.rmList.map(k => `<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><label style="display:flex;align-items:center;gap:6px;min-width:200px;cursor:pointer;font-size:13px"${k.root ? ' title="Tắt trỏ &amp; xóa src web gốc: web 301 đầu tiên còn lại trong chuỗi sẽ thành web gốc mới"' : ''}><input type="checkbox" class="wst301RmCk" data-h="${wst301Esc(k.h)}"> <span>${wst301Esc(k.h)}</span>${k.root ? '<span style="color:var(--t-fg-muted);font-size:11px">(web gốc)</span>' : ''}</label><input type="text" class="wst301RmWhy" data-h="${wst301Esc(k.h)}" value="${WST_301_RM}" disabled placeholder="Lý do ngắt trỏ" style="${sel};flex:1;min-width:0"></div>`).join('') : '<div style="color:var(--t-fg-muted);font-size:12px">Chuỗi chưa có web 301 nào — chưa thể tắt trỏ &amp; xóa src (kể cả web gốc).</div>'}
       </div>` : '';
     const why = view && d.rmWhy.length ? '<div style="font-size:11px;color:var(--t-fg-muted);margin-top:8px">' + d.rmWhy.map(r => 'Lý do gỡ ' + wst301Esc(r.h) + ': ' + wst301Esc(r.reason || WST_301_RM)).join('<br>') + '</div>' : '';
     body = `
@@ -16202,7 +16237,7 @@ function wst301OpenTemplate(cCreated, view) {
   document.body.appendChild(ov);
   if (!tpl || d.empty) return;
   const byId = id => document.getElementById(id);
-  const rmHosts = () => d.kids.filter(k => _wst301Sel.rm[k.h] !== undefined).map(k => k.h);
+  const rmHosts = () => d.rmList.filter(k => _wst301Sel.rm[k.h] !== undefined).map(k => k.h);
   const curSrc = () => _wst301Sel.src || d.defSrc;
   const paint = () => {
     const src = editable ? curSrc() : d.src;
@@ -16241,7 +16276,7 @@ function wst301OpenTemplate(cCreated, view) {
   if (_tc) _tc.onclick = () => {
     const site = getWstSite(_wst301ActiveSiteId);
     const before = ((site && site.redirectCommands) || []).length;
-    const rm = d.kids.filter(k => _wst301Sel.rm[k.h] !== undefined).map(k => ({ h: k.h, id: k.id, reason: String(_wst301Sel.rm[k.h] || '').trim() || WST_301_RM }));
+    const rm = d.rmList.filter(k => _wst301Sel.rm[k.h] !== undefined).map(k => Object.assign({ h: k.h, id: k.id, reason: String(_wst301Sel.rm[k.h] || '').trim() || WST_301_RM }, k.root ? { root: true } : {}));
     wstCreateRedirect301(true, { rm, srcPick: curSrc() });
     if (((site && site.redirectCommands) || []).length > before) {
       toast('✓ Đã lên lệnh 301 tới ' + d.C + ' (Đang 301)' + (rm.length ? ' + gỡ ' + rm.length + ' web' : ''), '#27ae60');
@@ -16322,10 +16357,10 @@ function wstRenderRedirect301Table() {
     return;
   }
 
-  const siteUrlGoc = w.url || '—';
   const srcMap = wst301SourceMap(site, w);
   const pend = {};
   (site.redirectCommands || []).forEach(c => { if (c.status === 'Đang 301') (c.rm || []).forEach(r => { pend[wst301Key(r.h)] = true; }); });
+  const siteUrlGoc = (w.url || '—') + (pend[wst301Key(w.url)] ? '<div style="font-size:10px;color:#f2a154;margin-top:2px" title="Hoàn thành lệnh thì web 301 kế tiếp còn trong chuỗi thành web gốc mới">Đang gỡ lệnh (web gốc)</div>' : '');
 
   tbody.innerHTML = redirectCmds.map(cmd => {
     const isRunning = cmd.status === 'Đang 301';
@@ -16387,6 +16422,14 @@ function wstCreateRedirect301(noTpl, extra) {
     toast('⚠️ Web ' + bad.h + ' vừa là đích/src vừa bị gỡ — bỏ tick hoặc đổi src.', '#f2a154');
     return;
   }
+  const rmRoot = rootW && rm.find(r => r.root || r.id === rootW.id || wst301Key(r.h) === wst301Key(rootW.url));
+  if (rmRoot) {
+    const gone = new Set(rm.map(r => wst301Key(r.h)));
+    if (!wst301Kids(rootW).some(k => k.url && !gone.has(wst301Key(k.url)) && wst301Key(k.url) !== destKey)) {
+      toast('⚠️ Muốn tắt trỏ & xóa src web gốc thì chuỗi phải còn ít nhất 1 web 301 (không bị gỡ) để làm gốc mới.', '#f2a154', 6000);
+      return;
+    }
+  }
   const warn = rootW ? wst301DupLines(destUrl, rootW) : [];
   if (warn.length && !confirm('⚠️ Website ' + wst301Host(destUrl) + ' đã/đang được dùng:\n\n• ' + warn.join('\n• ') + '\n\nVẫn dùng làm đích? (sẽ hiện ⚠️ trong chuỗi 301 của web này)')) return;
 
@@ -16401,7 +16444,7 @@ function wstCreateRedirect301(noTpl, extra) {
     status: 'Đang 301'
   };
   if (srcPick) newCmd.srcPick = srcPick;
-  if (rm.length) newCmd.rm = rm.map(r => ({ h: r.h, id: r.id, reason: String(r.reason || '').trim() || WST_301_RM }));
+  if (rm.length) newCmd.rm = rm.map(r => Object.assign({ h: r.h, id: r.id, reason: String(r.reason || '').trim() || WST_301_RM }, r === rmRoot ? { root: true } : {}));
   if (warn.length) newCmd.warn = warn;
 
   site.redirectCommands.push(newCmd);
@@ -16461,12 +16504,16 @@ function wstCompleteRedirect301(cmdId) {
         wstAddChangelog(parentWs.id, '301_received', `Tự động tạo web chuyển hướng 301 mới khi hoàn thành lệnh: ${destUrl}`);
         console.log('Automated 301 site created successfully:', destUrl);
       }
-      if (cmd.rm && cmd.rm.length) wst301ApplyRemoval(site, parentWs, cmd);
+      const newRoot = (cmd.rm && cmd.rm.length) ? (wst301ApplyRemoval(site, parentWs, cmd) || parentWs) : parentWs;
 
       // Đồng bộ các thuộc tính từ web gốc xuống các con 301
-      wstSync301Children(parentWs);
+      wstSync301Children(newRoot);
+      if (newRoot !== parentWs) {
+        _wst301ActiveSiteId = newRoot.id;
+        toast('✓ Đã tắt trỏ & xóa src web gốc ' + wst301Host(parentWs.url) + ' — ' + wst301Host(newRoot.url) + ' thành web gốc mới', '#27ae60', 6000);
+      }
     }
-    
+
     saveWsTrack(_wst301ActiveSiteId);
     wstRenderRedirect301Table();
     renderWsTrack();
