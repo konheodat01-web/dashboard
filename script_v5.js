@@ -3677,7 +3677,41 @@ function wstSaveKeyword(wsId, kw) {
   renderWsTrack();
 }
 
-async function wstFetchRank(wsId) {
+function wstRankChainDomains(w) {
+  const cur = wstCurrent301Site(w) || w;
+  const out = [];
+  const add = (u) => {
+    const d = wstNormalizeUrl(u).replace(/\/.*$/, '').replace(/^www\./, '');
+    if (d && d.includes('.') && !out.includes(d)) out.push(d);
+  };
+  const chain = getWstRedirectChainBackward(cur);
+  chain.forEach(x => add(x.url));
+  const tail = chain[chain.length - 1];
+  if (tail && tail.is301 && tail.sourceUrl) add(tail.sourceUrl);
+  add(w.url);
+  return out;
+}
+
+function wstRankHostOf(link) {
+  try { return new URL(link).hostname.toLowerCase().replace(/^www\./, ''); }
+  catch (e) { return String(link || '').toLowerCase().replace(/^https?:\/\//, '').replace(/[\/?#].*$/, '').replace(/^www\./, ''); }
+}
+
+function wstRankChainHits(domains, organicD, organicM) {
+  const hits = domains.map(d => ({ d, pc: null, mb: null }));
+  const scan = (list, key) => (list || []).forEach(r => {
+    const h = wstRankHostOf(r.link);
+    let m = null;
+    hits.forEach(x => { if ((h === x.d || h.endsWith('.' + x.d)) && (!m || x.d.length > m.d.length)) m = x; });
+    if (m && m[key] == null) m[key] = r.position;
+  });
+  scan(organicD, 'pc');
+  scan(organicM, 'mb');
+  return hits.filter(x => x.pc != null || x.mb != null);
+}
+
+async function wstFetchRank(wsId, opt) {
+  const useChain = !!(opt && opt.chain);
   const w = websites.find(x => x.id === wsId);
   const site = getWstSite(wsId);
   
@@ -3749,6 +3783,21 @@ async function wstFetchRank(wsId) {
       }
     }
     
+    let chainDomains = null, chainHits = null, rankVia = '';
+    if (useChain) {
+      chainDomains = wstRankChainDomains(w);
+      chainHits = wstRankChainHits(chainDomains, dataD.organic, dataM.organic);
+      rankD = null; rankM = null;
+      let best = null;
+      chainHits.forEach(x => {
+        if (x.pc != null && (rankD == null || x.pc < rankD)) rankD = x.pc;
+        if (x.mb != null && (rankM == null || x.mb < rankM)) rankM = x.mb;
+        const b = Math.min(x.pc == null ? 999 : x.pc, x.mb == null ? 999 : x.mb);
+        if (!best || b < best.b) best = { b, d: x.d };
+      });
+      rankVia = best ? best.d : '';
+    }
+
     let finalRankStr = null;
     if(rankD && rankM) {
         if(rankD <= rankM) finalRankStr = rankD + " <span style='font-size:9px;color:var(--text-muted)'>(PC)</span>";
@@ -3765,14 +3814,17 @@ async function wstFetchRank(wsId) {
     const entries = site.entries.slice().sort((a,b)=>b.date.localeCompare(a.date));
     let last = entries[0];
     
-    if(last && last.date === tbDay) {
-      last.rank = finalRankStr || "Out 100";
-    } else {
-      site.entries.push({id:'wste'+Date.now(), date:tbDay, rank: finalRankStr || "Out 100", indexed: last ? last.indexed : '', moBot:site.moBot||'Mở', note:''});
+    if(!(last && last.date === tbDay)) {
+      last = {id:'wste'+Date.now(), date:tbDay, rank: '', indexed: last ? last.indexed : '', moBot:site.moBot||'Mở', note:''};
+      site.entries.push(last);
     }
+    last.rank = finalRankStr || "Out 100";
+    if (useChain) { last.rankChain = chainHits; last.rankChainAll = chainDomains; last.rankVia = rankVia; }
+    else { delete last.rankChain; delete last.rankChainAll; delete last.rankVia; }
     saveWsTrack(wsId);
-    wstAddChangelog(wsId, 'rank_check', `Check rank Serper từ khóa: "${keyword}" - Hạng: ${finalRankStr || 'Out 100'}`);
-    return {success: true, rank: finalRankStr || "Out 100", rankD, rankM, keyword};
+    const chainLog = useChain ? ` · chuỗi 301 (${chainDomains.length} domain): ${chainHits.length ? chainHits.map(x => x.d + ' PC ' + (x.pc || '-') + '/MB ' + (x.mb || '-')).join(', ') : 'không domain nào lọt top 100'}` : '';
+    wstAddChangelog(wsId, 'rank_check', `Check rank Serper từ khóa: "${keyword}" - Hạng: ${finalRankStr || 'Out 100'}${chainLog}`);
+    return {success: true, rank: finalRankStr || "Out 100", rankD, rankM, keyword, chain: useChain, chainDomains, chainHits, rankVia};
   } catch(e) {
     return {error: "Lỗi kết nối API"};
   }
@@ -3807,9 +3859,60 @@ function wstFormatRankUI(rankStr) {
     return `<span style="background:${bg};color:${color};padding:2px 6px;border-radius:4px;font-weight:700;display:inline-block">${rawNum} <span style="font-size:9px;opacity:0.8">${deviceSuffix}</span></span>`;
 }
 
-async function wstBulkCheckRank() {
+function wstRankChainPref() { try { return localStorage.getItem('wt_rank_chain') === '1'; } catch (e) { return false; } }
+
+function wstRankChainCellHtml(last, w) {
+  if (!last || !Array.isArray(last.rankChainAll) || /Lỗi/.test(String(last.rank || ''))) return '';
+  const hits = Array.isArray(last.rankChain) ? last.rankChain : [];
+  const tip = 'Check cả chuỗi 301 (' + last.rankChainAll.length + ' domain): ' + last.rankChainAll.join(' → ') + '\n' +
+    (hits.length ? hits.map(x => x.d + ': PC ' + (x.pc || '—') + ' · MB ' + (x.mb || '—')).join('\n') : 'Không domain nào lọt top 100');
+  const cur = wstCurrentUrl(w).replace(/^www\./, '');
+  const via = last.rankVia && last.rankVia !== cur ? last.rankVia : '';
+  const txt = via ? '🔗 ' + via : ('🔗 chuỗi ' + last.rankChainAll.length + (hits.length > 1 ? ' · ' + hits.length + ' lọt top' : ''));
+  return `<div style="font-size:9px;font-weight:500;color:${via ? '#f39c12' : 'var(--text-muted)'};margin-top:2px;max-width:110px;margin-left:auto;margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help" title="${escHtmlAttr(tip)}">${escHtmlAttr(txt)}</div>`;
+}
+
+function escHtmlAttr(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+function wstBulkCheckRank() {
   if(!_wstSelected || !_wstSelected.size) { toast("Vui lòng tick chọn website cần check rank!", "#e67e22"); return; }
-  
+  if(!wtApiKey) { toast("Vui lòng thiết lập ValueSERP API Key trước!", "#e74c3c"); openWstApiSettings(); return; }
+  const old = document.getElementById('wstRankOptModal');
+  if (old) old.remove();
+  const n = _wstSelected.size;
+  const m = document.createElement('div');
+  m.id = 'wstRankOptModal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  m.innerHTML = `
+    <div style="background:var(--card-bg,#1e2530);color:var(--text,#e6e6e6);border:1px solid var(--gray-border,#34495e);border-radius:10px;padding:18px 20px;width:100%;max-width:440px;box-shadow:0 10px 30px rgba(0,0,0,.5)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">Check Rank</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">${n} web đã chọn · mỗi web 2 lượt Serper (PC + Mobile)</div>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13px;line-height:1.45;padding:10px;border:1px solid var(--gray-border,#34495e);border-radius:8px">
+        <input type="checkbox" id="wstRankChainChk" ${wstRankChainPref() ? 'checked' : ''} style="margin-top:3px;width:16px;height:16px;flex-shrink:0">
+        <span><b>Check cả chuỗi 301</b><br><span style="font-size:11px;color:var(--text-muted)">Domain nào trong chuỗi 301 hiện tại (web gốc → các domain 301) xuất hiện trong top 100 cũng được tính hạng, kèm báo cụ thể domain nào ở vị trí nào. Không tốn thêm lượt.</span></span>
+      </label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button id="wstRankOptCancel" class="btn btn-sm btn-outline">Huỷ</button>
+        <button id="wstRankOptGo" class="btn btn-sm" style="background:#e67e22;color:#fff;border:none">Bắt đầu check</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  const close = () => m.remove();
+  m.addEventListener('click', (e) => { if (e.target === m) close(); });
+  document.getElementById('wstRankOptCancel').onclick = close;
+  document.getElementById('wstRankOptGo').onclick = () => {
+    const chain = document.getElementById('wstRankChainChk').checked;
+    try { localStorage.setItem('wt_rank_chain', chain ? '1' : '0'); } catch (e) {}
+    close();
+    wstRunBulkCheckRank({ chain });
+  };
+  document.getElementById('wstRankOptGo').focus();
+}
+
+async function wstRunBulkCheckRank(opt) {
+  const useChain = !!(opt && opt.chain);
+  if(!_wstSelected || !_wstSelected.size) { toast("Vui lòng tick chọn website cần check rank!", "#e67e22"); return; }
+    
   const selectedWsIds = Array.from(_wstSelected);
   const allTrackedWs = selectedWsIds.map(id => websites.find(w => w.id === id)).filter(Boolean);
   
@@ -3834,7 +3937,7 @@ async function wstBulkCheckRank() {
   overlay.id = 'wstBulkOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;backdrop-filter:blur(4px);padding:20px;box-sizing:border-box';
   overlay.innerHTML = `
-    <div style="font-size:24px;margin-bottom:12px;font-weight:700">🔄 Đang kiểm tra Rank phân luồng PC & Mobile...</div>
+    <div style="font-size:24px;margin-bottom:12px;font-weight:700">🔄 Đang kiểm tra Rank phân luồng PC & Mobile${useChain ? ' · cả chuỗi 301' : ''}...</div>
     <div id="wstBulkProgress" style="font-size:16px;margin-bottom:16px;font-weight:600;color:#f39c12">Đang khởi động hệ thống...</div>
     
     <div style="width:100%;max-width:900px;max-height:60vh;overflow-y:auto;background:#2c3e50;border-radius:8px;padding:0;margin-bottom:20px;box-shadow:0 10px 25px rgba(0,0,0,0.5);border:1px solid #34495e">
@@ -3854,7 +3957,7 @@ async function wstBulkCheckRank() {
       </table>
     </div>
     
-    <button onclick="window.wstCancelBulkCheck=true" class="btn" style="background:#e74c3c;color:#fff;border:none;padding:10px 20px;font-size:14px;border-radius:8px;font-weight:600;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,.2)">🛑 Dừng thao tác & Đóng lại</button>
+    <button id="wstBulkStopBtn" onclick="window.wstCancelBulkCheck=true" class="btn"  style="background:#e74c3c;color:#fff;border:none;padding:10px 20px;font-size:14px;border-radius:8px;font-weight:600;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,.2)">🛑 Dừng thao tác & Đóng lại</button>
   `;
   document.body.appendChild(overlay);
 
@@ -3907,7 +4010,7 @@ async function wstBulkCheckRank() {
     const rankTd = document.getElementById('rank_td_' + w.id);
     if(rankTd) rankTd.innerHTML = '<span style="font-size:11px">⏳ Đang lấy...</span>';
     
-    const res = await wstFetchRank(w.id);
+    const res = await wstFetchRank(w.id, { chain: useChain });
     let rankText = "N/A";
     
     // Update bảng sau khi fetch xong
@@ -3955,6 +4058,17 @@ async function wstBulkCheckRank() {
        rankText = res.rank || "N/A";
        rankText = rankText.replace(/<[^>]*>?/gm, ''); // Xóa thẻ HTML (PC/MB)
        if(rankText.includes("Out 100")) rankText = "N/A";
+       if (res.chain) {
+         const hits = res.chainHits || [];
+         if (tdFn) tdFn.innerHTML = (res.rank || 'Out 100') + `<div style="font-size:11px;font-weight:400;text-align:left;margin-top:6px;line-height:1.5">` +
+           (res.chainDomains || []).map(d => {
+             const h = hits.find(x => x.d === d);
+             return h ? `<div style="color:#2ecc71">✔ ${escHtmlAttr(d)}: PC ${h.pc || '—'} · MB ${h.mb || '—'}${d === res.rankVia ? ' ★' : ''}</div>`
+                      : `<div style="color:#7f8c8d">· ${escHtmlAttr(d)}: ngoài top 100</div>`;
+           }).join('') + `</div>`;
+         if (rankText !== 'N/A' && res.rankVia) rankText += ' (' + res.rankVia + ')';
+         if (hits.length > 1) rankText += ' [' + hits.map(x => x.d + ' PC ' + (x.pc || '-') + '/MB ' + (x.mb || '-')).join('; ') + ']';
+       }
     }
     
     let siteGoc = w.brand || w.url;
@@ -3968,8 +4082,13 @@ async function wstBulkCheckRank() {
     }
   }
   
-  if(document.getElementById('wstBulkOverlay')) document.getElementById('wstBulkOverlay').remove();
-  
+  if (useChain && !window.wstCancelBulkCheck && document.getElementById('wstBulkOverlay')) {
+    const pg = document.getElementById('wstBulkProgress');
+    if (pg) pg.innerText = `✅ Xong ${successCount}/${targets.length} web (cả chuỗi 301)`;
+    const sb = document.getElementById('wstBulkStopBtn');
+    if (sb) { sb.innerText = 'Đóng'; sb.style.background = '#27ae60'; sb.onclick = () => { const o = document.getElementById('wstBulkOverlay'); if (o) o.remove(); }; }
+  } else if(document.getElementById('wstBulkOverlay')) document.getElementById('wstBulkOverlay').remove();
+
   if(!window.wstCancelBulkCheck) {
       toast(`Hoàn thành check tự động! Thành công ${successCount}/${targets.length}`, "#27ae60", 4000);
       
@@ -4721,7 +4840,7 @@ function renderWsTrack(){
       })()}
       <td id="rank_td_${w.id}" style="padding:8px 10px;text-align:center;font-size:12px;font-weight:600">
         ${wstIsCMB(w) ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(130,80,223,.15);color:var(--t-done2);font-weight:700" title="Đang cấu hình bot Google thu thập dữ liệu — chưa vận hành, không check rank">CMB</span>'
-          : !last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank)}
+          : !last?'<span style="color:var(--text-muted)">N/A</span>':wstFormatRankUI(last.rank) + wstRankChainCellHtml(last, w)}
       </td>
       <td id="index_td_${w.id}" style="padding:8px 4px;text-align:center;font-size:16px;cursor:pointer" onclick="wstCheckIndexStatus(${w.id})" title="${wstIsCMB(w) ? 'CMB — đang cấu hình bot, chưa vận hành: index mặc định ❌, không check' : `Trạng thái: ${lastIndexedVal || 'Chưa kiểm tra'}${lastIndexedDate ? `\nNgày check: ${lastIndexedDate}` : ''}\n(Click để check index tự động bằng Serper/GSC)`}">${wstIsCMB(w) ? '❌' : indexIcon}</td>
       ${(() => {
