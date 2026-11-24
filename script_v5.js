@@ -15966,7 +15966,7 @@ function wstOpenRedirect301Modal(wsId) {
 // Ô "Nhập website đích" có giá trị -> C = giá trị đó (lệnh sắp tạo); trống -> C = đích của lệnh mới nhất.
 const WST_301_VI = { 'Set vi-vn': 'Cài plugin VI-VN Canonical và kích hoạt', 'Gỡ vi-vn': 'Gỡ plugin VI-VN Canonical', 'Không set vi-vn': 'Không cài plugin VI-VN Canonical' };
 const WST_301_RM = 'ngắt chuỗi dài';
-const WST_301_TPL = (d, bot, vi, rm) => ['Trỏ', d.A].concat(d.B, ['===========', 'Qua ' + d.C + ' (lấy src ' + d.src + ')'], bot ? [bot] : [], vi ? [WST_301_VI[vi] || vi] : [], (rm || []).map(h => 'Tắt trỏ & xóa src ' + h)).join('\n');
+const WST_301_TPL = (d, bot, vi, rm) => ['Trỏ'].concat([d.A].concat(d.B).filter(h => !(rm || []).some(x => wst301Key(x) === wst301Key(h))), ['===========', 'Qua ' + d.C + ' (lấy src ' + d.src + ')'], bot ? [bot] : [], vi ? [WST_301_VI[vi] || vi] : [], (rm || []).map(h => 'Tắt trỏ & xóa src ' + h)).join('\n');
 const wst301Host = u => String(u || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 function wst301Esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
 function wst301Day(t) { if (!t) return '—'; const d = new Date(t); return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(); }
