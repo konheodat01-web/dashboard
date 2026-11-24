@@ -3028,11 +3028,11 @@ function wstApplyColgroup(){
   var tbl = document.getElementById('wstTable');
   if (!tbl) return;
   var LEFT = (_wstMode === 'content')
-    ? [2.5, 12.5, 12.5, 5, 12.5]
-    : [2.5, 11, 11, 4.5, 11, 5];
+    ? [2.5, 11, 11, 5, 7, 11]
+    : [2.5, 9.5, 9.5, 4.5, 7, 11, 5];
   var RIGHT = (_wstMode === 'content')
-    ? [9, 9, 9, 9, 7, 12]
-    : [6.5, 6.5, 6.5, 6.5, 5.5, 4.5, 7, 12];
+    ? [8.4, 8.4, 8.4, 8.4, 7, 12]
+    : [5.5, 5.5, 5.5, 5.5, 5.5, 4.5, 7, 12];
   var cg = tbl.querySelector('colgroup');
   if (!cg) { cg = document.createElement('colgroup'); tbl.insertBefore(cg, tbl.firstChild); }
   cg.innerHTML = LEFT.concat(RIGHT).map(function(w){ return '<col style="width:' + w + '%">'; }).join('');
@@ -4156,6 +4156,164 @@ function wstToggleSelectAll(cb){
   wstRenderBulkBar();
 }
 
+const WSTT_PAL = [210, 135, 28, 280, 350, 175, 50, 315, 95, 0, 240, 195];
+function wsttCfg() {
+  if (!_settings.wstStt || typeof _settings.wstStt !== 'object') _settings.wstStt = {};
+  const c = _settings.wstStt;
+  if (!Array.isArray(c.list)) c.list = [];
+  if (!c.colors || typeof c.colors !== 'object') c.colors = {};
+  return c;
+}
+function wsttHex(v) {
+  const c = wsttCfg();
+  if (c.colors[v]) return c.colors[v];
+  const i = c.list.indexOf(v);
+  let h = 0;
+  if (i < 0) { for (const ch of String(v)) h = (h * 31 + ch.charCodeAt(0)) % 360; }
+  else h = WSTT_PAL[(i + 3) % WSTT_PAL.length] + 15 * Math.floor(i / WSTT_PAL.length);
+  h = ((h % 360) + 360) % 360;
+  const sa = .7, l = .52, a = sa * Math.min(l, 1 - l), k = n => (n + h / 30) % 12, f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+  return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+}
+function wsttCss(v) {
+  return `max-width:100%;font-size:11px;font-family:inherit;border-radius:10px;padding:2px 6px;cursor:pointer;font-weight:${v ? 600 : 400};border:1px solid ${v ? wsttHex(v) : 'var(--t-border)'} !important;background:${v ? `color-mix(in srgb,${wsttHex(v)} 34%,transparent)` : 'var(--t-canvas)'} !important;color:${v ? 'var(--t-fg)' : 'var(--t-fg-muted)'} !important`;
+}
+function wsttOpts(cur, head, extra) {
+  const list = wsttCfg().list;
+  return `<option value="" ${cur ? '' : 'selected'}>${head}</option>` + list.map(v => `<option value="${escHtmlAttr(v)}" ${v === cur ? 'selected' : ''} style="background:color-mix(in srgb,${wsttHex(v)} 34%,var(--t-canvas))">${escHtmlAttr(v)}</option>`).join('') + (extra || '') + `<option value="__new">＋ Tạo trạng thái mới…</option><option value="__mgr">⚙ Quản lý trạng thái…</option>`;
+}
+function wsttCell(w) {
+  const cur = (getWstSite(w.id) || {}).wstt || '';
+  return `<td style="padding:8px 6px;overflow:hidden"><select class="wstt-sel" data-id="${w.id}" onchange="wsttSet([${w.id}], this.value)" style="${wsttCss(cur)}">${wsttOpts(cur, '—')}</select></td>`;
+}
+function wsttSave() {
+  try { localStorage.setItem('wt_site_tracking', JSON.stringify(siteTracking)); } catch (e) {}
+  saveAppData();
+}
+function wsttCleanName(v) { return String(v || '').trim().replace(/\s+/g, ' ').slice(0, 60); }
+function wsttAdd(name, color) {
+  const c = wsttCfg();
+  const v = wsttCleanName(name);
+  if (!v) return '';
+  if (/^__/.test(v)) { toast('Tên trạng thái không hợp lệ', '#e74c3c'); return ''; }
+  if (!c.list.includes(v)) c.list.push(v);
+  if (color && /^#[0-9a-f]{6}$/i.test(color)) c.colors[v] = color.toLowerCase();
+  return v;
+}
+function wsttSet(ids, v) {
+  if (v === '__mgr') { renderWsTrack(); wsttOpenMgr(); return; }
+  if (v === '__new') {
+    v = wsttAdd(prompt('Tên trạng thái mới:') || '');
+    if (!v) { renderWsTrack(); return; }
+  }
+  if (v === '__none') v = '';
+  if (v && !wsttCfg().list.includes(v)) { renderWsTrack(); return; }
+  let n = 0;
+  ids.forEach(id => {
+    let site = getWstSite(id);
+    if (!site) { site = { wsId: id, entries: [] }; siteTracking.push(site); }
+    if (v) site.wstt = v; else delete site.wstt;
+    n++;
+  });
+  wsttSave();
+  renderWsTrack();
+  if (ids.length > 1) toast(v ? `Đã gán trạng thái "${v}" cho ${n} web` : `Đã bỏ trạng thái của ${n} web`, '#27ae60');
+  return n;
+}
+function wsttCount(v) { return siteTracking.filter(s => s.wstt === v && websites.some(w => w.id === s.wsId)).length; }
+function wsttOpenMgr() {
+  const old = document.getElementById('wsttMgr');
+  if (old) old.remove();
+  const m = document.createElement('div');
+  m.id = 'wsttMgr';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  document.body.appendChild(m);
+  m.addEventListener('click', (e) => { if (e.target === m) m.remove(); });
+  wsttDrawMgr();
+}
+function wsttDrawMgr() {
+  const m = document.getElementById('wsttMgr');
+  if (!m) return;
+  const c = wsttCfg();
+  const b = (x) => `background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;cursor:pointer;font-size:12px;${x || ''}`;
+  const sw = 'width:26px;height:22px;padding:0;border:1px solid var(--t-border);border-radius:5px;cursor:pointer;flex:none;background:none';
+  const rows = c.list.map((v, i) => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">
+      <input type="color" data-wsc="${i}" value="${wsttHex(v)}" title="${c.colors[v] ? 'Màu tự chọn · bấm để đổi' : 'Màu tự động · bấm để chọn màu'}" style="${sw}">
+      <span style="${wsttCss(v)};cursor:default;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtmlAttr(v)}</span>
+      ${c.colors[v] ? `<button data-wsr="${i}" title="Về màu tự động" style="${b('padding:2px 6px')}">↺</button>` : '<span style="color:var(--t-fg-subtle);font-size:11px">tự động</span>'}
+      <span style="color:var(--t-fg-muted);min-width:18px;text-align:right" title="Số web đang gán">${wsttCount(v)}</span>
+      <button data-wsu="${i}" title="Lên" style="${b('padding:2px 5px')}" ${i ? '' : 'disabled'}>↑</button>
+      <button data-wse="${i}" title="Đổi tên" style="${b('padding:2px 6px')}">✎</button>
+      <button data-wsd="${i}" title="Xoá" style="${b('padding:2px 6px;color:var(--t-danger)')}">✕</button>
+    </div>`).join('') || '<div style="color:var(--t-fg-muted);padding:3px 0">Chưa có trạng thái nào</div>';
+  m.innerHTML = `<div style="background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:10px;padding:16px 18px;width:100%;max-width:460px;max-height:85vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:13px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>⚙ Trạng thái (Theo dõi web)</b><button data-wsx style="${b('padding:2px 8px')}">✕</button></div>
+    ${rows}
+    <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+      <input type="color" id="wsttNewCol" value="#3b82f6" title="Màu cho trạng thái mới · không chọn thì tự động" style="${sw}">
+      <span id="wsttNewColL" style="color:var(--t-fg-subtle);font-size:11px;white-space:nowrap">tự động</span>
+      <input id="wsttNewName" placeholder="Tên trạng thái mới" style="flex:1;min-width:0;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:5px;padding:4px 7px;font-size:12px">
+      <button data-wsa style="${b('padding:4px 10px;background:var(--t-success);color:#fff;border:none')}">Thêm</button>
+    </div>
+  </div>`;
+  const nc = m.querySelector('#wsttNewCol');
+  nc.addEventListener('input', () => { nc.dataset.set = '1'; m.querySelector('#wsttNewColL').innerHTML = nc.value + ' <span data-wsnc style="cursor:pointer;color:var(--t-danger)" title="Bỏ màu tự chọn">✕</span>'; });
+  const add = () => {
+    const name = m.querySelector('#wsttNewName').value;
+    const v = wsttCleanName(name);
+    if (!v) return;
+    if (wsttCfg().list.includes(v)) { toast('Trạng thái này đã có', '#e67e22'); return; }
+    if (wsttAdd(v, nc.dataset.set ? nc.value : '')) { wsttSave(); renderWsTrack(); wsttDrawMgr(); const ni = document.getElementById('wsttNewName'); if (ni) ni.focus(); }
+  };
+  m.querySelector('#wsttNewName').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+  m.querySelectorAll('input[data-wsc]').forEach(inp => inp.addEventListener('change', () => {
+    const v = c.list[+inp.dataset.wsc];
+    if (!v) return;
+    c.colors[v] = inp.value.toLowerCase();
+    wsttSave(); renderWsTrack(); wsttDrawMgr();
+  }));
+  m.onclick = (e) => {
+    const t = e.target.closest('button,[data-wsnc]');
+    if (!t || !m.contains(t)) return;
+    if (t.hasAttribute('data-wsx')) { m.remove(); return; }
+    if (t.hasAttribute('data-wsnc')) { delete nc.dataset.set; nc.value = '#3b82f6'; m.querySelector('#wsttNewColL').textContent = 'tự động'; return; }
+    if (t.hasAttribute('data-wsa')) { add(); return; }
+    const pick = (k) => { const i = t.getAttribute(k); return i == null ? null : c.list[+i]; };
+    let v;
+    if ((v = pick('data-wsr')) != null) { delete c.colors[v]; }
+    else if ((v = pick('data-wsu')) != null) { const i = c.list.indexOf(v); if (i > 0) { c.list.splice(i, 1); c.list.splice(i - 1, 0, v); } }
+    else if ((v = pick('data-wse')) != null) {
+      const to = wsttCleanName(prompt('Đổi tên trạng thái:', v) || '');
+      if (!to || to === v) return;
+      if (/^__/.test(to)) { toast('Tên trạng thái không hợp lệ', '#e74c3c'); return; }
+      if (c.list.includes(to)) { toast('Tên này đã có', '#e67e22'); return; }
+      c.list[c.list.indexOf(v)] = to;
+      if (c.colors[v]) { c.colors[to] = c.colors[v]; delete c.colors[v]; }
+      siteTracking.forEach(s => { if (s.wstt === v) s.wstt = to; });
+    }
+    else if ((v = pick('data-wsd')) != null) {
+      const n = wsttCount(v);
+      if (!confirm(`Xoá trạng thái "${v}"?` + (n ? `\n${n} web đang gán sẽ về trống.` : ''))) return;
+      c.list.splice(c.list.indexOf(v), 1);
+      delete c.colors[v];
+      siteTracking.forEach(s => { if (s.wstt === v) delete s.wstt; });
+      const fs = document.getElementById('wst_filter_wstt');
+      if (fs && fs.value === v) fs.value = '';
+    }
+    else return;
+    wsttSave(); renderWsTrack(); wsttDrawMgr();
+  };
+}
+function wsttFillFilter() {
+  const sel = document.getElementById('wst_filter_wstt');
+  if (!sel) return;
+  const cur = sel.value;
+  const list = wsttCfg().list;
+  sel.innerHTML = '<option value="">Tất cả trạng thái</option>' + list.map(v => `<option value="${escHtmlAttr(v)}">${escHtmlAttr(v)}</option>`).join('') + '<option value="__none">(Chưa có trạng thái)</option>';
+  sel.value = (cur === '__none' || list.includes(cur)) ? cur : '';
+  sel.style.borderColor = sel.value && sel.value !== '__none' ? wsttHex(sel.value) : 'var(--t-border)';
+}
+
 function wstRenderBulkBar(){
   let bar = document.getElementById('wstBulkBar');
   if(!bar){
@@ -4185,6 +4343,7 @@ function wstRenderBulkBar(){
       </select>
       <button onclick="wstExecuteBulk301()" class="btn btn-sm btn-outline" style="font-size:11px;color:#10b981;border-color:#10b981">Thực hiện 301</button>
     </div>
+    <select id="wsttBulkSel" onchange="wsttSet(Array.from(_wstSelected), this.value)" style="height:26px;font-size:11px;background:var(--t-muted);color:var(--t-fg);border:1px solid var(--t-border);border-radius:4px;outline:none;cursor:pointer;padding:0 6px;max-width:190px">${wsttOpts('', '📌 Gán trạng thái cho ' + _wstSelected.size + ' web…', '<option value="__none">— Bỏ trạng thái</option>')}</select>
     <button onclick="wstTriggerAddGscBulk()" class="btn btn-sm btn-outline" style="font-size:11px;color:#f2a154;border-color:#e5893c">Thêm GSC</button>
     <button onclick="wstCheckSelectedSites()" class="btn btn-sm" style="font-size:11px;background:var(--t-success);color:#fff;border:none">🔎 Check index (Serper)</button>
     <button onclick="_wstSelected.clear();renderWsTrack()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;margin-left:auto">×</button>`;
@@ -4483,6 +4642,8 @@ function renderWsTrack(){
     if (tagsArr.includes(curTag)) tagSel.value = curTag;
   }
 
+  wsttFillFilter();
+  const fWstt = document.getElementById('wst_filter_wstt')?.value || '';
   const q=(document.getElementById('wst_search')?.value||'').toLowerCase();
   const fTeam = document.getElementById('wst_filter_team')?.value || '';
   const fStatus = document.getElementById('wst_filter_status')?.value || '';
@@ -4509,6 +4670,7 @@ function renderWsTrack(){
     if(fTag && !(w.tags || []).includes(fTag)) return false;
 
     const site = getWstSite(w.id);
+    if (fWstt && (fWstt === '__none' ? !!site?.wstt : site?.wstt !== fWstt)) return false;
 
     // Advanced Filter: Redirect 301
     if (fRedirect301) {
@@ -4653,6 +4815,12 @@ function renderWsTrack(){
         valA = a.lastUpdatedAt || '';
         valB = b.lastUpdatedAt || '';
       }
+      else if (_wstSortCol === 'wstt') {
+        const L = wsttCfg().list;
+        const ix = (st) => { const i = st && st.wstt ? L.indexOf(st.wstt) : -1; return i < 0 ? 9999 : i; };
+        valA = ix(siteA);
+        valB = ix(siteB);
+      }
       else if (_wstSortCol === 'ctotal' || _wstSortCol === 'cindexed' || _wstSortCol === 'cnotindexed' || _wstSortCol === 'crate' || _wstSortCol === 'cupdated') {
         var csA = _wstContentStats[a.id] || {}, csB = _wstContentStats[b.id] || {};
         var totA = (csA.postCount === 0 || csA.postCount > 0) ? csA.postCount : null;
@@ -4721,6 +4889,7 @@ function renderWsTrack(){
       <th onclick="wstHandleSort('url301')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">URL hiện tại (301) ${wstGetSortIndicator('url301')}</th>
       <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
       <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
+      <th onclick="wstHandleSort('wstt')" style="padding:8px 6px;text-align:left;font-size:11px;cursor:pointer;user-select:none;white-space:nowrap">Trạng thái ${wstGetSortIndicator('wstt')} <span id="wsttMgrBtn" onclick="event.stopPropagation();wsttOpenMgr()" title="Thêm / đổi màu / đổi tên / xoá trạng thái" style="cursor:pointer;padding:0 3px">⚙</span></th>
       <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
       ${_wstMode !== 'content' ? '<th onclick="wstHandleSort(\'redirect301\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">Lệnh 301 ' + wstGetSortIndicator('redirect301') + '</th>' : ''}
       ${wstHeadRight()}
@@ -4791,6 +4960,7 @@ function renderWsTrack(){
       <td style="padding:8px 10px;font-size:11px">
         ${teamBadgeHtml(w.team || 'Team 01', 'lg')}
       </td>
+      ${wsttCell(w)}
       <td style="padding:8px 10px;font-size:11px;">
         <div style="display:flex;align-items:center;gap:4px">
           <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:100px;font-size:11px;padding:2px 4px;height:24px">
