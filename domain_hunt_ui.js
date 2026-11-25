@@ -11,7 +11,8 @@
     ['fail', '✖ Không đạt', 'Không đủ 3–5 subdomain có nội dung · tự xoá khỏi danh sách sau 48 giờ nếu không phá lệ · tool vẫn nhớ, nhập CSV lần sau tự bỏ qua (Nhập thủ công thì vẫn kiểm)'],
     ['err', '⚠️ Lỗi', 'Wayback lỗi, tự kiểm lại sau 30 phút (tối đa 3 lần)'],
   ];
-  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, colors: { grp: {}, stt: {} }, mode: 'tree', lastH: null, wants: [], sys: { used: 'Đã sử dụng', past: 'Từng dùng' }, usage: [] };
+  const S = { view: 'pass', q: '', items: [], counts: {}, worker: {}, opt: {}, sel: new Set(), last: null, timer: null, seq: 0, busy: false, xfs: {}, sorts: { fail: { k: 'chk', dir: -1 } }, headKey: '', skew: 0, open: new Set(), ssel: new Set(), labels: { grp: [], stt: [] }, colors: { grp: {}, stt: {} }, mode: 'tree', lastH: null, wants: [], sys: { used: 'Đã sử dụng', past: 'Từng dùng' }, usage: [], auto: [], fixed: [], recv: [] };
+  const SENT = 'Đã gửi';
   try { const m = localStorage.getItem('dhMode'); if (['tree', 'sub', 'all'].includes(m)) S.mode = m; } catch (e) {}
   const MODES = [['tree', '🌳 Theo domain'], ['sub', '🔗 Chỉ subdomain'], ['all', '📋 Tất cả (gốc + sub)']];
   const flatMode = () => S.view === 'mine' && S.mode !== 'tree';
@@ -42,7 +43,15 @@
     const rows = k === 'used' ? cur.map(c => esc(useLine(c))) : past.slice(0, 2).map(c => esc(useLine(c)) + ` <span style="color:var(--t-fg-subtle)">(${dm(c.f)}–${dm(c.t)})</span>`).concat(past.length > 2 ? [`+${past.length - 2} lần khác`] : []);
     return `<div class="dh-sys" data-sys="${k}" title="${esc(tip)}" style="line-height:1.35"><span style="display:inline-block;padding:1px 8px;border-radius:10px;border:1px solid ${col};background:color-mix(in srgb,${col} 20%,transparent);color:var(--t-fg);font-size:12px;font-weight:600;white-space:nowrap">🔒 ${esc(S.sys[k])}</span>${rows.map(r => `<div style="font-size:11px;color:var(--t-fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${r}</div>`).join('')}</div>`;
   }
-  const sttCell = (it, s) => sysBadge(it, s) || tagSel('stt', it);
+  function autoBadge(it) {
+    if (!S.auto.includes(it.stt || '')) return '';
+    const hs = ['', ...(it.subs || []).map(x => x.s)];
+    const usub = hs.filter(h => h && sysKey(it, h)).length, rk = sysKey(it, '');
+    const line = `${usub}/${hs.length - 1} sub đã dùng · gốc ${rk === 'used' ? 'đang dùng' : rk === 'past' ? 'từng dùng' : 'chưa dùng'}`;
+    const tip = 'Trạng thái tự động theo chuỗi 301 ở Theo dõi web, không đổi tay được\n' + hs.map(h => (h ? h + '.' : '') + it.d + ': ' + (sysName(it, h) || 'chưa dùng')).join('\n');
+    return `<div class="dh-auto" data-auto="${esc(it.stt)}" title="${esc(tip)}" style="line-height:1.35"><span style="${selCss('stt', it.stt)};display:inline-block;cursor:default;white-space:nowrap">🔒 ${esc(it.stt)}</span><div style="font-size:11px;color:var(--t-fg-muted);white-space:nowrap">${esc(line)}</div></div>`;
+  }
+  const sttCell = (it, s) => s == null ? (autoBadge(it) || sysBadge(it, '') || tagSel('stt', it)) : (sysBadge(it, s) || autoBadge(it) || tagSel('stt', it));
   const hostOf = k => { const j = k.indexOf('|'); const s = k.slice(j + 1); return (s ? s + '.' : '') + k.slice(0, j); };
   const subPicked = () => [...S.ssel].filter(k => !k.endsWith('|'));
   const rootsPicked = () => [...new Set([...S.ssel].map(k => k.slice(0, k.indexOf('|'))))];
@@ -296,6 +305,9 @@
       S.wants = d.wants || [];
       if (d.sys) S.sys = d.sys;
       S.usage = d.usage || [];
+      S.auto = d.auto || [];
+      S.fixed = d.fixed || [];
+      S.recv = d.recv || [];
       S.items.forEach(it => {
         const have = new Set((it.subs || []).map(x => x.s));
         const extra = Object.keys(it.use || {}).filter(s => s && !have.has(s));
@@ -386,7 +398,7 @@
       <td style="padding:6px 8px;font-weight:600;white-space:nowrap">${tg}<a href="${esc(wb('', it.d))}" target="_blank" rel="noopener" style="color:var(--t-fg);text-decoration:none">${esc(it.d)}</a>${it.ex ? ' <span title="Phá lệ: không đạt nhưng bạn giữ lại" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-warn) 20%,transparent);color:var(--t-warn);font-size:11px;font-weight:400">phá lệ</span>' : ''}${kw.size ? ` <span class="dh-kw" title="Đạt nhờ có sub mong muốn" style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-success) 18%,transparent);color:var(--t-success);font-size:11px;font-weight:400">🎯 ${esc([...kw].join(', '))}</span>` : ''}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(it.price || '')}${it.premium ? ' <span style="padding:1px 6px;border-radius:8px;background:color-mix(in srgb,var(--t-done) 18%,transparent);color:var(--t-done);font-size:11px">premium</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:center">${S.view === 'queue' ? '' : (it.subs || []).length}</td>
-      ${mine ? `<td style="padding:4px 8px">${tagSel('grp', it)}</td><td style="padding:4px 8px">${sttCell(it, '')}</td>` : `<td style="padding:6px 8px">${info}</td>`}
+      ${mine ? `<td style="padding:4px 8px">${tagSel('grp', it)}</td><td style="padding:4px 8px">${sttCell(it, null)}</td>` : `<td style="padding:6px 8px">${info}</td>`}
       <td style="padding:6px 8px;white-space:nowrap;color:var(--t-fg-muted);font-size:11px">${when(t)}</td>${S.view === 'fail' ? `
       <td style="padding:6px 8px;white-space:nowrap;font-size:11px">${left(it)}</td>` : ''}
     </tr>${kids}`;
@@ -403,7 +415,7 @@
   const pickHex = (f, v) => custom(f, v) || toHex(tagHue(f, v));
   const selCss = (f, v) => `max-width:150px;font-size:12px;font-family:inherit;border-radius:10px;padding:2px 6px;cursor:pointer;font-weight:${v ? 600 : 400};border:1px solid ${v ? tagLine(f, v) : 'var(--t-border)'} !important;background:${v ? tagBg(f, v) : 'var(--t-canvas)'} !important;color:${v ? 'var(--t-fg)' : 'var(--t-fg-muted)'} !important`;
   function tagOpts(f, cur, head) {
-    const list = S.labels[f] || [];
+    const list = (S.labels[f] || []).filter(v => f !== 'stt' || !S.auto.includes(v));
     return `<option value="" ${cur ? '' : 'selected'}>${head}</option>` + list.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''} style="background:${tagBg(f, v)}">${esc(v)}</option>`).join('') + `<option value="__new">＋ Tạo ${LBL[f][0]} mới…</option>`;
   }
   function tagSel(f, it) {
@@ -425,7 +437,11 @@
     try {
       if (v === '__new') { v = await newLabel(f); if (!v) { draw(); return; } }
       const d = await api('tag', { field: f, ds, v });
-      if (ds.length > 1) say(v ? `Đã gán ${LBL[f][0]} "${v}" cho ${d.n} domain` : `Đã bỏ ${LBL[f][0]} của ${d.n} domain`);
+      const skip = d.auto ? `${ds.length > 1 ? ' · ' : ''}${ds.length > 1 ? 'bỏ qua ' + d.auto + ' domain' : 'Domain này'} đang có trạng thái tự động (🔒), không đổi tay được` : '';
+      const mk = f === 'stt' && v === SENT && d.n ? ` = 1 mẻ mới · xem ở 📦 Mẻ đã gửi` : '';
+      if (ds.length > 1) say((v ? `Đã gán ${LBL[f][0]} "${v}" cho ${d.n} domain` : `Đã bỏ ${LBL[f][0]} của ${d.n} domain`) + mk + skip, d.auto ? '#d29922' : '', d.auto || mk ? 7000 : 3500);
+      else if (d.auto) say(skip, '#d29922', 6000);
+      else if (mk) say(`Đã gán "${SENT}"${mk}`, '', 5000);
       await load();
     } catch (e) { fail(e); draw(); } finally { S.busy = false; }
   }
@@ -449,8 +465,8 @@
         <span style="${selCss(f, v)};cursor:default;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v)}</span>
         ${custom(f, v) ? `<button data-lcr="${f}" data-v="${esc(v)}" title="Về màu tự động" style="${btn('padding:2px 6px')}">↺</button>` : '<span style="color:var(--t-fg-subtle);font-size:11px">tự động</span>'}
         <span style="color:var(--t-fg-muted);min-width:18px;text-align:right">${count(f, v)}</span>
-        <button data-lr="${f}" data-v="${esc(v)}" title="Đổi tên" style="${btn('padding:2px 6px')}">✎</button>
-        <button data-ld="${f}" data-v="${esc(v)}" title="Xoá" style="${btn('padding:2px 6px;color:var(--t-danger)')}">✕</button>
+        ${f === 'stt' && S.fixed.includes(v) ? `<span class="dh-lfix" title="${S.auto.includes(v) ? 'Tool tự gán theo số sub/gốc đã dùng 301, không gán tay được' : 'Dùng cho Nhận domain (mẻ Đã gửi)'} · không đổi tên/xoá được, chỉ đổi màu" style="color:var(--t-fg-subtle);font-size:11px;white-space:nowrap;min-width:52px;text-align:right">🔒 ${S.auto.includes(v) ? 'tự động' : 'nhận'}</span>` : `<button data-lr="${f}" data-v="${esc(v)}" title="Đổi tên" style="${btn('padding:2px 6px')}">✎</button>
+        <button data-ld="${f}" data-v="${esc(v)}" title="Xoá" style="${btn('padding:2px 6px;color:var(--t-danger)')}">✕</button>`}
       </div>`).join('') || '<div style="color:var(--t-fg-muted);padding:3px 0">Chưa có</div>'}
       <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
         <input type="color" data-lnc="${f}" value="#3b82f6" title="Màu cho ${LBL[f][0]} mới · không chọn thì tự động" style="${sw}">
@@ -521,6 +537,9 @@
       b.push(`<select class="dh-bulk" data-f="grp" ${tn ? '' : 'disabled'} style="${btn('padding:5px 8px')}">${tagOpts('grp', '', `🏷 Gán nhóm${tn ? ' cho ' + tn + ' domain' : ''}…`)}<option value="__none">— Bỏ nhóm</option></select>`);
       b.push(`<select class="dh-bulk" data-f="stt" ${tn ? '' : 'disabled'} style="${btn('padding:5px 8px')}">${tagOpts('stt', '', `📌 Gán trạng thái${tn ? ' cho ' + tn + ' domain' : ''}…`)}<option value="__none">— Bỏ trạng thái</option></select>`);
       b.push(`<button data-a="labels" style="${btn()}">⚙ Nhóm & trạng thái</button>`);
+      const nb = batches().length, sb = selBatch();
+      b.push(`<button data-a="batches" style="${btn()}" title="Mỗi lần gán &quot;${SENT}&quot; (hàng loạt) = 1 mẻ · chọn mẻ rồi Nhận domain · xem lại lịch sử nhận / hoàn tác">📦 Mẻ đã gửi${nb ? ' ' + nb : ''}</button>`);
+      if (sb) b.push(`<button data-a="recv" style="${btn(pri)}">📥 Nhận domain · mẻ ${esc(when(sb.id))} (${sb.list.length})</button>`);
       if (!flat) {
         const allOpen = S.items.some(it => (it.subs || []).length) && S.items.every(it => !(it.subs || []).length || S.open.has(it.d));
         b.push(`<button data-a="openall" style="${btn()}">${allOpen ? '▲ Thu gọn hết' : '▼ Mở hết subdomain'}</button>`);
@@ -686,8 +705,164 @@
     } catch (e) { fail(e); } finally { S.busy = false; }
   }
 
+  function batches() {
+    const m = new Map();
+    S.items.forEach(it => { if (it.st === 'mine' && it.stt === SENT && it.sent) { if (!m.has(it.sent)) m.set(it.sent, []); m.get(it.sent).push(it); } });
+    return [...m.entries()].sort((a, b) => b[0] - a[0]).map(([id, list]) => ({ id, list }));
+  }
+  function selBatch() {
+    if (S.view !== 'mine' || flatMode() || !S.sel.size) return null;
+    return batches().find(x => x.list.length === S.sel.size && x.list.every(it => S.sel.has(it.d))) || null;
+  }
+  function pickBatch(id) {
+    const b = batches().find(x => x.id === id);
+    if (!b) return null;
+    if (flatMode()) { S.mode = 'tree'; try { localStorage.setItem('dhMode', S.mode); } catch (e) {} }
+    S.xfs[fk()] = {}; S.q = '';
+    const q = root && root.querySelector('#dhQ');
+    if (q) q.value = '';
+    S.sel = new Set(b.list.map(it => it.d)); S.ssel.clear(); S.last = null; S.lastH = null;
+    draw();
+    return b;
+  }
+  function ovOpen(id, w) {
+    const old = document.getElementById(id);
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = id;
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10050;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML = `<div class="dh-ovb" style="background:var(--t-subtle);border:1px solid var(--t-border);border-radius:12px;padding:16px;max-width:${w}px;width:100%;max-height:calc(100vh - 40px);overflow:auto;box-sizing:border-box;color:var(--t-fg);font-size:13px"></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('mousedown', e => { if (e.target === ov) ov.remove(); });
+    ov.addEventListener('keydown', e => { if (e.key === 'Escape') ov.remove(); });
+    return ov;
+  }
+  const RC = { 'Mua DONE': 'var(--t-success)', 'Không mua được': 'var(--t-danger)', 'Chưa gửi': 'var(--t-warn)', 'Sai định dạng': 'var(--t-fg-muted)' };
+  const rTag = r => r ? `<span style="color:${RC[r] || 'var(--t-fg)'};font-weight:600">${esc(r)}</span>` : '<span style="color:var(--t-fg-subtle)">(dòng trống)</span>';
+  async function copyTxt(txt, msg) { try { await navigator.clipboard.writeText(txt); say(msg); } catch (e) { fail('Không copy được: ' + e.message); } }
+  function repHtml(r, opt) {
+    const L = r.lines || [], c = k => L.filter(l => l.r === k).length;
+    const head = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0">
+      <span>Mẻ <b>${esc(when(r.batch))}</b> · ${r.n} domain đã gửi · list dán ${L.length} dòng</span></div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+        <span>✅ ${rTag('Mua DONE')} <b>${r.done.length}</b></span><span>❌ ${rTag('Không mua được')} <b>${r.fail.length}</b></span><span>⚠ ${rTag('Chưa gửi')} <b>${c('Chưa gửi')}</b></span>${c('Sai định dạng') ? `<span>${rTag('Sai định dạng')} <b>${c('Sai định dạng')}</b></span>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button data-rc="stt" style="${btn()}" title="Mỗi dòng của list bạn dán → trạng thái tương ứng, đúng thứ tự, dòng trống giữ trống">📋 Copy trạng thái (theo list dán · ${L.length} dòng)</button>
+        <button data-rc="fail" style="${btn()}" ${r.fail.length ? '' : 'disabled'}>📋 Copy ${r.fail.length} domain Không mua được</button>
+      </div>`;
+    const rows = L.map((l, i) => `<tr style="border-top:1px solid var(--t-border)"><td style="padding:3px 6px;color:var(--t-fg-muted);text-align:right">${i + 1}</td><td style="padding:3px 6px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.raw)}</td><td style="padding:3px 6px;white-space:nowrap">${rTag(l.r)}${l.k ? ` <span style="color:var(--t-fg-muted);font-size:11px">(trong kho: ${esc(l.k)})</span>` : ''}</td></tr>`).join('');
+    const tbl = `<div style="max-height:300px;overflow:auto;border:1px solid var(--t-border);border-radius:6px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="position:sticky;top:0;background:var(--t-subtle)"><tr><th style="padding:4px 6px;text-align:right">#</th><th style="padding:4px 6px;text-align:left">Dòng bạn dán</th><th style="padding:4px 6px;text-align:left">Kết quả</th></tr></thead><tbody class="dh-rrows">${rows}</tbody></table></div>`;
+    const nob = r.fail.length ? `<div style="margin-top:10px"><b style="color:var(--t-danger)">❌ Đã gửi nhưng không có trong list nhận → Không mua được (${r.fail.length})</b><div class="dh-rfail" style="font-size:12px;color:var(--t-fg-muted);margin-top:4px;word-break:break-all">${r.fail.map(esc).join(' · ')}</div></div>` : '';
+    return head + tbl + nob + (opt || '');
+  }
+  function bindCopy(ov, r) {
+    ov.addEventListener('click', e => {
+      const b = e.target.closest('[data-rc]');
+      if (!b || b.disabled) return;
+      if (b.dataset.rc === 'stt') copyTxt((r.lines || []).map(l => l.r).join('\n'), `Đã copy ${(r.lines || []).length} dòng trạng thái (đúng thứ tự list dán)`);
+      else copyTxt(r.fail.join('\n'), `Đã copy ${r.fail.length} domain Không mua được`);
+    });
+  }
+  function recvOpen(b) {
+    const ov = ovOpen('dhRecvOv', 720), box = ov.querySelector('.dh-ovb');
+    let text = '';
+    const step1 = () => {
+      box.innerHTML = `<div style="font-weight:700;font-size:15px;margin-bottom:6px">📥 Nhận domain · mẻ ${esc(when(b.id))} (${b.list.length} domain ${SENT})</div>
+        <div style="font-size:12px;color:var(--t-fg-muted);margin-bottom:8px">Dán list domain mới nhận, mỗi dòng 1 domain (có thể kèm https://, www., cột khác sau dấu tab). Có trong mẻ → <b>Mua DONE</b> · không có trong mẻ → <b>Chưa gửi</b> · trong mẻ mà không có ở list dán → <b>Không mua được</b>. Xem báo cáo xong bấm Xác nhận mới đổi trạng thái.</div>
+        <textarea id="dhRecvTa" rows="12" placeholder="domain-a.com&#10;domain-b.net" style="width:100%;box-sizing:border-box;background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:6px;padding:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button data-x="no" style="${btn()}">Hủy</button><button data-x="go" style="${btn(pri)}">🔍 So khớp</button></div>`;
+      const ta = box.querySelector('#dhRecvTa');
+      ta.value = text;
+      ta.focus();
+    };
+    const step2 = r => {
+      box.innerHTML = `<div style="font-weight:700;font-size:15px">📥 Báo cáo nhận domain — chưa đổi gì, kiểm tra rồi xác nhận</div>` + repHtml(r, `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button data-x="back" style="${btn()}">← Sửa list</button><button data-x="no" style="${btn()}">Hủy</button><button data-x="ok" style="${btn(pri)}">✅ Xác nhận đổi trạng thái (${r.done.length} Mua DONE · ${r.fail.length} Không mua được)</button></div>`);
+    };
+    let cur = null;
+    bindCopy(ov, { get lines() { return cur ? cur.lines : []; }, get fail() { return cur ? cur.fail : []; } });
+    box.addEventListener('click', async e => {
+      const x = e.target.closest('[data-x]');
+      if (!x || x.disabled) return;
+      const k = x.dataset.x;
+      if (k === 'no') { ov.remove(); return; }
+      if (k === 'back') { step1(); return; }
+      const ds = b.list.map(it => it.d);
+      if (k === 'go') {
+        text = box.querySelector('#dhRecvTa').value;
+        if (!text.trim()) { say('Chưa dán domain nào', '#e67e22'); return; }
+        x.disabled = true;
+        try { cur = await api('recv', { batch: b.id, ds, text, dry: true }); step2(cur); } catch (er) { fail(er); x.disabled = false; }
+        return;
+      }
+      if (k === 'ok') {
+        if (S.busy) return;
+        S.busy = true; x.disabled = true;
+        try {
+          const r = await api('recv', { batch: b.id, ds, text });
+          ov.remove();
+          say(`Đã nhận mẻ ${when(b.id)}: ${r.done.length} Mua DONE · ${r.fail.length} Không mua được${r.none.length ? ' · ' + r.none.length + ' domain chưa gửi' : ''} · xem lại / hoàn tác ở 📦 Mẻ đã gửi`, '', 8000);
+          S.sel.clear();
+          await load();
+        } catch (er) { fail(er); x.disabled = false; } finally { S.busy = false; }
+      }
+    });
+    step1();
+  }
+  function histOpen(r) {
+    const ov = ovOpen('dhHistOv', 720), box = ov.querySelector('.dh-ovb');
+    box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:15px">🕘 Báo cáo nhận ${esc(when(r.at))}${r.by ? ' · ' + esc(r.by) : ''}</b><button data-x="no" style="${btn('padding:2px 8px')}">✕</button></div>${r.undone ? `<div style="color:var(--t-warn);margin-top:6px">↩ Đã hoàn tác ${esc(when(r.undone))}${r.undoBy ? ' · ' + esc(r.undoBy) : ''}</div>` : ''}` + repHtml(r);
+    bindCopy(ov, r);
+    box.addEventListener('click', e => { if (e.target.closest('[data-x="no"]')) ov.remove(); });
+  }
+  function batchOpen() {
+    const ov = ovOpen('dhBatchOv', 760), box = ov.querySelector('.dh-ovb');
+    const paint = () => {
+      const bs = batches();
+      const grp = b => [...new Set(b.list.map(it => it.grp).filter(Boolean))].join(', ');
+      const bRows = bs.map(b => `<div class="dh-brow" data-b="${b.id}" style="border:1px solid var(--t-border);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>Mẻ ${esc(when(b.id))}</b><span style="color:var(--t-fg-muted)">${b.list.length} domain${grp(b) ? ' · nhóm ' + esc(grp(b)) : ''}</span><span style="flex:1"></span>
+          <button data-bp="${b.id}" style="${btn()}">☑ Chọn cả mẻ</button><button data-br="${b.id}" style="${btn(pri)}">📥 Nhận domain</button></div>
+          <div style="font-size:11px;color:var(--t-fg-muted);margin-top:4px;word-break:break-all">${b.list.slice(0, 8).map(it => esc(it.d)).join(' · ')}${b.list.length > 8 ? ` · … +${b.list.length - 8}` : ''}</div></div>`).join('') || `<div style="color:var(--t-fg-muted);padding:6px 0">Chưa có mẻ nào đang ở trạng thái ${SENT}. Tick domain → 📌 Gán trạng thái "${SENT}" (gán 1 lần = 1 mẻ).</div>`;
+      const hRows = S.recv.map(r => `<div class="dh-hrow" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--t-border);padding:6px 0;${r.undone ? 'opacity:.6' : ''}">
+          <span style="min-width:96px">${esc(when(r.at))}</span><span style="color:var(--t-fg-muted)">mẻ ${esc(when(r.batch))}</span>
+          <span>✅ ${r.done.length} · ❌ ${r.fail.length}${(r.none || []).length ? ' · ⚠ ' + r.none.length + ' chưa gửi' : ''}</span>${r.by ? `<span style="color:var(--t-fg-subtle);font-size:11px">${esc(r.by)}</span>` : ''}<span style="flex:1"></span>
+          ${r.undone ? `<span style="color:var(--t-warn);font-size:12px">↩ đã hoàn tác ${esc(when(r.undone))}</span>` : ''}
+          <button data-hv="${r.id}" style="${btn()}">👁 Xem báo cáo</button>${r.undone ? '' : `<button data-hu="${r.id}" style="${btn('color:var(--t-danger)')}">↩ Hoàn tác</button>`}</div>`).join('') || '<div style="color:var(--t-fg-muted);padding:6px 0">Chưa nhận mẻ nào.</div>';
+      box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:15px">📦 Mẻ đã gửi</b><button data-x="no" style="${btn('padding:2px 8px')}">✕</button></div>
+        <div style="font-size:12px;color:var(--t-fg-muted);margin-bottom:8px">Mỗi lần gán "${SENT}" (1 lần gán hàng loạt) = 1 mẻ. Nút Nhận domain chỉ hiện khi tick đúng đủ cả 1 mẻ.</div>
+        ${bRows}
+        <div style="font-weight:600;margin:12px 0 4px">🕘 Lịch sử nhận</div>${hRows}`;
+    };
+    paint();
+    box.addEventListener('click', async e => {
+      const t = e.target;
+      if (t.closest('[data-x="no"]')) { ov.remove(); return; }
+      const bp = t.closest('[data-bp]'), br = t.closest('[data-br]');
+      if (bp || br) {
+        const b = pickBatch(Number((bp || br).dataset[bp ? 'bp' : 'br']));
+        ov.remove();
+        if (!b) { say('Mẻ này không còn', '#e67e22'); return; }
+        if (br) recvOpen(b); else say(`Đã chọn cả mẻ ${when(b.id)} (${b.list.length} domain) · bấm 📥 Nhận domain trên thanh công cụ`);
+        return;
+      }
+      const hv = t.closest('[data-hv]');
+      if (hv) { const r = S.recv.find(x => x.id === Number(hv.dataset.hv)); if (r) histOpen(r); return; }
+      const hu = t.closest('[data-hu]');
+      if (hu) {
+        const r = S.recv.find(x => x.id === Number(hu.dataset.hu));
+        if (!r || S.busy) return;
+        if (!confirm(`Hoàn tác lần nhận ${when(r.at)}? ${r.done.length + r.fail.length} domain của mẻ ${when(r.batch)} về lại trạng thái trước khi nhận (${SENT}).`)) return;
+        S.busy = true;
+        try { const d = await api('recv-undo', { id: r.id }); say(`Đã hoàn tác: ${d.n} domain về trạng thái trước khi nhận`); await load(); paint(); } catch (er) { fail(er); } finally { S.busy = false; }
+      }
+    });
+  }
+
   async function run(a) {
     if (a === 'manual') { manOpen(); return; }
+    if (a === 'batches') { batchOpen(); return; }
+    if (a === 'recv') { const b = selBatch(); if (b) recvOpen(b); return; }
     if (a === 'wants') { wantSave(); return; }
     const list = shown();
     const picked = list.filter(it => S.sel.has(it.d));
