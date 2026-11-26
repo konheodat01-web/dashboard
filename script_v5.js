@@ -11962,11 +11962,14 @@ function sanitizeWebsitesForApi(rawWebsites) {
 // Load GSC Cache from Firebase RTDB
 async function loadGscCache() {
   try {
-    const res = await fetch('https://haihieu-tracker-default-rtdb.asia-southeast1.firebasedatabase.app/gsc_cache.json');
-    if (res.ok) {
-      _gscCache = await res.json() || {};
-      renderWsTrack();
+    if (!window._fbDb || typeof firebase === 'undefined') return;
+    const auth = firebase.auth();
+    if (!auth.currentUser) {
+      await new Promise(resolve => { const off = auth.onAuthStateChanged(u => { if (u) { off(); resolve(); } }); });
     }
+    const snap = await window._fbDb.ref('gsc_cache').once('value');
+    _gscCache = snap.val() || {};
+    renderWsTrack();
   } catch (err) {
     console.error('Failed to load GSC Cache:', err);
   }
