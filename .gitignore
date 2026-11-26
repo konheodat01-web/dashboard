@@ -5,3 +5,4 @@ admin_auth.json
 data/
 auth_secret
 fb_sa_main.json
+track_hosts.json

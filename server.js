@@ -94,7 +94,7 @@ function ntSpace(req) {
   return req.ntAuth ? req.ntAuth.space : "";
 }
 
-const NT_OPEN = new Set(["/api/config", "/api/seo-audit/psi-next", "/api/seo-audit/psi-result", "/api/seo-audit/psi-switch", "/api/seo-audit/psi-status"]);
+const NT_OPEN = new Set(["/api/config", "/api/gamc/track-hosts", "/api/seo-audit/psi-next", "/api/seo-audit/psi-result", "/api/seo-audit/psi-switch", "/api/seo-audit/psi-status"]);
 
 function safeJson(txt) {
   try { return JSON.parse(txt); } catch (e) { return []; }
@@ -389,6 +389,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.startsWith("/api/domain-hunt/")) return require("./lib/domain_hunt").handle(req, res, url, ntSpace(req), readBody);
+  if (url === "/api/track-hosts" || url === "/api/gamc/track-hosts") {
+    let k = "";
+    try { k = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
+    return require("./lib/track_hosts").handle(req, res, url, readBody, k);
+  }
   if (url === "/api/shared/serper") return require("./lib/shared_serper").handle(req, res, ntSpace(req), readBody);
 
   if (url.startsWith("/api/seo-audit")) {

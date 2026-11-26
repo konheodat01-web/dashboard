@@ -1040,11 +1040,47 @@
     });
     return out;
   }
+  function trackHosts(ws, trk) {
+    const list = (Array.isArray(ws) ? ws : []).filter(w => w && w.url);
+    const byUrl = new Map(), byBrand = new Map();
+    list.forEach(w => { const h = hn(w.url); if (h && !byUrl.has(h)) byUrl.set(h, w); if (!w.is301 && w.brand && !byBrand.has(w.brand)) byBrand.set(w.brand, w); });
+    const rootOf = w => {
+      let r = w;
+      const vis = new Set();
+      while (r && r.is301 && r.sourceUrl && !vis.has(r)) { vis.add(r); const p = byUrl.get(hn(r.sourceUrl)) || byBrand.get(r.sourceUrl); if (!p || p === r) break; r = p; }
+      return r || w;
+    };
+    const out = [], seen = new Set();
+    const add = (h, w, k) => {
+      if (!h || seen.has(h)) return;
+      seen.add(h);
+      const r = rootOf(w);
+      out.push({ h, b: r.brand || w.brand || '', st: w.status || '', k, r: hn(r.url) });
+    };
+    list.forEach(w => add(hn(w.url), w, w.is301 ? '301' : 'goc'));
+    const byId = new Map(list.map(w => [w.id, w]));
+    (Array.isArray(trk) ? trk : []).forEach(t => {
+      const w = t && byId.get(t.wsId);
+      if (w) (t.redirectCommands || []).forEach(c => { if (c && (c.status === 'Đang 301' || c.status === 'Hoàn thành')) add(hn(c.destUrl), w, 'dich'); });
+    });
+    return out;
+  }
+  let trkSig = '';
+  async function trackReport(ws, trk) {
+    const hosts = trackHosts(ws, trk);
+    const sig = JSON.stringify(hosts);
+    if (!hosts.length || sig === trkSig) return;
+    try {
+      const r = await fetch('/api/track-hosts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hosts }) });
+      if (r.ok) trkSig = sig;
+    } catch (e) {}
+  }
   let useT = null, useSig = '', useWs = null;
   window.dhUsageReport = function (ws) {
     useWs = ws;
     clearTimeout(useT);
     useT = setTimeout(async () => {
+      trackReport(useWs, typeof siteTracking !== 'undefined' ? siteTracking : []);
       const hosts = usageHosts(useWs, typeof siteTracking !== 'undefined' ? siteTracking : []);
       const sig = JSON.stringify(hosts);
       if (sig === useSig) return;
@@ -1057,5 +1093,5 @@
       } catch (e) {}
     }, 4000);
   };
-  window.DHUI = { parseCsv, fromNamecheap, usageHosts };
+  window.DHUI = { parseCsv, fromNamecheap, usageHosts, trackHosts };
 })();
