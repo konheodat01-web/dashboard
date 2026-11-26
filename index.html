@@ -932,6 +932,7 @@
     <div class="panel-header" style="flex-shrink:0;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
         <div class="panel-title" style="margin:0">📈 Theo dõi web</div>
+        <span style="display:inline-flex;border:1px solid var(--t-border);border-radius:7px;overflow:hidden;flex-shrink:0"><button type="button" id="wstModeBtn_seo" onclick="wstSetMode('seo')" style="border:0;padding:6px 12px;font-size:12px">📈 Theo dõi web</button><button type="button" id="wstModeBtn_budget" onclick="wstSetMode('budget')" style="border:0;padding:6px 12px;font-size:12px">💰 Quản lý ngân sách</button></span>
         <!-- Chế độ "Quản lý nội dung" đã chuyển thành tab ✍️ trong Dashboard từng site (nút 📊) -->
         <input type="text" id="wst_search" placeholder="🔍 Tìm website..." oninput="renderWsTrack()" style="width:170px;height:32px;font-size:12px;flex-shrink:0">
       </div>
@@ -980,9 +981,11 @@
           <button onclick="wstOpenWriter('')" class="btn btn-sm" style="background:#7c5cff;color:#fff;border:none">✍️ Mở SEO Writer</button>
           <button onclick="wstScanNotIndexed()" class="btn btn-outline btn-sm" title="Quét các bài đã đăng chưa được Google index">🚫 Quét bài chưa index</button>
         </span>
+        <span id="wstToolsBudget" style="display:none;flex-wrap:wrap;gap:6px;align-items:center"></span>
         <button onclick="openWstPickModal()" class="btn btn-outline btn-sm">+ Thêm web</button>
       </div>
     </div>
+    <div id="budBar" style="display:none;flex-shrink:0"></div>
     
     <!-- ADVANCED FILTERS PANEL -->
     <div id="wstAdvancedFilters" style="display:none; padding:10px 16px; background:var(--t-subtle); border-bottom:1px solid var(--gray-border); flex-wrap:wrap; gap:10px; flex-shrink:0;">
@@ -1068,6 +1071,7 @@
         <thead id="wstThead" style="position:sticky;top:0;z-index:10;background:#f8f9fa"></thead>
         <tbody id="wstTbody"></tbody>
       </table>
+      <div id="budBatchView" style="display:none"></div>
       <div id="wstEmpty" style="display:none;text-align:center;padding:40px;color:var(--text-muted)">
         <div style="font-size:32px;margin-bottom:8px">📈</div>
         Chưa theo dõi website nào. Bấm "+ Thêm web" để bắt đầu.
@@ -1874,13 +1878,14 @@
     });
   </script>
   <script src="firebase.js?v=20261122_sec1"></script>
-  <script src="script_v5.js?v=20261124_gidx1"></script>
+  <script src="script_v5.js?v=20261126_bud1"></script>
+  <script src="budget_ui.js?v=20261126_bud1"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   <script src="seo_audit_ui.js?v=20261104_au1"></script>
   <script src="content_mgr.js?v=20261118_cm1"></script>
   <script src="keyword_bank.js?v=20261120_kb13"></script>
-  <script src="domain_hunt_ui.js?v=20261126_trk1"></script>
+  <script src="domain_hunt_ui.js?v=20261126_bud1"></script>
 
 <!-- BILLING ADD/EDIT MODAL -->
 <div class="modal-overlay" id="billingModal" onclick="if(event.target===this)closeBillingModal()">

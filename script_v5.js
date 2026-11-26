@@ -2648,11 +2648,12 @@ let _wstMode = 'seo';
 
 function wstApplyModeUI(){
   var isC = _wstMode === 'content';
+  var isB = _wstMode === 'budget';
   var tSeo = document.getElementById('wstToolsSeo');
   var tCon = document.getElementById('wstToolsContent');
-  if (tSeo) tSeo.style.display = isC ? 'none' : 'flex';
+  if (tSeo) tSeo.style.display = (isC || isB) ? 'none' : 'flex';
   if (tCon) tCon.style.display = isC ? 'flex' : 'none';
-  ['seo','content'].forEach(function(k){
+  ['seo','content','budget'].forEach(function(k){
     var b = document.getElementById('wstModeBtn_'+k);
     if(!b) return;
     var on = (k === _wstMode);
@@ -2665,12 +2666,14 @@ function wstApplyModeUI(){
     b.style.opacity      = on ? '1' : '.75';
   });
   var adv = document.getElementById('wstAdvancedFilters');
-  if (adv && isC) adv.style.display = 'none';
+  if (adv && (isC || isB)) adv.style.display = 'none';
+  if (window.BUD) BUD.applyUI();
 }
 
 function wstSetMode(m){
-  _wstMode = (m === 'content') ? 'content' : 'seo';
+  _wstMode = (m === 'content') ? 'content' : (m === 'budget' && window.BUD) ? 'budget' : 'seo';
   localStorage.setItem('wst_mode', _wstMode);
+  if (_wstMode === 'budget') BUD.enter();
   wstApplyModeUI();
   renderWsTrack();
 }
@@ -3051,6 +3054,7 @@ function wstApplyColgroup(){
   var RIGHT = (_wstMode === 'content')
     ? [8.4, 8.4, 8.4, 8.4, 7, 12]
     : [5.5, 5.5, 5.5, 5.5, 5.5, 4.5, 7, 12];
+  if (_wstMode === 'budget' && window.BUD) { var cgB = BUD.colgroup(); LEFT = cgB.LEFT; RIGHT = cgB.RIGHT; }
   var cg = tbl.querySelector('colgroup');
   if (!cg) { cg = document.createElement('colgroup'); tbl.insertBefore(cg, tbl.firstChild); }
   cg.innerHTML = LEFT.concat(RIGHT).map(function(w){ return '<col style="width:' + w + '%">'; }).join('');
@@ -3058,6 +3062,7 @@ function wstApplyColgroup(){
 
 // Tiêu đề các cột PHẢI theo chế độ
 function wstHeadRight(){
+  if (_wstMode === 'budget' && window.BUD) return BUD.headRight();
   // Bề rộng CỐ ĐỊNH cho từng cột phải -> đổi chế độ bảng không thò thụt
   var th = function(label, w, title){   // w giữ lại cho dễ đọc, bề rộng thật do colgroup quyết định
     return '<th style="padding:8px 6px;text-align:center;font-size:11px;white-space:nowrap"'
@@ -4839,6 +4844,10 @@ function renderWsTrack(){
         valA = ix(siteA);
         valB = ix(siteB);
       }
+      else if (String(_wstSortCol).startsWith('b_') && window.BUD) {
+        valA = BUD.sortVal(a, _wstSortCol);
+        valB = BUD.sortVal(b, _wstSortCol);
+      }
       else if (_wstSortCol === 'ctotal' || _wstSortCol === 'cindexed' || _wstSortCol === 'cnotindexed' || _wstSortCol === 'crate' || _wstSortCol === 'cupdated') {
         var csA = _wstContentStats[a.id] || {}, csB = _wstContentStats[b.id] || {};
         var totA = (csA.postCount === 0 || csA.postCount > 0) ? csA.postCount : null;
@@ -4908,8 +4917,8 @@ function renderWsTrack(){
       <th onclick="wstHandleSort('brand')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Website (gốc) ${wstGetSortIndicator('brand')}</th>
       <th onclick="wstHandleSort('team')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Team ${wstGetSortIndicator('team')}</th>
       <th onclick="wstHandleSort('wstt')" style="padding:8px 6px;text-align:left;font-size:11px;cursor:pointer;user-select:none;white-space:nowrap">Trạng thái ${wstGetSortIndicator('wstt')} <span id="wsttMgrBtn" onclick="event.stopPropagation();wsttOpenMgr()" title="Thêm / đổi màu / đổi tên / xoá trạng thái" style="cursor:pointer;padding:0 3px">⚙</span></th>
-      <th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>
-      ${_wstMode !== 'content' ? '<th onclick="wstHandleSort(\'redirect301\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">Lệnh 301 ' + wstGetSortIndicator('redirect301') + '</th>' : ''}
+      ${_wstMode === 'budget' ? '' : `<th onclick="wstHandleSort('keyword')" style="padding:8px 10px;text-align:left;font-size:11px;cursor:pointer;user-select:none">Từ khóa SEO ${wstGetSortIndicator('keyword')}</th>`}
+      ${_wstMode !== 'content' && _wstMode !== 'budget' ? '<th onclick="wstHandleSort(\'redirect301\')" style="padding:8px 10px;text-align:center;font-size:11px;cursor:pointer;user-select:none">Lệnh 301 ' + wstGetSortIndicator('redirect301') + '</th>' : ''}
       ${wstHeadRight()}
     </tr>`;
   }
@@ -4979,16 +4988,16 @@ function renderWsTrack(){
         ${teamBadgeHtml(w.team || 'Team 01', 'lg')}
       </td>
       ${wsttCell(w)}
-      <td style="padding:8px 10px;font-size:11px;">
+      ${_wstMode === 'budget' ? '' : `<td style="padding:8px 10px;font-size:11px;">
         <div style="display:flex;align-items:center;gap:4px">
           <input type="text" placeholder="${w.brand||'Nhập từ khóa...'}" value="${site?.mainKeyword || w.brand || ''}" onchange="wstSaveKeyword(${w.id}, this.value)" style="width:100px;font-size:11px;padding:2px 4px;height:24px">
           <button onclick="var btn=this;btn.innerHTML='⏳'; wstFetchRank(${w.id}).then(r=>{btn.innerHTML='↺'; renderWsTrack(); if(r.error)toast(r.error,'#e74c3c'); else toast('Xong!','#27ae60')})" style="background:none;border:1px solid var(--gray-border);border-radius:4px;cursor:pointer;padding:2px 4px;font-size:10px" title="Kiểm tra rank ngay">↺</button>
         </div>
-      </td>
+      </td>`}
       ${wstRender301Cell(w, site)}
       
       
-      ${_wstMode==='content' ? wstRowRightContent(w, site) : `
+      ${_wstMode==='budget' ? BUD.rowRight(w, site) : _wstMode==='content' ? wstRowRightContent(w, site) : `
       ${(()=>{
         const gscData = wstGetGscPeriodData(w.id, _wstGscPeriod);
         
@@ -16233,7 +16242,7 @@ function wst301OpenTemplate(cCreated, view) {
       </div>
       <button type="button" id="wst301RmBtn" class="btn btn-outline btn-sm" style="font-size:12px;margin-bottom:8px;width:100%;text-align:left">▸ Tắt trỏ &amp; xóa src <span id="wst301RmCnt" style="color:var(--t-fg-muted)"></span></button>
       <div id="wst301RmPanel" style="display:none;border:1px solid var(--t-border);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--t-canvas)">
-        ${d.rmList.length ? d.rmList.map(k => `<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><label style="display:flex;align-items:center;gap:6px;min-width:200px;cursor:pointer;font-size:13px"${k.root ? ' title="Tắt trỏ &amp; xóa src web gốc: web 301 đầu tiên còn lại trong chuỗi sẽ thành web gốc mới"' : ''}><input type="checkbox" class="wst301RmCk" data-h="${wst301Esc(k.h)}"> <span>${wst301Esc(k.h)}</span>${k.root ? '<span style="color:var(--t-fg-muted);font-size:11px">(web gốc)</span>' : ''}</label><input type="text" class="wst301RmWhy" data-h="${wst301Esc(k.h)}" value="${WST_301_RM}" disabled placeholder="Lý do ngắt trỏ" style="${sel};flex:1;min-width:0"></div>`).join('') : '<div style="color:var(--t-fg-muted);font-size:12px">Chuỗi chưa có web 301 nào — chưa thể tắt trỏ &amp; xóa src (kể cả web gốc).</div>'}
+        ${d.rmList.length ? d.rmList.map(k => `<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><label style="display:flex;align-items:center;gap:6px;min-width:200px;cursor:pointer;font-size:13px"${k.root ? ' title="Tắt trỏ &amp; xóa src web gốc: web 301 đầu tiên còn lại trong chuỗi sẽ thành web gốc mới"' : ''}><input type="checkbox" class="wst301RmCk" data-h="${wst301Esc(k.h)}" data-id="${k.id}"> <span>${wst301Esc(k.h)}</span>${k.root ? '<span style="color:var(--t-fg-muted);font-size:11px">(web gốc)</span>' : ''}${window.BUD ? BUD.icon(k.id) : ''}</label><input type="text" class="wst301RmWhy" data-h="${wst301Esc(k.h)}" value="${WST_301_RM}" disabled placeholder="Lý do ngắt trỏ" style="${sel};flex:1;min-width:0"></div>`).join('') : '<div style="color:var(--t-fg-muted);font-size:12px">Chuỗi chưa có web 301 nào — chưa thể tắt trỏ &amp; xóa src (kể cả web gốc).</div>'}
       </div>` : '';
     const why = view && d.rmWhy.length ? '<div style="font-size:11px;color:var(--t-fg-muted);margin-top:8px">' + d.rmWhy.map(r => 'Lý do gỡ ' + wst301Esc(r.h) + ': ' + wst301Esc(r.reason || WST_301_RM)).join('<br>') + '</div>' : '';
     body = `
@@ -16285,8 +16294,16 @@ function wst301OpenTemplate(cCreated, view) {
     ov.querySelectorAll('.wst301RmCk').forEach(c => {
       c.onchange = () => {
         const h = c.dataset.h, why = ov.querySelector('.wst301RmWhy[data-h="' + h + '"]');
-        if (c.checked) { _wst301Sel.rm[h] = why.value; why.disabled = false; } else { delete _wst301Sel.rm[h]; why.disabled = true; }
-        paint();
+        const apply = () => {
+          if (c.checked) { _wst301Sel.rm[h] = why.value; why.disabled = false; } else { delete _wst301Sel.rm[h]; why.disabled = true; }
+          paint();
+        };
+        if (c.checked && window.BUD) {
+          c.disabled = true;
+          BUD.warnCut(Number(c.dataset.id), h).then(ok => { c.disabled = false; if (!ok) c.checked = false; apply(); });
+          return;
+        }
+        apply();
       };
     });
     ov.querySelectorAll('.wst301RmWhy').forEach(i => { i.oninput = () => { if (_wst301Sel.rm[i.dataset.h] !== undefined) _wst301Sel.rm[i.dataset.h] = i.value; }; });
@@ -16379,7 +16396,7 @@ function wstRenderRedirect301Table() {
   const srcMap = wst301SourceMap(site, w);
   const pend = {};
   (site.redirectCommands || []).forEach(c => { if (c.status === 'Đang 301') (c.rm || []).forEach(r => { pend[wst301Key(r.h)] = true; }); });
-  const siteUrlGoc = (w.url || '—') + (pend[wst301Key(w.url)] ? '<div style="font-size:10px;color:#f2a154;margin-top:2px" title="Hoàn thành lệnh thì web 301 kế tiếp còn trong chuỗi thành web gốc mới">Đang gỡ lệnh (web gốc)</div>' : '');
+  const siteUrlGoc = (w.url || '—') + (window.BUD ? BUD.icon(w.id) : '') + (pend[wst301Key(w.url)] ? '<div style="font-size:10px;color:#f2a154;margin-top:2px" title="Hoàn thành lệnh thì web 301 kế tiếp còn trong chuỗi thành web gốc mới">Đang gỡ lệnh (web gốc)</div>' : '');
 
   tbody.innerHTML = redirectCmds.map(cmd => {
     const isRunning = cmd.status === 'Đang 301';
@@ -16393,7 +16410,7 @@ function wstRenderRedirect301Table() {
       '<td style="padding:10px;">' + (cmd.createdAt || '—') + (cmd.derived ? '<div style="font-size:10px;color:var(--t-fg-muted);margin-top:2px" title="Web 301 thêm ở Link quan trọng (nút + 301)">từ Link quan trọng</div>' : '') + '</td>' +
       '<td style="padding:10px;word-break:break-all;">' + siteUrlGoc + '</td>' +
       '<td style="padding:10px;word-break:break-all;">' + String(srcMap[cmd.id] || '—').replace(/^https?:\/\//, '').replace(/\/$/, '') + '</td>' +
-      '<td style="padding:10px;word-break:break-all;"><a href="' + cmd.destUrl + '" target="_blank" style="color:var(--blue);text-decoration:none;">' + cmd.destUrl + '</a>' + warnIcon + (rmNames && !isRunning ? '<div style="font-size:10px;color:var(--t-fg-muted);margin-top:2px">đã gỡ: ' + rmNames + '</div>' : '') + '</td>' +
+      '<td style="padding:10px;word-break:break-all;"><a href="' + cmd.destUrl + '" target="_blank" style="color:var(--blue);text-decoration:none;">' + cmd.destUrl + '</a>' + (window.BUD ? BUD.iconHost(cmd.destUrl) : '') + warnIcon + (rmNames && !isRunning ? '<div style="font-size:10px;color:var(--t-fg-muted);margin-top:2px">đã gỡ: ' + rmNames + '</div>' : '') + '</td>' +
       '<td style="padding:10px;text-align:center;">' +
         '<span style="padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';">' +
           (goingOff ? 'Đang gỡ lệnh' : cmd.status) +
@@ -16568,7 +16585,7 @@ function wstCancelRedirect301(cmdId) {
 
 // --- HELPER RENDER 301 CELL TO PREVENT NESTED TEMPLATE LITERAL ERROR ---
 function wstRender301Cell(w, site) {
-  if (_wstMode === 'content') return '';
+  if (_wstMode === 'content' || _wstMode === 'budget') return '';
   const redirectCmds = wst301Items(site, w);
   const hasActiveRedirect = redirectCmds.some(cmd => cmd.status === 'Đang 301');
   const btnBg = hasActiveRedirect ? '#10b981' : 'var(--t-muted)';

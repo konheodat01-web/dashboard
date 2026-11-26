@@ -829,7 +829,7 @@
           <span>✅ ${r.done.length} · ❌ ${r.fail.length}${(r.none || []).length ? ' · ⚠ ' + r.none.length + ' chưa gửi' : ''}</span>${r.by ? `<span style="color:var(--t-fg-subtle);font-size:11px">${esc(r.by)}</span>` : ''}<span style="flex:1"></span>
           ${r.undone ? `<span style="color:var(--t-warn);font-size:12px">↩ đã hoàn tác ${esc(when(r.undone))}</span>` : ''}
           <button data-hv="${r.id}" style="${btn()}">👁 Xem báo cáo</button>${r.undone ? '' : `<button data-hu="${r.id}" style="${btn('color:var(--t-danger)')}">↩ Hoàn tác</button>`}</div>`).join('') || '<div style="color:var(--t-fg-muted);padding:6px 0">Chưa nhận mẻ nào.</div>';
-      box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:15px">📦 Mẻ đã gửi</b><button data-x="no" style="${btn('padding:2px 8px')}">✕</button></div>
+      box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:15px">📦 Mẻ đã gửi</b><span style="flex:1"></span>${window.BUD ? `<button data-x="price" style="${btn()};margin-right:6px" title="Giá gửi / giá thực tế của từng mẻ đã mua (tính vào tab Quản lý ngân sách)">💰 Giá mẻ đã mua</button>` : ''}<button data-x="no" style="${btn('padding:2px 8px')}">✕</button></div>
         <div style="font-size:12px;color:var(--t-fg-muted);margin-bottom:8px">Mỗi lần gán "${SENT}" (1 lần gán hàng loạt) = 1 mẻ. Nút Nhận domain chỉ hiện khi tick đúng đủ cả 1 mẻ.</div>
         ${bRows}
         <div style="font-weight:600;margin:12px 0 4px">🕘 Lịch sử nhận</div>${hRows}`;
@@ -838,6 +838,7 @@
     box.addEventListener('click', async e => {
       const t = e.target;
       if (t.closest('[data-x="no"]')) { ov.remove(); return; }
+      if (t.closest('[data-x="price"]')) { window.BUD.khoBatches(); return; }
       const bp = t.closest('[data-bp]'), br = t.closest('[data-br]');
       if (bp || br) {
         const b = pickBatch(Number((bp || br).dataset[bp ? 'bp' : 'br']));

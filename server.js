@@ -389,6 +389,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.startsWith("/api/domain-hunt/")) return require("./lib/domain_hunt").handle(req, res, url, ntSpace(req), readBody);
+  if (url.startsWith("/api/budget/")) return require("./lib/budget").handle(req, res, url, readBody);
   if (url === "/api/track-hosts" || url === "/api/gamc/track-hosts") {
     let k = "";
     try { k = (JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")).sw_access_key) || ""; } catch (e) {}
