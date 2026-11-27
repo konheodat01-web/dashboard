@@ -886,7 +886,7 @@ select.f[data-k="st"]{font-weight:700}
     const type = qhType(p.service_type) || (p.service_type ? '' : qhType(p.title));
     const date = qhDay(p.created_at) || today();
     const note = ['#' + p.id, p.title, p.quantity != null ? 'SL ' + p.quantity : ''].filter(Boolean).join(' · ').slice(0, 500);
-    const out = { type, date, vnd, usdt, cur, src, ncc: String(p.vendor_name || p.preferred_vendor_name || '').slice(0, 120), note, ref: 'fix#' + p.id, webs, webBad: L.filter(x => x.err), st: '' };
+    const out = { type, date, vnd, usdt, cur, src, ncc: String(p.vendor_name || p.preferred_vendor_name || '').slice(0, 120), note, ref: 'fix#' + p.id, acc: (Array.isArray(p.acc) ? p.acc : []).filter(u => /^https?:\/\/\S+$/i.test(String(u))).slice(0, 30), webs, webBad: L.filter(x => x.err), st: '' };
     if (webs.length > 1) out.many = webs.join('\n');
     else if (okL.length === 1) { out.wid = okL[0].w.id; out.wurl = okL[0].w.url; }
     if (type === 'textlink') { out.from = date; const ex = qhDay(p.expiry_date); out.to = ex && ex >= date ? ex : addDays(date, 30); }
@@ -919,7 +919,7 @@ select.f[data-k="st"]{font-weight:700}
             return '<tr><td style="word-break:break-word"><b>#' + esc(p.id) + '</b> ' + esc(p.title || '') + '<span class="bud-u">' + esc([m.ncc, dmy(m.date)].filter(Boolean).join(' · ')) + '</span>' + (dup.length ? '<span class="bud-u" style="color:var(--t-danger)">⚠ đã dán ' + dup.length + ' đơn từ đơn này (' + dup.map(x => dmy(x.date)).join(', ') + ')</span>' : '') + '</td>'
               + '<td>' + (m.type ? '<span class="bud-tag bud-t-' + TN[m.type].c + '">' + TN[m.type].n + '</span>' : '<span style="color:var(--t-warn)">⚠ chưa nhận ra</span>') + '<span class="bud-u">' + esc(p.service_type || '') + '</span></td>'
               + '<td style="word-break:break-word">' + web + '</td>'
-              + '<td class="r">' + (m.vnd ? fv(m.vnd) : '—') + '<span class="bud-u">' + (m.usdt ? fu(m.usdt) : '—') + ' · ' + m.src + '</span></td>'
+              + '<td class="r">' + (m.vnd ? fv(m.vnd) : '—') + '<span class="bud-u">' + (m.usdt ? fu(m.usdt) : '—') + ' · ' + m.src + '</span>' + (m.acc.length ? '<span class="bud-u" style="color:var(--t-accent)">🔗 ' + m.acc.length + ' link nghiệm thu (từ comment)</span>' : '') + '</td>'
               + '<td style="white-space:nowrap;text-align:right"><button class="bud-btn xs pri" data-qh-paste="' + esc(p.id) + '">📥 Dán</button> <button class="bud-btn xs" data-qh-drop="' + esc(p.id) + '" title="Bỏ khỏi hàng chờ">✕</button></td></tr>';
           }).join('') + '</tbody></table>'
           + '<div class="end"><button class="bud-btn" data-x="close">Đóng</button></div>';
@@ -991,7 +991,7 @@ select.f[data-k="st"]{font-weight:700}
         + '<div><label class="f">Trạng thái đơn</label><select class="f" data-k="st">' + (st0 ? '' : '<option value="">— chọn trạng thái —</option>') + STS.map(t => '<option value="' + t.k + '"' + (t.k === st0 ? ' selected' : '') + '>' + t.n + '</option>').join('') + '</select></div></div>'
         + '<div data-k="whybox" style="' + (st0 === 'fix' ? '' : 'display:none') + '"><label class="f">Lý do đang chỉnh sửa</label><input class="f" data-k="stWhy" maxlength="500" placeholder="vd: link sai anchor, bài chưa index…" value="' + esc(old && old.stWhy || '') + '"></div>'
         + '<label class="f">Ghi chú / nội dung đơn</label><input class="f" data-k="note" maxlength="500" placeholder="vd: 120 entity, 3 bài DR40…" value="' + esc(base.note || '') + '">'
-        + '<label class="f">Link nghiệm thu (mỗi dòng 1 link)</label><textarea class="f" data-k="acc" rows="2" placeholder="vd: https://baoX.com/bai-viet-da-dang · link sheet báo cáo entity" style="font-family:inherit;resize:vertical">' + esc(!ren && old && Array.isArray(old.acc) ? old.acc.join('\n') : '') + '</textarea>'
+        + '<label class="f">Link nghiệm thu (mỗi dòng 1 link)</label><textarea class="f" data-k="acc" rows="2" placeholder="vd: https://baoX.com/bai-viet-da-dang · link sheet báo cáo entity" style="font-family:inherit;resize:vertical">' + esc(!ren && old && Array.isArray(old.acc) ? old.acc.join('\n') : pre && pre.acc.length ? pre.acc.join('\n') : '') + '</textarea>'
         + '<div class="err" data-k="err"></div>'
         + '<div class="end"><button class="bud-btn" data-x="no">Hủy</button><button class="bud-btn pri" data-x="ok">Lưu đơn</button></div>');
       const q = k => o.querySelector('[data-k="' + k + '"]');
