@@ -640,12 +640,15 @@
     const hid = box.querySelector('[data-k="wid"]');
     const btn = $('btn'), pop = $('pop'), qi = $('q'), list = $('list');
     const mark = (t, toks) => {
-      let out = esc(t);
-      toks.forEach(k => {
-        const f = fold(t), i = f.indexOf(k);
-        if (i >= 0 && k) out = out.replace(esc(t.slice(i, i + k.length)), m => '<mark>' + m + '</mark>');
-      });
-      return out;
+      const chars = [...String(t == null ? '' : t)], map = [];
+      let f = '';
+      chars.forEach((c, i) => { for (const y of fold(c)) { f += y; map.push(i); } });
+      const on = chars.map(() => false);
+      toks.forEach(k => { if (!k) return; let i = f.indexOf(k); while (i >= 0) { for (let j = i; j < i + k.length; j++) on[map[j]] = true; i = f.indexOf(k, i + k.length); } });
+      chars.forEach((c, i) => { if (i && !fold(c) && on[i - 1]) on[i] = true; });
+      let out = '', open = false;
+      chars.forEach((c, i) => { if (on[i] !== open) { out += on[i] ? '<mark>' : '</mark>'; open = on[i]; } out += esc(c); });
+      return open ? out + '</mark>' : out;
     };
     const paintBtn = () => { btn.innerHTML = F.cur ? esc(labelOf(F.cur)) : '<span class="bud-m">— chọn web nhận dịch vụ —</span>'; };
     let vis = [];

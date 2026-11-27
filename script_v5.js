@@ -5300,63 +5300,139 @@ function renderWstContent(wsId){
 }
 
 function openWstPickModal(){
-  // Only show source websites (not 301), plus find parent of 301
-  const tracked = new Set(siteTracking.map(s=>s.wsId));
-  const available = websites.filter(w=>!tracked.has(w.id) && !w.is301);
-  const overlay = document.createElement('div');
-  overlay.id = 'wstPickOverlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div class="modal" style="border-radius:12px;padding:20px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-    <div style="font-weight:700;font-size:14px;margin-bottom:12px">+ Chọn website để theo dõi</div>
-    <input type="text" placeholder="🔍 Tìm..." oninput="wstPickFilter(this.value)" style="width:100%;border:1px solid var(--gray-border);border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:10px">
-    <div id="wstPickList" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
-      ${available.length?available.map(w=>`
-        <div onclick="wstAddTracking(${w.id})" style="padding:8px 12px;border:1px solid var(--gray-border);border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background=''">
-          <div style="flex:1"><div style="font-size:13px;font-weight:600">${wstBrandHtml(w)}</div><div style="font-size:11px;color:var(--blue)">${wstUrlHtml(w)}</div></div>
-          <span style="font-size:11px;color:#27ae60;font-weight:600">+ Thêm</span>
-        </div>`).join(''):'<div style="text-align:center;padding:20px;color:var(--text-muted)">Tất cả website đã được theo dõi</div>'}
-    </div>
-    <div style="text-align:right;margin-top:12px">
-      <button onclick="document.getElementById('wstPickOverlay').remove()" class="btn btn-outline">Đóng</button>
-    </div>
+  const old = document.getElementById('wstPickOverlay');
+  if (old) old.remove();
+  const fold = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+  const esc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const host = u => String(u || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+  const tracked = new Set(siteTracking.map(s => s.wsId));
+  const roots = websites.filter(w => !w.is301 && w.url && !(w.cut301 && w.cut301.length));
+  const kidsOf = w => {
+    const out = [], seen = new Set([w.id]);
+    let front = [w];
+    while (front.length) {
+      const urls = new Set(front.map(x => host(x.url)));
+      const next = websites.filter(x => x.is301 && x.sourceUrl && !seen.has(x.id) && urls.has(host(x.sourceUrl)));
+      next.forEach(x => { seen.add(x.id); out.push(x); });
+      front = next;
+    }
+    return out;
+  };
+  const items = roots.map(w => {
+    const kids = kidsOf(w);
+    return { w, h: host(w.url), kids: kids.map(k => host(k.url)), cur: host(wstCurrentUrl(w)), team: getTeamLabel(w.team || ''), on: tracked.has(w.id) };
+  }).sort((a, b) => (a.on - b.on) || String(a.w.brand || '').localeCompare(String(b.w.brand || ''), 'vi'));
+  const S = { q: '', f: '', pick: new Set(), act: 0 };
+  const ov = document.createElement('div');
+  ov.id = 'wstPickOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(1,4,9,.6);z-index:10050;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px';
+  ov.innerHTML = `<style>
+    #wstPickOverlay .wpk{background:var(--t-canvas);color:var(--t-fg);border:1px solid var(--t-border);border-radius:12px;width:560px;max-width:100%;box-shadow:0 16px 48px rgba(0,0,0,.45);display:flex;flex-direction:column;max-height:calc(100vh - 120px)}
+    #wstPickOverlay .wpk-h{padding:14px 16px 10px;display:flex;align-items:center;gap:8px}
+    #wstPickOverlay .wpk-h b{font-size:15px;color:var(--t-fg2);flex:1}
+    #wstPickOverlay .wpk-x{background:none!important;border:0!important;color:var(--t-fg-muted)!important;font-size:18px;cursor:pointer;padding:0 4px!important}
+    #wstPickOverlay .wpk-q{margin:0 16px;padding:9px 12px;border:1px solid var(--t-accent)!important;border-radius:8px;background:var(--t-subtle)!important;color:var(--t-fg)!important;font-size:13px;outline:none}
+    #wstPickOverlay .wpk-chips{display:flex;gap:6px;padding:10px 16px 8px;flex-wrap:wrap}
+    #wstPickOverlay .wpk-chips button{border:1px solid var(--t-border)!important;background:var(--t-subtle)!important;color:var(--t-fg-muted)!important;border-radius:14px!important;padding:3px 12px!important;font-size:12px;cursor:pointer}
+    #wstPickOverlay .wpk-chips button.on{background:var(--t-accent)!important;border-color:var(--t-accent)!important;color:#fff!important}
+    #wstPickOverlay .wpk-list{overflow:auto;border-top:1px solid var(--t-border);border-bottom:1px solid var(--t-border);min-height:120px}
+    #wstPickOverlay .wpk-it{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--t-muted);cursor:pointer}
+    #wstPickOverlay .wpk-it:hover,#wstPickOverlay .wpk-it.act{background:color-mix(in srgb,var(--t-accent) 12%,transparent)}
+    #wstPickOverlay .wpk-it.on{cursor:default;opacity:.55}
+    #wstPickOverlay .wpk-it.on:hover{background:none}
+    #wstPickOverlay .wpk-it input{width:16px;height:16px;accent-color:var(--t-accent);margin:0;flex-shrink:0;cursor:pointer}
+    #wstPickOverlay .wpk-m{flex:1;min-width:0}
+    #wstPickOverlay .wpk-b{font-size:13px;font-weight:600;color:var(--t-fg2);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    #wstPickOverlay .wpk-u{font-size:12px;color:var(--t-accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #wstPickOverlay .wpk-s{font-size:11px;color:var(--t-fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #wstPickOverlay .wpk-tag{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:9px;background:var(--t-muted);color:var(--t-fg-muted);white-space:nowrap}
+    #wstPickOverlay .wpk-ok{font-size:11px;font-weight:600;color:var(--t-success);white-space:nowrap}
+    #wstPickOverlay mark{background:color-mix(in srgb,var(--t-warn) 40%,transparent);color:inherit;border-radius:2px;padding:0 1px}
+    #wstPickOverlay .wpk-f{padding:10px 16px;display:flex;align-items:center;gap:8px}
+    #wstPickOverlay .wpk-f span{flex:1;font-size:12px;color:var(--t-fg-muted)}
+    #wstPickOverlay .wpk-btn{border:1px solid var(--t-border)!important;background:var(--t-subtle)!important;color:var(--t-fg)!important;border-radius:6px!important;padding:6px 14px!important;font-size:13px;cursor:pointer}
+    #wstPickOverlay .wpk-btn.pri{background:var(--t-accent)!important;border-color:var(--t-accent)!important;color:#fff!important}
+    #wstPickOverlay .wpk-btn:disabled{opacity:.45;cursor:default}
+  </style><div class="wpk">
+    <div class="wpk-h"><b>＋ Chọn website để theo dõi</b><button type="button" class="wpk-x" data-x="close" title="Đóng (Esc)">✕</button></div>
+    <input class="wpk-q" data-k="q" placeholder="🔍 Gõ brand / domain / web 301 / team… (không cần dấu)" autocomplete="off">
+    <div class="wpk-chips" data-k="chips"></div>
+    <div class="wpk-list" data-k="list"></div>
+    <div class="wpk-f"><span data-k="foot"></span><button type="button" class="wpk-btn" data-x="close">Đóng</button><button type="button" class="wpk-btn pri" data-x="add" disabled>＋ Theo dõi</button></div>
   </div>`;
-  document.body.appendChild(overlay);
+  document.body.appendChild(ov);
+  const $ = k => ov.querySelector('[data-k="' + k + '"]');
+  const qi = $('q'), list = $('list');
+  const mark = (t, toks) => {
+      const chars = [...String(t == null ? '' : t)], map = [];
+      let f = '';
+      chars.forEach((c, i) => { for (const y of fold(c)) { f += y; map.push(i); } });
+      const on = chars.map(() => false);
+      toks.forEach(k => { if (!k) return; let i = f.indexOf(k); while (i >= 0) { for (let j = i; j < i + k.length; j++) on[map[j]] = true; i = f.indexOf(k, i + k.length); } });
+      chars.forEach((c, i) => { if (i && !fold(c) && on[i - 1]) on[i] = true; });
+      let out = '', open = false;
+      chars.forEach((c, i) => { if (on[i] !== open) { out += on[i] ? '<mark>' : '</mark>'; open = on[i]; } out += esc(c); });
+      return open ? out + '</mark>' : out;
+    };
+  let vis = [];
+  const paint = () => {
+    const toks = fold(S.q).split(/\s+/).filter(Boolean);
+    const nOn = items.filter(x => x.on).length;
+    $('chips').innerHTML = [['', 'Tất cả', items.length], ['new', 'Chưa theo dõi', items.length - nOn], ['on', 'Đang theo dõi', nOn]].map(c => `<button type="button" data-f="${c[0]}" class="${S.f === c[0] ? 'on' : ''}">${c[1]} · ${c[2]}</button>`).join('');
+    vis = items.filter(x => (!S.f || (S.f === 'on') === x.on) && toks.every(k => fold(x.w.brand + ' ' + x.h + ' ' + x.team).includes(k) || x.kids.some(h => fold(h).includes(k))));
+    if (S.act >= vis.length) S.act = Math.max(0, vis.length - 1);
+    list.innerHTML = vis.length ? vis.map((x, i) => {
+      const via = toks.length && !toks.every(k => fold(x.w.brand + ' ' + x.h + ' ' + x.team).includes(k)) ? x.kids.filter(h => toks.some(k => fold(h).includes(k))) : [];
+      const sub = via.length ? 'khớp web 301: ' + via.map(h => mark(h, toks)).join(', ') : (x.kids.length ? x.kids.length + ' web 301' + (x.cur && x.cur !== x.h ? ' · đang chạy ' + esc(x.cur) : '') : 'chưa có web 301');
+      return `<div class="wpk-it${x.on ? ' on' : ''}${i === S.act ? ' act' : ''}" data-i="${i}">
+        ${x.on ? '<span style="width:16px;text-align:center;color:var(--t-success)">✓</span>' : `<input type="checkbox" data-c="${x.w.id}"${S.pick.has(x.w.id) ? ' checked' : ''}>`}
+        <div class="wpk-m"><div class="wpk-b">${mark(x.w.brand || '', toks)}${x.team ? `<span class="wpk-tag">${mark(x.team, toks)}</span>` : ''}</div><div class="wpk-u">${mark(x.h, toks)}</div><div class="wpk-s">${sub}</div></div>
+        ${x.on ? '<span class="wpk-ok">Đang theo dõi</span>' : ''}
+      </div>`;
+    }).join('') : `<div style="padding:30px;text-align:center;color:var(--t-fg-muted)">Không có website nào khớp "${esc(S.q)}"</div>`;
+    $('foot').textContent = vis.length + ' website' + (S.pick.size ? ' · đã chọn ' + S.pick.size : '') + ' · bấm để tick nhiều web · ↑↓ + Enter thêm nhanh web đang trỏ · Esc đóng';
+    const add = ov.querySelector('[data-x="add"]');
+    add.disabled = !S.pick.size;
+    add.textContent = S.pick.size ? '＋ Theo dõi ' + S.pick.size + ' web' : '＋ Theo dõi';
+    const a = list.querySelector('.wpk-it.act');
+    if (a) a.scrollIntoView({ block: 'nearest' });
+  };
+  const toggle = x => { if (!x || x.on) return; if (S.pick.has(x.w.id)) S.pick.delete(x.w.id); else S.pick.add(x.w.id); paint(); };
+  const close = () => ov.remove();
+  const commit = () => {
+    if (!S.pick.size) return;
+    const ids = [...S.pick];
+    ids.forEach(id => { if (!siteTracking.find(t => t.wsId === id)) siteTracking.push({ wsId: id, entries: [] }); });
+    _wstSelectedWsId = ids[ids.length - 1];
+    saveWsTrack();
+    close();
+    renderWsTrack();
+    toast('✓ Đã thêm ' + ids.length + ' website vào Theo dõi web', '#238636');
+  };
+  qi.oninput = () => { S.q = qi.value; S.act = 0; paint(); };
+  ov.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); S.act = Math.min(vis.length - 1, S.act + 1); paint(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); S.act = Math.max(0, S.act - 1); paint(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (!S.pick.size && vis[S.act] && !vis[S.act].on) S.pick.add(vis[S.act].w.id); commit(); }
+  });
+  ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+  ov.addEventListener('click', e => {
+    const x = e.target.closest('[data-x]');
+    if (x) { if (x.dataset.x === 'close') close(); else commit(); return; }
+    const f = e.target.closest('[data-f]');
+    if (f) { S.f = f.dataset.f; S.act = 0; paint(); qi.focus(); return; }
+    const it = e.target.closest('.wpk-it');
+    if (it) { S.act = Number(it.dataset.i); toggle(vis[S.act]); qi.focus(); }
+  });
+  paint();
+  qi.focus();
 }
 
-
-
-
 function wstPickFilter(q){
-  const tracked = new Set(siteTracking.map(s=>s.wsId));
-  const ql = (q||'').toLowerCase();
-  let parentFromW301 = new Set();
-  if(ql){
-    websites.filter(w=>w.is301).forEach(w301=>{
-      if((w301.brand.toLowerCase().includes(ql)||(w301.url||'').toLowerCase().includes(ql)) && w301.sourceUrl){
-        const parent = websites.find(p=>!p.is301&&p.url&&(p.url===w301.sourceUrl||p.url.replace(/\/$/,'')=== w301.sourceUrl.replace(/\/$/,'')));
-        if(parent) parentFromW301.add(parent.id);
-      }
-    });
-  }
-  const list = websites.filter(w=>{
-    if(w.is301) return false;
-    if(!ql) return true;
-    return w.brand.toLowerCase().includes(ql)||(w.url||'').toLowerCase().includes(ql)||parentFromW301.has(w.id);
-  }).slice(0,10);
-  const el = document.getElementById('wstPickList');
-  if(!el) return;
-  if(!list.length){ el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">Không tìm thấy</div>'; return; }
-  const rows = list.map(w=>{
-    const isTracked = tracked.has(w.id);
-    const isParent = parentFromW301.has(w.id);
-    const div = document.createElement('div');
-    div.style.cssText='padding:8px 12px;border:1px solid '+(isTracked?'#a8deba':'#dee2e6')+';border-radius:8px;display:flex;align-items:center;gap:8px;background:'+(isTracked?'#f0faf4':'#fff');
-    if(!isTracked){ div.style.cursor='pointer'; div.onmouseover=()=>div.style.background='#fdf2f2'; div.onmouseout=()=>div.style.background='#fff'; div.onclick=()=>wstAddTracking(w.id); }
-    div.innerHTML='<div style="flex:1"><div style="font-size:13px;font-weight:600">'+wstBrandHtml(w)+(isParent?'<span style="font-size:10px;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:10px;margin-left:4px">web gốc của 301</span>':'')+'</div><div style="font-size:11px;color:#2980b9">'+wstUrlHtml(w)+'</div></div>'+(isTracked?'<span style="font-size:11px;color:#27ae60;font-weight:600">✓ Đã theo dõi</span>':'<span style="font-size:11px;color:#27ae60;font-weight:600">+ Thêm</span>');
-    return div;
-  });
-  el.innerHTML='';
-  rows.forEach(r=>el.appendChild(r));
+  const ov = document.getElementById('wstPickOverlay');
+  const qi = ov && ov.querySelector('[data-k="q"]');
+  if (qi) { qi.value = q || ''; qi.dispatchEvent(new Event('input')); }
 }
 
 function wstAddTracking(wsId){
