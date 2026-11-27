@@ -318,6 +318,7 @@ select.bud-st option{color:var(--t-fg)}
     document.head.appendChild(s);
   }
 
+  const FORMS = new Set(['budOrderOv', 'budPlanOv', 'budBpOv', 'budWhyOv']);
   function ov(id, width, html) {
     injectCss();
     const old = document.getElementById(id);
@@ -326,8 +327,10 @@ select.bud-st option{color:var(--t-fg)}
     o.id = id;
     o.className = 'bud-ov';
     o.innerHTML = '<div class="bud-dlg" style="width:' + width + 'px">' + html + '</div>';
-    o.addEventListener('mousedown', e => { if (e.target === o) o.remove(); });
-    o.addEventListener('keydown', e => { if (e.key === 'Escape') o.remove(); });
+    if (!FORMS.has(id)) {
+      o.addEventListener('mousedown', e => { if (e.target === o) o.remove(); });
+      o.addEventListener('keydown', e => { if (e.key === 'Escape') o.remove(); });
+    }
     document.body.appendChild(o);
     return o;
   }
@@ -577,7 +580,7 @@ select.bud-st option{color:var(--t-fg)}
           exp = dm(o.from) + ' → ' + dm(o.to) + '<span class="bud-u" style="color:' + (s.k === 'expired' ? 'var(--t-danger)' : s.k === 'soon' ? 'var(--t-warn)' : 'var(--t-fg-subtle)') + '">' + (s.k === 'renewed' ? 'đã gia hạn' : s.k === 'expired' ? 'đã hết hạn ' + s.d + ' ngày' : 'còn ' + s.d + ' ngày') + '</span>';
         }
         const act = actions === false ? '' : '<button class="bud-btn xs" data-bud-edit="' + o.id + '" title="Sửa đơn">✎</button> <button class="bud-btn xs" data-bud-del="' + o.id + '" title="Xoá đơn">🗑</button>' + (o.type === 'textlink' && !isRenewed(o) ? ' <button class="bud-btn xs pri" data-bud-renew="' + o.id + '" title="Gia hạn: tạo đơn mới nối với đơn này">↻ Gia hạn</button>' : '');
-        return '<tr><td>' + dm(o.date) + '<span class="bud-u">' + o.date.slice(0, 4) + '</span></td><td><span class="bud-tag bud-t-' + T.c + '">' + T.n + '</span>' + (o.renewOf ? '<span class="bud-u">gia hạn</span>' : '') + '</td><td style="word-break:break-word">' + (o.ncc ? '<b>' + esc(o.ncc) + '</b>' : '<span class="bud-m">(chưa ghi đối tác)</span>') + (o.note ? ' · ' + esc(o.note) : '') + ' <span class="bud-m bud-s">· ' + esc(orderWsText(o)) + '</span></td><td>' + stCell(o) + '</td><td>' + exp + '</td><td class="r">' + fv(o.vnd) + '<span class="bud-u">' + fu(o.usdt) + ' · tỷ giá ' + Math.round(o.rate).toLocaleString('vi-VN') + '</span></td><td style="white-space:nowrap">' + act + '</td></tr>';
+        return '<tr><td>' + dm(o.date) + '<span class="bud-u">' + o.date.slice(0, 4) + '</span></td><td><span class="bud-tag bud-t-' + T.c + '">' + T.n + '</span>' + (o.renewOf ? '<span class="bud-u">gia hạn</span>' : '') + (o.split ? '<span class="bud-u" title="' + esc('Tách đều từ đơn ' + fv(o.split.tv) + ' ≈ ' + fu(o.split.tu) + ' cho ' + o.split.n + ' web') + '">tách ' + o.split.i + '/' + o.split.n + ' · đơn ' + fv(o.split.tv) + '</span>' : '') + '</td><td style="word-break:break-word">' + (o.ncc ? '<b>' + esc(o.ncc) + '</b>' : '<span class="bud-m">(chưa ghi đối tác)</span>') + (o.note ? ' · ' + esc(o.note) : '') + ' <span class="bud-m bud-s">· ' + esc(orderWsText(o)) + '</span></td><td>' + stCell(o) + '</td><td>' + exp + '</td><td class="r">' + fv(o.vnd) + '<span class="bud-u">' + fu(o.usdt) + ' · tỷ giá ' + Math.round(o.rate).toLocaleString('vi-VN') + '</span></td><td style="white-space:nowrap">' + act + '</td></tr>';
       }).join('') + '</tbody></table>';
   }
 
@@ -790,6 +793,29 @@ select.bud-st option{color:var(--t-fg)}
     return { btn, open, value: () => Number(hid.value) || 0 };
   }
 
+  function splitAmt(total, n, dec) {
+    const f = Math.pow(10, dec), tc = Math.round(total * f), b = Math.floor(tc / n), r = tc - b * n;
+    return Array.from({ length: n }, (_, i) => (b + (i < r ? 1 : 0)) / f);
+  }
+  function parseMany(text) {
+    const I = idx();
+    const seen = new Map();
+    return String(text || '').replace(/\r/g, '').split('\n').map((raw, i) => {
+      const t = raw.trim();
+      if (!t) return null;
+      const tok = (t.match(/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:[:/][^\s]*)?/i) || [''])[0];
+      const h = hn(tok);
+      const line = i + 1;
+      if (!h) return { raw: t, line, err: 'không đọc được domain' };
+      const cands = websites.filter(w => hn(w.url) === h);
+      const w = cands.find(x => I.member.get(x.id)) || cands[0];
+      if (!w) return { raw: t, h, line, err: 'không có web này trong Dashboard' };
+      if (seen.has(w.id)) return { raw: t, h, w, line, err: 'trùng với dòng ' + seen.get(w.id) };
+      seen.set(w.id, line);
+      return { raw: t, h, w, line, row: I.member.get(w.id) || null };
+    }).filter(Boolean);
+  }
+
   function orderForm(old, ctx) {
     ctx = ctx || {};
     ensure().then(() => {
@@ -805,9 +831,13 @@ select.bud-st option{color:var(--t-fg)}
         + (ren ? '<div class="bud-m bud-s" style="margin-bottom:6px">Gia hạn đơn ' + dmy(ren.from) + ' → ' + dmy(ren.to) + ' (' + fv(ren.vnd) + '). Lưu thành đơn mới nối với đơn cũ, tiền tính vào tháng của ngày đơn.</div>' : '')
         + '<div class="g2"><div><label class="f">Loại đơn</label><select class="f" data-k="type"' + (ren ? ' disabled' : '') + '><option value="">— chọn loại dịch vụ —</option>' + TYPES.map(t => '<option value="' + t.k + '"' + (t.k === type ? ' selected' : '') + '>' + t.n + (t.k === 'textlink' ? ' (có thời hạn)' : '') + '</option>').join('') + '</select></div>'
         + '<div><label class="f">Ngày đơn (tính vào tháng)</label><input type="date" class="f" data-k="date" value="' + esc(base.date || today()) + '"></div></div>'
-        + '<label class="f">Web nhận dịch vụ (web gốc hoặc 1 web 301 trong chuỗi)</label><div class="bud-pk" data-k="widbox"></div>'
-        + '<div class="g2"><div><label class="f">Số tiền VND</label><input class="f" data-k="vnd" inputmode="decimal" placeholder="vd 1.200.000 · 1,2tr · 500k" value="' + (R.vnd ? R.vnd.toLocaleString('vi-VN') : (ren ? ren.vnd.toLocaleString('vi-VN') : '')) + '"></div><div><label class="f">hoặc USDT</label><input class="f" data-k="usdt" inputmode="decimal" placeholder="vd 45,89" value="' + (R.usdt ? String(R.usdt).replace('.', ',') : '') + '"></div></div>'
+        + '<label class="f">Web nhận dịch vụ (web gốc hoặc 1 web 301 trong chuỗi)</label>'
+        + (!old && !ren ? '<div class="bud-chips" data-k="wmode" style="margin:0 0 6px"><button type="button" data-wm="one" class="on">1 web</button><button type="button" data-wm="many">Nhiều web · tự tách đơn chia đều</button></div>' : '')
+        + '<div class="bud-pk" data-k="widbox"></div>'
+        + '<div data-k="manybox" style="display:none"><textarea class="f" data-k="many" rows="5" placeholder="Mỗi dòng 1 web (dán domain hoặc URL), vd:&#10;m.freybet482.com&#10;https://yo88v1.com/" style="font-family:inherit;resize:vertical"></textarea><div data-k="manyrep" class="bud-s" style="margin-top:6px;max-height:160px;overflow:auto"></div></div>'
+        + '<div class="g2"><div><label class="f" data-k="vndlab">Số tiền VND</label><input class="f" data-k="vnd" inputmode="decimal" placeholder="vd 1.200.000 · 1,2tr · 500k" value="' + (R.vnd ? R.vnd.toLocaleString('vi-VN') : (ren ? ren.vnd.toLocaleString('vi-VN') : '')) + '"></div><div><label class="f">hoặc USDT</label><input class="f" data-k="usdt" inputmode="decimal" placeholder="vd 45,89" value="' + (R.usdt ? String(R.usdt).replace('.', ',') : '') + '"></div></div>'
         + '<div class="bud-m bud-s" data-k="fxinfo" style="margin-top:4px">Nhập 1 ô thì ô kia tự quy đổi theo Binance P2P hôm nay. Đơn quá khứ: nhập tay cả 2 ô.</div>'
+        + '<div class="bud-s" data-k="splitinfo" style="margin-top:4px;display:none"></div>'
         + '<div class="bud-s" data-k="past" style="margin-top:4px;color:var(--t-warn);display:none">⚠️ Ngày đơn trước hôm nay: tỷ giá Binance là giá hôm nay, không phải giá lúc đó — nhập tay cả VND và USDT để đúng số đã trả.</div>'
         + '<div class="g2" data-k="tlbox" style="' + (type === 'textlink' ? '' : 'display:none') + '"><div><label class="f">Từ ngày</label><input type="date" class="f" data-k="from" value="' + esc(base.from || today()) + '"></div><div><label class="f">Đến ngày (hết hạn)</label><input type="date" class="f" data-k="to" value="' + esc(base.to || addDays(today(), 30)) + '"></div></div>'
         + '<div class="g2"><div><label class="f">Đối tác</label><div class="bud-ac"><input class="f" data-k="ncc" maxlength="120" autocomplete="off" placeholder="gõ vài chữ là gợi ý tên đã dùng" value="' + esc(base.ncc || '') + '"><div class="bud-ac-pop" data-k="nccpop" style="display:none"></div></div></div>'
@@ -827,8 +857,38 @@ select.bud-st option{color:var(--t-fg)}
       const pastChk = () => { q('past').style.display = q('date').value && q('date').value < today() && !(R.man.vnd && R.man.usdt) ? '' : 'none'; };
       q('date').oninput = pastChk;
       q('date').onchange = pastChk;
-      const on = bindMoney(q, R, show, pastChk);
+      let mode = 'one';
+      const splitInfo = () => {
+        const box = q('splitinfo');
+        if (mode !== 'many') { box.style.display = 'none'; return; }
+        const L = parseMany(q('many').value), ok = L.filter(x => !x.err), nb = L.length - ok.length;
+        q('manyrep').innerHTML = L.length ? L.map(x => x.err
+          ? '<div style="color:var(--t-danger)">❌ Dòng ' + x.line + ': ' + esc(x.raw) + ' — ' + esc(x.err) + '</div>'
+          : '<div>' + (x.row ? '<span style="color:var(--t-success)">✓</span>' : '<span style="color:var(--t-warn)">⚠</span>') + ' ' + esc(x.h) + ' <span class="bud-m">· ' + esc(wsLabel(x.w).replace(/^[^·]*·\s*/, '') || 'web') + (x.row ? ' · ' + esc(x.row.brand || '') : ' · không thuộc web nào trong bảng') + '</span></div>').join('') : '<span class="bud-m">Chưa có web nào</span>';
+        let t = ok.length + ' web hợp lệ' + (nb ? ' · <b style="color:var(--t-danger)">' + nb + ' dòng lỗi</b>' : '');
+        if (ok.length && R.vnd > 0) {
+          const v = splitAmt(R.vnd, ok.length, 0), u = splitAmt(R.usdt, ok.length, 2);
+          t += ' → tách ' + ok.length + ' đơn, mỗi web <b>' + fv(v[ok.length - 1]) + '</b> ≈ ' + fu(u[ok.length - 1]) + (v[0] !== v[ok.length - 1] ? ' (dư ' + fv(R.vnd - v[ok.length - 1] * ok.length) + ' cộng vào web đầu)' : '');
+        }
+        box.innerHTML = t;
+        box.style.display = '';
+      };
+      const on = bindMoney(q, R, show, () => { pastChk(); splitInfo(); });
       pastChk();
+      if (q('wmode')) {
+        q('wmode').onclick = e => {
+          const b = e.target.closest('[data-wm]');
+          if (!b) return;
+          mode = b.dataset.wm;
+          q('wmode').querySelectorAll('[data-wm]').forEach(x => x.classList.toggle('on', x === b));
+          q('widbox').style.display = mode === 'one' ? '' : 'none';
+          q('manybox').style.display = mode === 'many' ? '' : 'none';
+          q('vndlab').textContent = mode === 'many' ? 'Tổng tiền VND (chia đều cho các web)' : 'Số tiền VND';
+          splitInfo();
+          if (mode === 'many') q('many').focus();
+        };
+        q('many').oninput = () => { errBox.textContent = ''; splitInfo(); };
+      }
       if (ren) { R.man.vnd = true; on('vnd'); }
       o.querySelector('[data-x="no"]').onclick = () => o.remove();
       o.querySelector('[data-x="ok"]').onclick = async () => {
@@ -842,7 +902,30 @@ select.bud-st option{color:var(--t-fg)}
         if (body.type === 'textlink') { body.from = q('from').value; body.to = q('to').value; }
         if (ren) body.renewOf = ren.id;
         else if (old && old.renewOf) body.renewOf = old.renewOf;
-        if (!wid) { errBox.textContent = 'Chưa chọn web nhận dịch vụ'; return; }
+        if (mode === 'many') {
+          const L = parseMany(q('many').value), bad = L.filter(x => x.err);
+          if (bad.length) { errBox.textContent = '⚠️ ' + bad.map(x => 'Dòng ' + x.line + ': ' + x.err).join(' · '); q('many').focus(); return; }
+          if (!L.length) { errBox.textContent = '⚠️ Chưa nhập web nào (mỗi dòng 1 web)'; q('many').focus(); return; }
+          if (!(body.vnd > 0)) { errBox.textContent = 'Chưa nhập số tiền'; return; }
+          if (L.length > 1) {
+            const v = splitAmt(body.vnd, L.length, 0), u = splitAmt(body.usdt, L.length, 2);
+            const list = L.map((x, i) => Object.assign({}, body, { id: 0, wid: x.w.id, wurl: x.w.url, vnd: v[i], usdt: u[i] }));
+            const btn2 = o.querySelector('[data-x="ok"]');
+            btn2.disabled = true;
+            try {
+              const r = await api('/api/budget/orders', { orders: list });
+              r.orders.forEach(x => D.orders.push(x));
+              o.remove();
+              say('✓ Đã tạo ' + r.orders.length + ' đơn ' + TN[body.type].n + ' (tách đều ' + fv(body.vnd) + ', mỗi web ~' + fv(v[L.length - 1]) + ')');
+              changed();
+              if (ctx.after) ctx.after();
+            } catch (e) { errBox.textContent = e.message; btn2.disabled = false; }
+            return;
+          }
+          body.wid = L[0].w.id;
+          body.wurl = L[0].w.url;
+        }
+        if (!body.wid) { errBox.textContent = 'Chưa chọn web nhận dịch vụ'; return; }
         if (!(body.vnd > 0)) { errBox.textContent = 'Chưa nhập số tiền'; return; }
         const btn = o.querySelector('[data-x="ok"]');
         btn.disabled = true;
