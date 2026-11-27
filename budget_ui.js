@@ -908,10 +908,11 @@ select.f[data-k="st"]{font-weight:700}
     } else if (!ev && eu) cur = 'usdt';
     vnd = Math.round(vnd);
     usdt = Math.round(usdt * 100) / 100;
-    let webs = String(p.target_website || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean), webFromTitle = false;
+    const domTok = t => { const seen = new Set(); return (String(t || '').match(/[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?::\d+)?(?:\/[^\s,;"'+<>|]*)?/gi) || []).map(x => x.replace(/[./]+$/, '')).filter(x => { const h = hn(x); if (!h || seen.has(h)) return false; seen.add(h); return true; }); };
+    let webs = domTok(p.target_website), webFromTitle = false;
     let L = webs.length ? parseMany(webs.join('\n')) : [];
     if (!webs.length) {
-      const toks = String(p.title || '').match(/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}/gi) || [];
+      const toks = domTok(p.title);
       const T = toks.length ? parseMany(toks.join('\n')).filter(x => !x.err) : [];
       if (T.length) { L = T; webs = T.map(x => x.h); webFromTitle = true; }
     }
@@ -1086,7 +1087,7 @@ select.f[data-k="st"]{font-weight:700}
             + A.fresh.map(p => {
               const m = mapProp(p);
               const web = !m.webs.length ? '<span style="color:var(--t-warn)">⚠ đơn không ghi web</span>'
-                : esc(m.webs.join(', ')) + (m.webFromTitle ? '<span class="bud-u">lấy từ tiêu đề đơn</span>' : '') + (m.webBad.length ? '<span class="bud-u" style="color:var(--t-warn)">⚠ ' + esc(m.webBad.map(x => x.h || x.raw).join(', ')) + ' không có trong Dashboard</span>' : (m.webs.length > 1 ? '<span class="bud-u">' + m.webs.length + ' web → tách đơn chia đều</span>' : ''));
+                : esc(m.webs.map(hn).join(', ')) + (m.webFromTitle ? '<span class="bud-u">lấy từ tiêu đề đơn</span>' : '') + (m.webBad.length ? '<span class="bud-u" style="color:var(--t-warn)">⚠ ' + esc(m.webBad.map(x => x.h || x.raw).join(', ')) + ' không có trong Dashboard</span>' : (m.webs.length > 1 ? '<span class="bud-u">' + m.webs.length + ' web → tách đơn chia đều</span>' : ''));
               return '<tr><td style="word-break:break-word"><b>#' + esc(p.id) + '</b> ' + esc(p.title || '') + '<span class="bud-u">' + esc([p.vendor_name || p.preferred_vendor_name, dmy(m.date)].filter(Boolean).join(' · ')) + '</span></td>'
                 + '<td>' + (m.type ? '<span class="bud-tag bud-t-' + TN[m.type].c + '">' + TN[m.type].n + '</span>' : '<span style="color:var(--t-warn)">⚠ chưa nhận ra</span>') + '<span class="bud-u">' + esc(p.service_type || '') + '</span></td>'
                 + '<td style="word-break:break-word">' + web + '</td>'
