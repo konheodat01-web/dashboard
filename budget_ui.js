@@ -8,10 +8,15 @@
   ];
   const TN = Object.fromEntries(TYPES.map(t => [t.k, t]));
   const STS = [
-    { k: 'doing', n: 'Đang thực hiện', c: 'var(--t-accent)' },
-    { k: 'fix', n: 'Đang chỉnh sửa', c: 'var(--t-warn)' },
-    { k: 'done', n: 'Done', c: 'var(--t-success)' },
+    { k: 'doing', n: 'Đang thực hiện', c: '#3b82f6' },
+    { k: 'fix', n: 'Đang chỉnh sửa', c: '#f59e0b' },
+    { k: 'done', n: 'Done', c: '#22c55e' },
   ];
+  const stStyle = k => { const c = SN[k].c; return 'color:' + c + '!important;border:1px solid ' + c + '!important;background-color:color-mix(in srgb,' + c + ' 16%,transparent)!important'; };
+  const accList = t => String(t || '').replace(/\r/g, '').split('\n').map(x => x.trim()).filter(Boolean).map(x => /^https?:\/\//i.test(x) ? x : 'https://' + x);
+  const accBad = L => L.filter(x => { try { const u = new URL(x); return /\s/.test(x) || !/^https?:$/.test(u.protocol) || !/\.[a-z]{2,}$/i.test(u.hostname); } catch (e) { return true; } });
+  const accShort = u => { try { const x = new URL(u); const t = x.hostname.replace(/^www\./, '') + (x.pathname === '/' ? '' : x.pathname) + x.search; return t.length > 46 ? t.slice(0, 44) + '…' : t; } catch (e) { return u; } };
+  const accHtml = o => Array.isArray(o.acc) && o.acc.length ? '<div class="bud-acc">🔗 Nghiệm thu: ' + o.acc.map(u => '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer" title="' + esc(u) + '">' + esc(accShort(u)) + '</a>').join(' · ') + '</div>' : '';
   const SN = Object.fromEntries(STS.map(t => [t.k, t]));
   const stOf = o => SN[o.st] ? o.st : 'doing';
   const COLS = ['dom'].concat(TYPES.map(t => t.k));
@@ -295,8 +300,12 @@
 .bud-ac-pop{position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:6;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);padding:4px;max-height:240px;overflow:auto}
 .bud-ac-it{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:13px}
 .bud-ac-it.act,.bud-ac-it:hover{background:color-mix(in srgb,var(--t-accent) 20%,transparent)}
-select.bud-st{font-size:11.5px;font-weight:600;padding:2px 4px;border:1px solid;border-radius:6px;background:var(--t-subtle);cursor:pointer;max-width:100%}
-select.bud-st option{color:var(--t-fg)}
+select.bud-st{font-size:11.5px;font-weight:700;padding:3px 6px;border:1px solid;border-radius:12px;cursor:pointer;max-width:100%}
+select.bud-st option,select.f[data-k="st"] option{color:var(--t-fg);background:var(--t-canvas)}
+select.f[data-k="st"]{font-weight:700}
+.bud-chips button[data-sf] i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
+.bud-acc{font-size:11.5px;margin-top:3px;word-break:break-all}
+.bud-acc a{color:var(--t-accent);text-decoration:none}.bud-acc a:hover{text-decoration:underline}
 .bud-ic{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;font-size:12px;margin-left:4px;flex-shrink:0;cursor:help}
 .bud-ic.y{background:color-mix(in srgb,var(--t-done) 18%,transparent)}
 .bud-ic.n{background:var(--t-muted);filter:grayscale(1);opacity:.4}
@@ -580,7 +589,7 @@ select.bud-st option{color:var(--t-fg)}
           exp = dm(o.from) + ' → ' + dm(o.to) + '<span class="bud-u" style="color:' + (s.k === 'expired' ? 'var(--t-danger)' : s.k === 'soon' ? 'var(--t-warn)' : 'var(--t-fg-subtle)') + '">' + (s.k === 'renewed' ? 'đã gia hạn' : s.k === 'expired' ? 'đã hết hạn ' + s.d + ' ngày' : 'còn ' + s.d + ' ngày') + '</span>';
         }
         const act = actions === false ? '' : '<button class="bud-btn xs" data-bud-edit="' + o.id + '" title="Sửa đơn">✎</button> <button class="bud-btn xs" data-bud-del="' + o.id + '" title="Xoá đơn">🗑</button>' + (o.type === 'textlink' && !isRenewed(o) ? ' <button class="bud-btn xs pri" data-bud-renew="' + o.id + '" title="Gia hạn: tạo đơn mới nối với đơn này">↻ Gia hạn</button>' : '');
-        return '<tr><td>' + dm(o.date) + '<span class="bud-u">' + o.date.slice(0, 4) + '</span></td><td><span class="bud-tag bud-t-' + T.c + '">' + T.n + '</span>' + (o.renewOf ? '<span class="bud-u">gia hạn</span>' : '') + (o.split ? '<span class="bud-u" title="' + esc('Tách đều từ đơn ' + fv(o.split.tv) + ' ≈ ' + fu(o.split.tu) + ' cho ' + o.split.n + ' web') + '">tách ' + o.split.i + '/' + o.split.n + ' · đơn ' + fv(o.split.tv) + '</span>' : '') + '</td><td style="word-break:break-word">' + (o.ncc ? '<b>' + esc(o.ncc) + '</b>' : '<span class="bud-m">(chưa ghi đối tác)</span>') + (o.note ? ' · ' + esc(o.note) : '') + ' <span class="bud-m bud-s">· ' + esc(orderWsText(o)) + '</span></td><td>' + stCell(o) + '</td><td>' + exp + '</td><td class="r">' + fv(o.vnd) + '<span class="bud-u">' + fu(o.usdt) + ' · tỷ giá ' + Math.round(o.rate).toLocaleString('vi-VN') + '</span></td><td style="white-space:nowrap">' + act + '</td></tr>';
+        return '<tr><td>' + dm(o.date) + '<span class="bud-u">' + o.date.slice(0, 4) + '</span></td><td><span class="bud-tag bud-t-' + T.c + '">' + T.n + '</span>' + (o.renewOf ? '<span class="bud-u">gia hạn</span>' : '') + (o.split ? '<span class="bud-u" title="' + esc('Tách đều từ đơn ' + fv(o.split.tv) + ' ≈ ' + fu(o.split.tu) + ' cho ' + o.split.n + ' web') + '">tách ' + o.split.i + '/' + o.split.n + ' · đơn ' + fv(o.split.tv) + '</span>' : '') + '</td><td style="word-break:break-word">' + (o.ncc ? '<b>' + esc(o.ncc) + '</b>' : '<span class="bud-m">(chưa ghi đối tác)</span>') + (o.note ? ' · ' + esc(o.note) : '') + ' <span class="bud-m bud-s">· ' + esc(orderWsText(o)) + '</span>' + accHtml(o) + '</td><td>' + stCell(o) + '</td><td>' + exp + '</td><td class="r">' + fv(o.vnd) + '<span class="bud-u">' + fu(o.usdt) + ' · tỷ giá ' + Math.round(o.rate).toLocaleString('vi-VN') + '</span></td><td style="white-space:nowrap">' + act + '</td></tr>';
       }).join('') + '</tbody></table>';
   }
 
@@ -622,7 +631,7 @@ select.bud-st option{color:var(--t-fg)}
   function K_ST() { return AGG && AGG.K.stFix ? 'fix' : 'doing'; }
   function stCell(o) {
     const S0 = SN[stOf(o)];
-    return '<select class="bud-st" data-bud-st="' + o.id + '" style="color:' + S0.c + ';border-color:' + S0.c + '">' + STS.map(t => '<option value="' + t.k + '"' + (t.k === S0.k ? ' selected' : '') + '>' + t.n + '</option>').join('') + '</select>'
+    return '<select class="bud-st" data-bud-st="' + o.id + '" style="' + stStyle(S0.k) + '">' + STS.map(t => '<option value="' + t.k + '"' + (t.k === S0.k ? ' selected' : '') + '>' + t.n + '</option>').join('') + '</select>'
       + (S0.k === 'fix' && o.stWhy ? '<span class="bud-u" style="color:var(--t-warn);white-space:normal" title="' + esc(o.stWhy) + '">✎ ' + esc(o.stWhy) + '</span>' : '');
   }
   function askWhy(o, cur) {
@@ -844,6 +853,7 @@ select.bud-st option{color:var(--t-fg)}
         + '<div><label class="f">Trạng thái đơn</label><select class="f" data-k="st">' + STS.map(t => '<option value="' + t.k + '"' + (t.k === st0 ? ' selected' : '') + '>' + t.n + '</option>').join('') + '</select></div></div>'
         + '<div data-k="whybox" style="' + (st0 === 'fix' ? '' : 'display:none') + '"><label class="f">Lý do đang chỉnh sửa</label><input class="f" data-k="stWhy" maxlength="500" placeholder="vd: link sai anchor, bài chưa index…" value="' + esc(old && old.stWhy || '') + '"></div>'
         + '<label class="f">Ghi chú / nội dung đơn</label><input class="f" data-k="note" maxlength="500" placeholder="vd: 120 entity, 3 bài DR40…" value="' + esc(base.note || '') + '">'
+        + '<label class="f">Link nghiệm thu (mỗi dòng 1 link)</label><textarea class="f" data-k="acc" rows="2" placeholder="vd: https://baoX.com/bai-viet-da-dang · link sheet báo cáo entity" style="font-family:inherit;resize:vertical">' + esc(!ren && old && Array.isArray(old.acc) ? old.acc.join('\n') : '') + '</textarea>'
         + '<div class="err" data-k="err"></div>'
         + '<div class="end"><button class="bud-btn" data-x="no">Hủy</button><button class="bud-btn pri" data-x="ok">Lưu đơn</button></div>');
       const q = k => o.querySelector('[data-k="' + k + '"]');
@@ -852,7 +862,10 @@ select.bud-st option{color:var(--t-fg)}
       const show = (t, bad) => { info.innerHTML = bad ? '<span style="color:var(--t-danger)">⚠️ ' + esc(t) + '</span>' : esc(t); };
       if (old) show(R.cur && old.rate ? 'Tỷ giá đã lưu: 1 USDT = ' + rateTxt(old.rate) + '. Sửa 1 ô thì giữ ô kia (tỷ giá suy ra); xoá 1 ô để tự quy đổi theo Binance.' : '');
       q('type').onchange = () => { q('tlbox').style.display = q('type').value === 'textlink' ? '' : 'none'; q('type').style.borderColor = ''; };
-      q('st').onchange = () => { q('whybox').style.display = q('st').value === 'fix' ? '' : 'none'; if (q('st').value === 'fix') q('stWhy').focus(); };
+      const stPaint = () => { q('st').style.cssText = stStyle(q('st').value); };
+      stPaint();
+      q('st').onchange = () => { stPaint(); q('whybox').style.display = q('st').value === 'fix' ? '' : 'none'; if (q('st').value === 'fix') q('stWhy').focus(); };
+      q('acc').oninput = () => { q('acc').style.borderColor = ''; };
       bindSuggest(q('ncc'), q('nccpop'));
       const pastChk = () => { q('past').style.display = q('date').value && q('date').value < today() && !(R.man.vnd && R.man.usdt) ? '' : 'none'; };
       q('date').oninput = pastChk;
@@ -896,9 +909,12 @@ select.bud-st option{color:var(--t-fg)}
         if (R.seq && !R.rate) { errBox.textContent = 'Đang lấy tỷ giá, đợi 1 giây rồi bấm Lưu lại'; return; }
         const wid = Number(q('wid').value);
         const w = websites.find(x => x.id === wid);
-        const body = { id: old ? old.id : 0, type: ren ? 'textlink' : q('type').value, date: q('date').value, wid, wurl: w ? w.url : (base.wurl || ''), vnd: R.vnd, usdt: R.usdt, rate: R.rate, cur: R.cur, note: q('note').value.trim(), ncc: q('ncc').value.trim(), st: q('st').value, stWhy: q('st').value === 'fix' ? q('stWhy').value.trim() : '' };
+        const body = { id: old ? old.id : 0, type: ren ? 'textlink' : q('type').value, date: q('date').value, wid, wurl: w ? w.url : (base.wurl || ''), vnd: R.vnd, usdt: R.usdt, rate: R.rate, cur: R.cur, note: q('note').value.trim(), ncc: q('ncc').value.trim(), st: q('st').value, stWhy: q('st').value === 'fix' ? q('stWhy').value.trim() : '', acc: accList(q('acc').value) };
         if (!body.type) { errBox.textContent = '⚠️ Chưa chọn loại dịch vụ — không tạo được đơn'; q('type').style.borderColor = 'var(--t-danger)'; q('type').focus(); return; }
         if (body.st === 'fix' && !body.stWhy) { errBox.textContent = '⚠️ Đang chỉnh sửa thì phải nhập lý do'; q('stWhy').focus(); return; }
+        const accB = accBad(body.acc);
+        if (accB.length) { errBox.textContent = '⚠️ Link nghiệm thu không hợp lệ (mỗi dòng 1 link): ' + accB.map(x => x.replace(/^https:\/\//, '')).join(' · '); q('acc').style.borderColor = 'var(--t-danger)'; q('acc').focus(); return; }
+        if (body.acc.length > 30) { errBox.textContent = '⚠️ Tối đa 30 link nghiệm thu mỗi đơn'; q('acc').focus(); return; }
         if (body.type === 'textlink') { body.from = q('from').value; body.to = q('to').value; }
         if (ren) body.renewOf = ren.id;
         else if (old && old.renewOf) body.renewOf = old.renewOf;
@@ -957,7 +973,7 @@ select.bud-st option{color:var(--t-fg)}
           && (!stf || stOf(x) === stf)
           && (!tlOnly || (x.type === 'textlink' && ['soon', 'expired'].includes(tlState(x).k)))
           && (!noRow || !orderRow(x))
-          && toks.every(k => fold([x.ncc, x.note, x.stWhy, orderWsText(x), (orderRow(x) || {}).brand, TN[x.type].n].join(' ')).includes(k)))
+          && toks.every(k => fold([x.ncc, x.note, x.stWhy, (x.acc || []).join(' '), orderWsText(x), (orderRow(x) || {}).brand, TN[x.type].n].join(' ')).includes(k)))
           .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const sum = list.reduce((s, x) => s + x.vnd, 0);
         box.innerHTML = '<h3>📃 Danh sách đơn — ' + (all ? 'mọi kỳ' : pLabel()) + ' <span class="bud-m bud-s" style="font-weight:400">' + list.length + ' đơn · ' + fv(sum) + '</span></h3>'
@@ -966,7 +982,7 @@ select.bud-st option{color:var(--t-fg)}
           + '<label class="bud-s"><input type="checkbox" data-k="tl"' + (tlOnly ? ' checked' : '') + '> chỉ text link sắp / đã hết hạn</label>'
           + '<label class="bud-s"><input type="checkbox" data-k="nr"' + (noRow ? ' checked' : '') + '> chỉ đơn không khớp web</label></div>'
           + '<div class="bud-chips">' + [['', 'Mọi loại']].concat(TYPES.map(x => [x.k, x.n])).map(x => '<button type="button" data-f="' + x[0] + '" class="' + (type === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>'
-          + '<div class="bud-chips">' + [['', 'Mọi trạng thái']].concat(STS.map(x => [x.k, x.n])).map(x => '<button type="button" data-sf="' + x[0] + '" class="' + (stf === x[0] ? 'on' : '') + '">' + x[1] + ' · ' + D.orders.filter(o => (all || ms.has(o.date.slice(0, 7))) && (!x[0] || stOf(o) === x[0])).length + '</button>').join('') + '</div>'
+          + '<div class="bud-chips">' + [['', 'Mọi trạng thái']].concat(STS.map(x => [x.k, x.n])).map(x => '<button type="button" data-sf="' + x[0] + '" class="' + (stf === x[0] ? 'on' : '') + '">' + (x[0] ? '<i style="background:' + SN[x[0]].c + '"></i>' : '') + x[1] + ' · ' + D.orders.filter(o => (all || ms.has(o.date.slice(0, 7))) && (!x[0] || stOf(o) === x[0])).length + '</button>').join('') + '</div>'
           + itemsTable(list.map(x => ({ kind: 'order', o: x, date: x.date })))
           + '<div class="end"><button class="bud-btn" data-x="close">Đóng</button><button class="bud-btn pri" data-x="new">＋ Tạo đơn</button></div>';
         const qi = box.querySelector('[data-k="q"]');
