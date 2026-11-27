@@ -12,7 +12,7 @@
     { k: 'fix', n: 'Đang chỉnh sửa', c: '#f59e0b' },
     { k: 'done', n: 'Done', c: '#22c55e' },
   ];
-  const stStyle = k => { const c = SN[k].c; return 'color:' + c + '!important;border:1px solid ' + c + '!important;background-color:color-mix(in srgb,' + c + ' 16%,transparent)!important'; };
+  const stStyle = k => { if (!SN[k]) return ''; const c = SN[k].c; return 'color:' + c + '!important;border:1px solid ' + c + '!important;background-color:color-mix(in srgb,' + c + ' 16%,transparent)!important'; };
   const accList = t => String(t || '').replace(/\r/g, '').split('\n').map(x => x.trim()).filter(Boolean).map(x => /^https?:\/\//i.test(x) ? x : 'https://' + x);
   const accBad = L => L.filter(x => { try { const u = new URL(x); return /\s/.test(x) || !/^https?:$/.test(u.protocol) || !/\.[a-z]{2,}$/i.test(u.hostname); } catch (e) { return true; } });
   const accShort = u => { try { const x = new URL(u); const t = x.hostname.replace(/^www\./, '') + (x.pathname === '/' ? '' : x.pathname) + x.search; return t.length > 46 ? t.slice(0, 44) + '…' : t; } catch (e) { return u; } };
@@ -39,6 +39,7 @@
   const fu = n => (Math.round((n || 0) * 100) / 100).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' USDT';
   const say = (m, c, ms) => { if (typeof toast === 'function') toast(m, c || '#238636', ms || 3000); };
   const fail = e => say('⚠️ ' + (e && e.message || e), '#e74c3c', 5000);
+  const QH = { items: [], seq: 0, wait: {}, clip: null };
   const mLabel = m => m.slice(5, 7) + '/' + m.slice(0, 4);
 
   function parseVnd(s) {
@@ -420,6 +421,7 @@ select.f[data-k="st"]{font-weight:700}
       + '<select id="budPeriod" class="bud-sel">' + opts.map(o => '<option value="' + o[0] + '"' + (o[0] === k ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>'
       + '<button type="button" class="btn btn-outline btn-sm" data-bud-a="plan">⚙ Ngân sách tháng</button>'
       + '<button type="button" class="btn btn-outline btn-sm" data-bud-a="list">📃 Danh sách đơn</button>'
+      + '<button type="button" class="btn btn-outline btn-sm" data-bud-a="qh" title="Dán đơn đã lấy bằng tiện ích Quyhat ở trang Đề xuất dịch vụ">📥 Dán đơn<span data-qhn>' + (QH.items.length ? ' (' + QH.items.length + ')' : '') + '</span></button>'
       + '<button type="button" class="btn btn-sm" data-bud-a="new" style="background:var(--t-accent);color:#fff;border:none">＋ Tạo đơn</button>';
   }
 
@@ -531,6 +533,7 @@ select.f[data-k="st"]{font-weight:700}
     else if (a === 'norow') orderList({ norow: true });
     else if (a === 'st') orderList({ st: K_ST(), all: true });
     else if (a === 'new') orderForm(null, {});
+    else if (a === 'qh') qhList();
   });
   document.addEventListener('change', e => {
     if (e.target && e.target.id === 'budPeriod') { U.key = e.target.value; rerender(); }
@@ -825,18 +828,153 @@ select.f[data-k="st"]{font-weight:700}
     }).filter(Boolean);
   }
 
+  window.addEventListener('message', e => {
+    if (e.source !== window || !e.data || (e.data.qhb !== 'list' && e.data.qhb !== 'changed')) return;
+    QH.items = Array.isArray(e.data.items) ? e.data.items : [];
+    document.querySelectorAll('[data-bud-a="qh"] [data-qhn]').forEach(x => { x.textContent = QH.items.length ? ' (' + QH.items.length + ')' : ''; });
+    const w = e.data.rid && QH.wait[e.data.rid];
+    if (w) { delete QH.wait[e.data.rid]; w(QH.items); }
+    if (document.getElementById('budQhOv') && QH.paint && !QH.clip) QH.paint();
+  });
+  function qhCall(msg) {
+    return new Promise(res => {
+      const rid = 'b' + (++QH.seq);
+      const t = setTimeout(() => { delete QH.wait[rid]; res(null); }, 900);
+      QH.wait[rid] = L => { clearTimeout(t); res(L); };
+      window.postMessage(Object.assign({ rid }, msg), location.origin);
+    });
+  }
+  const qhOn = () => !!document.documentElement.getAttribute('data-quyhat-bud');
+  function qhDrop(id) {
+    if (QH.clip) { QH.clip = QH.clip.filter(x => +x.id !== +id); return Promise.resolve(QH.clip); }
+    return qhCall({ qhb: 'drop', id });
+  }
+  function qhType(t) {
+    t = fold(t);
+    if (!t) return '';
+    if (/text\s*-?\s*link/.test(t)) return 'textlink';
+    if (/guest|\bgp\b|\bpr\b|bai\s*pr/.test(t)) return 'guestpost';
+    if (/entit/.test(t)) return 'entity';
+    if (/comment|\bcmt\b/.test(t)) return 'blogcmt';
+    if (/backlink|back\s*link/.test(t)) return 'backlink';
+    return '';
+  }
+  function qhDay(v) {
+    const t = String(v || '').trim();
+    if (!t) return '';
+    const iso = t.replace(' ', 'T');
+    const d = new Date(/[zZ]$|[+-]\d\d:?\d\d$/.test(iso) || iso.length <= 10 ? iso : iso + 'Z');
+    return isNaN(d) ? t.slice(0, 10) : new Date(d.getTime() + 7 * 3600e3).toISOString().slice(0, 10);
+  }
+  function mapProp(p) {
+    buildIdx();
+    const n = v => { const x = parseFloat(v); return isFinite(x) && x > 0 ? x : 0; };
+    let ev = n(p.estimated_price_vnd), eu = n(p.estimated_price_usdt);
+    if (!ev && !eu && n(p.estimated_price)) { if (/vnd/i.test(p.currency || '')) ev = n(p.estimated_price); else eu = n(p.estimated_price); }
+    let vnd = ev, usdt = eu, cur = 'vnd', src = 'giá dự kiến';
+    const fp = n(p.final_price);
+    if (fp) {
+      src = 'giá chốt';
+      if (/vnd/i.test(p.currency || '')) { vnd = fp; cur = 'vnd'; usdt = ev && eu ? Math.round(fp / (ev / eu) * 100) / 100 : (fp === ev ? eu : 0); }
+      else { usdt = fp; cur = 'usdt'; vnd = ev && eu ? Math.round(fp * (ev / eu)) : (fp === eu ? ev : 0); }
+    } else if (!ev && eu) cur = 'usdt';
+    vnd = Math.round(vnd);
+    usdt = Math.round(usdt * 100) / 100;
+    const webs = String(p.target_website || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+    const L = webs.length ? parseMany(webs.join('\n')) : [];
+    const okL = L.filter(x => !x.err);
+    const type = qhType(p.service_type) || (p.service_type ? '' : qhType(p.title));
+    const date = qhDay(p.created_at) || today();
+    const note = ['#' + p.id, p.title, p.quantity != null ? 'SL ' + p.quantity : ''].filter(Boolean).join(' · ').slice(0, 500);
+    const out = { type, date, vnd, usdt, cur, src, ncc: String(p.vendor_name || p.preferred_vendor_name || '').slice(0, 120), note, ref: 'fix#' + p.id, webs, webBad: L.filter(x => x.err), st: '' };
+    if (webs.length > 1) out.many = webs.join('\n');
+    else if (okL.length === 1) { out.wid = okL[0].w.id; out.wurl = okL[0].w.url; }
+    if (type === 'textlink') { out.from = date; const ex = qhDay(p.expiry_date); out.to = ex && ex >= date ? ex : addDays(date, 30); }
+    return out;
+  }
+  function qhList() {
+    ensure().then(async () => {
+      QH.clip = null;
+      if (qhOn()) {
+        const L = await qhCall({ qhb: 'get' });
+        if (L) QH.items = L;
+      } else {
+        const t = await qhPaste();
+        if (t == null) return;
+        QH.clip = t;
+      }
+      const o = ov('budQhOv', 940, '');
+      const box = o.querySelector('.bud-dlg');
+      const items = () => QH.clip || QH.items;
+      QH.paint = () => {
+        const L = items();
+        if (!L.length) { box.innerHTML = '<h3>📥 Dán đơn từ Quyhat</h3><div class="bud-m" style="padding:14px 4px">Không còn đơn nào chờ dán. Ở trang Đề xuất dịch vụ: bấm chọn đơn → bấm biểu tượng Quyhat → 📥 Lấy đơn.</div><div class="end"><button class="bud-btn" data-x="close">Đóng</button></div>'; return; }
+        box.innerHTML = '<h3>📥 Dán đơn từ Quyhat <span class="bud-m bud-s" style="font-weight:400">· ' + L.length + ' đơn chờ dán · không lấy trạng thái, bạn tự chọn khi dán</span></h3>'
+          + '<table><colgroup><col style="width:30%"><col style="width:13%"><col style="width:22%"><col style="width:17%"><col style="width:18%"></colgroup><thead><tr><th>Đơn</th><th>Loại</th><th>Web</th><th class="r">Số tiền</th><th></th></tr></thead><tbody>'
+          + L.map(p => {
+            const m = mapProp(p);
+            const dup = D.orders.filter(x => x.ref === m.ref);
+            const web = !m.webs.length ? '<span style="color:var(--t-warn)">⚠ đơn không ghi web</span>'
+              : esc(m.webs.join(', ')) + (m.webBad.length ? '<span class="bud-u" style="color:var(--t-warn)">⚠ ' + esc(m.webBad.map(x => x.h || x.raw).join(', ')) + ' không có trong Dashboard</span>' : (m.webs.length > 1 ? '<span class="bud-u">' + m.webs.length + ' web → tách đơn chia đều</span>' : ''));
+            return '<tr><td style="word-break:break-word"><b>#' + esc(p.id) + '</b> ' + esc(p.title || '') + '<span class="bud-u">' + esc([m.ncc, dmy(m.date)].filter(Boolean).join(' · ')) + '</span>' + (dup.length ? '<span class="bud-u" style="color:var(--t-danger)">⚠ đã dán ' + dup.length + ' đơn từ đơn này (' + dup.map(x => dmy(x.date)).join(', ') + ')</span>' : '') + '</td>'
+              + '<td>' + (m.type ? '<span class="bud-tag bud-t-' + TN[m.type].c + '">' + TN[m.type].n + '</span>' : '<span style="color:var(--t-warn)">⚠ chưa nhận ra</span>') + '<span class="bud-u">' + esc(p.service_type || '') + '</span></td>'
+              + '<td style="word-break:break-word">' + web + '</td>'
+              + '<td class="r">' + (m.vnd ? fv(m.vnd) : '—') + '<span class="bud-u">' + (m.usdt ? fu(m.usdt) : '—') + ' · ' + m.src + '</span></td>'
+              + '<td style="white-space:nowrap;text-align:right"><button class="bud-btn xs pri" data-qh-paste="' + esc(p.id) + '">📥 Dán</button> <button class="bud-btn xs" data-qh-drop="' + esc(p.id) + '" title="Bỏ khỏi hàng chờ">✕</button></td></tr>';
+          }).join('') + '</tbody></table>'
+          + '<div class="end"><button class="bud-btn" data-x="close">Đóng</button></div>';
+      };
+      QH.paint();
+      box.addEventListener('click', e => {
+        const x = e.target.closest('[data-x="close"]');
+        if (x) { o.remove(); return; }
+        const dp = e.target.closest('[data-qh-drop]');
+        if (dp) { qhDrop(dp.dataset.qhDrop).then(L => { if (L && !QH.clip) QH.items = L; QH.paint(); }); return; }
+        const ps = e.target.closest('[data-qh-paste]');
+        if (!ps) return;
+        const p = items().find(x => String(x.id) === ps.dataset.qhPaste);
+        if (!p) return;
+        orderForm(null, { pre: Object.assign(mapProp(p), { prop: p }), after: () => qhDrop(p.id).then(L => { if (L && !QH.clip) QH.items = L; if (document.getElementById('budQhOv')) QH.paint(); }) });
+      });
+    }).catch(fail);
+  }
+  function qhPaste() {
+    return new Promise(res => {
+      const d = ov('budQhPasteOv', 560, '<h3>📥 Dán đơn từ Quyhat</h3><div class="bud-m bud-s">Không thấy tiện ích Quyhat (bản 1.3.0 trở lên) trên trang này. Bấm 📥 Lấy đơn ở Quyhat (tự copy), rồi dán vào ô dưới (Ctrl+V).</div><textarea class="f" data-k="t" rows="4" placeholder="QUYHAT-DON […]" style="font-family:inherit;resize:vertical"></textarea><div class="err" data-k="err"></div><div class="end"><button class="bud-btn" data-x="no">Hủy</button><button class="bud-btn pri" data-x="ok">Đọc đơn</button></div>');
+      const q = k => d.querySelector('[data-k="' + k + '"]');
+      d.addEventListener('click', e => {
+        const b = e.target.closest('[data-x]');
+        if (!b) return;
+        if (b.dataset.x === 'no') { d.remove(); res(null); return; }
+        const t = q('t').value.trim().replace(/^QUYHAT-DON\s*/, '');
+        let L = null;
+        try { L = JSON.parse(t); } catch (er) {}
+        if (!Array.isArray(L) || !L.every(x => x && x.id != null)) { q('err').textContent = 'Không đọc được — hãy dán đúng nội dung Quyhat đã copy'; return; }
+        d.remove();
+        res(L);
+      });
+      setTimeout(() => q('t').focus(), 30);
+    });
+  }
+
   function orderForm(old, ctx) {
     ctx = ctx || {};
     ensure().then(() => {
       buildIdx();
       const ren = ctx.renew;
-      const base = old || (ren ? { type: 'textlink', wid: ren.wid, wurl: ren.wurl, vnd: ren.vnd, ncc: ren.ncc, note: ren.note, from: ren.to, to: addDays(ren.to, dayDiff(ren.from, ren.to) || 30), date: ren.to > today() ? ren.to : today() } : null) || {};
+      const base = old || (ren ? { type: 'textlink', wid: ren.wid, wurl: ren.wurl, vnd: ren.vnd, ncc: ren.ncc, note: ren.note, from: ren.to, to: addDays(ren.to, dayDiff(ren.from, ren.to) || 30), date: ren.to > today() ? ren.to : today() } : null) || (!old && ctx.pre) || {};
+      const pre = !old && !ren && ctx.pre ? ctx.pre : null;
       let defWid = base.wid || 0;
       if (!defWid && ctx.row) { const ch = chainOf(ctx.row); const cur = ch.find(w => hn(w.url) === hn(wstCurrentUrl(ctx.row))); defWid = (cur || ctx.row).id; }
       const type = base.type || '';
-      const st0 = old ? stOf(old) : 'doing';
-      const R = { rate: old ? old.rate : 0, cur: old ? old.cur : 'vnd', vnd: old ? old.vnd : 0, usdt: old ? old.usdt : 0, seq: 0, man: { vnd: !!old, usdt: !!old } };
-      const o = ov('budOrderOv', 620, '<h3>' + (old ? '✎ Sửa đơn' : ren ? '↻ Gia hạn text link' : '＋ Tạo đơn dịch vụ') + '</h3>'
+      const st0 = old ? stOf(old) : pre ? '' : 'doing';
+      const R = old ? { rate: old.rate, cur: old.cur, vnd: old.vnd, usdt: old.usdt, seq: 0, man: { vnd: true, usdt: true } }
+        : pre ? { rate: pre.vnd && pre.usdt ? Math.round(pre.vnd / pre.usdt * 100) / 100 : 0, cur: pre.cur || 'vnd', vnd: pre.vnd || 0, usdt: pre.usdt || 0, seq: 0, man: { vnd: !!pre.vnd, usdt: !!pre.usdt } }
+        : { rate: 0, cur: 'vnd', vnd: 0, usdt: 0, seq: 0, man: { vnd: false, usdt: false } };
+      const o = ov('budOrderOv', 620, '<h3>' + (old ? '✎ Sửa đơn' : ren ? '↻ Gia hạn text link' : pre ? '📥 Dán đơn #' + esc(pre.prop.id) + ' từ Quyhat' : '＋ Tạo đơn dịch vụ') + '</h3>'
+        + (pre ? '<div class="bud-m bud-s" style="margin-bottom:6px">' + esc(pre.prop.title || '') + (pre.prop.service_type ? ' · loại trên đơn: ' + esc(pre.prop.service_type) : '') + (pre.webs.length ? ' · web trên đơn: ' + esc(pre.webs.join(', ')) : ' · đơn không ghi web') + '. Kiểm tra loại, web, số tiền (' + pre.src + ') rồi <b>tự chọn trạng thái</b>.'
+          + (pre.webBad.length ? '<div style="color:var(--t-warn);margin-top:3px">⚠ ' + esc(pre.webBad.map(x => (x.h || x.raw) + ': ' + x.err).join(' · ')) + (pre.many ? '' : ' — chọn web bằng tay') + '</div>' : '')
+          + (!pre.type ? '<div style="color:var(--t-warn);margin-top:3px">⚠ Chưa nhận ra loại dịch vụ "' + esc(pre.prop.service_type || '') + '" — chọn loại bằng tay</div>' : '') + '</div>' : '')
         + (ren ? '<div class="bud-m bud-s" style="margin-bottom:6px">Gia hạn đơn ' + dmy(ren.from) + ' → ' + dmy(ren.to) + ' (' + fv(ren.vnd) + '). Lưu thành đơn mới nối với đơn cũ, tiền tính vào tháng của ngày đơn.</div>' : '')
         + '<div class="g2"><div><label class="f">Loại đơn</label><select class="f" data-k="type"' + (ren ? ' disabled' : '') + '><option value="">— chọn loại dịch vụ —</option>' + TYPES.map(t => '<option value="' + t.k + '"' + (t.k === type ? ' selected' : '') + '>' + t.n + (t.k === 'textlink' ? ' (có thời hạn)' : '') + '</option>').join('') + '</select></div>'
         + '<div><label class="f">Ngày đơn (tính vào tháng)</label><input type="date" class="f" data-k="date" value="' + esc(base.date || today()) + '"></div></div>'
@@ -850,7 +988,7 @@ select.f[data-k="st"]{font-weight:700}
         + '<div class="bud-s" data-k="past" style="margin-top:4px;color:var(--t-warn);display:none">⚠️ Ngày đơn trước hôm nay: tỷ giá Binance là giá hôm nay, không phải giá lúc đó — nhập tay cả VND và USDT để đúng số đã trả.</div>'
         + '<div class="g2" data-k="tlbox" style="' + (type === 'textlink' ? '' : 'display:none') + '"><div><label class="f">Từ ngày</label><input type="date" class="f" data-k="from" value="' + esc(base.from || today()) + '"></div><div><label class="f">Đến ngày (hết hạn)</label><input type="date" class="f" data-k="to" value="' + esc(base.to || addDays(today(), 30)) + '"></div></div>'
         + '<div class="g2"><div><label class="f">Đối tác</label><div class="bud-ac"><input class="f" data-k="ncc" maxlength="120" autocomplete="off" placeholder="gõ vài chữ là gợi ý tên đã dùng" value="' + esc(base.ncc || '') + '"><div class="bud-ac-pop" data-k="nccpop" style="display:none"></div></div></div>'
-        + '<div><label class="f">Trạng thái đơn</label><select class="f" data-k="st">' + STS.map(t => '<option value="' + t.k + '"' + (t.k === st0 ? ' selected' : '') + '>' + t.n + '</option>').join('') + '</select></div></div>'
+        + '<div><label class="f">Trạng thái đơn</label><select class="f" data-k="st">' + (st0 ? '' : '<option value="">— chọn trạng thái —</option>') + STS.map(t => '<option value="' + t.k + '"' + (t.k === st0 ? ' selected' : '') + '>' + t.n + '</option>').join('') + '</select></div></div>'
         + '<div data-k="whybox" style="' + (st0 === 'fix' ? '' : 'display:none') + '"><label class="f">Lý do đang chỉnh sửa</label><input class="f" data-k="stWhy" maxlength="500" placeholder="vd: link sai anchor, bài chưa index…" value="' + esc(old && old.stWhy || '') + '"></div>'
         + '<label class="f">Ghi chú / nội dung đơn</label><input class="f" data-k="note" maxlength="500" placeholder="vd: 120 entity, 3 bài DR40…" value="' + esc(base.note || '') + '">'
         + '<label class="f">Link nghiệm thu (mỗi dòng 1 link)</label><textarea class="f" data-k="acc" rows="2" placeholder="vd: https://baoX.com/bai-viet-da-dang · link sheet báo cáo entity" style="font-family:inherit;resize:vertical">' + esc(!ren && old && Array.isArray(old.acc) ? old.acc.join('\n') : '') + '</textarea>'
@@ -903,6 +1041,12 @@ select.f[data-k="st"]{font-weight:700}
         q('many').oninput = () => { errBox.textContent = ''; splitInfo(); };
       }
       if (ren) { R.man.vnd = true; on('vnd'); }
+      if (pre) {
+        if (pre.many && q('wmode')) { q('many').value = pre.many; q('wmode').querySelector('[data-wm="many"]').click(); }
+        if (R.man.vnd && R.man.usdt) show('Lấy theo ' + pre.src + ' trên đơn: 1 USDT = ' + rateTxt(R.rate) + '. Sửa 1 ô thì giữ ô kia; xoá 1 ô để tự quy đổi theo Binance.');
+        else if (R.man.vnd) on('vnd');
+        else if (R.man.usdt) on('usdt');
+      }
       o.querySelector('[data-x="no"]').onclick = () => o.remove();
       o.querySelector('[data-x="ok"]').onclick = async () => {
         errBox.textContent = '';
@@ -911,6 +1055,8 @@ select.f[data-k="st"]{font-weight:700}
         const w = websites.find(x => x.id === wid);
         const body = { id: old ? old.id : 0, type: ren ? 'textlink' : q('type').value, date: q('date').value, wid, wurl: w ? w.url : (base.wurl || ''), vnd: R.vnd, usdt: R.usdt, rate: R.rate, cur: R.cur, note: q('note').value.trim(), ncc: q('ncc').value.trim(), st: q('st').value, stWhy: q('st').value === 'fix' ? q('stWhy').value.trim() : '', acc: accList(q('acc').value) };
         if (!body.type) { errBox.textContent = '⚠️ Chưa chọn loại dịch vụ — không tạo được đơn'; q('type').style.borderColor = 'var(--t-danger)'; q('type').focus(); return; }
+        if (!body.st) { errBox.textContent = '⚠️ Chưa chọn trạng thái đơn'; q('st').style.borderColor = 'var(--t-danger)'; q('st').focus(); return; }
+        if (pre) body.ref = pre.ref;
         if (body.st === 'fix' && !body.stWhy) { errBox.textContent = '⚠️ Đang chỉnh sửa thì phải nhập lý do'; q('stWhy').focus(); return; }
         const accB = accBad(body.acc);
         if (accB.length) { errBox.textContent = '⚠️ Link nghiệm thu không hợp lệ (mỗi dòng 1 link): ' + accB.map(x => x.replace(/^https:\/\//, '')).join(' · '); q('acc').style.borderColor = 'var(--t-danger)'; q('acc').focus(); return; }
@@ -955,7 +1101,7 @@ select.f[data-k="st"]{font-weight:700}
           if (ctx.after) ctx.after();
         } catch (e) { errBox.textContent = e.message; btn.disabled = false; }
       };
-      setTimeout(() => { if (old || pk.value()) q('vnd').focus(); else pk.open(); }, 30);
+      setTimeout(() => { if (pre) { if (!pre.type) q('type').focus(); else if (!pre.many && !pk.value()) pk.open(); else q('st').focus(); } else if (old || pk.value()) q('vnd').focus(); else pk.open(); }, 30);
     }).catch(fail);
   }
 
