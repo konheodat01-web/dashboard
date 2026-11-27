@@ -268,6 +268,20 @@
 .bud-chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
 .bud-chips button{border:1px solid var(--t-border)!important;background:var(--t-subtle)!important;color:var(--t-fg-muted)!important;border-radius:12px!important;padding:2px 10px!important;font-size:12px;cursor:pointer}
 .bud-chips button.on{background:var(--t-accent)!important;border-color:var(--t-accent)!important;color:#fff!important}
+.bud-pk{position:relative}
+.bud-pk-btn,#page-wstrack .bud-pk-btn{width:100%;text-align:left;box-sizing:border-box;padding:7px 28px 7px 9px!important;border:1px solid var(--t-border)!important;border-radius:6px!important;background:var(--t-subtle)!important;color:var(--t-fg)!important;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+.bud-pk-btn::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--t-fg-muted)}
+.bud-pk-pop{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:5;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:8px}
+.bud-pk-q{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--t-accent);border-radius:6px;background:var(--t-subtle);color:var(--t-fg);font:inherit;font-size:13px;outline:none}
+.bud-pk-list{max-height:320px;overflow:auto;border-top:1px solid var(--t-muted);margin-top:2px}
+.bud-pk-g{padding:6px 8px 3px;font-weight:700;font-size:12px;color:var(--t-fg2);position:sticky;top:0;background:var(--t-canvas)}
+.bud-pk-it{padding:5px 8px 5px 20px;font-size:13px;cursor:pointer;border-radius:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.bud-pk-it.act{background:color-mix(in srgb,var(--t-accent) 22%,transparent)}
+.bud-pk-it.sel{font-weight:700}
+.bud-pk-it mark,.bud-pk-g mark{background:color-mix(in srgb,var(--t-warn) 40%,transparent);color:inherit;border-radius:2px;padding:0 1px}
+.bud-pk-tag{font-size:10.5px;padding:0 6px;border-radius:8px;background:var(--t-muted);color:var(--t-fg-muted)}
+.bud-pk-tag.goc{color:var(--t-accent)}.bud-pk-tag.run{background:color-mix(in srgb,var(--t-success) 18%,transparent);color:var(--t-success)}.bud-pk-tag.cut{color:var(--t-danger)}
+.bud-pk-foot{font-size:11px;color:var(--t-fg-muted);padding:6px 4px 0}
 .bud-ic{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;font-size:12px;margin-left:4px;flex-shrink:0;cursor:help}
 .bud-ic.y{background:color-mix(in srgb,var(--t-done) 18%,transparent)}
 .bud-ic.n{background:var(--t-muted);filter:grayscale(1);opacity:.4}
@@ -595,15 +609,90 @@
     bindItemActions(box, paint);
   }
 
-  function wsOptions(sel, opts) {
+  const fold = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+  function wsPicker(box, sel, opts, onPick) {
     const I = idx();
+    const teamOf = w => (typeof getTeamLabel === 'function' ? getTeamLabel(w.team || '') : (w.team || ''));
     const groups = I.rows.slice().sort((a, b) => String(a.brand || '').localeCompare(String(b.brand || ''), 'vi')).map(row => {
-      const ch = chainOf(row);
-      return '<optgroup label="' + esc((row.brand || '') + ' · ' + hn(row.url)) + '">' + ch.map(w => '<option value="' + w.id + '"' + (w.id === sel ? ' selected' : '') + '>' + esc(wsLabel(w) + (w.id !== row.id && hn(wstCurrentUrl(row)) === hn(w.url) ? ' · đang chạy' : '')) + '</option>').join('') + '</optgroup>';
+      const run = hn(wstCurrentUrl(row));
+      const items = chainOf(row).map(w => {
+        const h = hn(w.url);
+        const cut = !!(w.cut301 && w.cut301.length && !(w.is301 && w.sourceUrl));
+        const kind = w.id === row.id ? 'goc' : w.is301 ? '301' : 'khac';
+        return { w, h, kind, run: h === run, cut, txt: fold(h + ' ' + (w.brand || '')) };
+      });
+      return { row, items, txt: fold((row.brand || '') + ' ' + teamOf(row)) };
     });
     const known = sel && websites.find(w => w.id === sel);
-    const orphan = sel && !I.member.get(sel) ? '<option value="' + sel + '" selected>' + esc(known ? hn(known.url) + ' (không thuộc web nào trong bảng)' : (opts && opts.wurl ? hn(opts.wurl) : '#' + sel) + ' (đã xoá)') + '</option>' : '';
-    return '<option value="">— chọn web nhận dịch vụ —</option>' + orphan + groups.join('');
+    const orphan = sel && !I.member.get(sel) ? { id: sel, label: known ? hn(known.url) + ' (không thuộc web nào trong bảng)' : (opts && opts.wurl ? hn(opts.wurl) : '#' + sel) + ' (đã xoá)' } : null;
+    const F = { q: '', f: '', cur: sel || 0, act: -1 };
+    const labelOf = id => {
+      if (orphan && orphan.id === id) return orphan.label;
+      for (const g of groups) for (const it of g.items) if (it.w.id === id) return it.h + ' · ' + (it.kind === 'goc' ? 'web gốc' : it.kind === '301' ? 'web 301' : 'web cũ') + (it.run ? ' · đang chạy' : '') + '  —  ' + (g.row.brand || '');
+      return '';
+    };
+    box.innerHTML = '<input type="hidden" data-k="wid" value="' + (F.cur || '') + '">'
+      + '<button type="button" class="bud-pk-btn" data-pk="btn"></button>'
+      + '<div class="bud-pk-pop" data-pk="pop" style="display:none"><input class="bud-pk-q" data-pk="q" placeholder="🔍 Gõ brand / domain / team… (không cần dấu)" autocomplete="off">'
+      + '<div class="bud-chips" data-pk="chips">' + [['', 'Tất cả'], ['run', 'Đang chạy'], ['goc', 'Web gốc'], ['301', 'Web 301']].map(x => '<button type="button" data-pf="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>'
+      + '<div class="bud-pk-list" data-pk="list"></div><div class="bud-pk-foot" data-pk="foot"></div></div>';
+    const $ = k => box.querySelector('[data-pk="' + k + '"]');
+    const hid = box.querySelector('[data-k="wid"]');
+    const btn = $('btn'), pop = $('pop'), qi = $('q'), list = $('list');
+    const mark = (t, toks) => {
+      let out = esc(t);
+      toks.forEach(k => {
+        const f = fold(t), i = f.indexOf(k);
+        if (i >= 0 && k) out = out.replace(esc(t.slice(i, i + k.length)), m => '<mark>' + m + '</mark>');
+      });
+      return out;
+    };
+    const paintBtn = () => { btn.innerHTML = F.cur ? esc(labelOf(F.cur)) : '<span class="bud-m">— chọn web nhận dịch vụ —</span>'; };
+    let vis = [];
+    const paint = () => {
+      const toks = fold(F.q).split(/\s+/).filter(Boolean);
+      let html = '', n = 0;
+      vis = [];
+      if (orphan && !toks.length && !F.f) { vis.push(orphan.id); html += '<div class="bud-pk-it" data-id="' + orphan.id + '">' + esc(orphan.label) + '</div>'; n++; }
+      groups.forEach(g => {
+        const its = g.items.filter(it => (!F.f || (F.f === 'run' ? it.run : it.kind === F.f)) && toks.every(k => it.txt.includes(k) || g.txt.includes(k)));
+        if (!its.length) return;
+        html += '<div class="bud-pk-g">' + mark(g.row.brand || '', toks) + ' <span class="bud-m">· ' + mark(hn(g.row.url), toks) + ' · ' + esc(teamOf(g.row)) + '</span></div>';
+        its.forEach(it => {
+          vis.push(it.w.id); n++;
+          html += '<div class="bud-pk-it' + (it.w.id === F.cur ? ' sel' : '') + '" data-id="' + it.w.id + '"><span>' + mark(it.h, toks) + '</span>'
+            + ' <span class="bud-pk-tag ' + it.kind + '">' + (it.kind === 'goc' ? 'web gốc' : it.kind === '301' ? 'web 301' : 'web cũ') + '</span>'
+            + (it.run ? '<span class="bud-pk-tag run">đang chạy</span>' : '') + (it.cut ? '<span class="bud-pk-tag cut">đã tắt trỏ</span>' : '') + '</div>';
+        });
+      });
+      list.innerHTML = html || '<div class="bud-m" style="padding:14px;text-align:center">Không có web nào khớp "' + esc(F.q) + '"</div>';
+      $('foot').textContent = n + ' web' + (toks.length || F.f ? ' khớp' : '') + ' · ↑↓ chọn · Enter để lấy · Esc đóng';
+      box.querySelectorAll('[data-pf]').forEach(b => b.classList.toggle('on', b.dataset.pf === F.f));
+      F.act = vis.length ? Math.max(0, Math.min(F.act, vis.length - 1)) : -1;
+      if (F.act < 0 && vis.length) F.act = Math.max(0, vis.indexOf(F.cur));
+      hl();
+    };
+    const hl = () => {
+      list.querySelectorAll('.bud-pk-it').forEach(el => el.classList.toggle('act', vis[F.act] === Number(el.dataset.id)));
+      const a = list.querySelector('.bud-pk-it.act');
+      if (a) a.scrollIntoView({ block: 'nearest' });
+    };
+    const open = () => { pop.style.display = 'block'; F.act = -1; paint(); qi.focus(); qi.select(); };
+    const close = () => { pop.style.display = 'none'; };
+    const pick = id => { F.cur = id; hid.value = id; paintBtn(); close(); btn.focus(); if (onPick) onPick(id); };
+    btn.onclick = () => (pop.style.display === 'none' ? open() : close());
+    qi.oninput = () => { F.q = qi.value; F.act = 0; paint(); };
+    qi.onkeydown = e => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); F.act = Math.min(vis.length - 1, F.act + 1); hl(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); F.act = Math.max(0, F.act - 1); hl(); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (vis[F.act]) pick(vis[F.act]); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); btn.focus(); }
+    };
+    $('chips').onclick = e => { const b = e.target.closest('[data-pf]'); if (!b) return; F.f = b.dataset.pf; F.act = 0; paint(); qi.focus(); };
+    list.onmousedown = e => { const it = e.target.closest('.bud-pk-it'); if (it) { e.preventDefault(); pick(Number(it.dataset.id)); } };
+    document.addEventListener('mousedown', function h(e) { if (!document.body.contains(box)) { document.removeEventListener('mousedown', h); return; } if (!box.contains(e.target)) close(); });
+    paintBtn();
+    return { btn, open, value: () => Number(hid.value) || 0 };
   }
 
   function orderForm(old, ctx) {
@@ -620,7 +709,7 @@
         + (ren ? '<div class="bud-m bud-s" style="margin-bottom:6px">Gia hạn đơn ' + dmy(ren.from) + ' → ' + dmy(ren.to) + ' (' + fv(ren.vnd) + '). Lưu thành đơn mới nối với đơn cũ, tiền tính vào tháng của ngày đơn.</div>' : '')
         + '<div class="g2"><div><label class="f">Loại đơn</label><select class="f" data-k="type"' + (ren ? ' disabled' : '') + '>' + TYPES.map(t => '<option value="' + t.k + '"' + (t.k === type ? ' selected' : '') + '>' + t.n + (t.k === 'textlink' ? ' (có thời hạn)' : '') + '</option>').join('') + '</select></div>'
         + '<div><label class="f">Ngày đơn (tính vào tháng)</label><input type="date" class="f" data-k="date" value="' + esc(base.date || today()) + '"></div></div>'
-        + '<label class="f">Web nhận dịch vụ (web gốc hoặc 1 web 301 trong chuỗi)</label><select class="f" data-k="wid">' + wsOptions(defWid, base) + '</select>'
+        + '<label class="f">Web nhận dịch vụ (web gốc hoặc 1 web 301 trong chuỗi)</label><div class="bud-pk" data-k="widbox"></div>'
         + '<div class="g2"><div><label class="f">Số tiền VND</label><input class="f" data-k="vnd" inputmode="decimal" placeholder="vd 1.200.000 · 1,2tr · 500k" value="' + (R.vnd ? R.vnd.toLocaleString('vi-VN') : (ren ? ren.vnd.toLocaleString('vi-VN') : '')) + '"></div><div><label class="f">hoặc USDT</label><input class="f" data-k="usdt" inputmode="decimal" placeholder="vd 45,89" value="' + (R.usdt ? String(R.usdt).replace('.', ',') : '') + '"></div></div>'
         + '<div class="bud-m bud-s" data-k="fxinfo" style="margin-top:4px">Nhập 1 ô thì ô kia tự quy đổi theo Binance P2P hôm nay. Đơn quá khứ: nhập tay cả 2 ô.</div>'
         + '<div class="bud-s" data-k="past" style="margin-top:4px;color:var(--t-warn);display:none">⚠️ Ngày đơn trước hôm nay: tỷ giá Binance là giá hôm nay, không phải giá lúc đó — nhập tay cả VND và USDT để đúng số đã trả.</div>'
@@ -629,6 +718,7 @@
         + '<div class="err" data-k="err"></div>'
         + '<div class="end"><button class="bud-btn" data-x="no">Hủy</button><button class="bud-btn pri" data-x="ok">Lưu đơn</button></div>');
       const q = k => o.querySelector('[data-k="' + k + '"]');
+      const pk = wsPicker(q('widbox'), defWid, base, () => setTimeout(() => q('vnd').focus(), 0));
       const info = q('fxinfo'), errBox = q('err');
       const show = (t, bad) => { info.innerHTML = bad ? '<span style="color:var(--t-danger)">⚠️ ' + esc(t) + '</span>' : esc(t); };
       if (old) show(R.cur && old.rate ? 'Tỷ giá đã lưu: 1 USDT = ' + rateTxt(old.rate) + '. Sửa 1 ô thì giữ ô kia (tỷ giá suy ra); xoá 1 ô để tự quy đổi theo Binance.' : '');
@@ -663,7 +753,7 @@
           if (ctx.after) ctx.after();
         } catch (e) { errBox.textContent = e.message; btn.disabled = false; }
       };
-      setTimeout(() => (old ? q('vnd') : q('wid').value ? q('vnd') : q('wid')).focus(), 30);
+      setTimeout(() => { if (old || pk.value()) q('vnd').focus(); else pk.open(); }, 30);
     }).catch(fail);
   }
 
