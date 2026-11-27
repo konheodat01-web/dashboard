@@ -840,11 +840,19 @@ select.f[data-k="st"]{font-weight:700}
   }
 
   window.addEventListener('message', e => {
-    if (e.source !== window || !e.data || (e.data.qhb !== 'list' && e.data.qhb !== 'changed')) return;
+    if (e.source !== window || !e.data || (e.data.qhb !== 'list' && e.data.qhb !== 'changed' && e.data.qhb !== 'error')) return;
+    if (e.data.qhb === 'error') {
+      QH.err = e.data.err || 'Lỗi tiện ích Quyhat';
+      const w0 = e.data.rid && QH.wait[e.data.rid];
+      if (w0) { delete QH.wait[e.data.rid]; w0(null); }
+      if (!QH.errSaid) { QH.errSaid = true; say('⚠️ ' + QH.err, '#d29922', 6000); }
+      if (document.getElementById('budQhOv') && QH.paint && !QH.clip) QH.paint();
+      return;
+    }
     QH.items = Array.isArray(e.data.items) ? e.data.items : [];
     QH.ign = e.data.ign || 0;
     QH.sync = e.data.sync || null;
-    if (e.data.err !== undefined) QH.err = e.data.err;
+    QH.err = e.data.err || '';
     qhBadge();
     const w = e.data.rid && QH.wait[e.data.rid];
     if (w) { delete QH.wait[e.data.rid]; w(QH.items); }
