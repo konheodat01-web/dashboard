@@ -7,6 +7,13 @@
     { k: 'textlink', n: 'Text link', c: 'tl' },
   ];
   const TN = Object.fromEntries(TYPES.map(t => [t.k, t]));
+  const STS = [
+    { k: 'doing', n: 'Đang thực hiện', c: 'var(--t-accent)' },
+    { k: 'fix', n: 'Đang chỉnh sửa', c: 'var(--t-warn)' },
+    { k: 'done', n: 'Done', c: 'var(--t-success)' },
+  ];
+  const SN = Object.fromEntries(STS.map(t => [t.k, t]));
+  const stOf = o => SN[o.st] ? o.st : 'doing';
   const COLS = ['dom'].concat(TYPES.map(t => t.k));
   const D = { loaded: false, loading: null, orders: [], plans: {}, me: '', grp: '', batches: [], rate: 0, rateAt: 0, err: '' };
   const U = { tab: 'web', kind: 'm', key: '' };
@@ -169,9 +176,11 @@
     const ms = new Set(msArg || months());
     const agg = new Map();
     const get = row => { if (!agg.has(row.id)) agg.set(row.id, { dom: 0, domU: 0, entity: 0, guestpost: 0, backlink: 0, blogcmt: 0, textlink: 0, total: 0, totalU: 0, tl: [], items: [] }); return agg.get(row.id); };
-    const K = { spent: 0, spentU: 0, ord: 0, ordN: 0, dom: 0, domN: 0, domDiff: 0, domBatches: 0, unused: 0, unusedN: 0, unusedU: 0, tlSoon: 0, tlExpired: 0, noRow: 0, otherAcct: 0 };
+    const K = { stDoing: 0, stFix: 0, spent: 0, spentU: 0, ord: 0, ordN: 0, dom: 0, domN: 0, domDiff: 0, domBatches: 0, unused: 0, unusedN: 0, unusedU: 0, tlSoon: 0, tlExpired: 0, noRow: 0, otherAcct: 0 };
     D.orders.forEach(o => {
       const row = orderRow(o);
+      if (stOf(o) === 'doing') K.stDoing++;
+      if (stOf(o) === 'fix') K.stFix++;
       if (o.type === 'textlink') {
         const s = tlState(o);
         if (s.k === 'soon') K.tlSoon++;
@@ -282,6 +291,12 @@
 .bud-pk-tag{font-size:10.5px;padding:0 6px;border-radius:8px;background:var(--t-muted);color:var(--t-fg-muted)}
 .bud-pk-tag.goc{color:var(--t-accent)}.bud-pk-tag.run{background:color-mix(in srgb,var(--t-success) 18%,transparent);color:var(--t-success)}.bud-pk-tag.cut{color:var(--t-danger)}
 .bud-pk-foot{font-size:11px;color:var(--t-fg-muted);padding:6px 4px 0}
+.bud-ac{position:relative}
+.bud-ac-pop{position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:6;background:var(--t-canvas);border:1px solid var(--t-border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);padding:4px;max-height:240px;overflow:auto}
+.bud-ac-it{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:13px}
+.bud-ac-it.act,.bud-ac-it:hover{background:color-mix(in srgb,var(--t-accent) 20%,transparent)}
+select.bud-st{font-size:11.5px;font-weight:600;padding:2px 4px;border:1px solid;border-radius:6px;background:var(--t-subtle);cursor:pointer;max-width:100%}
+select.bud-st option{color:var(--t-fg)}
 .bud-ic{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;font-size:12px;margin-left:4px;flex-shrink:0;cursor:help}
 .bud-ic.y{background:color-mix(in srgb,var(--t-done) 18%,transparent)}
 .bud-ic.n{background:var(--t-muted);filter:grayscale(1);opacity:.4}
@@ -418,6 +433,7 @@
       + '<div class="k"><div class="l">Đã chi ' + pLabel() + '</div><b>' + fv(K.spent) + '</b> <span class="bud-m">≈ ' + fu(K.spentU) + '</span></div>'
       + planBox + dom
       + '<div class="k cl" data-bud-a="list"><div class="l">Đơn dịch vụ</div><b>' + fv(K.ord) + '</b> <span class="bud-m">' + K.ordN + ' đơn</span></div>'
+      + (K.stFix || K.stDoing ? '<div class="k cl" data-bud-a="st"><div class="l">Đơn chưa xong (mọi kỳ)</div><b style="color:var(--t-accent)">' + K.stDoing + '</b> <span class="bud-m">đang thực hiện</span>' + (K.stFix ? ' · <b style="color:var(--t-warn)">' + K.stFix + '</b> <span class="bud-m">đang chỉnh sửa</span>' : '') + '</div>' : '')
       + tl + warn + '</div>';
   }
 
@@ -501,6 +517,7 @@
     else if (a === 'list') orderList({});
     else if (a === 'tl') orderList({ tl: true });
     else if (a === 'norow') orderList({ norow: true });
+    else if (a === 'st') orderList({ st: K_ST(), all: true });
     else if (a === 'new') orderForm(null, {});
   });
   document.addEventListener('change', e => {
@@ -547,11 +564,11 @@
 
   function itemsTable(items, actions) {
     if (!items.length) return '<div class="bud-m" style="padding:14px;text-align:center">Chưa có khoản nào</div>';
-    return '<table><colgroup><col style="width:10%"><col style="width:13%"><col style="width:33%"><col style="width:15%"><col style="width:15%"><col style="width:14%"></colgroup><thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung · web</th><th>Hạn</th><th class="r">VND / USDT</th><th></th></tr></thead><tbody>'
+    return '<table><colgroup><col style="width:8%"><col style="width:11%"><col style="width:27%"><col style="width:15%"><col style="width:12%"><col style="width:14%"><col style="width:13%"></colgroup><thead><tr><th>Ngày</th><th>Loại</th><th>Đối tác · nội dung · web</th><th>Trạng thái</th><th>Hạn</th><th class="r">VND / USDT</th><th></th></tr></thead><tbody>'
       + items.map(it => {
         if (it.kind === 'dom') {
           const x = it.x;
-          return '<tr><td>' + dm(it.date) + '</td><td><span class="bud-tag bud-t-dom">Domain</span></td><td>' + esc(x.d) + ' <span class="bud-m bud-s">· mẻ ' + tsHm(it.b.id) + ' · dùng đầu: ' + esc(x.u.h) + '</span></td><td class="bud-m">—</td><td class="r">' + fv(it.vnd) + '<span class="bud-u">' + fu(x.p) + ' · giá Kho</span></td><td class="bud-m bud-s">từ Kho domain</td></tr>';
+          return '<tr><td>' + dm(it.date) + '</td><td><span class="bud-tag bud-t-dom">Domain</span></td><td>' + esc(x.d) + ' <span class="bud-m bud-s">· mẻ ' + tsHm(it.b.id) + ' · dùng đầu: ' + esc(x.u.h) + '</span></td><td class="bud-m">—</td><td class="bud-m">—</td><td class="r">' + fv(it.vnd) + '<span class="bud-u">' + fu(x.p) + ' · giá Kho</span></td><td class="bud-m bud-s">từ Kho domain</td></tr>';
         }
         const o = it.o, T = TN[o.type];
         let exp = '<span class="bud-m">—</span>';
@@ -560,11 +577,29 @@
           exp = dm(o.from) + ' → ' + dm(o.to) + '<span class="bud-u" style="color:' + (s.k === 'expired' ? 'var(--t-danger)' : s.k === 'soon' ? 'var(--t-warn)' : 'var(--t-fg-subtle)') + '">' + (s.k === 'renewed' ? 'đã gia hạn' : s.k === 'expired' ? 'đã hết hạn ' + s.d + ' ngày' : 'còn ' + s.d + ' ngày') + '</span>';
         }
         const act = actions === false ? '' : '<button class="bud-btn xs" data-bud-edit="' + o.id + '" title="Sửa đơn">✎</button> <button class="bud-btn xs" data-bud-del="' + o.id + '" title="Xoá đơn">🗑</button>' + (o.type === 'textlink' && !isRenewed(o) ? ' <button class="bud-btn xs pri" data-bud-renew="' + o.id + '" title="Gia hạn: tạo đơn mới nối với đơn này">↻ Gia hạn</button>' : '');
-        return '<tr><td>' + dm(o.date) + '<span class="bud-u">' + o.date.slice(0, 4) + '</span></td><td><span class="bud-tag bud-t-' + T.c + '">' + T.n + '</span>' + (o.renewOf ? '<span class="bud-u">gia hạn</span>' : '') + '</td><td style="word-break:break-word">' + (esc(o.note) || '<span class="bud-m">(không ghi chú)</span>') + ' <span class="bud-m bud-s">· ' + esc(orderWsText(o)) + '</span></td><td>' + exp + '</td><td class="r">' + fv(o.vnd) + '<span class="bud-u">' + fu(o.usdt) + ' · tỷ giá ' + Math.round(o.rate).toLocaleString('vi-VN') + '</span></td><td style="white-space:nowrap">' + act + '</td></tr>';
+        return '<tr><td>' + dm(o.date) + '<span class="bud-u">' + o.date.slice(0, 4) + '</span></td><td><span class="bud-tag bud-t-' + T.c + '">' + T.n + '</span>' + (o.renewOf ? '<span class="bud-u">gia hạn</span>' : '') + '</td><td style="word-break:break-word">' + (o.ncc ? '<b>' + esc(o.ncc) + '</b>' : '<span class="bud-m">(chưa ghi đối tác)</span>') + (o.note ? ' · ' + esc(o.note) : '') + ' <span class="bud-m bud-s">· ' + esc(orderWsText(o)) + '</span></td><td>' + stCell(o) + '</td><td>' + exp + '</td><td class="r">' + fv(o.vnd) + '<span class="bud-u">' + fu(o.usdt) + ' · tỷ giá ' + Math.round(o.rate).toLocaleString('vi-VN') + '</span></td><td style="white-space:nowrap">' + act + '</td></tr>';
       }).join('') + '</tbody></table>';
   }
 
   function bindItemActions(box, after) {
+    box.addEventListener('change', async e => {
+      const sel = e.target.closest('select[data-bud-st]');
+      if (!sel) return;
+      const o = D.orders.find(x => x.id === Number(sel.dataset.budSt));
+      if (!o) return;
+      const v = sel.value;
+      let why = '';
+      if (v === 'fix') { why = await askWhy(o, o.stWhy); if (why == null) { sel.value = stOf(o); return; } }
+      sel.disabled = true;
+      try {
+        const r = await api('/api/budget/order-st', { id: o.id, st: v, why });
+        Object.assign(o, r.order);
+        if (v !== 'fix') delete o.stWhy;
+        say('✓ ' + TN[o.type].n + (o.ncc ? ' · ' + o.ncc : '') + ' → ' + SN[v].n);
+        changed();
+        if (after) after();
+      } catch (er) { sel.value = stOf(o); sel.disabled = false; fail(er); }
+    });
     box.addEventListener('click', e => {
       const b = e.target.closest('[data-bud-edit],[data-bud-del],[data-bud-renew]');
       if (!b) return;
@@ -581,6 +616,63 @@
   }
 
   function changed() { AGG = null; rerender(); refreshIcons(); }
+  function K_ST() { return AGG && AGG.K.stFix ? 'fix' : 'doing'; }
+  function stCell(o) {
+    const S0 = SN[stOf(o)];
+    return '<select class="bud-st" data-bud-st="' + o.id + '" style="color:' + S0.c + ';border-color:' + S0.c + '">' + STS.map(t => '<option value="' + t.k + '"' + (t.k === S0.k ? ' selected' : '') + '>' + t.n + '</option>').join('') + '</select>'
+      + (S0.k === 'fix' && o.stWhy ? '<span class="bud-u" style="color:var(--t-warn);white-space:normal" title="' + esc(o.stWhy) + '">✎ ' + esc(o.stWhy) + '</span>' : '');
+  }
+  function askWhy(o, cur) {
+    return new Promise(res => {
+      const d = ov('budWhyOv', 440, '<h3>Đang chỉnh sửa — lý do</h3><div class="bud-m bud-s">' + esc(TN[o.type].n + (o.ncc ? ' · ' + o.ncc : '') + ' · ' + fv(o.vnd) + ' · ' + dmy(o.date)) + '</div><label class="f">Lý do cần chỉnh sửa</label><textarea class="f" data-k="why" rows="3" maxlength="500" placeholder="vd: link sai anchor, bài chưa index, đối tác gửi sai web…">' + esc(cur || '') + '</textarea><div class="err" data-k="err"></div><div class="end"><button class="bud-btn" data-x="no">Hủy</button><button class="bud-btn pri" data-x="ok">Lưu</button></div>');
+      d.style.zIndex = 100040;
+      const ta = d.querySelector('[data-k="why"]');
+      let done = false;
+      const fin = v => { if (done) return; done = true; d.remove(); res(v); };
+      d.querySelector('[data-x="no"]').onclick = () => fin(null);
+      d.querySelector('[data-x="ok"]').onclick = () => { const v = ta.value.trim(); if (!v) { d.querySelector('[data-k="err"]').textContent = 'Nhập lý do'; ta.focus(); return; } fin(v); };
+      ta.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) d.querySelector('[data-x="ok"]').click(); };
+      new MutationObserver((_, mo) => { if (!document.body.contains(d)) { mo.disconnect(); fin(null); } }).observe(document.body, { childList: true });
+      setTimeout(() => ta.focus(), 20);
+    });
+  }
+  function nccList() {
+    const m = new Map();
+    D.orders.slice().sort((a, b) => (a.at || a.id) - (b.at || b.id)).forEach(o => {
+      const n = String(o.ncc || '').trim();
+      if (!n) return;
+      const k = fold(n);
+      const x = m.get(k) || { n, c: 0, last: 0 };
+      x.n = n; x.c++; x.last = Math.max(x.last, o.at || o.id);
+      m.set(k, x);
+    });
+    return [...m.values()].sort((a, b) => b.last - a.last);
+  }
+  function bindSuggest(inp, pop) {
+    const all = nccList();
+    let vis = [], act = -1;
+    const paint = () => {
+      const k = fold(inp.value.trim());
+      vis = all.filter(x => !k || fold(x.n).includes(k)).filter(x => fold(x.n) !== k).slice(0, 8);
+      if (!vis.length) { pop.style.display = 'none'; return; }
+      act = Math.min(act, vis.length - 1);
+      pop.innerHTML = vis.map((x, i) => '<div class="bud-ac-it' + (i === act ? ' act' : '') + '" data-i="' + i + '"><span>' + esc(x.n) + '</span><span class="bud-m bud-s">' + x.c + ' đơn</span></div>').join('');
+      pop.style.display = 'block';
+    };
+    const pick = i => { if (!vis[i]) return; inp.value = vis[i].n; pop.style.display = 'none'; act = -1; };
+    inp.addEventListener('focus', () => { act = -1; paint(); });
+    inp.addEventListener('input', () => { act = inp.value.trim() ? 0 : -1; paint(); });
+    inp.addEventListener('blur', () => setTimeout(() => { pop.style.display = 'none'; }, 120));
+    inp.addEventListener('keydown', e => {
+      if (pop.style.display === 'none') return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); act = Math.min(vis.length - 1, act + 1); paint(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); act = Math.max(0, act - 1); paint(); }
+      else if (e.key === 'Enter' && act >= 0) { e.preventDefault(); pick(act); }
+      else if (e.key === 'Tab' && act >= 0 && inp.value.trim()) { pick(act); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); pop.style.display = 'none'; }
+    });
+    pop.addEventListener('mousedown', e => { const it = e.target.closest('[data-i]'); if (it) { e.preventDefault(); pick(Number(it.dataset.i)); } });
+  }
 
   function detail(row, k) {
     let filt = k || '';
@@ -703,21 +795,25 @@
     ensure().then(() => {
       buildIdx();
       const ren = ctx.renew;
-      const base = old || (ren ? { type: 'textlink', wid: ren.wid, wurl: ren.wurl, vnd: ren.vnd, note: ren.note, from: ren.to, to: addDays(ren.to, dayDiff(ren.from, ren.to) || 30), date: ren.to > today() ? ren.to : today() } : null) || {};
+      const base = old || (ren ? { type: 'textlink', wid: ren.wid, wurl: ren.wurl, vnd: ren.vnd, ncc: ren.ncc, note: ren.note, from: ren.to, to: addDays(ren.to, dayDiff(ren.from, ren.to) || 30), date: ren.to > today() ? ren.to : today() } : null) || {};
       let defWid = base.wid || 0;
       if (!defWid && ctx.row) { const ch = chainOf(ctx.row); const cur = ch.find(w => hn(w.url) === hn(wstCurrentUrl(ctx.row))); defWid = (cur || ctx.row).id; }
-      const type = base.type || 'entity';
+      const type = base.type || '';
+      const st0 = old ? stOf(old) : 'doing';
       const R = { rate: old ? old.rate : 0, cur: old ? old.cur : 'vnd', vnd: old ? old.vnd : 0, usdt: old ? old.usdt : 0, seq: 0, man: { vnd: !!old, usdt: !!old } };
       const o = ov('budOrderOv', 620, '<h3>' + (old ? '✎ Sửa đơn' : ren ? '↻ Gia hạn text link' : '＋ Tạo đơn dịch vụ') + '</h3>'
         + (ren ? '<div class="bud-m bud-s" style="margin-bottom:6px">Gia hạn đơn ' + dmy(ren.from) + ' → ' + dmy(ren.to) + ' (' + fv(ren.vnd) + '). Lưu thành đơn mới nối với đơn cũ, tiền tính vào tháng của ngày đơn.</div>' : '')
-        + '<div class="g2"><div><label class="f">Loại đơn</label><select class="f" data-k="type"' + (ren ? ' disabled' : '') + '>' + TYPES.map(t => '<option value="' + t.k + '"' + (t.k === type ? ' selected' : '') + '>' + t.n + (t.k === 'textlink' ? ' (có thời hạn)' : '') + '</option>').join('') + '</select></div>'
+        + '<div class="g2"><div><label class="f">Loại đơn</label><select class="f" data-k="type"' + (ren ? ' disabled' : '') + '><option value="">— chọn loại dịch vụ —</option>' + TYPES.map(t => '<option value="' + t.k + '"' + (t.k === type ? ' selected' : '') + '>' + t.n + (t.k === 'textlink' ? ' (có thời hạn)' : '') + '</option>').join('') + '</select></div>'
         + '<div><label class="f">Ngày đơn (tính vào tháng)</label><input type="date" class="f" data-k="date" value="' + esc(base.date || today()) + '"></div></div>'
         + '<label class="f">Web nhận dịch vụ (web gốc hoặc 1 web 301 trong chuỗi)</label><div class="bud-pk" data-k="widbox"></div>'
         + '<div class="g2"><div><label class="f">Số tiền VND</label><input class="f" data-k="vnd" inputmode="decimal" placeholder="vd 1.200.000 · 1,2tr · 500k" value="' + (R.vnd ? R.vnd.toLocaleString('vi-VN') : (ren ? ren.vnd.toLocaleString('vi-VN') : '')) + '"></div><div><label class="f">hoặc USDT</label><input class="f" data-k="usdt" inputmode="decimal" placeholder="vd 45,89" value="' + (R.usdt ? String(R.usdt).replace('.', ',') : '') + '"></div></div>'
         + '<div class="bud-m bud-s" data-k="fxinfo" style="margin-top:4px">Nhập 1 ô thì ô kia tự quy đổi theo Binance P2P hôm nay. Đơn quá khứ: nhập tay cả 2 ô.</div>'
         + '<div class="bud-s" data-k="past" style="margin-top:4px;color:var(--t-warn);display:none">⚠️ Ngày đơn trước hôm nay: tỷ giá Binance là giá hôm nay, không phải giá lúc đó — nhập tay cả VND và USDT để đúng số đã trả.</div>'
         + '<div class="g2" data-k="tlbox" style="' + (type === 'textlink' ? '' : 'display:none') + '"><div><label class="f">Từ ngày</label><input type="date" class="f" data-k="from" value="' + esc(base.from || today()) + '"></div><div><label class="f">Đến ngày (hết hạn)</label><input type="date" class="f" data-k="to" value="' + esc(base.to || addDays(today(), 30)) + '"></div></div>'
-        + '<label class="f">Nhà cung cấp / ghi chú</label><input class="f" data-k="note" maxlength="500" value="' + esc(base.note || '') + '">'
+        + '<div class="g2"><div><label class="f">Đối tác</label><div class="bud-ac"><input class="f" data-k="ncc" maxlength="120" autocomplete="off" placeholder="gõ vài chữ là gợi ý tên đã dùng" value="' + esc(base.ncc || '') + '"><div class="bud-ac-pop" data-k="nccpop" style="display:none"></div></div></div>'
+        + '<div><label class="f">Trạng thái đơn</label><select class="f" data-k="st">' + STS.map(t => '<option value="' + t.k + '"' + (t.k === st0 ? ' selected' : '') + '>' + t.n + '</option>').join('') + '</select></div></div>'
+        + '<div data-k="whybox" style="' + (st0 === 'fix' ? '' : 'display:none') + '"><label class="f">Lý do đang chỉnh sửa</label><input class="f" data-k="stWhy" maxlength="500" placeholder="vd: link sai anchor, bài chưa index…" value="' + esc(old && old.stWhy || '') + '"></div>'
+        + '<label class="f">Ghi chú / nội dung đơn</label><input class="f" data-k="note" maxlength="500" placeholder="vd: 120 entity, 3 bài DR40…" value="' + esc(base.note || '') + '">'
         + '<div class="err" data-k="err"></div>'
         + '<div class="end"><button class="bud-btn" data-x="no">Hủy</button><button class="bud-btn pri" data-x="ok">Lưu đơn</button></div>');
       const q = k => o.querySelector('[data-k="' + k + '"]');
@@ -725,7 +821,9 @@
       const info = q('fxinfo'), errBox = q('err');
       const show = (t, bad) => { info.innerHTML = bad ? '<span style="color:var(--t-danger)">⚠️ ' + esc(t) + '</span>' : esc(t); };
       if (old) show(R.cur && old.rate ? 'Tỷ giá đã lưu: 1 USDT = ' + rateTxt(old.rate) + '. Sửa 1 ô thì giữ ô kia (tỷ giá suy ra); xoá 1 ô để tự quy đổi theo Binance.' : '');
-      q('type').onchange = () => { q('tlbox').style.display = q('type').value === 'textlink' ? '' : 'none'; };
+      q('type').onchange = () => { q('tlbox').style.display = q('type').value === 'textlink' ? '' : 'none'; q('type').style.borderColor = ''; };
+      q('st').onchange = () => { q('whybox').style.display = q('st').value === 'fix' ? '' : 'none'; if (q('st').value === 'fix') q('stWhy').focus(); };
+      bindSuggest(q('ncc'), q('nccpop'));
       const pastChk = () => { q('past').style.display = q('date').value && q('date').value < today() && !(R.man.vnd && R.man.usdt) ? '' : 'none'; };
       q('date').oninput = pastChk;
       q('date').onchange = pastChk;
@@ -738,7 +836,9 @@
         if (R.seq && !R.rate) { errBox.textContent = 'Đang lấy tỷ giá, đợi 1 giây rồi bấm Lưu lại'; return; }
         const wid = Number(q('wid').value);
         const w = websites.find(x => x.id === wid);
-        const body = { id: old ? old.id : 0, type: ren ? 'textlink' : q('type').value, date: q('date').value, wid, wurl: w ? w.url : (base.wurl || ''), vnd: R.vnd, usdt: R.usdt, rate: R.rate, cur: R.cur, note: q('note').value.trim() };
+        const body = { id: old ? old.id : 0, type: ren ? 'textlink' : q('type').value, date: q('date').value, wid, wurl: w ? w.url : (base.wurl || ''), vnd: R.vnd, usdt: R.usdt, rate: R.rate, cur: R.cur, note: q('note').value.trim(), ncc: q('ncc').value.trim(), st: q('st').value, stWhy: q('st').value === 'fix' ? q('stWhy').value.trim() : '' };
+        if (!body.type) { errBox.textContent = '⚠️ Chưa chọn loại dịch vụ — không tạo được đơn'; q('type').style.borderColor = 'var(--t-danger)'; q('type').focus(); return; }
+        if (body.st === 'fix' && !body.stWhy) { errBox.textContent = '⚠️ Đang chỉnh sửa thì phải nhập lý do'; q('stWhy').focus(); return; }
         if (body.type === 'textlink') { body.from = q('from').value; body.to = q('to').value; }
         if (ren) body.renewOf = ren.id;
         else if (old && old.renewOf) body.renewOf = old.renewOf;
@@ -762,26 +862,28 @@
 
   function orderList(f) {
     ensure().then(() => {
-      let type = '', tlOnly = !!f.tl, noRow = !!f.norow, qtxt = '', all = !!f.tl;
+      let type = '', tlOnly = !!f.tl, noRow = !!f.norow, qtxt = '', all = !!f.tl || !!f.all, stf = f.st || '';
       const o = ov('budListOv', 980, '');
       const box = o.querySelector('.bud-dlg');
       const paint = () => {
         compute();
         const ms = new Set(months());
-        const t = qtxt.toLowerCase();
+        const toks = fold(qtxt).split(/\s+/).filter(Boolean);
         const list = D.orders.filter(x => (all || ms.has(x.date.slice(0, 7)))
           && (!type || x.type === type)
+          && (!stf || stOf(x) === stf)
           && (!tlOnly || (x.type === 'textlink' && ['soon', 'expired'].includes(tlState(x).k)))
           && (!noRow || !orderRow(x))
-          && (!t || (x.note || '').toLowerCase().includes(t) || orderWsText(x).includes(t) || String((orderRow(x) || {}).brand || '').toLowerCase().includes(t)))
+          && toks.every(k => fold([x.ncc, x.note, x.stWhy, orderWsText(x), (orderRow(x) || {}).brand, TN[x.type].n].join(' ')).includes(k)))
           .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const sum = list.reduce((s, x) => s + x.vnd, 0);
         box.innerHTML = '<h3>📃 Danh sách đơn — ' + (all ? 'mọi kỳ' : pLabel()) + ' <span class="bud-m bud-s" style="font-weight:400">' + list.length + ' đơn · ' + fv(sum) + '</span></h3>'
-          + '<div class="row" style="margin-bottom:4px"><input class="f" data-k="q" placeholder="🔍 Tìm ghi chú / web / brand" value="' + esc(qtxt) + '" style="width:240px;padding:5px 8px;border:1px solid var(--t-border);border-radius:6px;background:var(--t-subtle);color:var(--t-fg)">'
+          + '<div class="row" style="margin-bottom:4px"><input class="f" data-k="q" placeholder="🔍 Tìm đối tác / ghi chú / web / brand" value="' + esc(qtxt) + '" style="width:240px;padding:5px 8px;border:1px solid var(--t-border);border-radius:6px;background:var(--t-subtle);color:var(--t-fg)">'
           + '<label class="bud-s"><input type="checkbox" data-k="all"' + (all ? ' checked' : '') + '> mọi kỳ</label>'
           + '<label class="bud-s"><input type="checkbox" data-k="tl"' + (tlOnly ? ' checked' : '') + '> chỉ text link sắp / đã hết hạn</label>'
           + '<label class="bud-s"><input type="checkbox" data-k="nr"' + (noRow ? ' checked' : '') + '> chỉ đơn không khớp web</label></div>'
-          + '<div class="bud-chips">' + [['', 'Tất cả']].concat(TYPES.map(x => [x.k, x.n])).map(x => '<button type="button" data-f="' + x[0] + '" class="' + (type === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>'
+          + '<div class="bud-chips">' + [['', 'Mọi loại']].concat(TYPES.map(x => [x.k, x.n])).map(x => '<button type="button" data-f="' + x[0] + '" class="' + (type === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>'
+          + '<div class="bud-chips">' + [['', 'Mọi trạng thái']].concat(STS.map(x => [x.k, x.n])).map(x => '<button type="button" data-sf="' + x[0] + '" class="' + (stf === x[0] ? 'on' : '') + '">' + x[1] + ' · ' + D.orders.filter(o => (all || ms.has(o.date.slice(0, 7))) && (!x[0] || stOf(o) === x[0])).length + '</button>').join('') + '</div>'
           + itemsTable(list.map(x => ({ kind: 'order', o: x, date: x.date })))
           + '<div class="end"><button class="bud-btn" data-x="close">Đóng</button><button class="bud-btn pri" data-x="new">＋ Tạo đơn</button></div>';
         const qi = box.querySelector('[data-k="q"]');
@@ -794,6 +896,8 @@
       box.addEventListener('click', e => {
         const fb = e.target.closest('[data-f]');
         if (fb) { type = fb.dataset.f; paint(); return; }
+        const sb = e.target.closest('[data-sf]');
+        if (sb) { stf = sb.dataset.sf; paint(); return; }
         const x = e.target.closest('[data-x]');
         if (!x) return;
         if (x.dataset.x === 'close') o.remove(); else orderForm(null, { after: paint });
@@ -979,7 +1083,7 @@
       if (!list.length) return true;
       return new Promise(res => {
         const o = ov('budCutOv', 460, '<h3 style="color:var(--t-danger)">⚠️ Web này đang có dịch vụ</h3><div>Tắt trỏ &amp; xóa src <b>' + esc(host) + '</b> sẽ mất giá trị của:</div><ul style="margin:6px 0 0 18px;padding:0">'
-          + list.map(x => '<li>' + TN[x.type].n + (x.note ? ' · ' + esc(x.note) : '') + ' · ' + fv(x.vnd) + ' · ' + (x.type === 'textlink' ? '<span style="color:var(--t-warn)">hết hạn ' + dmy(x.to) + '</span>' : dmy(x.date)) + '</li>').join('')
+          + list.map(x => '<li>' + TN[x.type].n + (x.ncc ? ' · <b>' + esc(x.ncc) + '</b>' : '') + (x.note ? ' · ' + esc(x.note) : '') + ' · ' + fv(x.vnd) + ' · ' + (x.type === 'textlink' ? '<span style="color:var(--t-warn)">hết hạn ' + dmy(x.to) + '</span>' : dmy(x.date)) + '</li>').join('')
           + '</ul><div class="end"><button class="bud-btn" data-x="no">Bỏ tick</button><button class="bud-btn bad" data-x="ok">Vẫn tắt trỏ &amp; xóa src</button></div>');
         o.style.zIndex = 100030;
         let done = false;
