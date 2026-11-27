@@ -493,6 +493,44 @@
     if (e.target && e.target.id === 'budPeriod') { U.key = e.target.value; rerender(); }
   });
 
+  const rateTxt = r => Math.round(r).toLocaleString('vi-VN') + 'đ';
+  function bindMoney(get, R, show, after) {
+    let tm = null;
+    const val = k => k === 'vnd' ? parseVnd(get(k).value) : parseUsdt(get(k).value);
+    const conv = (k, o, v) => {
+      R.rate = 0;
+      show('⏳ Đang lấy tỷ giá Binance P2P…');
+      const seq = R.seq;
+      tm = setTimeout(() => fx(k, v).then(r => {
+        if (seq !== R.seq) return;
+        R.rate = r.rate; R.vnd = r.vnd; R.usdt = r.usdt; R.cur = k;
+        get(o).value = k === 'vnd' ? String(r.usdt).replace('.', ',') : r.vnd.toLocaleString('vi-VN');
+        show('Tỷ giá Binance P2P: 1 USDT = ' + rateTxt(r.rate) + ' (' + (k === 'vnd' ? 'mua USDT bằng VND' : 'bán USDT lấy VND') + '). Đơn quá khứ thì nhập tay cả 2 ô để đúng số đã trả.');
+        after();
+      }).catch(e => { if (seq === R.seq) show(e.message, true); }), 450);
+    };
+    const on = k => {
+      const o = k === 'vnd' ? 'usdt' : 'vnd';
+      R.man[k] = !!get(k).value.trim();
+      clearTimeout(tm);
+      R.seq++;
+      if (R.man[k] && R.man[o]) {
+        R.vnd = val('vnd'); R.usdt = val('usdt'); R.cur = k;
+        R.rate = R.vnd && R.usdt ? Math.round(R.vnd / R.usdt * 100) / 100 : 0;
+        show(R.rate ? 'Nhập tay cả 2 ô (không theo Binance): 1 USDT = ' + rateTxt(R.rate) + '. Xoá 1 ô để tự quy đổi lại.' : 'Số tiền chưa hợp lệ', !R.rate);
+        after();
+        return;
+      }
+      const src = R.man[k] ? k : o;
+      const v = R.man[src] ? val(src) : 0;
+      if (!v) { if (!R.man[o]) get(o).value = ''; R.vnd = R.usdt = R.rate = 0; show('Nhập 1 ô thì ô kia tự quy đổi theo Binance P2P hôm nay. Đơn quá khứ: nhập tay cả 2 ô.'); after(); return; }
+      conv(src, src === 'vnd' ? 'usdt' : 'vnd', v);
+    };
+    get('vnd').oninput = () => on('vnd');
+    get('usdt').oninput = () => on('usdt');
+    return on;
+  }
+
   function itemsTable(items, actions) {
     if (!items.length) return '<div class="bud-m" style="padding:14px;text-align:center">Chưa có khoản nào</div>';
     return '<table><colgroup><col style="width:10%"><col style="width:13%"><col style="width:33%"><col style="width:15%"><col style="width:15%"><col style="width:14%"></colgroup><thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung · web</th><th>Hạn</th><th class="r">VND / USDT</th><th></th></tr></thead><tbody>'
@@ -577,44 +615,30 @@
       let defWid = base.wid || 0;
       if (!defWid && ctx.row) { const ch = chainOf(ctx.row); const cur = ch.find(w => hn(w.url) === hn(wstCurrentUrl(ctx.row))); defWid = (cur || ctx.row).id; }
       const type = base.type || 'entity';
-      const R = { rate: old ? old.rate : 0, cur: old ? old.cur : 'vnd', vnd: old ? old.vnd : 0, usdt: old ? old.usdt : 0, seq: 0 };
+      const R = { rate: old ? old.rate : 0, cur: old ? old.cur : 'vnd', vnd: old ? old.vnd : 0, usdt: old ? old.usdt : 0, seq: 0, man: { vnd: !!old, usdt: !!old } };
       const o = ov('budOrderOv', 620, '<h3>' + (old ? '✎ Sửa đơn' : ren ? '↻ Gia hạn text link' : '＋ Tạo đơn dịch vụ') + '</h3>'
         + (ren ? '<div class="bud-m bud-s" style="margin-bottom:6px">Gia hạn đơn ' + dmy(ren.from) + ' → ' + dmy(ren.to) + ' (' + fv(ren.vnd) + '). Lưu thành đơn mới nối với đơn cũ, tiền tính vào tháng của ngày đơn.</div>' : '')
         + '<div class="g2"><div><label class="f">Loại đơn</label><select class="f" data-k="type"' + (ren ? ' disabled' : '') + '>' + TYPES.map(t => '<option value="' + t.k + '"' + (t.k === type ? ' selected' : '') + '>' + t.n + (t.k === 'textlink' ? ' (có thời hạn)' : '') + '</option>').join('') + '</select></div>'
         + '<div><label class="f">Ngày đơn (tính vào tháng)</label><input type="date" class="f" data-k="date" value="' + esc(base.date || today()) + '"></div></div>'
         + '<label class="f">Web nhận dịch vụ (web gốc hoặc 1 web 301 trong chuỗi)</label><select class="f" data-k="wid">' + wsOptions(defWid, base) + '</select>'
         + '<div class="g2"><div><label class="f">Số tiền VND</label><input class="f" data-k="vnd" inputmode="decimal" placeholder="vd 1.200.000 · 1,2tr · 500k" value="' + (R.vnd ? R.vnd.toLocaleString('vi-VN') : (ren ? ren.vnd.toLocaleString('vi-VN') : '')) + '"></div><div><label class="f">hoặc USDT</label><input class="f" data-k="usdt" inputmode="decimal" placeholder="vd 45,89" value="' + (R.usdt ? String(R.usdt).replace('.', ',') : '') + '"></div></div>'
-        + '<div class="bud-m bud-s" data-k="fxinfo" style="margin-top:4px">Nhập 1 ô, ô kia tự quy đổi theo giá Binance P2P lúc ghi đơn. Đơn lưu cả 2 số + tỷ giá, sau này không đổi theo giá mới.</div>'
+        + '<div class="bud-m bud-s" data-k="fxinfo" style="margin-top:4px">Nhập 1 ô thì ô kia tự quy đổi theo Binance P2P hôm nay. Đơn quá khứ: nhập tay cả 2 ô.</div>'
+        + '<div class="bud-s" data-k="past" style="margin-top:4px;color:var(--t-warn);display:none">⚠️ Ngày đơn trước hôm nay: tỷ giá Binance là giá hôm nay, không phải giá lúc đó — nhập tay cả VND và USDT để đúng số đã trả.</div>'
         + '<div class="g2" data-k="tlbox" style="' + (type === 'textlink' ? '' : 'display:none') + '"><div><label class="f">Từ ngày</label><input type="date" class="f" data-k="from" value="' + esc(base.from || today()) + '"></div><div><label class="f">Đến ngày (hết hạn)</label><input type="date" class="f" data-k="to" value="' + esc(base.to || addDays(today(), 30)) + '"></div></div>'
         + '<label class="f">Nhà cung cấp / ghi chú</label><input class="f" data-k="note" maxlength="500" value="' + esc(base.note || '') + '">'
         + '<div class="err" data-k="err"></div>'
         + '<div class="end"><button class="bud-btn" data-x="no">Hủy</button><button class="bud-btn pri" data-x="ok">Lưu đơn</button></div>');
       const q = k => o.querySelector('[data-k="' + k + '"]');
       const info = q('fxinfo'), errBox = q('err');
-      const showRate = () => { info.textContent = R.rate ? 'Tỷ giá Binance P2P: 1 USDT = ' + Math.round(R.rate).toLocaleString('vi-VN') + 'đ (' + (R.cur === 'vnd' ? 'mua USDT bằng VND' : 'bán USDT lấy VND') + '). Đơn lưu cả 2 số + tỷ giá này.' : 'Nhập 1 ô, ô kia tự quy đổi theo giá Binance P2P lúc ghi đơn.'; };
-      if (old) showRate();
+      const show = (t, bad) => { info.innerHTML = bad ? '<span style="color:var(--t-danger)">⚠️ ' + esc(t) + '</span>' : esc(t); };
+      if (old) show(R.cur && old.rate ? 'Tỷ giá đã lưu: 1 USDT = ' + rateTxt(old.rate) + '. Sửa 1 ô thì giữ ô kia (tỷ giá suy ra); xoá 1 ô để tự quy đổi theo Binance.' : '');
       q('type').onchange = () => { q('tlbox').style.display = q('type').value === 'textlink' ? '' : 'none'; };
-      let tm = null;
-      const conv = from => {
-        R.cur = from;
-        const raw = q(from).value;
-        const v = from === 'vnd' ? parseVnd(raw) : parseUsdt(raw);
-        const other = q(from === 'vnd' ? 'usdt' : 'vnd');
-        clearTimeout(tm);
-        R.rate = 0;
-        if (!v) { other.value = ''; R.vnd = 0; R.usdt = 0; showRate(); return; }
-        info.textContent = '⏳ Đang lấy tỷ giá Binance P2P…';
-        const seq = ++R.seq;
-        tm = setTimeout(() => fx(from, v).then(r => {
-          if (seq !== R.seq) return;
-          R.rate = r.rate; R.vnd = r.vnd; R.usdt = r.usdt;
-          other.value = from === 'vnd' ? String(r.usdt).replace('.', ',') : r.vnd.toLocaleString('vi-VN');
-          showRate();
-        }).catch(e => { if (seq === R.seq) info.innerHTML = '<span style="color:var(--t-danger)">⚠️ ' + esc(e.message) + '</span>'; }), 450);
-      };
-      q('vnd').oninput = () => conv('vnd');
-      q('usdt').oninput = () => conv('usdt');
-      if (ren) conv('vnd');
+      const pastChk = () => { q('past').style.display = q('date').value && q('date').value < today() && !(R.man.vnd && R.man.usdt) ? '' : 'none'; };
+      q('date').oninput = pastChk;
+      q('date').onchange = pastChk;
+      const on = bindMoney(q, R, show, pastChk);
+      pastChk();
+      if (ren) { R.man.vnd = true; on('vnd'); }
       o.querySelector('[data-x="no"]').onclick = () => o.remove();
       o.querySelector('[data-x="ok"]').onclick = async () => {
         errBox.textContent = '';
@@ -767,11 +791,11 @@
     ensure().then(() => {
       const b = D.batches.find(x => x.id === id && x.grp === g);
       if (!b) return fail('Không thấy mẻ này');
-      const R = { rate: b.real ? b.real.rate : 0, cur: b.real ? b.real.cur : 'usdt', vnd: b.real ? b.real.vnd : 0, usdt: b.real ? b.real.usdt : 0, seq: 0 };
+      const R = { rate: b.real ? b.real.rate : 0, cur: b.real ? b.real.cur : 'usdt', vnd: b.real ? b.real.vnd : 0, usdt: b.real ? b.real.usdt : 0, seq: 0, man: { vnd: !!b.real, usdt: !!b.real } };
       const o = ov('budBpOv', 520, '<h3>✎ Giá thực tế · mẻ ' + tsHm(b.id) + ' · nhóm ' + esc(g || '—') + '</h3>'
         + '<div class="bud-m bud-s">' + b.ds.length + ' domain Mua DONE · giá gửi ' + fu(b.est) + (D.rate ? ' ≈ ' + fv(b.est * D.rate) : '') + '. Không tính domain Không mua được.</div>'
         + '<div class="g2"><div><label class="f">Giá thực tế USDT</label><input class="f" data-k="usdt" inputmode="decimal" value="' + (R.usdt ? String(R.usdt).replace('.', ',') : '') + '" placeholder="vd ' + String(b.est).replace('.', ',') + '"></div><div><label class="f">hoặc VND</label><input class="f" data-k="vnd" inputmode="decimal" value="' + (R.vnd ? R.vnd.toLocaleString('vi-VN') : '') + '"></div></div>'
-        + '<div class="bud-m bud-s" data-k="info" style="margin-top:4px">' + (b.real ? 'Tỷ giá đã lưu: ' + Math.round(b.real.rate).toLocaleString('vi-VN') + 'đ' : 'Nhập 1 ô, ô kia tự quy đổi theo Binance P2P.') + '</div>'
+        + '<div class="bud-m bud-s" data-k="info" style="margin-top:4px">' + (b.real ? 'Tỷ giá đã lưu: 1 USDT = ' + rateTxt(b.real.rate) + '. Sửa 1 ô thì giữ ô kia (tỷ giá suy ra); xoá 1 ô để tự quy đổi theo Binance.' : 'Nhập tay cả USDT và VND đã trả thì không phụ thuộc tỷ giá. Chỉ nhập 1 ô thì ô kia quy đổi theo Binance P2P hôm nay.') + '</div>'
         + '<div class="bud-m bud-s" data-k="diff" style="margin-top:4px"></div>'
         + '<label class="f">Ghi chú</label><input class="f" data-k="note" value="' + esc(b.real ? b.real.note : '') + '">'
         + '<div class="err" data-k="err"></div>'
@@ -783,26 +807,7 @@
         q('diff').innerHTML = Math.abs(du) < 0.005 ? 'Khớp giá gửi' : '<span style="color:' + (dv > 0 ? 'var(--t-danger)' : 'var(--t-success)') + '">' + (dv > 0 ? 'Phát sinh +' : 'Chiết khấu −') + fu(Math.abs(du)) + ' (' + fv(Math.abs(dv)) + ')</span> — chỉ cộng vào tổng tháng ' + mLabel(monOf(b.id));
       };
       showDiff();
-      let tm = null;
-      const conv = from => {
-        R.cur = from;
-        const v = from === 'vnd' ? parseVnd(q('vnd').value) : parseUsdt(q('usdt').value);
-        const other = q(from === 'vnd' ? 'usdt' : 'vnd');
-        clearTimeout(tm);
-        R.rate = 0;
-        if (!v) { other.value = ''; R.vnd = 0; R.usdt = 0; showDiff(); return; }
-        q('info').textContent = '⏳ Đang lấy tỷ giá Binance P2P…';
-        const seq = ++R.seq;
-        tm = setTimeout(() => fx(from, v).then(r => {
-          if (seq !== R.seq) return;
-          R.rate = r.rate; R.vnd = r.vnd; R.usdt = r.usdt;
-          other.value = from === 'vnd' ? String(r.usdt).replace('.', ',') : r.vnd.toLocaleString('vi-VN');
-          q('info').textContent = 'Tỷ giá Binance P2P: 1 USDT = ' + Math.round(r.rate).toLocaleString('vi-VN') + 'đ';
-          showDiff();
-        }).catch(e => { if (seq === R.seq) q('info').innerHTML = '<span style="color:var(--t-danger)">⚠️ ' + esc(e.message) + '</span>'; }), 450);
-      };
-      q('usdt').oninput = () => conv('usdt');
-      q('vnd').oninput = () => conv('vnd');
+      bindMoney(q, R, (t, bad) => { q('info').innerHTML = bad ? '<span style="color:var(--t-danger)">⚠️ ' + esc(t) + '</span>' : esc(t); }, showDiff);
       o.addEventListener('click', async e => {
         const x = e.target.closest('[data-x]');
         if (!x) return;
