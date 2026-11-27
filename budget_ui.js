@@ -306,6 +306,7 @@ select.bud-st option,select.f[data-k="st"] option{color:var(--t-fg);background:v
 select.f[data-k="st"]{font-weight:700}
 .bud-chips button[data-sf] i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
 .bud-acc{font-size:11.5px;margin-top:3px;word-break:break-all}
+.bud-code{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:6px;border:1px solid var(--t-border);background:var(--t-subtle);color:var(--t-fg-muted);white-space:nowrap}
 .bud-rv{width:100%;border-collapse:collapse;font-size:12.5px}
 .bud-rv th{text-align:left;font-size:11.5px;color:var(--t-fg-muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--t-border)}
 .bud-rv td{padding:7px 8px;border-bottom:1px solid var(--t-border);vertical-align:top}
@@ -600,7 +601,7 @@ select.f[data-k="st"]{font-weight:700}
           exp = dm(o.from) + ' → ' + dm(o.to) + '<span class="bud-u" style="color:' + (s.k === 'expired' ? 'var(--t-danger)' : s.k === 'soon' ? 'var(--t-warn)' : 'var(--t-fg-subtle)') + '">' + (s.k === 'renewed' ? 'đã gia hạn' : s.k === 'expired' ? 'đã hết hạn ' + s.d + ' ngày' : 'còn ' + s.d + ' ngày') + '</span>';
         }
         const act = actions === false ? '' : '<button class="bud-btn xs" data-bud-edit="' + o.id + '" title="Sửa đơn">✎</button> <button class="bud-btn xs" data-bud-del="' + o.id + '" title="Xoá đơn">🗑</button>' + (o.type === 'textlink' && !isRenewed(o) ? ' <button class="bud-btn xs pri" data-bud-renew="' + o.id + '" title="Gia hạn: tạo đơn mới nối với đơn này">↻ Gia hạn</button>' : '');
-        return '<tr><td>' + dm(o.date) + '<span class="bud-u">' + o.date.slice(0, 4) + '</span></td><td><span class="bud-tag bud-t-' + T.c + '">' + T.n + '</span>' + (o.renewOf ? '<span class="bud-u">gia hạn</span>' : '') + (o.split ? '<span class="bud-u" title="' + esc('Tách đều từ đơn ' + fv(o.split.tv) + ' ≈ ' + fu(o.split.tu) + ' cho ' + o.split.n + ' web') + '">tách ' + o.split.i + '/' + o.split.n + ' · đơn ' + fv(o.split.tv) + '</span>' : '') + '</td><td style="word-break:break-word">' + (o.ncc ? '<b>' + esc(o.ncc) + '</b>' : '<span class="bud-m">(chưa ghi đối tác)</span>') + (o.note ? ' · ' + esc(o.note) : '') + ' <span class="bud-m bud-s">· ' + esc(orderWsText(o)) + '</span>' + accHtml(o) + '</td><td>' + stCell(o) + '</td><td>' + exp + '</td><td class="r">' + fv(o.vnd) + '<span class="bud-u">' + fu(o.usdt) + ' · tỷ giá ' + Math.round(o.rate).toLocaleString('vi-VN') + '</span></td><td style="white-space:nowrap">' + act + '</td></tr>';
+        return '<tr><td>' + dm(o.date) + '<span class="bud-u">' + o.date.slice(0, 4) + '</span></td><td><span class="bud-tag bud-t-' + T.c + '">' + T.n + '</span>' + (o.renewOf ? '<span class="bud-u">gia hạn</span>' : '') + (o.split ? '<span class="bud-u" title="' + esc('Tách đều từ đơn ' + fv(o.split.tv) + ' ≈ ' + fu(o.split.tu) + ' cho ' + o.split.n + ' web') + '">tách ' + o.split.i + '/' + o.split.n + ' · đơn ' + fv(o.split.tv) + '</span>' : '') + '</td><td style="word-break:break-word">' + (o.code ? '<span class="bud-code" title="Mã đơn">#' + esc(o.code) + '</span> ' : '') + (o.ncc ? '<b>' + esc(o.ncc) + '</b>' : '<span class="bud-m">(chưa ghi đối tác)</span>') + (o.note ? ' · ' + esc(o.note) : '') + ' <span class="bud-m bud-s">· ' + esc(orderWsText(o)) + '</span>' + accHtml(o) + '</td><td>' + stCell(o) + '</td><td>' + exp + '</td><td class="r">' + fv(o.vnd) + '<span class="bud-u">' + fu(o.usdt) + ' · tỷ giá ' + Math.round(o.rate).toLocaleString('vi-VN') + '</span></td><td style="white-space:nowrap">' + act + '</td></tr>';
       }).join('') + '</tbody></table>';
   }
 
@@ -902,8 +903,8 @@ select.f[data-k="st"]{font-weight:700}
     const okL = L.filter(x => !x.err);
     const type = qhType(p.service_type) || (p.service_type ? '' : qhType(p.title));
     const date = qhDay(p.created_at) || today();
-    const note = ['#' + p.id, p.title, p.quantity != null ? 'SL ' + p.quantity : ''].filter(Boolean).join(' · ').slice(0, 500);
-    const out = { type, date, vnd, usdt, cur, src, ncc: String(p.vendor_name || p.preferred_vendor_name || '').slice(0, 120), note, ref: 'fix#' + p.id, acc: (Array.isArray(p.acc) ? p.acc : []).filter(u => /^https?:\/\/\S+$/i.test(String(u))).slice(0, 30), webs, webBad: L.filter(x => x.err), st: '' };
+    const note = String(p.title || '').trim().slice(0, 500);
+    const out = { type, date, vnd, usdt, cur, src, ncc: String(p.vendor_name || p.preferred_vendor_name || '').slice(0, 120), note, code: String(p.id), ref: 'fix#' + p.id, acc: (Array.isArray(p.acc) ? p.acc : []).filter(u => /^https?:\/\/\S+$/i.test(String(u))).slice(0, 30), webs, webBad: L.filter(x => x.err), st: '' };
     if (webs.length > 1) out.many = webs.join('\n');
     else if (okL.length === 1) { out.wid = okL[0].w.id; out.wurl = okL[0].w.url; }
     if (type === 'textlink') { out.from = date; const ex = qhDay(p.expiry_date); out.to = ex && ex >= date ? ex : addDays(date, 30); }
@@ -973,7 +974,7 @@ select.f[data-k="st"]{font-weight:700}
     }
     if (!(vnd > 0)) issues.push('Đơn chưa có giá');
     if (!pre.type) issues.push('Chưa nhận ra loại dịch vụ "' + (pre.prop.service_type || '') + '"');
-    const base = { id: 0, type: pre.type, date: pre.date, vnd, usdt, rate, cur, note: pre.note, ncc: pre.ncc, st: pre.st || '', stWhy: pre.stWhy || '', acc: pre.acc.slice(), ref: pre.ref };
+    const base = { id: 0, type: pre.type, date: pre.date, vnd, usdt, rate, cur, note: pre.note, code: pre.code, ncc: pre.ncc, st: pre.st || '', stWhy: pre.stWhy || '', acc: pre.acc.slice(), ref: pre.ref };
     if (pre.type === 'textlink') { base.from = pre.from; base.to = pre.to; }
     let list;
     if (pre.many) {
@@ -1009,6 +1010,7 @@ select.f[data-k="st"]{font-weight:700}
       money: !!(pre.vnd && pre.usdt) && (tv !== pre.vnd || tu !== pre.usdt),
       ncc: b.ncc !== pre.ncc,
       note: b.note !== pre.note,
+      code: (b.code || '') !== (pre.code || ''),
       tl: b.type === 'textlink' && (b.from !== pre.from || b.to !== pre.to),
       acc: (b.acc || []).join() !== pre.acc.join()
     };
@@ -1019,7 +1021,8 @@ select.f[data-k="st"]{font-weight:700}
       ['Ngày đơn (tính vào tháng)', esc(qhDT(p.created_at) || '—'), '<b>' + dmy(b.date) + '</b>', chg.date],
       ['Số tiền', (srcMoney ? 'Dự kiến: ' + srcMoney : 'Dự kiến: —') + (n(p.final_price) ? '<br>Chốt: <b>' + esc(Number(p.final_price).toLocaleString('en-US') + ' ' + (p.currency || 'USD')) + '</b>' : ''), '<b>' + fv(tv) + '</b> ≈ <b>' + fu(tu) + '</b>' + (b.rate ? '<span class="bud-u">1 USDT = ' + rateTxt(b.rate) + ' · ' + esc(a.fxNote || (pre.src ? 'theo ' + pre.src + ' trên đơn' : '')) + '</span>' : ''), chg.money],
       ['Đối tác', esc(p.vendor_name || p.preferred_vendor_name || '—'), b.ncc ? '<b>' + esc(b.ncc) + '</b>' : '<span class="bud-m">(trống)</span>', chg.ncc],
-      ['Ghi chú', esc([p.title, p.quantity != null ? 'SL ' + p.quantity : ''].filter(Boolean).join(' · ')), esc(b.note || '—'), chg.note]
+      ['Mã đơn', '#' + esc(p.id), b.code ? '<b>#' + esc(b.code) + '</b>' : '<span class="bud-m">(trống)</span>', chg.code],
+      ['Ghi chú', esc(p.title || '—'), esc(b.note || '—'), chg.note]
     ];
     if (b.type === 'textlink') rows.push(['Hạn text link', esc(p.expiry_date ? 'Hết hạn ' + String(p.expiry_date).slice(0, 10) : '—'), dmy(b.from) + ' → <b>' + dmy(b.to) + '</b>', chg.tl]);
     rows.push(['Link nghiệm thu', pre.acc.length ? pre.acc.length + ' link trong comment' : 'Không có link trong comment', (b.acc || []).length ? b.acc.map(u => '<div class="bud-acc" style="margin:0"><a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + esc(accShort(u)) + '</a></div>').join('') : '<span class="bud-m">(không có)</span>', chg.acc]);
@@ -1121,7 +1124,8 @@ select.f[data-k="st"]{font-weight:700}
         + '<div class="g2"><div><label class="f">Đối tác</label><div class="bud-ac"><input class="f" data-k="ncc" maxlength="120" autocomplete="off" placeholder="gõ vài chữ là gợi ý tên đã dùng" value="' + esc(base.ncc || '') + '"><div class="bud-ac-pop" data-k="nccpop" style="display:none"></div></div></div>'
         + '<div><label class="f">Trạng thái đơn</label><select class="f" data-k="st">' + (st0 ? '' : '<option value="">— chọn trạng thái —</option>') + STS.map(t => '<option value="' + t.k + '"' + (t.k === st0 ? ' selected' : '') + '>' + t.n + '</option>').join('') + '</select></div></div>'
         + '<div data-k="whybox" style="' + (st0 === 'fix' ? '' : 'display:none') + '"><label class="f">Lý do đang chỉnh sửa</label><input class="f" data-k="stWhy" maxlength="500" placeholder="vd: link sai anchor, bài chưa index…" value="' + esc(old && old.stWhy || pre && pre.stWhy || '') + '"></div>'
-        + '<label class="f">Ghi chú / nội dung đơn</label><input class="f" data-k="note" maxlength="500" placeholder="vd: 120 entity, 3 bài DR40…" value="' + esc(base.note || '') + '">'
+        + '<div class="g2" style="grid-template-columns:1fr 2.6fr"><div><label class="f">Mã đơn</label><input class="f" data-k="code" maxlength="60" placeholder="vd: 101, DH-2611…" value="' + esc(!ren && base.code || '') + '"></div>'
+        + '<div><label class="f">Ghi chú / nội dung đơn</label><input class="f" data-k="note" maxlength="500" placeholder="vd: 120 entity, 3 bài DR40…" value="' + esc(base.note || '') + '"></div></div>'
         + '<label class="f">Link nghiệm thu (mỗi dòng 1 link)</label><textarea class="f" data-k="acc" rows="2" placeholder="vd: https://baoX.com/bai-viet-da-dang · link sheet báo cáo entity" style="font-family:inherit;resize:vertical">' + esc(!ren && old && Array.isArray(old.acc) ? old.acc.join('\n') : pre && pre.acc.length ? pre.acc.join('\n') : '') + '</textarea>'
         + '<div class="err" data-k="err"></div>'
         + '<div class="end"><button class="bud-btn" data-x="no">Hủy</button><button class="bud-btn pri" data-x="ok">' + (pre ? 'Xem lại trước khi import →' : 'Lưu đơn') + '</button></div>');
@@ -1184,7 +1188,7 @@ select.f[data-k="st"]{font-weight:700}
         if (R.seq && !R.rate) { errBox.textContent = 'Đang lấy tỷ giá, đợi 1 giây rồi bấm Lưu lại'; return; }
         const wid = Number(q('wid').value);
         const w = websites.find(x => x.id === wid);
-        const body = { id: old ? old.id : 0, type: ren ? 'textlink' : q('type').value, date: q('date').value, wid, wurl: w ? w.url : (base.wurl || ''), vnd: R.vnd, usdt: R.usdt, rate: R.rate, cur: R.cur, note: q('note').value.trim(), ncc: q('ncc').value.trim(), st: q('st').value, stWhy: q('st').value === 'fix' ? q('stWhy').value.trim() : '', acc: accList(q('acc').value) };
+        const body = { id: old ? old.id : 0, type: ren ? 'textlink' : q('type').value, date: q('date').value, wid, wurl: w ? w.url : (base.wurl || ''), vnd: R.vnd, usdt: R.usdt, rate: R.rate, cur: R.cur, note: q('note').value.trim(), code: q('code').value.trim(), ncc: q('ncc').value.trim(), st: q('st').value, stWhy: q('st').value === 'fix' ? q('stWhy').value.trim() : '', acc: accList(q('acc').value) };
         if (!body.type) { errBox.textContent = '⚠️ Chưa chọn loại dịch vụ — không tạo được đơn'; q('type').style.borderColor = 'var(--t-danger)'; q('type').focus(); return; }
         if (!body.st && !pre) { errBox.textContent = '⚠️ Chưa chọn trạng thái đơn'; q('st').style.borderColor = 'var(--t-danger)'; q('st').focus(); return; }
         if (pre) body.ref = pre.ref;
@@ -1261,7 +1265,7 @@ select.f[data-k="st"]{font-weight:700}
           && (!stf || stOf(x) === stf)
           && (!tlOnly || (x.type === 'textlink' && ['soon', 'expired'].includes(tlState(x).k)))
           && (!noRow || !orderRow(x))
-          && toks.every(k => fold([x.ncc, x.note, x.stWhy, (x.acc || []).join(' '), orderWsText(x), (orderRow(x) || {}).brand, TN[x.type].n].join(' ')).includes(k)))
+          && toks.every(k => fold([x.code, x.ncc, x.note, x.stWhy, (x.acc || []).join(' '), orderWsText(x), (orderRow(x) || {}).brand, TN[x.type].n].join(' ')).includes(k)))
           .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
         const sum = list.reduce((s, x) => s + x.vnd, 0);
         box.innerHTML = '<h3>📃 Danh sách đơn — ' + (all ? 'mọi kỳ' : pLabel()) + ' <span class="bud-m bud-s" style="font-weight:400">' + list.length + ' đơn · ' + fv(sum) + '</span></h3>'
