@@ -39,7 +39,7 @@
   const fu = n => (Math.round((n || 0) * 100) / 100).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' USDT';
   const say = (m, c, ms) => { if (typeof toast === 'function') toast(m, c || '#238636', ms || 3000); };
   const fail = e => say('⚠️ ' + (e && e.message || e), '#e74c3c', 5000);
-  const QH = { items: [], seq: 0, wait: {}, clip: null };
+  const QH = { items: [], seq: 0, wait: {}, clip: null, ign: 0, sync: null, err: '', cnt: { n: 0, a: 0 }, busy: false, lastSync: 0 };
   const mLabel = m => m.slice(5, 7) + '/' + m.slice(0, 4);
 
   function parseVnd(s) {
@@ -314,6 +314,8 @@ select.f[data-k="st"]{font-weight:700}
 .bud-rv-tag{display:inline-block;margin-left:6px;font-size:10.5px;color:var(--t-accent);font-weight:600}
 .bud-rv-bad{border:1px solid var(--t-danger);background:color-mix(in srgb,var(--t-danger) 10%,transparent);color:var(--t-fg);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px}
 .bud-rv-bad ul{margin:4px 0 4px 18px}
+.bud-qa{border:1px solid var(--t-border);border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.bud-qa-h{margin-bottom:4px;font-size:13px}
 .bud-rv-warn{border:1px solid var(--t-warn);background:color-mix(in srgb,var(--t-warn) 10%,transparent);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px}
 .bud-acc a{color:var(--t-accent);text-decoration:none}.bud-acc a:hover{text-decoration:underline}
 .bud-ic{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;font-size:12px;margin-left:4px;flex-shrink:0;cursor:help}
@@ -430,7 +432,7 @@ select.f[data-k="st"]{font-weight:700}
       + '<select id="budPeriod" class="bud-sel">' + opts.map(o => '<option value="' + o[0] + '"' + (o[0] === k ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>'
       + '<button type="button" class="btn btn-outline btn-sm" data-bud-a="plan">⚙ Ngân sách tháng</button>'
       + '<button type="button" class="btn btn-outline btn-sm" data-bud-a="list">📃 Danh sách đơn</button>'
-      + '<button type="button" class="btn btn-outline btn-sm" data-bud-a="qh" title="Dán đơn đã lấy bằng tiện ích Quyhat ở trang Đề xuất dịch vụ">📥 Dán đơn<span data-qhn>' + (QH.items.length ? ' (' + QH.items.length + ')' : '') + '</span></button>'
+      + '<button type="button" class="btn btn-outline btn-sm" data-bud-a="qh" title="Đơn đề xuất dịch vụ của bạn (tiện ích Quyhat tự đồng bộ): (số) đơn mới chưa import · ⚠ đơn cần xác nhận cập nhật">📥 Dán đơn<span data-qhn>' + (QH.cnt.n ? ' (' + QH.cnt.n + ')' : '') + (QH.cnt.a ? ' ⚠' + QH.cnt.a : '') + '</span></button>'
       + '<button type="button" class="btn btn-sm" data-bud-a="new" style="background:var(--t-accent);color:#fff;border:none">＋ Tạo đơn</button>';
   }
 
@@ -524,7 +526,7 @@ select.f[data-k="st"]{font-weight:700}
 
   function enter() {
     IDX = null;
-    load().then(() => { rerender(); refreshIcons(); });
+    load().then(() => { rerender(); refreshIcons(); qhBadge(); if (qhOn()) qhSync(false).catch(() => {}); });
   }
 
   document.addEventListener('click', e => {
@@ -840,15 +842,18 @@ select.f[data-k="st"]{font-weight:700}
   window.addEventListener('message', e => {
     if (e.source !== window || !e.data || (e.data.qhb !== 'list' && e.data.qhb !== 'changed')) return;
     QH.items = Array.isArray(e.data.items) ? e.data.items : [];
-    document.querySelectorAll('[data-bud-a="qh"] [data-qhn]').forEach(x => { x.textContent = QH.items.length ? ' (' + QH.items.length + ')' : ''; });
+    QH.ign = e.data.ign || 0;
+    QH.sync = e.data.sync || null;
+    if (e.data.err !== undefined) QH.err = e.data.err;
+    qhBadge();
     const w = e.data.rid && QH.wait[e.data.rid];
     if (w) { delete QH.wait[e.data.rid]; w(QH.items); }
     if (document.getElementById('budQhOv') && QH.paint && !QH.clip) QH.paint();
   });
-  function qhCall(msg) {
+  function qhCall(msg, ms) {
     return new Promise(res => {
       const rid = 'b' + (++QH.seq);
-      const t = setTimeout(() => { delete QH.wait[rid]; res(null); }, 900);
+      const t = setTimeout(() => { delete QH.wait[rid]; res(null); }, ms || 900);
       QH.wait[rid] = L => { clearTimeout(t); res(L); };
       window.postMessage(Object.assign({ rid }, msg), location.origin);
     });
@@ -858,14 +863,18 @@ select.f[data-k="st"]{font-weight:700}
     if (QH.clip) { QH.clip = QH.clip.filter(x => +x.id !== +id); return Promise.resolve(QH.clip); }
     return qhCall({ qhb: 'drop', id });
   }
+  function qhDone(id) {
+    if (QH.clip) { QH.clip = QH.clip.filter(x => +x.id !== +id); return Promise.resolve(QH.clip); }
+    return qhCall({ qhb: 'done', id });
+  }
   function qhType(t) {
     t = fold(t);
     if (!t) return '';
     if (/text\s*-?\s*link/.test(t)) return 'textlink';
     if (/guest|\bgp\b|\bpr\b|bai\s*pr/.test(t)) return 'guestpost';
-    if (/entit/.test(t)) return 'entity';
+    if (/entit|\bett\b/.test(t)) return 'entity';
     if (/comment|\bcmt\b/.test(t)) return 'blogcmt';
-    if (/backlink|back\s*link/.test(t)) return 'backlink';
+    if (/backlink|back\s*link|\bpbn\b/.test(t)) return 'backlink';
     return '';
   }
   function qhDay(v) {
@@ -884,6 +893,7 @@ select.f[data-k="st"]{font-weight:700}
     const x = new Date(d.getTime() + 7 * 3600e3).toISOString();
     return x.slice(8, 10) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4) + ' ' + x.slice(11, 16) + ' (giờ VN)';
   }
+  const hmT = t => { const d = new Date(t); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ' ' + ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2); };
   function mapProp(p) {
     buildIdx();
     const n = v => { const x = parseFloat(v); return isFinite(x) && x > 0 ? x : 0; };
@@ -898,61 +908,244 @@ select.f[data-k="st"]{font-weight:700}
     } else if (!ev && eu) cur = 'usdt';
     vnd = Math.round(vnd);
     usdt = Math.round(usdt * 100) / 100;
-    const webs = String(p.target_website || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
-    const L = webs.length ? parseMany(webs.join('\n')) : [];
+    let webs = String(p.target_website || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean), webFromTitle = false;
+    let L = webs.length ? parseMany(webs.join('\n')) : [];
+    if (!webs.length) {
+      const toks = String(p.title || '').match(/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}/gi) || [];
+      const T = toks.length ? parseMany(toks.join('\n')).filter(x => !x.err) : [];
+      if (T.length) { L = T; webs = T.map(x => x.h); webFromTitle = true; }
+    }
     const okL = L.filter(x => !x.err);
-    const type = qhType(p.service_type) || (p.service_type ? '' : qhType(p.title));
+    const type = qhType(p.service_type) || qhType(p.title);
     const date = qhDay(p.created_at) || today();
     const note = String(p.title || '').trim().slice(0, 500);
-    const out = { type, date, vnd, usdt, cur, src, ncc: String(p.vendor_name || p.preferred_vendor_name || '').slice(0, 120), note, code: String(p.id), ref: 'fix#' + p.id, acc: (Array.isArray(p.acc) ? p.acc : []).filter(u => /^https?:\/\/\S+$/i.test(String(u))).slice(0, 30), webs, webBad: L.filter(x => x.err), st: '' };
+    const ncc = String(p.vendor_name || p.preferred_vendor_name || '').replace(/\s*\([^)]*\)\s*$/, '').trim().slice(0, 120);
+    const out = { type, date, vnd, usdt, cur, src, ncc, note, code: String(p.id), ref: 'fix#' + p.id, acc: (Array.isArray(p.acc) ? p.acc : []).filter(u => /^https?:\/\/\S+$/i.test(String(u))).slice(0, 30), webs, webFromTitle, webBad: L.filter(x => x.err), st: '' };
     if (webs.length > 1) out.many = webs.join('\n');
     else if (okL.length === 1) { out.wid = okL[0].w.id; out.wurl = okL[0].w.url; }
     if (type === 'textlink') { out.from = date; const ex = qhDay(p.expiry_date); out.to = ex && ex >= date ? ex : addDays(date, 30); }
+    out.wids = out.many ? parseMany(out.many).filter(x => !x.err).map(x => x.w.id) : out.wid ? [out.wid] : [];
     return out;
+  }
+  const QF = ['type', 'wids', 'date', 'money', 'ncc', 'note', 'code', 'tl', 'acc'];
+  const QFN = { type: 'Loại dịch vụ', wids: 'Web', date: 'Ngày đơn', money: 'Số tiền', ncc: 'Đối tác', note: 'Ghi chú', code: 'Mã đơn', tl: 'Hạn text link', acc: 'Link nghiệm thu' };
+  const qhSnap = m => ({ type: m.type || '', wids: (m.wids || []).slice(), date: m.date || '', vnd: m.vnd || 0, usdt: m.usdt || 0, ncc: m.ncc || '', note: m.note || '', code: m.code || '', from: m.type === 'textlink' ? m.from || '' : '', to: m.type === 'textlink' ? m.to || '' : '', acc: (m.acc || []).slice() });
+  const qv = (v, f) => f === 'wids' ? (v.wids || []).join(',') : f === 'money' ? (v.vnd || 0) + '/' + (v.usdt || 0) : f === 'tl' ? (v.type === 'textlink' ? (v.from || '') + '>' + (v.to || '') : '') : f === 'acc' ? (v.acc || []).join(' ') : String(v[f] || '');
+  const qhGroup = ref => D.orders.filter(x => x.ref === ref).sort((a, b) => ((a.split && a.split.i) || 0) - ((b.split && b.split.i) || 0));
+  function qhCur(G) {
+    const o = G[0];
+    return { type: o.type, wids: G.map(x => x.wid), date: o.date, vnd: G.reduce((t, x) => t + (x.vnd || 0), 0), usdt: Math.round(G.reduce((t, x) => t + (x.usdt || 0), 0) * 100) / 100, ncc: o.ncc || '', note: o.note || '', code: o.code || '', from: o.type === 'textlink' ? o.from || '' : '', to: o.type === 'textlink' ? o.to || '' : '', acc: o.acc || [] };
+  }
+  const qhMeta = G => G.find(x => x.qh) ? G.find(x => x.qh).qh : null;
+  const qhMan = G => [...new Set(G.flatMap(x => (x.qh && x.qh.man) || []))];
+  const qhUsable = (nv, f) => f === 'type' ? !!nv.type : f === 'wids' ? nv.wids.length > 0 : f === 'money' ? nv.vnd > 0 || nv.usdt > 0 : f === 'date' ? !!nv.date : f === 'tl' ? nv.type === 'textlink' && !!nv.to : true;
+  function qhDiff(p, G) {
+    const nv = qhSnap(mapProp(p)), meta = qhMeta(G), src = meta && meta.src, man = qhMan(G), cur = qhCur(G);
+    const auto = [], ask = [], same = [];
+    QF.forEach(f => {
+      if (!qhUsable(nv, f)) return;
+      const n0 = qv(nv, f), c0 = qv(cur, f);
+      if (src) {
+        if (n0 === qv(src, f)) return;
+        if (n0 === c0) { same.push(f); return; }
+        const restruct = f === 'wids' && (G.length > 1 || nv.wids.length > 1);
+        if (man.includes(f) || restruct) ask.push({ f, man: man.includes(f), restruct }); else auto.push(f);
+      } else if (n0 !== c0) ask.push({ f, man: false, legacy: true, restruct: f === 'wids' && (G.length > 1 || nv.wids.length > 1) });
+    });
+    return { nv, cur, src, man, auto, ask, same, G, p };
+  }
+  function qhApply(d, fields, kind, keep) {
+    const nv = d.nv, G = d.G, cur = d.cur;
+    const src = Object.assign(qhSnap(d.src || cur), {});
+    const take = fields.concat(d.same || []), kept = keep || [];
+    take.concat(kept).forEach(f => {
+      if (f === 'money') { src.vnd = nv.vnd; src.usdt = nv.usdt; }
+      else if (f === 'tl') { src.from = nv.from; src.to = nv.to; }
+      else src[f] = Array.isArray(nv[f]) ? nv[f].slice() : nv[f];
+    });
+    let man = d.man.filter(f => !fields.includes(f));
+    kept.forEach(f => { if (!man.includes(f)) man.push(f); });
+    const meta0 = qhMeta(G) || {};
+    const log = (meta0.log || []).concat(fields.length || kept.length ? [{ at: Date.now(), f: fields.concat(kept), k: kind }] : []).slice(-20);
+    let vnds = null, usdts = null;
+    if (fields.includes('money')) {
+      const rate = G[0].rate || D.rate || 0;
+      const tv = nv.vnd > 0 ? nv.vnd : Math.round(nv.usdt * rate), tu = nv.usdt > 0 ? nv.usdt : (rate ? Math.round(nv.vnd / rate * 100) / 100 : 0);
+      vnds = splitAmt(tv, G.length, 0);
+      usdts = splitAmt(tu, G.length, 2);
+    }
+    return G.map((o, i) => {
+      const b = Object.assign({}, o);
+      fields.forEach(f => {
+        if (f === 'money') { b.vnd = vnds[i]; b.usdt = usdts[i]; b.rate = b.usdt ? Math.round(b.vnd / b.usdt * 100) / 100 : b.rate; }
+        else if (f === 'wids') { const w = websites.find(x => x.id === nv.wids[0]); if (w) { b.wid = w.id; b.wurl = w.url; } }
+        else if (f === 'tl') { b.from = nv.from; b.to = nv.to; }
+        else if (f === 'acc') b.acc = nv.acc.slice();
+        else b[f] = nv[f];
+      });
+      if (fields.includes('type') && b.type !== 'textlink') { delete b.from; delete b.to; }
+      if (fields.includes('type') && b.type === 'textlink' && !b.to) { b.from = nv.from || b.date; b.to = nv.to || addDays(b.date, 30); }
+      b.qh = { src, man, log };
+      return b;
+    });
+  }
+  async function qhSave(bodies) {
+    for (const b of bodies) {
+      const r = await api('/api/budget/order', { order: b });
+      const i = D.orders.findIndex(x => x.id === r.order.id);
+      if (i >= 0) D.orders[i] = r.order; else D.orders.push(r.order);
+    }
+  }
+  function qhAnalyze() {
+    const L = QH.clip || QH.items;
+    const out = { fresh: [], ask: [], done: [], auto: [] };
+    L.forEach(p => {
+      const G = qhGroup('fix#' + p.id);
+      if (!G.length) { out.fresh.push(p); return; }
+      const d = qhDiff(p, G);
+      if (d.ask.length) out.ask.push(d);
+      if (d.auto.length || (d.same.length && d.src)) out.auto.push(d);
+      out.done.push(d);
+    });
+    return out;
+  }
+  async function qhAutoApply() {
+    const A = qhAnalyze().auto;
+    let n = 0;
+    for (const d of A) {
+      try { await qhSave(qhApply(d, d.auto, 'auto')); if (d.auto.length) n++; } catch (e) { fail(e); }
+    }
+    if (A.length) changed();
+    return n;
+  }
+  function qhBadge() {
+    const A = D.loaded ? qhAnalyze() : { fresh: QH.items, ask: [] };
+    QH.cnt = { n: A.fresh.length, a: A.ask.length };
+    const t = (QH.cnt.n ? ' (' + QH.cnt.n + ')' : '') + (QH.cnt.a ? ' ⚠' + QH.cnt.a : '');
+    document.querySelectorAll('[data-bud-a="qh"] [data-qhn]').forEach(x => { x.textContent = t; });
+  }
+  async function qhSync(force) {
+    if (!qhOn() || QH.busy) return;
+    if (!force && QH.lastSync && Date.now() - QH.lastSync < 5 * 60e3) return;
+    QH.busy = true;
+    QH.lastSync = Date.now();
+    if (QH.paint && document.getElementById('budQhOv')) QH.paint();
+    try {
+      await ensure();
+      const L = await qhCall({ qhb: 'sync' }, 180000);
+      if (L) QH.items = L;
+      const n = await qhAutoApply();
+      if (n) say('↻ Đã tự cập nhật ' + n + ' đơn theo đơn đề xuất (trường bạn sửa tay thì chờ bạn xác nhận)');
+    } finally {
+      QH.busy = false;
+      qhBadge();
+      if (QH.paint && document.getElementById('budQhOv')) QH.paint();
+    }
+  }
+  setInterval(() => { if (document.visibilityState === 'visible' && document.getElementById('budBar') && qhOn()) qhSync(false).catch(() => {}); }, 15 * 60e3);
+  function qhAskBox(d) {
+    const p = d.p, G = d.G;
+    const fmt = (v, f) => {
+      if (f === 'type') return esc(v.type ? TN[v.type].n : '—');
+      if (f === 'wids') return esc((v.wids || []).map(id => { const w = websites.find(x => x.id === id); return w ? hn(w.url) : '#' + id; }).join(', ') || '—');
+      if (f === 'date') return esc(v.date ? dmy(v.date) : '—');
+      if (f === 'money') return esc((v.vnd ? fv(v.vnd) : '—') + ' / ' + (v.usdt ? fu(v.usdt) : '—'));
+      if (f === 'tl') return esc(v.type === 'textlink' ? dmy(v.from) + ' → ' + dmy(v.to) : '—');
+      if (f === 'acc') return (v.acc || []).length ? v.acc.map(u => esc(accShort(u))).join('<br>') : '(không có)';
+      return esc(v[f] || '—');
+    };
+    return '<div class="bud-qa" data-qa="' + esc(p.id) + '"><div class="bud-qa-h"><b>#' + esc(p.id) + '</b> ' + esc(p.title || '') + ' <span class="bud-m bud-s">· ' + G.length + ' đơn trong Ngân sách</span></div>'
+      + '<table class="bud-rv"><colgroup><col style="width:5%"><col style="width:17%"><col style="width:34%"><col style="width:44%"></colgroup><thead><tr><th></th><th>Trường</th><th>Hiện tại trong Ngân sách</th><th>Mới trên đơn đề xuất</th></tr></thead><tbody>'
+      + d.ask.map(a => '<tr><td>' + (a.restruct ? '' : '<input type="checkbox" data-qf="' + a.f + '">') + '</td><td>' + QFN[a.f] + '<span class="bud-u" style="color:var(--t-warn)">' + (a.restruct ? 'đổi số web — sửa tay bằng ✎' : a.man ? '✎ bạn đã sửa tay' : 'đơn import trước khi theo dõi sửa tay') + '</span></td><td style="word-break:break-word">' + fmt(d.cur, a.f) + '</td><td style="word-break:break-word"><b>' + fmt(d.nv, a.f) + '</b></td></tr>').join('')
+      + '</tbody></table><div class="end" style="margin-top:6px"><button class="bud-btn xs" data-qa-edit="' + esc(p.id) + '">✎ Mở đơn</button><button class="bud-btn xs" data-qa-keep="' + esc(p.id) + '" title="Giữ giá trị hiện tại, không hỏi lại thay đổi này">Giữ nguyên</button><button class="bud-btn xs pri" data-qa-ok="' + esc(p.id) + '">✓ Cập nhật mục đã tick</button></div></div>';
   }
   function qhList() {
     ensure().then(async () => {
       QH.clip = null;
-      if (qhOn()) {
-        const L = await qhCall({ qhb: 'get' });
-        if (L) QH.items = L;
-      } else {
+      if (!qhOn()) {
         const t = await qhPaste();
         if (t == null) return;
         QH.clip = t;
       }
-      const o = ov('budQhOv', 940, '');
+      let tab = 'new';
+      const o = ov('budQhOv', 980, '');
       const box = o.querySelector('.bud-dlg');
-      const items = () => QH.clip || QH.items;
       QH.paint = () => {
-        const L = items();
-        if (!L.length) { box.innerHTML = '<h3>📥 Dán đơn từ Quyhat</h3><div class="bud-m" style="padding:14px 4px">Không còn đơn nào chờ dán. Ở trang Đề xuất dịch vụ: bấm chọn đơn → bấm biểu tượng Quyhat → 📥 Lấy đơn.</div><div class="end"><button class="bud-btn" data-x="close">Đóng</button></div>'; return; }
-        box.innerHTML = '<h3>📥 Dán đơn từ Quyhat <span class="bud-m bud-s" style="font-weight:400">· ' + L.length + ' đơn chờ dán · không lấy trạng thái, bạn tự chọn khi dán</span></h3>'
-          + '<table><colgroup><col style="width:30%"><col style="width:13%"><col style="width:22%"><col style="width:17%"><col style="width:18%"></colgroup><thead><tr><th>Đơn</th><th>Loại</th><th>Web</th><th class="r">Số tiền</th><th></th></tr></thead><tbody>'
-          + L.map(p => {
-            const m = mapProp(p);
-            const dup = D.orders.filter(x => x.ref === m.ref);
-            const web = !m.webs.length ? '<span style="color:var(--t-warn)">⚠ đơn không ghi web</span>'
-              : esc(m.webs.join(', ')) + (m.webBad.length ? '<span class="bud-u" style="color:var(--t-warn)">⚠ ' + esc(m.webBad.map(x => x.h || x.raw).join(', ')) + ' không có trong Dashboard</span>' : (m.webs.length > 1 ? '<span class="bud-u">' + m.webs.length + ' web → tách đơn chia đều</span>' : ''));
-            return '<tr><td style="word-break:break-word"><b>#' + esc(p.id) + '</b> ' + esc(p.title || '') + '<span class="bud-u">' + esc([m.ncc, dmy(m.date)].filter(Boolean).join(' · ')) + '</span>' + (dup.length ? '<span class="bud-u" style="color:var(--t-danger)">⚠ đã dán ' + dup.length + ' đơn từ đơn này (' + dup.map(x => dmy(x.date)).join(', ') + ')</span>' : '') + '</td>'
-              + '<td>' + (m.type ? '<span class="bud-tag bud-t-' + TN[m.type].c + '">' + TN[m.type].n + '</span>' : '<span style="color:var(--t-warn)">⚠ chưa nhận ra</span>') + '<span class="bud-u">' + esc(p.service_type || '') + '</span></td>'
-              + '<td style="word-break:break-word">' + web + '</td>'
-              + '<td class="r">' + (m.vnd ? fv(m.vnd) : '—') + '<span class="bud-u">' + (m.usdt ? fu(m.usdt) : '—') + ' · ' + m.src + '</span>' + (m.acc.length ? '<span class="bud-u" style="color:var(--t-accent)">🔗 ' + m.acc.length + ' link nghiệm thu (từ comment)</span>' : '') + '</td>'
-              + '<td style="white-space:nowrap;text-align:right"><button class="bud-btn xs pri" data-qh-paste="' + esc(p.id) + '">📥 Dán</button> <button class="bud-btn xs" data-qh-drop="' + esc(p.id) + '" title="Bỏ khỏi hàng chờ">✕</button></td></tr>';
-          }).join('') + '</tbody></table>'
-          + '<div class="end"><button class="bud-btn" data-x="close">Đóng</button></div>';
+        const A = qhAnalyze();
+        if (tab === 'ask' && !A.ask.length) tab = 'new';
+        const S = QH.sync;
+        const head = '<h3>📥 Đơn đề xuất (Quyhat) <span class="bud-m bud-s" style="font-weight:400">· đơn của bạn, bỏ đơn bị từ chối / nháp / chờ duyệt · không lấy trạng thái</span></h3>'
+          + '<div class="bud-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'
+          + '<div class="bud-chips" style="margin:0">' + [['new', 'Mới, chưa import · ' + A.fresh.length], ['ask', '⚠ Cần xác nhận · ' + A.ask.length], ['done', 'Đã import · ' + A.done.length]].map(x => '<button type="button" data-qt="' + x[0] + '" class="' + (tab === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>'
+          + '<span style="flex:1"></span><span class="bud-m bud-s">' + (QH.clip ? 'dán tay (không có tiện ích)' : QH.busy ? '⏳ Đang đồng bộ…' : S && S.at ? 'Đồng bộ lúc ' + hmT(S.at) + (S.err && (S.errAt || 0) >= S.at ? ' · <span style="color:var(--t-danger)">lỗi: ' + esc(S.err) + '</span>' : '') : 'Chưa đồng bộ') + (QH.err ? ' · <span style="color:var(--t-danger)">' + esc(QH.err) + '</span>' : '') + '</span>'
+          + (QH.clip ? '' : '<button class="bud-btn xs" data-qx="sync"' + (QH.busy ? ' disabled' : '') + '>⟳ Đồng bộ ngay</button>') + '</div>';
+        let body = '';
+        if (tab === 'new') {
+          body = !A.fresh.length ? '<div class="bud-m" style="padding:14px 4px">Không có đơn mới. Đơn đã import nằm ở tab Đã import.' + (QH.ign ? ' · ' + QH.ign + ' đơn đã bỏ qua <a href="#" data-qx="unign">hiện lại</a>' : '') + '</div>'
+            : '<table><colgroup><col style="width:30%"><col style="width:13%"><col style="width:22%"><col style="width:17%"><col style="width:18%"></colgroup><thead><tr><th>Đơn</th><th>Loại</th><th>Web</th><th class="r">Số tiền</th><th></th></tr></thead><tbody>'
+            + A.fresh.map(p => {
+              const m = mapProp(p);
+              const web = !m.webs.length ? '<span style="color:var(--t-warn)">⚠ đơn không ghi web</span>'
+                : esc(m.webs.join(', ')) + (m.webFromTitle ? '<span class="bud-u">lấy từ tiêu đề đơn</span>' : '') + (m.webBad.length ? '<span class="bud-u" style="color:var(--t-warn)">⚠ ' + esc(m.webBad.map(x => x.h || x.raw).join(', ')) + ' không có trong Dashboard</span>' : (m.webs.length > 1 ? '<span class="bud-u">' + m.webs.length + ' web → tách đơn chia đều</span>' : ''));
+              return '<tr><td style="word-break:break-word"><b>#' + esc(p.id) + '</b> ' + esc(p.title || '') + '<span class="bud-u">' + esc([p.vendor_name || p.preferred_vendor_name, dmy(m.date)].filter(Boolean).join(' · ')) + '</span></td>'
+                + '<td>' + (m.type ? '<span class="bud-tag bud-t-' + TN[m.type].c + '">' + TN[m.type].n + '</span>' : '<span style="color:var(--t-warn)">⚠ chưa nhận ra</span>') + '<span class="bud-u">' + esc(p.service_type || '') + '</span></td>'
+                + '<td style="word-break:break-word">' + web + '</td>'
+                + '<td class="r">' + (m.vnd ? fv(m.vnd) : '—') + '<span class="bud-u">' + (m.usdt ? fu(m.usdt) : '—') + ' · ' + m.src + '</span>' + (m.acc.length ? '<span class="bud-u" style="color:var(--t-accent)">🔗 ' + m.acc.length + ' link nghiệm thu (từ comment)</span>' : '') + '</td>'
+                + '<td style="white-space:nowrap;text-align:right"><button class="bud-btn xs" data-qh-edit="' + esc(p.id) + '" title="Xem và sửa trước khi import">✎</button> <button class="bud-btn xs pri" data-qh-paste="' + esc(p.id) + '">📥 Dán</button> <button class="bud-btn xs" data-qh-drop="' + esc(p.id) + '" title="Bỏ qua đơn này (không hiện lại)">✕</button></td></tr>';
+            }).join('') + '</tbody></table>';
+        } else if (tab === 'ask') {
+          body = '<div class="bud-m bud-s" style="margin-bottom:6px">Đơn đề xuất đã đổi ở những trường bạn từng sửa tay (hoặc đơn import trước khi có theo dõi). Tick trường muốn lấy theo đơn đề xuất rồi bấm ✓ Cập nhật; bấm Giữ nguyên thì giữ giá trị hiện tại và không hỏi lại thay đổi này.</div>' + A.ask.map(qhAskBox).join('');
+        } else {
+          body = !A.done.length ? '<div class="bud-m" style="padding:14px 4px">Chưa import đơn nào.</div>'
+            : '<table><colgroup><col style="width:34%"><col style="width:13%"><col style="width:17%"><col style="width:28%"><col style="width:8%"></colgroup><thead><tr><th>Đơn</th><th>Loại</th><th class="r">Trong Ngân sách</th><th>Tự cập nhật</th><th></th></tr></thead><tbody>'
+            + A.done.map(d => {
+              const G = d.G, o0 = G[0], meta = qhMeta(G), lg = meta && meta.log && meta.log.length ? meta.log[meta.log.length - 1] : null;
+              return '<tr><td style="word-break:break-word"><b>#' + esc(d.p.id) + '</b> ' + esc(d.p.title || '') + '<span class="bud-u">' + G.length + ' đơn · ' + esc(SN[stOf(o0)].n) + '</span></td><td><span class="bud-tag bud-t-' + TN[o0.type].c + '">' + TN[o0.type].n + '</span></td>'
+                + '<td class="r">' + fv(d.cur.vnd) + '<span class="bud-u">' + fu(d.cur.usdt) + '</span></td>'
+                + '<td class="bud-s">' + (d.ask.length ? '<span style="color:var(--t-warn)">⚠ ' + d.ask.length + ' trường chờ xác nhận</span><br>' : '') + (lg ? (lg.k === 'auto' ? '↻ ' : lg.k === 'keep' ? '✋ giữ ' : '✓ ') + esc(lg.f.map(f => QFN[f]).join(', ')) + ' · ' + hmT(lg.at) : '<span class="bud-m">—</span>') + '</td>'
+                + '<td style="text-align:right"><button class="bud-btn xs" data-qa-edit="' + esc(d.p.id) + '" title="Xem / sửa đơn trong Ngân sách">✎</button></td></tr>';
+            }).join('') + '</tbody></table>';
+        }
+        box.innerHTML = head + body + '<div class="end"><button class="bud-btn" data-x="close">Đóng</button></div>';
       };
       QH.paint();
-      box.addEventListener('click', e => {
-        const x = e.target.closest('[data-x="close"]');
-        if (x) { o.remove(); return; }
+      if (!QH.clip) qhSync(false).catch(fail);
+      const after = id => () => qhDone(id).then(() => { qhBadge(); if (document.getElementById('budQhOv')) QH.paint(); });
+      const findP = id => (QH.clip || QH.items).find(x => String(x.id) === String(id));
+      const findD = id => qhAnalyze().done.find(d => String(d.p.id) === String(id));
+      box.addEventListener('click', async e => {
+        if (e.target.closest('[data-x="close"]')) { o.remove(); return; }
+        const qt = e.target.closest('[data-qt]');
+        if (qt) { tab = qt.dataset.qt; QH.paint(); return; }
+        const qx = e.target.closest('[data-qx]');
+        if (qx) { e.preventDefault(); if (qx.dataset.qx === 'sync') qhSync(true).catch(fail); else qhCall({ qhb: 'unign' }).then(() => QH.paint()); return; }
         const dp = e.target.closest('[data-qh-drop]');
-        if (dp) { qhDrop(dp.dataset.qhDrop).then(L => { if (L && !QH.clip) QH.items = L; QH.paint(); }); return; }
+        if (dp) { qhDrop(dp.dataset.qhDrop).then(L => { if (L && QH.clip) QH.clip = L; QH.paint(); }); return; }
+        const pe = e.target.closest('[data-qh-edit]');
+        if (pe) { const p = findP(pe.dataset.qhEdit); if (p) orderForm(null, { pre: Object.assign(mapProp(p), { prop: p }), after: after(p.id) }); return; }
         const ps = e.target.closest('[data-qh-paste]');
-        if (!ps) return;
-        const p = items().find(x => String(x.id) === ps.dataset.qhPaste);
-        if (!p) return;
-        qhOpen(p, () => qhDrop(p.id).then(L => { if (L && !QH.clip) QH.items = L; if (document.getElementById('budQhOv')) QH.paint(); }));
+        if (ps) { const p = findP(ps.dataset.qhPaste); if (p) qhOpen(p, after(p.id)); return; }
+        const qe = e.target.closest('[data-qa-edit]');
+        if (qe) { const d = findD(qe.dataset.qaEdit); if (d) orderForm(d.G[0], { after: () => { qhBadge(); QH.paint(); } }); return; }
+        const qk = e.target.closest('[data-qa-keep],[data-qa-ok]');
+        if (qk) {
+          const id = qk.dataset.qaKeep || qk.dataset.qaOk, d = qhAnalyze().ask.find(x => String(x.p.id) === String(id));
+          if (!d) return;
+          const boxQ = qk.closest('.bud-qa');
+          const tick = [...boxQ.querySelectorAll('[data-qf]:checked')].map(x => x.dataset.qf);
+          const askF = d.ask.map(a => a.f);
+          if (qk.dataset.qaOk && !tick.length) { say('Chưa tick trường nào', '#d29922'); return; }
+          const fields = qk.dataset.qaOk ? tick.concat(d.auto) : d.auto.slice();
+          const keep = qk.dataset.qaOk ? askF.filter(f => !tick.includes(f)) : askF;
+          qk.disabled = true;
+          try {
+            await qhSave(qhApply(d, fields, qk.dataset.qaOk ? 'ok' : 'keep', keep));
+            say(qk.dataset.qaOk ? '✓ Đã cập nhật đơn #' + d.p.id + ': ' + tick.map(f => QFN[f]).join(', ') : '✓ Giữ nguyên đơn #' + d.p.id);
+            changed();
+          } catch (er) { fail(er); qk.disabled = false; }
+          qhBadge();
+          QH.paint();
+        }
       });
     }).catch(fail);
   }
@@ -1051,7 +1244,8 @@ select.f[data-k="st"]{font-weight:700}
       const st = q('st').value, why = q('stWhy').value.trim();
       if (!st) { err.textContent = '⚠️ Chưa chọn trạng thái đơn'; q('st').style.borderColor = 'var(--t-danger)'; q('st').focus(); return; }
       if (st === 'fix' && !why) { err.textContent = '⚠️ Đang chỉnh sửa thì phải nhập lý do'; q('stWhy').focus(); return; }
-      const L = list.map(x => Object.assign({}, x, { st, stWhy: st === 'fix' ? why : '' }));
+      const manF = Object.keys(chg).filter(k => chg[k]).map(k => k === 'web' ? 'wids' : k);
+      const L = list.map(x => Object.assign({}, x, { st, stWhy: st === 'fix' ? why : '', qh: { src: qhSnap(pre), man: manF, log: [] } }));
       const btn = o.querySelector('[data-x="ok"]');
       btn.disabled = true;
       try {
@@ -1106,7 +1300,9 @@ select.f[data-k="st"]{font-weight:700}
         : pre ? { rate: pre.vnd && pre.usdt ? Math.round(pre.vnd / pre.usdt * 100) / 100 : 0, cur: pre.cur || 'vnd', vnd: pre.vnd || 0, usdt: pre.usdt || 0, seq: 0, man: { vnd: !!pre.vnd, usdt: !!pre.usdt } }
         : { rate: 0, cur: 'vnd', vnd: 0, usdt: 0, seq: 0, man: { vnd: false, usdt: false } };
       const o = ov('budOrderOv', 620, '<h3>' + (old ? '✎ Sửa đơn' : ren ? '↻ Gia hạn text link' : pre ? '📥 Dán đơn #' + esc(pre.prop.id) + ' từ Quyhat' : '＋ Tạo đơn dịch vụ') + '</h3>'
-        + (pre ? '<div class="bud-m bud-s" style="margin-bottom:6px">' + esc(pre.prop.title || '') + (pre.prop.service_type ? ' · loại trên đơn: ' + esc(pre.prop.service_type) : '') + (pre.webs.length ? ' · web trên đơn: ' + esc(pre.webs.join(', ')) : ' · đơn không ghi web') + '. Kiểm tra loại, web, số tiền (' + pre.src + ') rồi <b>tự chọn trạng thái</b>.'
+        + (pre ? '<div class="bud-m bud-s" style="margin-bottom:6px">' + esc(pre.prop.title || '') + (pre.prop.service_type ? ' · loại trên đơn: ' + esc(pre.prop.service_type) : '') + (pre.webs.length ? ' · web ' + (pre.webFromTitle ? 'lấy từ tiêu đề' : 'trên đơn') + ': ' + esc(pre.webs.join(', ')) : ' · đơn không ghi web')
+          + (pre.prop.description ? '<div style="margin-top:3px;white-space:pre-wrap;max-height:90px;overflow:auto">📝 ' + esc(pre.prop.description) + '</div>' : '')
+          + (pre.prop.reference_link ? '<div style="margin-top:3px">🔗 Tham khảo: <a href="' + esc(pre.prop.reference_link) + '" target="_blank" rel="noopener noreferrer">' + esc(accShort(pre.prop.reference_link)) + '</a></div>' : '') + '. Kiểm tra loại, web, số tiền (' + pre.src + ') rồi <b>tự chọn trạng thái</b>.'
           + (pre.webBad.length ? '<div style="color:var(--t-warn);margin-top:3px">⚠ ' + esc(pre.webBad.map(x => (x.h || x.raw) + ': ' + x.err).join(' · ')) + (pre.many ? '' : ' — chọn web bằng tay') + '</div>' : '')
           + (!pre.type ? '<div style="color:var(--t-warn);margin-top:3px">⚠ Chưa nhận ra loại dịch vụ "' + esc(pre.prop.service_type || '') + '" — chọn loại bằng tay</div>' : '') + '</div>' : '')
         + (ren ? '<div class="bud-m bud-s" style="margin-bottom:6px">Gia hạn đơn ' + dmy(ren.from) + ' → ' + dmy(ren.to) + ' (' + fv(ren.vnd) + '). Lưu thành đơn mới nối với đơn cũ, tiền tính vào tháng của ngày đơn.</div>' : '')
@@ -1235,6 +1431,19 @@ select.f[data-k="st"]{font-weight:700}
         if (!body.wid) { errBox.textContent = 'Chưa chọn web nhận dịch vụ'; return; }
         if (!(body.vnd > 0)) { errBox.textContent = 'Chưa nhập số tiền'; return; }
         if (pre) { toReview([body]); return; }
+        if (old && old.qh) {
+          const mf = [];
+          if (body.type !== old.type) mf.push('type');
+          if (body.wid !== old.wid) mf.push('wids');
+          if (body.date !== old.date) mf.push('date');
+          if (body.vnd !== old.vnd || body.usdt !== old.usdt) mf.push('money');
+          if ((body.ncc || '') !== (old.ncc || '')) mf.push('ncc');
+          if ((body.note || '') !== (old.note || '')) mf.push('note');
+          if ((body.code || '') !== (old.code || '')) mf.push('code');
+          if (body.type === 'textlink' && (body.from !== old.from || body.to !== old.to)) mf.push('tl');
+          if ((body.acc || []).join(' ') !== (old.acc || []).join(' ')) mf.push('acc');
+          body.qh = Object.assign({}, old.qh, { man: [...new Set((old.qh.man || []).concat(mf))] });
+        }
         const btn = o.querySelector('[data-x="ok"]');
         btn.disabled = true;
         try {
@@ -1486,5 +1695,5 @@ select.f[data-k="st"]{font-weight:700}
     }).catch(() => true);
   }
 
-  window.BUD = { headRight, rowRight, sortVal, colgroup, applyUI, afterRender, enter, load, ensure, reload, icon, iconHost, warnCut, refreshIcons, khoBatches, batchPrice, parseVnd, parseUsdt, _D: D, _U: U, compute: () => compute() };
+  window.BUD = { headRight, rowRight, sortVal, colgroup, applyUI, afterRender, enter, load, ensure, reload, icon, iconHost, warnCut, refreshIcons, khoBatches, batchPrice, parseVnd, parseUsdt, _D: D, _U: U, _QH: QH, compute: () => compute() };
 })();
